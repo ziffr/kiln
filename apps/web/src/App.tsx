@@ -7,7 +7,7 @@ import {
   coreActivities,
   customers,
 } from "@vbd/narrative";
-import { compileCapabilities, type CapabilityDoc, type CapabilityInput } from "@vbd/compiler";
+import { compileCapabilities, type AggregateInput, type CapabilityDoc, type CapabilityInput } from "@vbd/compiler";
 import { validateAll, validateDomain } from "@vbd/validation";
 import { mockGenerateCapabilities, mockGenerateDomain } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
@@ -196,6 +196,35 @@ export default function App(): React.JSX.Element {
     const cap: CapabilityInput = { id, name: "New Capability", purpose: "", outcomes: [] };
     patchActive({ capabilities: { ...base, capabilities: [...base.capabilities, cap] }, provider: "hand-edited", domain: null });
     setSelected(id);
+  }
+
+  // ---- Entity (aggregate) editing (SPEC-002 DM: the model proposes, the human decides) ----
+  // Editing materializes the live domain (mock or LLM) into the project, then patches it. Any
+  // hand-edit flips the aggregate's origin to "authored" (golden invariant #2) while keeping its
+  // derivedFrom trail.
+  function editAggregate(updated: AggregateInput): void {
+    const base = active.domain ?? mockDomain;
+    const authored = { ...updated, meta: { ...(updated.meta ?? {}), origin: "authored" } };
+    patchActive({ domain: { ...base, aggregates: base.aggregates.map((a) => (a.id === updated.id ? authored : a)) } });
+  }
+  function deleteAggregate(id: string): void {
+    const base = active.domain ?? mockDomain;
+    patchActive({
+      domain: {
+        ...base,
+        aggregates: base.aggregates
+          .filter((a) => a.id !== id)
+          .map((a) => ({ ...a, references: (a.references ?? []).filter((r) => r !== id) })),
+      },
+    });
+  }
+  function addAggregate(ownerId: string): void {
+    const base = active.domain ?? mockDomain;
+    let n = base.aggregates.length + 1;
+    let id = `entity_${n}`;
+    while (base.aggregates.some((a) => a.id === id)) id = `entity_${++n}`;
+    const agg: AggregateInput = { id, name: "New Entity", owner: ownerId, attributes: [], references: [], meta: { origin: "authored" } };
+    patchActive({ domain: { ...base, aggregates: [...base.aggregates, agg] } });
   }
 
   // ---- Project actions ----
@@ -393,6 +422,9 @@ export default function App(): React.JSX.Element {
               selectedId={selected}
               onEdit={editCapability}
               onDelete={deleteCapability}
+              onEditAggregate={editAggregate}
+              onDeleteAggregate={deleteAggregate}
+              onAddAggregate={addAggregate}
               onClose={() => setSelected(null)}
             />
           </div>

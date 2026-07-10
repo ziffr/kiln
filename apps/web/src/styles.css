@@ -182,6 +182,14 @@ textarea {
 .nd-entity { display: flex; flex-direction: column; gap: 1px; padding: 5px 8px; margin-top: 5px; background: #0b1020; border: 1px solid var(--edge); border-radius: 8px; }
 .nd-entity-name { font-size: 13px; font-weight: 600; }
 .nd-entity-refs { font-size: 10px; color: var(--muted); }
+.nd-entity.edit { gap: 4px; padding: 8px; }
+.nd-entity-head { display: flex; align-items: center; gap: 6px; }
+.nd-entity.edit input.nd-entity-name { flex: 1; background: transparent; border: none; border-bottom: 1px solid var(--edge); color: inherit; padding: 2px 0; font-size: 13px; font-weight: 600; }
+.nd-entity.edit input.nd-entity-name:focus { outline: none; border-bottom-color: var(--accent); }
+.nd-id.sm { margin: 0; font-size: 10px; }
+.nd-authored { font-size: 11px; color: var(--accent); }
+.nd-add-entity { margin-top: 6px; padding: 4px 10px; font-size: 12px; background: transparent; color: var(--accent); border: 1px dashed var(--edge); border-radius: 8px; cursor: pointer; }
+.nd-add-entity:hover { border-color: var(--accent); }
 .genbar .addcap {
   background: var(--card); color: var(--fg); border: 1px solid var(--edge);
   border-radius: 6px; padding: 7px 11px; font-size: 13px; cursor: pointer;

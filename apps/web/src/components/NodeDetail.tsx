@@ -58,6 +58,9 @@ export function NodeDetail({
   selectedId,
   onEdit,
   onDelete,
+  onEditAggregate,
+  onDeleteAggregate,
+  onAddAggregate,
   onClose,
 }: {
   doc: CapabilityDoc;
@@ -65,6 +68,9 @@ export function NodeDetail({
   selectedId: string | null;
   onEdit: (cap: CapabilityInput) => void;
   onDelete: (id: string) => void;
+  onEditAggregate?: (agg: AggregateInput) => void;
+  onDeleteAggregate?: (id: string) => void;
+  onAddAggregate?: (ownerId: string) => void;
   onClose: () => void;
 }): React.JSX.Element | null {
   const { t } = useTranslation();
@@ -108,20 +114,50 @@ export function NodeDetail({
       )}
 
       {(() => {
-        // In-context domain drill-down (SPEC-002 DM1): the entities this capability owns.
+        // In-context domain drill-down (SPEC-002): the entities this capability owns — editable
+        // forms (the model proposes, the human decides). Hand-edits flip origin to "authored".
         const owned = aggregates.filter((a) => a.owner === cap.id);
-        if (owned.length === 0) return null;
+        const editable = !!onEditAggregate;
+        if (owned.length === 0 && !onAddAggregate) return null;
         return (
           <div className="nd-entities">
             <span className="nd-label">{t("entities")}</span>
-            {owned.map((a) => (
-              <div className="nd-entity" key={a.id}>
-                <span className="nd-entity-name">{a.name}</span>
-                {(a.references ?? []).length > 0 && (
-                  <span className="nd-entity-refs">{t("references")}: {(a.references ?? []).join(", ")}</span>
-                )}
-              </div>
-            ))}
+            {owned.map((a) =>
+              editable ? (
+                <div className="nd-entity edit" key={a.id}>
+                  <div className="nd-entity-head">
+                    <input
+                      className="nd-entity-name"
+                      value={a.name}
+                      onChange={(e) => onEditAggregate?.({ ...a, name: e.target.value })}
+                    />
+                    {(a.meta?.origin === "authored") && <span className="nd-authored" title={t("edited")}>✎</span>}
+                    <button className="chip-x" onClick={() => onDeleteAggregate?.(a.id)} aria-label="remove entity">×</button>
+                  </div>
+                  <code className="nd-id sm">{a.id}</code>
+                  <TagList
+                    label={t("references")}
+                    values={a.references ?? []}
+                    onChange={(v) => onEditAggregate?.({ ...a, references: v })}
+                  />
+                  <TagList
+                    label={t("attributes")}
+                    values={a.attributes ?? []}
+                    onChange={(v) => onEditAggregate?.({ ...a, attributes: v })}
+                  />
+                </div>
+              ) : (
+                <div className="nd-entity" key={a.id}>
+                  <span className="nd-entity-name">{a.name}</span>
+                  {(a.references ?? []).length > 0 && (
+                    <span className="nd-entity-refs">{t("references")}: {(a.references ?? []).join(", ")}</span>
+                  )}
+                </div>
+              ),
+            )}
+            {onAddAggregate && (
+              <button className="nd-add-entity" onClick={() => onAddAggregate(cap.id)}>{t("addEntity")}</button>
+            )}
           </div>
         );
       })()}

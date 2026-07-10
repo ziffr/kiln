@@ -227,7 +227,7 @@ Success-criteria (§8) status:
 - **A5 (grounded provenance, DM8) — MET.** provenanceRate 1.000; `groundDomainProvenance` targets the owning capability; id normalization keeps ids stable slugs.
 - **A1 (a domain reviewer calls it substantially correct) — OPEN.** The *instrument* exists and is green on the mock/structural axis, but "substantially correct" is a human judgment that needs the **design partner** — the same gate as §0.1.
 - **A6 (a target user rates the domain view worth acting on) — OPEN.** Needs the design partner.
-- **A4 (second-domain smoke test) — PARTIAL.** The stack is domain-agnostic (data/prompt/config only) and the harness is domain-parameterized, but a second-domain walkthrough has not been run.
+- **A4 (second-domain smoke test) — MET (2026-07-10, via SPEC-003 §14).** A dental-clinic narrative ran through the unchanged stack (data/prompt only) → coherent capabilities + business areas, no code change. Verticality generalizes.
 
 **Decision — GO / HOLD (split):**
 - **GO** on the engineering axis: the aggregates-first increment passes its structural exit gate

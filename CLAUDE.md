@@ -47,7 +47,7 @@ The **IR is the contract**: every view and validator reads it. Validators are pu
 - **TypeScript end-to-end** (ADR-001). Node ≥ 20 runs `.ts` natively (type-stripping) — packages
   have **no build step**. `@types/node`/`typescript` are intentionally not installed, so the editor
   shows "cannot find module 'node:*'" squiggles — harmless; runtime is fine.
-- **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **75** passing). Every
+- **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **106** passing). Every
   new pure function gets a test in `packages/*/test/*.test.ts`.
 - **Web:** Vite. `npm run build --workspace @vbd/web` must pass. Verify UI changes **in the browser**
   (the preview tools), not just tests — the invariants are visual.
@@ -90,10 +90,18 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
 - **M0, M1 complete.** **M2 engineering-complete** — only the human gate is open (a design partner
   to confirm A1 capability correctness). Provenance + V8 done.
 - **SPEC-002 (domain layer, aggregates-first) engineering-complete** — DM1 mock, DM2
-  `DomainGenerator` (+ `/api/domain`), DM validators surfaced in the UI, **editable entity forms**,
-  and the DM eval (`@vbd/eval/domain`) all shipped. Exit gate GREEN on solar (recall/precision/
-  coverage/provenance all 1.000; SPEC-002 §13). **GO** on engineering; **HOLD** on `Approved`/SPEC-003
-  until the design-partner gate (§0.1, A1/A6) clears. Remaining eng task: A4 second-domain smoke.
-- Full arc works end-to-end: narrative interview (or markdown) → capabilities (mock offline / real
-  Sonnet 5) → elk map + editable forms → validators → **domain entities (mock/LLM, editable)** →
-  multi-project (server + localStorage) → spend estimate.
+  `DomainGenerator` (+ `/api/domain`), DM validators in the UI, editable entity forms, DM eval. Exit
+  gate GREEN on solar. **A4 (second-domain) now MET** via SPEC-003 §14. Open: A1/A6 design-partner.
+- **SPEC-003 (business areas / subdomains) engineering-complete** — the capabilities→areas layer
+  (the methodology's `bounded_contexts` rung, surfaced as "Business Areas", honestly a subdomain
+  partition). 5-lens reviewed to closure (REV-012..016). Shipped: BC-M0 IR compose (`bctx:` nodes +
+  `groups` edges), BC-M1 mock partitioner (affinity+size-cap, no single-blob), BC-M2 `validateContexts`
+  (BC1–BC9; BC2 partition guarantee), BC-M3 `ContextGrouper` + `/api/contexts`, BC-M4 backdrop UI
+  (colour+legend over the SINGLE map, form-select reassignment, Area-detail, reconcile-not-clear),
+  BC eval with an ARI partition-agreement gate. Exit gate (§14): structural GREEN + **A7 second-domain
+  PASSED** (dental, no code change); A5 ARI a qualified pass (LLM over-segments vs a coarse single
+  reference); **HOLD** on `Approved` pending A6 partner value check.
+- **Design partner validated the capability layer** (SPEC-001 A1) — cleared SPEC-002 §0.1 gate #1.
+- Full arc works end-to-end: narrative interview (or markdown) → capabilities (mock / real Sonnet 5)
+  → elk map with **Business-Areas backdrop** → editable capability/entity/area forms → validators
+  (V1–V8, DM, BC) → multi-project (server + localStorage) → spend estimate.

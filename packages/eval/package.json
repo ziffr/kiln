@@ -1,0 +1,15 @@
+{
+  "name": "@vbd/eval",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./corpus.solar": "./src/corpus.solar.ts"
+  },
+  "dependencies": {
+    "@vbd/compiler": "*",
+    "@vbd/validation": "*"
+  }
+}

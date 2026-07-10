@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+
+# Derived cache — never source of truth (ADR-002)
+.vbd/
+workspaces/*/.vbd/
+
+# Local env / secrets
+.env
+.env.*

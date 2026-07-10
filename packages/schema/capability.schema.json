@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vbd.dev/schema/capability.schema.json",
+  "title": "Business Capability",
+  "description": "A single authored capability (SPEC-001 §3.2). Required: id, name, purpose, outcomes. LLM-seeded capabilities additionally require meta.derivedFrom (enforced by validator V8).",
+  "type": "object",
+  "required": ["id", "name", "purpose", "outcomes"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "name": { "type": "string", "minLength": 1 },
+    "purpose": { "type": "string", "minLength": 1 },
+    "outcomes": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "actors": { "type": "array", "items": { "type": "string" } },
+    "produces": { "type": "array", "items": { "type": "string" } },
+    "consumes": { "type": "array", "items": { "type": "string" } },
+    "depends_on": { "type": "array", "items": { "type": "string" } },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "origin": { "enum": ["llm", "human"] },
+        "skillVersion": { "type": "string" },
+        "modelId": { "type": "string" },
+        "derivedFrom": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["section", "anchor", "contentHash"],
+            "properties": {
+              "section": { "type": "string" },
+              "anchor": { "type": "string" },
+              "contentHash": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

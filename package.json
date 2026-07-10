@@ -1,0 +1,20 @@
+{
+  "name": "vbd",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "VerticalBusinessDesigner (VBD) — an LLM-guided Business Compiler",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test packages/*/test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.base.json --noEmit"
+  },
+  "comment:devDependencies": "Run `npm i -D typescript @types/node` to enable `npm run typecheck`. Tests need no registry deps — `npm install` only links workspaces; `npm test` runs on Node's native TypeScript.",
+  "devDependencies": {}
+}

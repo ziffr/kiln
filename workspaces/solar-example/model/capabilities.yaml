@@ -1,0 +1,66 @@
+version: "0.2"
+domain: "solar-installer"
+capabilities:
+  - id: lead_management
+    name: Lead Management
+    purpose: Acquire and qualify prospective customers.
+    outcomes: [qualified_lead]
+    actors: [Sales]
+    produces: [Lead]
+    depends_on: []
+    meta:
+      origin: llm
+      skillVersion: "capgen@0.2"
+      derivedFrom:
+        - { section: "Core Activities", anchor: "acquire-leads", contentHash: "TODO" }
+
+  - id: planning
+    name: Planning
+    purpose: Create technical energy-system designs for a customer's site.
+    outcomes: [approved_design]
+    actors: [Planner]
+    produces: [EnergySystemDesign, BillOfMaterials]
+    consumes: [Lead]
+    depends_on: [lead_management]
+
+  - id: offer_management
+    name: Offer Management
+    purpose: Turn an approved design into a commercial offer and win the order.
+    outcomes: [signed_contract]
+    actors: [Sales]
+    produces: [Offer, Contract]
+    consumes: [EnergySystemDesign]
+    depends_on: [planning]
+
+  - id: procurement
+    name: Procurement
+    purpose: Source and secure components and their availability.
+    outcomes: [materials_available]
+    produces: [PurchaseOrder]
+    consumes: [BillOfMaterials]
+    depends_on: [planning]
+
+  - id: installation
+    name: Installation
+    purpose: Execute and commission the ordered system on site.
+    outcomes: [system_commissioned]
+    actors: [Installer]
+    produces: [InstalledSystem]
+    consumes: [Contract, PurchaseOrder]
+    depends_on: [offer_management, procurement]
+
+  - id: monitoring
+    name: Monitoring & Service
+    purpose: Operate, monitor, and maintain installed systems.
+    outcomes: [system_healthy]
+    produces: [MonitoringData]
+    consumes: [InstalledSystem]
+    depends_on: [installation]
+
+  - id: billing
+    name: Billing
+    purpose: Financial settlement of delivered projects and services.
+    outcomes: [invoice_paid]
+    produces: [Invoice, Payment]
+    consumes: [Contract]
+    depends_on: [offer_management]

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateV1, validateV2, validateAll } from "../src/index.ts";
-import type { CapabilityDoc } from "@vbd/compiler";
+import { validateV1, validateV2, validateAll, validateDomain } from "../src/index.ts";
+import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
 
 const clean: CapabilityDoc = {
   version: "0.2",
@@ -97,6 +97,40 @@ test("V7 flags an overlapping pair (one purpose subsumes the other)", () => {
   assert.ok(validateAll(d).some((x) => x.code === "V7.overlap"));
   // the pristine solar mock model must NOT trip V7 (no false positives)
   assert.ok(!validateAll(clean).some((x) => x.code === "V7.overlap"));
+});
+
+const domainClean: DomainDoc = {
+  version: "0.1",
+  aggregates: [{ id: "lead", name: "Lead", owner: "lead_management", references: [] }],
+};
+
+test("DM: a valid domain model (owner exists, own covered) yields no blocking findings", () => {
+  const f = validateDomain(domainClean, ["lead_management"]);
+  assert.ok(!f.some((x) => x.severity === "blocker" || x.severity === "major"));
+});
+
+test("DM2 flags an aggregate whose owner is not a capability", () => {
+  const d: DomainDoc = { version: "0.1", aggregates: [{ id: "x", name: "X", owner: "ghost" }] };
+  assert.ok(validateDomain(d, ["lead_management"]).some((x) => x.code === "DM2.owner"));
+});
+
+test("DM6 flags a dangling aggregate reference; DM7 flags a duplicate id", () => {
+  const d: DomainDoc = {
+    version: "0.1",
+    aggregates: [
+      { id: "a", name: "A", owner: "lead_management", references: ["nope"] },
+      { id: "a", name: "A2", owner: "lead_management" },
+    ],
+  };
+  const f = validateDomain(d, ["lead_management"]);
+  assert.ok(f.some((x) => x.code === "DM6.dangling"));
+  assert.ok(f.some((x) => x.code === "DM7.unique" && x.severity === "blocker"));
+});
+
+test("DM5 is a warning (minor), not an error, for a capability owning no aggregate", () => {
+  const f = validateDomain(domainClean, ["lead_management", "billing"]);
+  const dm5 = f.find((x) => x.code === "DM5.uncovered");
+  assert.ok(dm5 && dm5.severity === "minor" && dm5.subjects.includes("billing"));
 });
 
 test("finding ids are stable / content-addressed across runs", () => {

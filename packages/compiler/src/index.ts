@@ -39,15 +39,36 @@ export interface CapabilityDoc {
   capabilities: CapabilityInput[];
 }
 
-/**
- * Deterministic buildHash binding authored input to compiler + schema versions
- * (SPEC-001 §3.4). Exposed so the store can verify a `.vbd/` cache without recompiling.
- */
-export function computeBuildHash(doc: CapabilityDoc): string {
-  return sha256(`${canonical(doc)}|${COMPILER_VERSION}|${SCHEMA_VERSION}`);
+/** SPEC-002 domain model (aggregates-first): entities each capability owns. */
+export interface AggregateInput {
+  id: string;
+  name: string;
+  owner: string; // capability id (exactly one — DM2)
+  attributes?: string[];
+  references?: string[]; // other aggregate ids this one references (shared entities)
+  meta?: Record<string, unknown>;
 }
 
-export function compileCapabilities(doc: CapabilityDoc): IR {
+export interface DomainDoc {
+  version: string;
+  aggregates: AggregateInput[];
+}
+
+/** Namespaced IR node id for an aggregate (REV-010 M1: avoid collision with capability ids). */
+export function aggregateNodeId(id: string): string {
+  return `aggregate:${slug(id)}`;
+}
+
+/**
+ * Deterministic buildHash binding authored input to compiler + schema versions
+ * (SPEC-001 §3.4). Mixes both authored artifacts when a domain model is present (REV-010 M5).
+ */
+export function computeBuildHash(doc: CapabilityDoc, domain?: DomainDoc): string {
+  const domainPart = domain ? canonical(domain) : "";
+  return sha256(`${canonical(doc)}|${domainPart}|${COMPILER_VERSION}|${SCHEMA_VERSION}`);
+}
+
+export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc): IR {
   const nodes = new Map<string, IRNode>();
   const edges = new Map<string, IREdge>();
 
@@ -56,6 +77,15 @@ export function compileCapabilities(doc: CapabilityDoc): IR {
   };
   const addEdge = (e: IREdge): void => {
     if (!edges.has(e.id)) edges.set(e.id, e);
+  };
+
+  // Authored aggregate slugs (SPEC-002): an authored aggregate SUPERSEDES the same-slug derived
+  // `domain_object` implied by produces/consumes (REV-010 M2) — the edge retargets to it.
+  const aggSlugs = new Set((domain?.aggregates ?? []).map((a) => slug(a.id)));
+  /** Node id for a produced/consumed object: the authored aggregate if it exists, else derived. */
+  const objectTarget = (name: string): { id: string; authored: boolean } => {
+    const s = slug(name);
+    return aggSlugs.has(s) ? { id: aggregateNodeId(s), authored: true } : { id: `domain_object:${s}`, authored: false };
   };
 
   for (const cap of doc.capabilities) {
@@ -86,28 +116,16 @@ export function compileCapabilities(doc: CapabilityDoc): IR {
       addNode({ id: `actor:${slug(a)}`, type: "actor", origin: "derived", label: a, meta: {} });
     }
 
-    // Produced/consumed domain objects: derived placeholder nodes; edges authored.
+    // Produced/consumed objects: derived placeholder nodes UNLESS an authored aggregate supersedes.
     for (const d of cap.produces ?? []) {
-      const did = `domain_object:${slug(d)}`;
-      addNode({ id: did, type: "domain_object", origin: "derived", label: d, meta: {} });
-      addEdge({
-        id: edgeId(cap.id, did, "produces"),
-        from: cap.id,
-        to: did,
-        type: "produces",
-        origin: "authored",
-      });
+      const tgt = objectTarget(d);
+      if (!tgt.authored) addNode({ id: tgt.id, type: "domain_object", origin: "derived", label: d, meta: {} });
+      addEdge({ id: edgeId(cap.id, tgt.id, "produces"), from: cap.id, to: tgt.id, type: "produces", origin: "authored" });
     }
     for (const d of cap.consumes ?? []) {
-      const did = `domain_object:${slug(d)}`;
-      addNode({ id: did, type: "domain_object", origin: "derived", label: d, meta: {} });
-      addEdge({
-        id: edgeId(cap.id, did, "consumes"),
-        from: cap.id,
-        to: did,
-        type: "consumes",
-        origin: "authored",
-      });
+      const tgt = objectTarget(d);
+      if (!tgt.authored) addNode({ id: tgt.id, type: "domain_object", origin: "derived", label: d, meta: {} });
+      addEdge({ id: edgeId(cap.id, tgt.id, "consumes"), from: cap.id, to: tgt.id, type: "consumes", origin: "authored" });
     }
 
     // Capability→capability dependencies: authored edges (target validated later by V5).
@@ -122,6 +140,25 @@ export function compileCapabilities(doc: CapabilityDoc): IR {
     }
   }
 
+  // SPEC-002 domain model: authored aggregate nodes + owns/references edges.
+  for (const agg of domain?.aggregates ?? []) {
+    const aid = aggregateNodeId(agg.id);
+    addNode({
+      id: aid,
+      type: "aggregate",
+      origin: "authored",
+      label: agg.name ?? agg.id,
+      meta: { ...(agg.meta ?? {}), attributes: agg.attributes ?? [] },
+    });
+    if (agg.owner) {
+      addEdge({ id: edgeId(agg.owner, aid, "owns"), from: agg.owner, to: aid, type: "owns", origin: "authored" });
+    }
+    for (const ref of agg.references ?? []) {
+      const rid = aggregateNodeId(ref);
+      addEdge({ id: edgeId(aid, rid, "references"), from: aid, to: rid, type: "references", origin: "authored" });
+    }
+  }
+
   const sortedNodes = [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
   const sortedEdges = [...edges.values()].sort((a, b) => a.id.localeCompare(b.id));
 
@@ -130,6 +167,6 @@ export function compileCapabilities(doc: CapabilityDoc): IR {
     domain: doc.domain,
     nodes: sortedNodes,
     edges: sortedEdges,
-    buildHash: computeBuildHash(doc),
+    buildHash: computeBuildHash(doc, domain),
   };
 }

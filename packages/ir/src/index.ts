@@ -12,13 +12,15 @@ export type NodeType =
   | "actor"
   | "outcome"
   | "domain_object"
+  | "aggregate" // SPEC-002: an entity a capability owns
   | "bounded_context";
 
 export type EdgeType =
   | "produces"
   | "consumes"
   | "depends_on"
-  | "owns"
+  | "owns" // capability → aggregate (SPEC-002)
+  | "references" // aggregate → aggregate (SPEC-002: shared entities)
   | "serves"
   | "groups";
 

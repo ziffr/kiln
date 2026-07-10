@@ -10,7 +10,7 @@
  */
 
 import { sha256 } from "@vbd/ir";
-import type { CapabilityDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
 
 export type Severity = "blocker" | "major" | "minor";
 
@@ -195,6 +195,49 @@ export function validateV8(doc: CapabilityDoc): Finding[] {
     if (!Array.isArray(meta.derivedFrom) || meta.derivedFrom.length === 0) {
       findings.push(finding("V8.provenance", "major", `capability '${c.id}' (llm) has no provenance`, [c.id || "<unknown>"]));
     }
+  }
+  return findings;
+}
+
+/**
+ * Domain-model validators (SPEC-002, aggregates-first): DM1 required fields, DM2 owner exists,
+ * DM5 (warning) capability owns ≥1 aggregate, DM6 dangling references, DM7 unique/stable ids.
+ * Needs the capability ids so it can check ownership. Pure and deterministic.
+ */
+export function validateDomain(domain: DomainDoc, capabilityIds: string[]): Finding[] {
+  const findings: Finding[] = [];
+  const capIds = new Set(capabilityIds);
+  const aggIds = new Set(domain.aggregates.map((a) => a.id).filter(Boolean));
+  const counts = new Map<string, number>();
+  const owned = new Set<string>();
+
+  for (const a of domain.aggregates) {
+    const subj = a.id || a.name || "<unknown>";
+    if (!a.id || !a.id.trim()) {
+      findings.push(mk("DM1.id", "blocker", "aggregate is missing an id", [subj]));
+    } else {
+      counts.set(a.id, (counts.get(a.id) ?? 0) + 1);
+      if (!ID_RE.test(a.id)) findings.push(mk("DM7.slug", "major", `aggregate id '${a.id}' is not a stable slug`, [a.id]));
+    }
+    if (!a.name || !a.name.trim()) findings.push(mk("DM1.name", "major", `aggregate '${subj}' is missing a name`, [subj]));
+    if (!a.owner || !a.owner.trim()) {
+      findings.push(mk("DM1.owner", "major", `aggregate '${subj}' has no owning capability`, [subj]));
+    } else {
+      owned.add(a.owner);
+      if (!capIds.has(a.owner)) {
+        findings.push(mk("DM2.owner", "major", `aggregate '${subj}' owner '${a.owner}' is not a capability`, [subj, a.owner]));
+      }
+    }
+    for (const r of a.references ?? []) {
+      if (!aggIds.has(r)) findings.push(mk("DM6.dangling", "major", `aggregate '${a.id}' references unknown '${r}'`, [a.id || "?", r]));
+    }
+  }
+  for (const [id, n] of counts) {
+    if (n > 1) findings.push(mk("DM7.unique", "blocker", `duplicate aggregate id '${id}' (${n}×)`, [id]));
+  }
+  // DM5 — warning (not error): a capability that owns no aggregate may be under-modeled (or pure orchestration).
+  for (const cid of capIds) {
+    if (!owned.has(cid)) findings.push(mk("DM5.uncovered", "minor", `capability '${cid}' owns no aggregate yet`, [cid]));
   }
   return findings;
 }

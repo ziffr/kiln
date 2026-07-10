@@ -22,6 +22,7 @@ const resources = {
       anchor: "Anker",
       language: "Sprache",
       dependsOn: "hängt ab von",
+      generatedNote: "aus dem Narrativ generiert (Mock-Generator, ohne LLM)",
     },
   },
   en: {
@@ -42,6 +43,7 @@ const resources = {
       anchor: "anchor",
       language: "Language",
       dependsOn: "depends on",
+      generatedNote: "generated from the narrative (mock generator, no LLM)",
     },
   },
 };

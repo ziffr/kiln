@@ -3,12 +3,12 @@ id: PLAN-001
 title: MVP Execution Plan (M0–M5)
 type: plan
 status: Approved
-version: 0.3.0
+version: 0.4.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
 updated: 2026-07-10
 supersedes: null
-related: [SPEC-001, ADR-001, ADR-002, REV-006]
+related: [SPEC-001, ADR-001, ADR-002, ADR-003, ADR-004, REV-006]
 reviewers: [delivery-execution]
 ---
 
@@ -93,6 +93,15 @@ Monorepo, npm workspaces (ADR-001):
 - **DoD:** solar narrative → capability map a domain reviewer calls "substantially correct"
   (pre-A1); every LLM capability carries valid provenance (V8 passes); the minimal harness runs
   against the seed corpus and reports a number.
+- **Status:** 🟡 **pipeline delivered (mock provider).** [ADR-004](../adr/ADR-004-llm-provider-and-skill-runtime.md)
+  + `@vbd/skills`: provider-agnostic `LlmProvider`, `CapabilityGenerator` (schema coercion +
+  one repair retry), `MockProvider` (deterministic keyword→capability derivation with provenance
+  anchors), `AnthropicProvider` (server-side stub). 7 tests green. **`apps/web` now GENERATES the
+  Capability Map from the narrative live** (edit narrative → new capabilities → new map),
+  client-side via the mock. **Remaining to CLOSE M2:** real `AnthropicProvider` via `apps/service`
+  + a wired key (secrets server-side, REV-005); **G-DP design-partner** to judge A1 correctness;
+  node detail panel + elkjs layout; wire `@vbd/eval` generation-coverage scoring. The mock proves
+  the *plumbing*, not the model's *judgment*.
 
 ### M3 — Validation + review loop
 - **Scope:** validators V3–V8; `CapabilityReviewer` (scoped to judgment; self-consistency k;

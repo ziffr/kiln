@@ -16,7 +16,7 @@ MVP in progress — see the governed docs under [`docs/`](docs/INDEX.md):
 - [ADR-001](docs/adr/ADR-001-typescript-end-to-end.md), [ADR-002](docs/adr/ADR-002-storage-and-source-of-truth.md) — key decisions
 - [CONVENTIONS.md](docs/CONVENTIONS.md) — documentation policy (status lifecycle, review process)
 
-**M0 complete; M1 complete (engine + web UI shell)** — 35 passing package tests; app builds & runs.
+**M0 & M1 complete; M2 pipeline delivered (mock generator)** — 42 passing package tests; app builds & runs. The web app now generates the Capability Map from the narrative live.
 
 ## Repository layout
 
@@ -30,6 +30,7 @@ packages/
   store/              @vbd/store — .vbd/ derived cache with buildHash-on-load (ADR-002)
   eval/               @vbd/eval — seeded-defect corpus + recall/precision scorer
   narrative/          @vbd/narrative — Business Narrative parser + completeness validators (M1)
+  skills/             @vbd/skills — LLM skill runtime; CapabilityGenerator + MockProvider (M2)
 apps/
   web/                @vbd/web — React + Vite SPA (narrative editor + Capability Map, DE/EN)
 workspaces/

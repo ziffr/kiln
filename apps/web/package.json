@@ -12,6 +12,7 @@
     "@vbd/compiler": "*",
     "@vbd/ir": "*",
     "@vbd/narrative": "*",
+    "@vbd/skills": "*",
     "@vbd/validation": "*",
     "@xyflow/react": "^12.11.0",
     "i18next": "^26.0.0",

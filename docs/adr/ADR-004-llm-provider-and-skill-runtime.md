@@ -1,0 +1,64 @@
+---
+id: ADR-004
+title: LLM provider & skill runtime — provider-agnostic, server-side secrets, mock for offline
+type: adr
+status: Approved
+version: 1.0.0
+author: Claude (Opus 4.8)
+created: 2026-07-10
+updated: 2026-07-10
+supersedes: null
+related: [SPEC-001, ADR-003, PLAN-001, REV-003, REV-005]
+---
+
+# ADR-004 — LLM provider & skill runtime
+
+## Status
+Approved. Realizes SPEC-001 §4 (named, schema-constrained skills) for M2, consistent with
+ADR-003 (client-side pure compute) and REV-005 (secrets, injection).
+
+## Context
+M2 introduces the first LLM skill, `CapabilityGenerator` (narrative → capabilities). We need a
+runtime that: is provider-agnostic (SPEC-001 §4), keeps API keys off the client (REV-005 F1/F8),
+is testable without a live model (REV-003 F2), and enforces structured output + repair-retry
+(SPEC-001 §4.4). We also have no design partner yet (G-DP gates *closing* M2) and no wired key.
+
+## Decision
+1. **Provider-agnostic `LlmProvider` interface** (`complete(request) → result`). Skills depend on
+   the interface, never a vendor SDK.
+2. **`MockProvider`** — a deterministic, dependency-free surrogate that derives capabilities from
+   the narrative's Core Activities via a keyword→capability rule table. It runs **client-side and
+   in tests** (no key, no network), so the whole pipeline — generation → provenance → validation →
+   IR → map — is exercisable offline today. It is explicitly a *stand-in for the LLM's mechanical
+   derivation*, not a substitute for its judgment.
+3. **`AnthropicProvider`** — the real provider (default model `claude-sonnet-5`, configurable),
+   a thin `fetch` client. It runs **server-side only** (`apps/service`, later milestone); the API
+   key comes from server env (`VBD_ANTHROPIC_API_KEY`) and **never reaches the browser** (REV-005).
+   The client requests generation from the service; it does not call the model directly.
+4. **Structured output + repair:** every skill request carries a JSON-Schema; provider output is
+   validated; on invalid/blocking output the skill runs **one repair retry**, then surfaces a soft
+   error (SPEC-001 §4.4, REV-003 F7). Repair prompts re-apply input-delimiting (REV-005 F10).
+5. **Prompt-injection posture:** the narrative is wrapped as explicit DATA, not instructions;
+   every generated capability must cite `meta.derivedFrom` anchors (evidence), and deterministic
+   validators (`@vbd/validation`) are the backstop for all objective claims (REV-005 F3).
+6. **Provenance & reproducibility:** generated capabilities record `meta.origin`, `skillVersion`,
+   and (for the real provider) `modelId`; generation is attributable (REV-005 F6).
+
+## Alternatives considered
+- **Anthropic SDK dependency** — deferred; a `fetch` client keeps `@vbd/skills` dependency-free
+  and browser/Node-isomorphic. Revisit if we need streaming/tool-use ergonomics.
+- **Client-side real LLM calls** — rejected: would expose the API key in the browser (REV-005).
+- **No mock (require a key to run generation)** — rejected: blocks all M2 dev/test on G-DP + a key.
+
+## Consequences
+- (+) The narrative→capabilities pipeline is buildable, testable, and demoable **now**, offline.
+- (+) Swapping in the real model is a provider change behind a stable interface; server owns secrets.
+- (+) Injection + provenance controls are structural, not bolted on.
+- (−) MockProvider quality ≠ LLM quality; **A1 (capability correctness) still requires the real
+  provider + design partner (G-DP)** to close M2. The mock proves the *plumbing*, not the *judgment*.
+- (−) The real provider path needs `apps/service` (later milestone) before it can run.
+
+## Follow-ups
+- `@vbd/skills`: `LlmProvider`, `MockProvider`, `AnthropicProvider` (stub), `CapabilityGenerator`.
+- `apps/service`: server route that runs `AnthropicProvider` with the env key.
+- Wire the eval harness (`@vbd/eval`) to score generator output (REV-006 F2).

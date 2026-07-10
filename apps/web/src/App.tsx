@@ -9,7 +9,8 @@ import {
 } from "@vbd/narrative";
 import { compileCapabilities } from "@vbd/compiler";
 import { validateAll } from "@vbd/validation";
-import { narrativeMd, solarCapabilities } from "./data/solar";
+import { mockGenerateCapabilities } from "@vbd/skills";
+import { narrativeMd } from "./data/solar";
 import { CapabilityMap } from "./components/CapabilityMap";
 
 function FindingsBadge({ count }: { count: number }): React.JSX.Element {
@@ -29,8 +30,11 @@ export default function App(): React.JSX.Element {
   // Everything below runs client-side over the pure @vbd/* packages (ADR-003 §4).
   const doc = useMemo(() => parseNarrative(text), [text]);
   const narrativeFindings = useMemo(() => validateNarrative(doc), [doc]);
-  const ir = useMemo(() => compileCapabilities(solarCapabilities), []);
-  const capFindings = useMemo(() => validateAll(solarCapabilities), []);
+  // M2: capabilities are GENERATED from the narrative (mock generator, client-side, ADR-004),
+  // then compiled to the IR the map renders. Editing the narrative regenerates the map live.
+  const generated = useMemo(() => mockGenerateCapabilities(doc), [doc]);
+  const ir = useMemo(() => compileCapabilities(generated), [generated]);
+  const capFindings = useMemo(() => validateAll(generated), [generated]);
 
   return (
     <div className="app">
@@ -108,6 +112,7 @@ export default function App(): React.JSX.Element {
             <h2>{t("capabilities")}</h2>
             <FindingsBadge count={capFindings.length} />
           </div>
+          <p className="hint">{t("generatedNote")}</p>
           <CapabilityMap ir={ir} />
         </section>
       </main>

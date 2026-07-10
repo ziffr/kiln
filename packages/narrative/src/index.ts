@@ -31,7 +31,8 @@ export interface NarrativeDoc {
 /** Required sections for a well-formed narrative (SPEC-001 §3.1). */
 export const REQUIRED_SECTIONS = ["Purpose", "Customers", "Business Outcomes", "Core Activities"];
 
-function anchorize(s: string): string {
+/** Stable hyphenated anchor from a heading or item (shared with capability provenance). */
+export function anchorize(s: string): string {
   return s
     .trim()
     .toLowerCase()

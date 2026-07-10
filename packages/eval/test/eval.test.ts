@@ -28,11 +28,11 @@ test("the clean case produces no false positives (precision 1, no findings)", ()
   assert.equal(s.precision, 1);
 });
 
-test("pending corpus documents future V3/V7 defects (not yet detectable)", () => {
-  assert.ok(pendingCorpus.length >= 2);
+test("pending corpus documents future V3 coverage defects (not yet detectable)", () => {
+  assert.ok(pendingCorpus.length >= 1);
   assert.ok(pendingCorpus.every((c) => c.expected.length > 0));
-  // With only V1/V2 today, these higher-order defects remain unmet — by design.
+  // V3 (narrative outcome coverage) isn't a deterministic doc-only check yet, so these remain unmet.
   for (const c of pendingCorpus) {
-    assert.ok(scoreCase(c).unmet.length > 0, `${c.id} should still be unmet at M0`);
+    assert.ok(scoreCase(c).unmet.length > 0, `${c.id} should still be unmet`);
   }
 });

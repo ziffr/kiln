@@ -46,6 +46,59 @@ test("V2 flags a non-slug id", () => {
   assert.ok(validateV2(d).some((f) => f.code === "V2.slug"));
 });
 
+test("V4 flags an isolated capability (but not a lone one)", () => {
+  // lone capability → not an orphan
+  assert.ok(!validateAll(clean).some((f) => f.code === "V4.orphan"));
+  // add a connected pair + one disconnected extra
+  const d: CapabilityDoc = {
+    version: "0.2",
+    domain: "solar-installer",
+    capabilities: [
+      { id: "a", name: "A", purpose: "p", outcomes: ["o"] },
+      { id: "b", name: "B", purpose: "p2", outcomes: ["o2"], depends_on: ["a"] },
+      { id: "island", name: "Island", purpose: "alone", outcomes: ["o3"] },
+    ],
+  };
+  const f = validateAll(d);
+  assert.ok(f.some((x) => x.code === "V4.orphan" && x.subjects.includes("island")));
+  assert.ok(!f.some((x) => x.code === "V4.orphan" && x.subjects.includes("a")));
+});
+
+test("V5 flags a depends_on to an unknown capability", () => {
+  const d: CapabilityDoc = {
+    version: "0.2",
+    domain: "solar-installer",
+    capabilities: [{ id: "a", name: "A", purpose: "p", outcomes: ["o"], depends_on: ["ghost"] }],
+  };
+  assert.ok(validateAll(d).some((x) => x.code === "V5.dangling" && x.subjects.includes("ghost")));
+});
+
+test("V6 flags a dependency cycle", () => {
+  const d: CapabilityDoc = {
+    version: "0.2",
+    domain: "solar-installer",
+    capabilities: [
+      { id: "a", name: "A", purpose: "p", outcomes: ["o"], depends_on: ["b"] },
+      { id: "b", name: "B", purpose: "p", outcomes: ["o"], depends_on: ["a"] },
+    ],
+  };
+  assert.ok(validateAll(d).some((x) => x.code === "V6.cycle"));
+});
+
+test("V7 flags an overlapping pair (one purpose subsumes the other)", () => {
+  const d: CapabilityDoc = {
+    version: "0.2",
+    domain: "solar-installer",
+    capabilities: [
+      { id: "lead_management", name: "Lead Management", purpose: "Acquire and qualify prospective customers.", outcomes: ["o"] },
+      { id: "customer_management", name: "Customer Management", purpose: "Acquire and qualify prospective customers and manage the relationship.", outcomes: ["o2"], depends_on: ["lead_management"] },
+    ],
+  };
+  assert.ok(validateAll(d).some((x) => x.code === "V7.overlap"));
+  // the pristine solar mock model must NOT trip V7 (no false positives)
+  assert.ok(!validateAll(clean).some((x) => x.code === "V7.overlap"));
+});
+
 test("finding ids are stable / content-addressed across runs", () => {
   const d = structuredClone(clean);
   d.capabilities[0].outcomes = [];

@@ -77,6 +77,115 @@ export function validateV2(doc: CapabilityDoc): Finding[] {
   return findings;
 }
 
+/** V4 — orphan: a capability with no relationships at all (no deps in/out, no produces/consumes). */
+export function validateV4(doc: CapabilityDoc): Finding[] {
+  const findings: Finding[] = [];
+  if (doc.capabilities.length <= 1) return findings; // a lone capability isn't an orphan
+  const dependedOn = new Set<string>();
+  for (const c of doc.capabilities) for (const d of c.depends_on ?? []) dependedOn.add(d);
+  for (const c of doc.capabilities) {
+    if (!c.id) continue;
+    const connected =
+      (c.depends_on?.length ?? 0) > 0 ||
+      (c.produces?.length ?? 0) > 0 ||
+      (c.consumes?.length ?? 0) > 0 ||
+      dependedOn.has(c.id);
+    if (!connected) {
+      findings.push(mk("V4.orphan", "minor", `capability '${c.id}' is isolated (no relationships)`, [c.id]));
+    }
+  }
+  return findings;
+}
+
+/** V5 — dangling edge: a `depends_on` that references a non-existent capability id. */
+export function validateV5(doc: CapabilityDoc): Finding[] {
+  const findings: Finding[] = [];
+  const ids = new Set(doc.capabilities.map((c) => c.id).filter(Boolean));
+  for (const c of doc.capabilities) {
+    for (const dep of c.depends_on ?? []) {
+      if (!ids.has(dep)) {
+        findings.push(mk("V5.dangling", "major", `capability '${c.id}' depends on unknown '${dep}'`, [c.id || "?", dep]));
+      }
+    }
+  }
+  return findings;
+}
+
+/** V6 — the depends_on graph must be acyclic; report each cycle's path. */
+export function validateV6(doc: CapabilityDoc): Finding[] {
+  const findings: Finding[] = [];
+  const deps = new Map(doc.capabilities.map((c) => [c.id, (c.depends_on ?? []).filter((d) => d)]));
+  const state = new Map<string, 0 | 1 | 2>(); // 0=unseen,1=on-stack,2=done
+  const reported = new Set<string>();
+
+  const visit = (id: string, stack: string[]): void => {
+    state.set(id, 1);
+    stack.push(id);
+    for (const next of deps.get(id) ?? []) {
+      if (!deps.has(next)) continue; // dangling → V5's job
+      const s = state.get(next) ?? 0;
+      if (s === 1) {
+        const cycle = stack.slice(stack.indexOf(next)).concat(next);
+        const key = [...cycle].sort().join(",");
+        if (!reported.has(key)) {
+          reported.add(key);
+          findings.push(mk("V6.cycle", "major", `dependency cycle: ${cycle.join(" → ")}`, cycle.slice(0, -1)));
+        }
+      } else if (s === 0) {
+        visit(next, stack);
+      }
+    }
+    stack.pop();
+    state.set(id, 2);
+  };
+
+  for (const c of doc.capabilities) if (c.id && (state.get(c.id) ?? 0) === 0) visit(c.id, []);
+  return findings;
+}
+
+const STOPWORDS = new Set([
+  "the", "a", "an", "and", "or", "of", "to", "for", "in", "on", "with", "their", "its", "this",
+  "management", "service", "services",
+]);
+
+function sigTokens(s: string): Set<string> {
+  return new Set(
+    (s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .split(" ")
+      .filter((w) => w.length > 2 && !STOPWORDS.has(w)),
+  );
+}
+
+/**
+ * Overlap coefficient (Szymkiewicz–Simpson): intersection / min(|a|,|b|). Better than Jaccard
+ * for "one capability's meaning is largely contained in another's" — the actual overlap smell.
+ * Guarded by a minimum token count so tiny descriptions don't trivially subsume.
+ */
+function overlapCoef(a: Set<string>, b: Set<string>): number {
+  if (a.size < 3 || b.size < 3) return 0;
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter++;
+  return inter / Math.min(a.size, b.size);
+}
+
+/** V7 — overlap candidate: two capabilities whose name+purpose are highly similar (heuristic). */
+export function validateV7(doc: CapabilityDoc, threshold = 0.7): Finding[] {
+  const findings: Finding[] = [];
+  const caps = doc.capabilities.filter((c) => c.id);
+  const toks = caps.map((c) => sigTokens(`${c.name ?? ""} ${c.purpose ?? ""}`));
+  for (let i = 0; i < caps.length; i++) {
+    for (let j = i + 1; j < caps.length; j++) {
+      if (overlapCoef(toks[i], toks[j]) >= threshold) {
+        const pair = [caps[i].id, caps[j].id].sort();
+        findings.push(mk("V7.overlap", "minor", `capabilities '${pair[0]}' and '${pair[1]}' look like they overlap`, pair));
+      }
+    }
+  }
+  return findings;
+}
+
 /** V8 — every LLM-authored capability must carry valid provenance (SPEC-001 §3.2). */
 export function validateV8(doc: CapabilityDoc): Finding[] {
   const findings: Finding[] = [];
@@ -90,7 +199,15 @@ export function validateV8(doc: CapabilityDoc): Finding[] {
   return findings;
 }
 
-/** Run all implemented validators. */
+/** Run all implemented validators (V1–V2, V4–V8; V3 outcome-coverage needs the narrative). */
 export function validateAll(doc: CapabilityDoc): Finding[] {
-  return [...validateV1(doc), ...validateV2(doc), ...validateV8(doc)];
+  return [
+    ...validateV1(doc),
+    ...validateV2(doc),
+    ...validateV4(doc),
+    ...validateV5(doc),
+    ...validateV6(doc),
+    ...validateV7(doc),
+    ...validateV8(doc),
+  ];
 }

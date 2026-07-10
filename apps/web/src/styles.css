@@ -103,6 +103,12 @@ textarea {
 .findings { margin: 10px 0 0; padding-left: 0; list-style: none; font-size: 12px; }
 .findings li { padding: 4px 0; border-top: 1px solid #1f2937; }
 .findings code { color: var(--warn-fg); }
+.cap-findings { max-height: 120px; overflow-y: auto; margin: 0 0 8px; }
+.cap-findings li.clickable { cursor: pointer; }
+.cap-findings li.clickable:hover { background: #0b1020; }
+.cap-findings code.blocker { color: #fca5a5; }
+.cap-findings code.major { color: var(--warn-fg); }
+.cap-findings code.minor { color: var(--muted); }
 
 .sections { list-style: none; padding: 0; margin: 0 0 12px; }
 .sections li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid #1f2937; }

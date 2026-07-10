@@ -119,9 +119,13 @@ Monorepo, npm workspaces (ADR-001):
   Core Activities each capability derives from; the skill maps them to real narrative anchors +
   content hashes (bogus citations dropped) so generated caps carry validated `meta.derivedFrom`, and
   validator **V8** enforces provenance on every LLM-origin capability. **NarrativeCoach transcript
-  persists** per project (localStorage). 48 tests green. **Remaining to CLOSE M2 — engineering
-  complete; only the human gate is open:** a **G-DP design partner** (real operator) to confirm A1
-  capability correctness on a real vertical.
+  persists** per project (localStorage). **Validators V4–V7 landed** (M3): V4 orphan,
+  V5 dangling depends_on, V6 dependency cycle, V7 overlap (overlap-coefficient heuristic) — added to
+  `validateAll`; capability findings now surfaced as a **clickable review list** in the UI (click →
+  select the affected capability); the map drops dangling edges instead of blanking. 52 tests green.
+  **Remaining:** V3 (narrative-outcome coverage) is LLM-judgment, deferred. **To CLOSE M2 —
+  engineering complete; only the human gate is open:** a **G-DP design partner** (real operator) to
+  confirm A1 capability correctness on a real vertical.
 
 ### M3 — Validation + review loop
 - **Scope:** validators V3–V8; `CapabilityReviewer` (scoped to judgment; self-consistency k;

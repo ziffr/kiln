@@ -275,6 +275,19 @@ export default function App(): React.JSX.Element {
           )}
           {error && <p className="err-line"><code>{error}</code> — {t("serviceHint")}</p>}
 
+          {capFindings.length > 0 && (
+            <ul className="findings cap-findings">
+              {capFindings.map((f) => {
+                const subj = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x));
+                return (
+                  <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && setSelected(subj)}>
+                    <code className={f.severity}>{f.code}</code> {f.message}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
           <div className="map-wrap">
             <CapabilityMap ir={ir} selectedId={selected} onSelect={setSelected} />
             <NodeDetail

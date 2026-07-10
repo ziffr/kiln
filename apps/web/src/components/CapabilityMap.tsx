@@ -56,7 +56,9 @@ export function CapabilityMap({ ir, selectedId, onSelect }: { ir: IR } & Selecta
   useEffect(() => {
     let cancelled = false;
     const caps = ir.nodes.filter((n) => n.type === "capability");
-    const depEdges = ir.edges.filter((e) => e.type === "depends_on");
+    const capIds = new Set(caps.map((c) => c.id));
+    // Drop dangling depends_on edges (target deleted) — V5 flags them; elk would otherwise throw.
+    const depEdges = ir.edges.filter((e) => e.type === "depends_on" && capIds.has(e.from) && capIds.has(e.to));
     const labelOf = new Map(ir.nodes.map((n) => [n.id, n.label]));
 
     const graph = {

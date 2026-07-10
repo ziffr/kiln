@@ -53,12 +53,9 @@ export const solarCorpus: EvalCase[] = [
     },
     expected: [{ code: "V2.slug", subject: "Lead Management", note: "spaces in id" }],
   },
-];
-
-export const pendingCorpus: EvalCase[] = [
   {
     id: "overlap-lead-vs-customer",
-    description: "Lead Management and Customer Management overlap — future V7 / LLM review.",
+    description: "Lead Management and Customer Management overlap — V7 flags the pair.",
     doc: {
       version: "0.2",
       domain: "solar-installer",
@@ -69,11 +66,15 @@ export const pendingCorpus: EvalCase[] = [
           name: "Customer Management",
           purpose: "Acquire and qualify prospective customers and manage the relationship.",
           outcomes: ["qualified_lead"],
+          depends_on: ["lead_management"], // connected → isolates the V7 signal (no V4 orphan)
         },
       ],
     },
-    expected: [{ code: "V7.overlap", note: "activated when V7 lands in M3" }],
+    expected: [{ code: "V7.overlap", note: "one purpose subsumes the other" }],
   },
+];
+
+export const pendingCorpus: EvalCase[] = [
   {
     id: "missing-procurement",
     description: "Outcome materials_available has no owning capability — future V3 coverage.",

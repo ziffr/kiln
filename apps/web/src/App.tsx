@@ -7,7 +7,7 @@ import {
   coreActivities,
   customers,
 } from "@vbd/narrative";
-import { compileCapabilities, type CapabilityDoc } from "@vbd/compiler";
+import { compileCapabilities, type CapabilityDoc, type CapabilityInput } from "@vbd/compiler";
 import { validateAll } from "@vbd/validation";
 import { mockGenerateCapabilities } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
@@ -92,6 +92,31 @@ export default function App(): React.JSX.Element {
     } finally {
       setBusy(false);
     }
+  }
+
+  // ---- Capability editing (structured forms, REV-004 F1) ----
+  // Editing materializes the live mock into the project's own capabilities, then patches it.
+  function editCapability(updated: CapabilityInput): void {
+    const base = active.capabilities ?? mockDoc;
+    const caps = base.capabilities.map((c) => (c.id === updated.id ? updated : c));
+    patchActive({ capabilities: { ...base, capabilities: caps }, provider: "hand-edited" });
+  }
+  function deleteCapability(id: string): void {
+    const base = active.capabilities ?? mockDoc;
+    patchActive({
+      capabilities: { ...base, capabilities: base.capabilities.filter((c) => c.id !== id) },
+      provider: "hand-edited",
+    });
+    setSelected(null);
+  }
+  function addCapability(): void {
+    const base = active.capabilities ?? mockDoc;
+    let n = base.capabilities.length + 1;
+    let id = `capability_${n}`;
+    while (base.capabilities.some((c) => c.id === id)) id = `capability_${++n}`;
+    const cap: CapabilityInput = { id, name: "New Capability", purpose: "", outcomes: [] };
+    patchActive({ capabilities: { ...base, capabilities: [...base.capabilities, cap] }, provider: "hand-edited" });
+    setSelected(id);
   }
 
   // ---- Project actions ----
@@ -223,6 +248,7 @@ export default function App(): React.JSX.Element {
             <button className="generate" onClick={() => void generate()} disabled={busy}>
               {busy ? t("generating") : t("generateBtn")}
             </button>
+            <button className="addcap" onClick={addCapability}>{t("addCap")}</button>
           </div>
 
           <p className="hint">
@@ -240,7 +266,13 @@ export default function App(): React.JSX.Element {
 
           <div className="map-wrap">
             <CapabilityMap ir={ir} selectedId={selected} onSelect={setSelected} />
-            <NodeDetail doc={activeDoc} selectedId={selected} onClose={() => setSelected(null)} />
+            <NodeDetail
+              doc={activeDoc}
+              selectedId={selected}
+              onEdit={editCapability}
+              onDelete={deleteCapability}
+              onClose={() => setSelected(null)}
+            />
           </div>
         </section>
       </main>

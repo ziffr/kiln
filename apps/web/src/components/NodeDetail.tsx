@@ -1,55 +1,98 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { CapabilityDoc } from "@vbd/compiler";
+import type { CapabilityDoc, CapabilityInput } from "@vbd/compiler";
 
 /**
- * Node detail panel — reads the selected capability from the active CapabilityDoc and shows
- * purpose, outcomes, relationships, and provenance (SPEC-001 §7.5 detail panel). Text-only
- * rendering (no dangerouslySetInnerHTML) per REV-005 F4.
+ * Node detail — an editable capability FORM (SPEC-001 §7.5; REV-004 F1: structured forms, not
+ * raw YAML). Editing writes back a new CapabilityInput; the App recompiles the IR so the map and
+ * validators update live. Text-only rendering (no dangerouslySetInnerHTML) per REV-005 F4.
  */
+
+function TagList({
+  label,
+  values,
+  onChange,
+}: {
+  label: string;
+  values: string[];
+  onChange: (next: string[]) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState("");
+  const add = (): void => {
+    const v = draft.trim();
+    if (v && !values.includes(v)) onChange([...values, v]);
+    setDraft("");
+  };
+  return (
+    <div className="nd-row">
+      <span className="nd-label">{label}</span>
+      <div className="nd-chips">
+        {values.map((v) => (
+          <span className="nd-chip" key={v}>
+            {v}
+            <button className="chip-x" onClick={() => onChange(values.filter((x) => x !== v))} aria-label="remove">×</button>
+          </span>
+        ))}
+      </div>
+      <input
+        className="nd-tag-input"
+        value={draft}
+        placeholder={t("addTag")}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add();
+          }
+        }}
+        onBlur={add}
+      />
+    </div>
+  );
+}
+
 export function NodeDetail({
   doc,
   selectedId,
+  onEdit,
+  onDelete,
   onClose,
 }: {
   doc: CapabilityDoc;
   selectedId: string | null;
+  onEdit: (cap: CapabilityInput) => void;
+  onDelete: (id: string) => void;
   onClose: () => void;
 }): React.JSX.Element | null {
   const { t } = useTranslation();
   if (!selectedId) return null;
-
   const cap = doc.capabilities.find((c) => c.id === selectedId);
   if (!cap) return null;
 
-  const derivedFrom = ((cap.meta as { derivedFrom?: Array<{ anchor?: string; section?: string }> } | undefined)
-    ?.derivedFrom ?? []) as Array<{ anchor?: string; section?: string }>;
+  const patch = (p: Partial<CapabilityInput>): void => onEdit({ ...cap, ...p });
 
-  const Row = ({ label, items }: { label: string; items?: string[] }) =>
-    items && items.length > 0 ? (
-      <div className="nd-row">
-        <span className="nd-label">{label}</span>
-        <div className="nd-chips">
-          {items.map((i) => (
-            <span className="nd-chip" key={i}>{i}</span>
-          ))}
-        </div>
-      </div>
-    ) : null;
+  const derivedFrom = ((cap.meta as { derivedFrom?: Array<{ anchor?: string }> } | undefined)?.derivedFrom ??
+    []) as Array<{ anchor?: string }>;
 
   return (
     <aside className="node-detail">
       <div className="nd-head">
-        <h3>{cap.name}</h3>
+        <input className="nd-name" value={cap.name} onChange={(e) => patch({ name: e.target.value })} />
         <button className="nd-close" onClick={onClose} aria-label="close">×</button>
       </div>
       <code className="nd-id">{cap.id}</code>
-      {cap.purpose && <p className="nd-purpose">{cap.purpose}</p>}
 
-      <Row label={t("outcomes")} items={cap.outcomes} />
-      <Row label={t("ndActors")} items={cap.actors} />
-      <Row label={t("ndDependsOn")} items={cap.depends_on} />
-      <Row label={t("ndProduces")} items={cap.produces} />
-      <Row label={t("ndConsumes")} items={cap.consumes} />
+      <label className="nd-field">
+        <span className="nd-label">{t("capPurpose")}</span>
+        <textarea value={cap.purpose ?? ""} onChange={(e) => patch({ purpose: e.target.value })} rows={2} />
+      </label>
+
+      <TagList label={t("outcomes")} values={cap.outcomes ?? []} onChange={(v) => patch({ outcomes: v })} />
+      <TagList label={t("ndActors")} values={cap.actors ?? []} onChange={(v) => patch({ actors: v })} />
+      <TagList label={t("ndDependsOn")} values={cap.depends_on ?? []} onChange={(v) => patch({ depends_on: v })} />
+      <TagList label={t("ndProduces")} values={cap.produces ?? []} onChange={(v) => patch({ produces: v })} />
+      <TagList label={t("ndConsumes")} values={cap.consumes ?? []} onChange={(v) => patch({ consumes: v })} />
 
       {derivedFrom.length > 0 && (
         <div className="nd-row">
@@ -61,6 +104,8 @@ export function NodeDetail({
           </div>
         </div>
       )}
+
+      <button className="nd-delete" onClick={() => onDelete(cap.id)}>{t("deleteCap")}</button>
     </aside>
   );
 }

@@ -114,5 +114,27 @@ textarea {
 .nd-row { margin-bottom: 8px; }
 .nd-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 3px; }
 .nd-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-.nd-chip { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--card); border: 1px solid var(--edge); }
-.nd-chip.prov { border-color: var(--accent); color: var(--accent); }
+.nd-chip { font-size: 11px; padding: 2px 4px 2px 7px; border-radius: 999px; background: var(--card); border: 1px solid var(--edge); display: inline-flex; align-items: center; gap: 3px; }
+.nd-chip.prov { border-color: var(--accent); color: var(--accent); padding: 2px 7px; }
+.chip-x { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
+.chip-x:hover { color: var(--warn-fg); }
+
+.nd-name {
+  flex: 1; background: #0b1020; color: var(--fg); border: 1px solid var(--edge);
+  border-radius: 6px; padding: 5px 8px; font-size: 15px; font-weight: 600;
+}
+.nd-field { display: block; margin: 8px 0; }
+.nd-field textarea, .nd-tag-input {
+  width: 100%; background: #0b1020; color: var(--fg); border: 1px solid var(--edge);
+  border-radius: 6px; padding: 6px 8px; font-size: 12px; font-family: inherit; resize: vertical;
+}
+.nd-tag-input { margin-top: 4px; }
+.nd-delete {
+  margin-top: 12px; width: 100%; background: transparent; color: var(--warn-fg);
+  border: 1px solid var(--warn-bg); border-radius: 6px; padding: 6px; cursor: pointer; font-size: 12px;
+}
+.nd-delete:hover { background: var(--warn-bg); }
+.genbar .addcap {
+  background: var(--card); color: var(--fg); border: 1px solid var(--edge);
+  border-radius: 6px; padding: 7px 11px; font-size: 13px; cursor: pointer;
+}

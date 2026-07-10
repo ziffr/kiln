@@ -105,9 +105,14 @@ Monorepo, npm workspaces (ADR-001):
   **elkjs** vertical layered layout (fits the column; useNodesInitialized refit); **node detail
   panel** (purpose, outcomes, depends_on, provenance chips); **light projects** — several
   businesses side-by-side, per-project narrative + capabilities + model/effort, localStorage
-  ([ADR-005](../adr/ADR-005-project-store.md)). **Remaining to CLOSE M2:** **G-DP design partner**
-  to judge A1 correctness at scale; wire `@vbd/eval` generation-coverage scoring; attach LLM-output
-  provenance (V8, M3).
+  ([ADR-005](../adr/ADR-005-project-store.md)); **editable capability forms** (REV-004 F1) — click
+  a capability → edit name/purpose/outcomes/actors/depends_on/produces/consumes as structured
+  fields (not raw YAML) + add/delete; edits recompile the IR + re-validate live and mark the source
+  hand-edited. **`@vbd/eval` generation-coverage scoring wired** (REV-006 F2): `scoreGenerationCoverage`
+  (activity-coverage via provenance anchors + expected-id recall); mock hits 12/12 activities + 8/8
+  expected ids on solar; 47 tests green. **Remaining to CLOSE M2:** **G-DP design partner** to judge
+  A1 correctness at scale; attach LLM-output provenance so generated caps carry `meta.derivedFrom`
+  (V8, M3) — today only the mock does.
 
 ### M3 — Validation + review loop
 - **Scope:** validators V3–V8; `CapabilityReviewer` (scoped to judgment; self-consistency k;

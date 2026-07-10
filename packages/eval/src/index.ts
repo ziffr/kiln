@@ -11,6 +11,8 @@
 import type { CapabilityDoc } from "@vbd/compiler";
 import { validateAll, type Finding } from "@vbd/validation";
 
+export { scoreGenerationCoverage, type GenerationCoverage } from "./generation.ts";
+
 export interface ExpectedDefect {
   /** validator code expected to fire, e.g. "V1.purpose", "V2.unique", (future) "V7.overlap". */
   code: string;

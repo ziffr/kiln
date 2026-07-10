@@ -13,7 +13,9 @@ export type NodeType =
   | "outcome"
   | "domain_object"
   | "aggregate" // SPEC-002: an entity a capability owns
-  | "bounded_context";
+  | "bounded_context"
+  | "command" // SPEC-004: an action that changes an aggregate
+  | "event"; // SPEC-004: a fact that resulted
 
 export type EdgeType =
   | "produces"
@@ -22,7 +24,11 @@ export type EdgeType =
   | "owns" // capability → aggregate (SPEC-002)
   | "references" // aggregate → aggregate (SPEC-002: shared entities)
   | "serves"
-  | "groups";
+  | "groups"
+  | "issues" // capability → command (SPEC-004)
+  | "changes" // command → aggregate (SPEC-004)
+  | "emits" // command → event (SPEC-004)
+  | "on"; // event → aggregate (SPEC-004)
 
 /** authored = editable, round-trips to text; derived = read-only projection. */
 export type Origin = "authored" | "derived";

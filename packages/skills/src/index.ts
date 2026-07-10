@@ -33,6 +33,15 @@ export {
   CONTEXT_SYSTEM_PROMPT,
   type ContextGenerationResult,
 } from "./contexts.ts";
+export {
+  mockGenerateEvents,
+  generateEvents,
+  buildEventRequest,
+  coerceAggregateBehaviour,
+  EVENT_SCHEMA,
+  EVENT_SYSTEM_PROMPT,
+  type EventGenerationResult,
+} from "./events.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
 export {
   buildCoachSystemPrompt,

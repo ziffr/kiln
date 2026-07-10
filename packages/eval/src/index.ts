@@ -31,6 +31,17 @@ export {
   type ContextsCaseScore,
   type ContextCoverage,
 } from "./contexts.ts";
+export {
+  scoreEventsCase,
+  scoreEventsFindings,
+  aggregateEventsRecall,
+  scoreBehaviourCoverage,
+  commandRecall,
+  type EventsEvalCase,
+  type EventsCaseScore,
+  type BehaviourCoverage,
+  type BehaviourReference,
+} from "./events.ts";
 
 export interface ExpectedDefect {
   /** validator code expected to fire, e.g. "V1.purpose", "V2.unique", (future) "V7.overlap". */

@@ -66,9 +66,32 @@ export function attributeSpecs(agg: Pick<AggregateInput, "attributes">): Attribu
   return (agg.attributes ?? []).map((a) => (typeof a === "string" ? { name: a } : a));
 }
 
+/** SPEC-004 behaviour layer. A command is a REQUEST that may be rejected → it emits 0..n events. */
+export interface CommandInput {
+  id: string;
+  name: string;
+  aggregate: string; // the aggregate it changes (exactly one)
+  capability: string; // the capability that issues it
+  emits?: string[]; // ids of events it may emit (0..n; reject paths emit none)
+  meta?: Record<string, unknown>;
+}
+
+/** An event is a past-tense fact. `trigger` distinguishes command-caused vs time/external (CE-C5). */
+export type EventTrigger = "command" | "time" | "external";
+export interface EventInput {
+  id: string;
+  name: string;
+  aggregate: string; // the aggregate it is a fact about (exactly one)
+  trigger?: EventTrigger; // default "command"
+  meta?: Record<string, unknown>;
+}
+
 export interface DomainDoc {
   version: string;
   aggregates: AggregateInput[];
+  /** SPEC-004 — behaviour on the aggregates (optional; absent on pre-behaviour snapshots). */
+  commands?: CommandInput[];
+  events?: EventInput[];
 }
 
 /** SPEC-003 business-areas layer: a partition of capabilities into subdomains ("areas"). */
@@ -94,6 +117,14 @@ export function aggregateNodeId(id: string): string {
 /** Namespaced IR node id for a business area (SPEC-003; REV-015: collision-free with cap/aggregate ids). */
 export function contextNodeId(id: string): string {
   return `bctx:${slug(id)}`;
+}
+
+/** Namespaced IR node ids for SPEC-004 behaviour elements (collision-free across all id spaces). */
+export function commandNodeId(id: string): string {
+  return `command:${slug(id)}`;
+}
+export function eventNodeId(id: string): string {
+  return `event:${slug(id)}`;
 }
 
 /**
@@ -195,6 +226,29 @@ export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, cont
     for (const ref of agg.references ?? []) {
       const rid = aggregateNodeId(ref);
       addEdge({ id: edgeId(aid, rid, "references"), from: aid, to: rid, type: "references", origin: "authored" });
+    }
+  }
+
+  // SPEC-004 behaviour: authored command/event nodes + issues/changes/emits/on edges.
+  for (const cmd of domain?.commands ?? []) {
+    const cid = commandNodeId(cmd.id);
+    addNode({ id: cid, type: "command", origin: "authored", label: cmd.name ?? cmd.id, meta: cmd.meta ?? {} });
+    if (cmd.capability) addEdge({ id: edgeId(cmd.capability, cid, "issues"), from: cmd.capability, to: cid, type: "issues", origin: "authored" });
+    if (cmd.aggregate) {
+      const aid = aggregateNodeId(cmd.aggregate);
+      addEdge({ id: edgeId(cid, aid, "changes"), from: cid, to: aid, type: "changes", origin: "authored" });
+    }
+    for (const ev of cmd.emits ?? []) {
+      const eid = eventNodeId(ev);
+      addEdge({ id: edgeId(cid, eid, "emits"), from: cid, to: eid, type: "emits", origin: "authored" });
+    }
+  }
+  for (const evt of domain?.events ?? []) {
+    const eid = eventNodeId(evt.id);
+    addNode({ id: eid, type: "event", origin: "authored", label: evt.name ?? evt.id, meta: { ...(evt.meta ?? {}), trigger: evt.trigger ?? "command" } });
+    if (evt.aggregate) {
+      const aid = aggregateNodeId(evt.aggregate);
+      addEdge({ id: edgeId(eid, aid, "on"), from: eid, to: aid, type: "on", origin: "authored" });
     }
   }
 

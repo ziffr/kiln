@@ -11,7 +11,9 @@
     "./domain": "./src/domain.ts",
     "./domain.solar": "./src/domain.solar.ts",
     "./contexts": "./src/contexts.ts",
-    "./contexts.solar": "./src/contexts.solar.ts"
+    "./contexts.solar": "./src/contexts.solar.ts",
+    "./events": "./src/events.ts",
+    "./events.solar": "./src/events.solar.ts"
   },
   "dependencies": {
     "@vbd/compiler": "*",

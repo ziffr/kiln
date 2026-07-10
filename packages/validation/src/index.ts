@@ -12,6 +12,11 @@
 import { sha256 } from "@vbd/ir";
 import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
 
+const isGroundedAnchor = (meta: unknown): boolean => {
+  const derived = (meta as { derivedFrom?: Array<Record<string, unknown>> } | undefined)?.derivedFrom ?? [];
+  return derived.some((d) => typeof d?.anchor === "string" && (d.anchor as string).trim());
+};
+
 export type Severity = "blocker" | "major" | "minor";
 
 export interface Finding {
@@ -318,6 +323,71 @@ export function validateContexts(contexts: ContextsDoc, doc: CapabilityDoc): Fin
     const n = primary.get(c.id) ?? 0;
     if (n === 0) findings.push(mk("BC2.unassigned", "major", `capability '${c.id}' belongs to no business area`, [c.id]));
     else if (n > 1) findings.push(mk("BC2.multiple", "major", `capability '${c.id}' is assigned to ${n} areas`, [c.id]));
+  }
+  return findings;
+}
+
+/**
+ * SPEC-004 — behaviour-layer validators (commands & events). Pure/isomorphic. Assumes ids are
+ * canonicalized (the EventModeler skill does that). A command is a REQUEST (emits 0..n events);
+ * emitted events must belong to the command's own aggregate (no hidden cross-aggregate saga).
+ */
+export function validateEvents(domain: DomainDoc, capabilityIds: string[]): Finding[] {
+  const findings: Finding[] = [];
+  const capIds = new Set(capabilityIds);
+  const aggIds = new Set(domain.aggregates.map((a) => a.id).filter(Boolean));
+  const aggOfEvent = new Map((domain.events ?? []).map((e) => [e.id, e.aggregate]));
+  const eventIds = new Set((domain.events ?? []).map((e) => e.id).filter(Boolean));
+  const counts = new Map<string, number>(); // id uniqueness across BOTH command + event namespaces
+  const emittedBy = new Map<string, number>(); // event id → how many commands emit it
+
+  for (const c of domain.commands ?? []) {
+    const subj = c.id || c.name || "<command>";
+    if (!c.id || !c.id.trim()) findings.push(mk("CE1.required", "blocker", "command is missing an id", [subj]));
+    else {
+      counts.set(c.id, (counts.get(c.id) ?? 0) + 1);
+      if (!ID_RE.test(c.id)) findings.push(mk("CE5.slug", "major", `command id '${c.id}' is not a stable slug`, [c.id]));
+    }
+    if (!c.name || !c.name.trim()) findings.push(mk("CE1.required", "major", `command '${subj}' is missing a name`, [subj]));
+    if (!c.aggregate || !aggIds.has(c.aggregate)) findings.push(mk("CE2.command_target", "major", `command '${subj}' targets no existing entity`, [subj, c.aggregate ?? "?"]));
+    if (!c.capability || !capIds.has(c.capability)) findings.push(mk("CE2.command_target", "major", `command '${subj}' has no existing capability`, [subj, c.capability ?? "?"]));
+    for (const ev of c.emits ?? []) {
+      emittedBy.set(ev, (emittedBy.get(ev) ?? 0) + 1);
+      if (!eventIds.has(ev)) findings.push(mk("CE4.emit_target", "major", `command '${subj}' emits unknown event '${ev}'`, [subj, ev]));
+      else if (c.aggregate && aggOfEvent.get(ev) && aggOfEvent.get(ev) !== c.aggregate) {
+        findings.push(mk("CE.emit_boundary", "major", `command '${subj}' emits '${ev}' of another entity ('${aggOfEvent.get(ev)}') — a hidden cross-entity reaction`, [subj, ev]));
+      }
+    }
+    if ((c.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(c.meta)) {
+      findings.push(mk("CE6.provenance", "major", `command '${subj}' lacks grounded evidence`, [subj]));
+    }
+  }
+
+  for (const e of domain.events ?? []) {
+    const subj = e.id || e.name || "<event>";
+    if (!e.id || !e.id.trim()) findings.push(mk("CE1.required", "blocker", "event is missing an id", [subj]));
+    else {
+      counts.set(e.id, (counts.get(e.id) ?? 0) + 1);
+      if (!ID_RE.test(e.id)) findings.push(mk("CE5.slug", "major", `event id '${e.id}' is not a stable slug`, [e.id]));
+    }
+    if (!e.name || !e.name.trim()) findings.push(mk("CE1.required", "major", `event '${subj}' is missing a name`, [subj]));
+    if (!e.aggregate || !aggIds.has(e.aggregate)) findings.push(mk("CE3.event_source", "major", `event '${subj}' belongs to no existing entity`, [subj, e.aggregate ?? "?"]));
+    if ((e.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(e.meta)) {
+      findings.push(mk("CE6.provenance", "major", `event '${subj}' lacks grounded evidence`, [subj]));
+    }
+    // CE8 — a command-triggered event nobody emits is a fact with no cause (time/external exempt).
+    if ((e.trigger ?? "command") === "command" && !(emittedBy.get(e.id) ?? 0)) {
+      findings.push(mk("CE8.orphan_event", "minor", `event '${subj}' is emitted by no command`, [subj]));
+    }
+  }
+
+  for (const [id, n] of counts) {
+    if (n > 1) findings.push(mk("CE5.unique", "blocker", `duplicate behaviour id '${id}' (${n}×)`, [id]));
+  }
+  // CE7 — an aggregate no command changes is under-modelled (can it change?). Minor.
+  const changed = new Set((domain.commands ?? []).map((c) => c.aggregate).filter(Boolean));
+  for (const a of domain.aggregates) {
+    if (!changed.has(a.id)) findings.push(mk("CE7.no_command", "minor", `entity '${a.id}' has no command that changes it`, [a.id]));
   }
   return findings;
 }

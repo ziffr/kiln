@@ -122,12 +122,13 @@ export function CapabilityMap({
           style: {
             width: NODE_W,
             padding: 10,
+            paddingLeft: area ? 14 : 10,
             borderRadius: 10,
-            // The Business-Areas backdrop: a thick coloured left edge tints each capability by its
-            // area (REV-016 F1 — one surface, colour+legend), selection still wins the outline.
+            // Only the `border` shorthand (React Flow sets it too — avoid a shorthand/longhand mix).
+            // The Business-Areas backdrop is an inset box-shadow left edge tinting each capability by
+            // its area (REV-016 F1); selection adds an outline ring.
             border: `1px solid ${sel ? "var(--accent)" : "var(--edge)"}`,
-            borderLeft: area ? `6px solid ${area.color}` : `1px solid ${sel ? "var(--accent)" : "var(--edge)"}`,
-            boxShadow: sel ? "0 0 0 2px var(--accent)" : "none",
+            boxShadow: [area ? `inset 5px 0 0 ${area.color}` : "", sel ? "0 0 0 2px var(--accent)" : ""].filter(Boolean).join(", ") || "none",
             background: "var(--card)",
             color: "var(--fg)",
             fontSize: 13,

@@ -3,7 +3,7 @@ id: SPEC-002
 title: Domain Model Layer — capabilities → aggregates, events, commands
 type: spec
 status: Revised
-version: 0.2.0
+version: 0.3.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
 updated: 2026-07-10
@@ -204,3 +204,38 @@ review lens) — **accepted** as implementation detail for the DM-phase tickets.
 Accepted as a build gate (§0.1)** rather than resolved in-spec — so this spec is **`Revised` and
 build-gated**, deliberately NOT `Approved`-for-build until SPEC-001 is validated with a design
 partner. Re-review to `Approved` when the gate clears and the aggregates-first scope is re-read.
+
+## 13. Exit gate — DM eval + go/no-go (aggregates-first increment)
+
+The aggregates-first increment (DM1 mock → DM2 `DomainGenerator` → DM validators in UI → editable
+entities → DM eval) is engineering-complete. The gold-free DM harness (`@vbd/eval/domain`,
+`@vbd/eval/domain.solar`) is the measurement instrument the review asked for (REV-009, A1/A2 had "no
+matching function"). Two scorers, run on the solar reference:
+
+| Metric | Instrument | Result | Criterion |
+|---|---|---|---|
+| DM defect **recall** | `scoreDomainCase` over 7 seeded cases (orphan owner, dangling ref, dup id, non-slug id, missing name, uncovered cap, clean) | **1.000** | A2 ≥ 0.90 ✅ |
+| clean-case **precision** | no false positives on the valid domain | **1.000** | — ✅ |
+| **ownershipCoverage** | caps owning ≥1 aggregate | **1.000** (8/8) | — ✅ |
+| **producesCoverage** | produced objects captured as aggregates | **1.000** (8/8) | — ✅ |
+| **provenanceRate** (DM8) | aggregates grounded to a capability or hand-authored | **1.000** (8/8) | A5 green ✅ |
+
+Success-criteria (§8) status:
+
+- **A2 (validators catch seeded defects ≥90%) — MET.** 100% recall, deterministic, unit-tested (75 tests).
+- **A3 (edit → recompile deterministic, no text↔graph drift, buildHash) — MET.** buildHash mixes both artifacts; verified in-browser (edit flips origin to `authored`, map/validators update live).
+- **A5 (grounded provenance, DM8) — MET.** provenanceRate 1.000; `groundDomainProvenance` targets the owning capability; id normalization keeps ids stable slugs.
+- **A1 (a domain reviewer calls it substantially correct) — OPEN.** The *instrument* exists and is green on the mock/structural axis, but "substantially correct" is a human judgment that needs the **design partner** — the same gate as §0.1.
+- **A6 (a target user rates the domain view worth acting on) — OPEN.** Needs the design partner.
+- **A4 (second-domain smoke test) — PARTIAL.** The stack is domain-agnostic (data/prompt/config only) and the harness is domain-parameterized, but a second-domain walkthrough has not been run.
+
+**Decision — GO / HOLD (split):**
+- **GO** on the engineering axis: the aggregates-first increment passes its structural exit gate
+  (recall, precision, coverage, provenance all green). The code is sound to keep and build on.
+- **HOLD** on declaring SPEC-002 `Approved` and on starting **SPEC-003** (commands/events). The
+  strategic build gate (§0.1) and the human criteria A1/A6 remain open until a **design partner**
+  validates the capability layer (A1 of SPEC-001) and signals demand for the domain layer. Running
+  A4 (second-domain smoke) is the one remaining engineering task and can proceed independently.
+
+Status stays **`Revised` / build-gated** — the eval clears the *quality* question, not the
+*strategic* one. Re-review to `Approved` when the design-partner gate clears.

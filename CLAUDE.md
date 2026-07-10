@@ -87,6 +87,18 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
 - `.env`, `node_modules/`, `.vbd/`, `dist/` are gitignored — never commit them.
 
 ## Status (keep current)
+- **Full modeling arc built + partner-validated (SPEC-001…004 Approved).** narrative → capabilities →
+  business areas → entities (typed attributes) → commands/events. `@vbd/codegen` projects it to TS
+  types + OpenAPI (real command operations, not just CRUD) + event catalog + area-module map; visible
+  in-app via the **"View code"** panel.
+- **SPEC-005 (policies/reactions) reviewed to closure (REV-022…026) but BUILD DEFERRED.** No strategic
+  Blocker; owner chose **consolidate & ship to the design partner first** (product meta-note: 5 layers,
+  one partner → get a real demand signal before layer six). Reviewed design is on the shelf (§13).
+- **Consolidation done:** cleared the implementation debt the review exposed — reconcile-not-clear for
+  the domain (capability edits no longer wipe authored entities/behaviour; delete reconciles) and the
+  half-built collapsible-entity disclosure; added the in-app Code preview; fixed a React border warning.
+  **Next: ship to partner for a demand signal; then un-shelf SPEC-005 or iterate on their feedback.**
+
 - **M0, M1 complete.** **M2 engineering-complete** — only the human gate is open (a design partner
   to confirm A1 capability correctness). Provenance + V8 done.
 - **SPEC-002 (domain layer, aggregates-first) engineering-complete** — DM1 mock, DM2

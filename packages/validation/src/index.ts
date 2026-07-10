@@ -10,7 +10,7 @@
  */
 
 import { sha256 } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc } from "@vbd/compiler";
 
 const isGroundedAnchor = (meta: unknown): boolean => {
   const derived = (meta as { derivedFrom?: Array<Record<string, unknown>> } | undefined)?.derivedFrom ?? [];
@@ -455,6 +455,36 @@ export function validatePolicies(domain: DomainDoc, _capabilityIds: string[]): F
   for (const n of adj.keys()) if ((color.get(n) ?? WHITE) === WHITE) dfs(n, []);
   for (const id of cyclePolicies) findings.push(mk("PL7.cycle", "minor", `policy '${id}' is part of a reaction cycle`, [id]));
 
+  return findings;
+}
+
+/** SPEC-006 — role/permission validators. Pure/isomorphic. A role authorizes a set of capabilities. */
+export function validateRoles(roles: RolesDoc, capabilityIds: string[]): Finding[] {
+  const findings: Finding[] = [];
+  const capIds = new Set(capabilityIds);
+  const counts = new Map<string, number>();
+  const authorized = new Set<string>();
+
+  for (const r of roles.roles) {
+    const subj = r.id || r.name || "<role>";
+    if (!r.id || !r.id.trim()) findings.push(mk("RO1.required", "blocker", "role is missing an id", [subj]));
+    else {
+      counts.set(r.id, (counts.get(r.id) ?? 0) + 1);
+      if (!ID_RE.test(r.id)) findings.push(mk("RO3.slug", "major", `role id '${r.id}' is not a stable slug`, [r.id]));
+    }
+    if (!r.name || !r.name.trim()) findings.push(mk("RO1.required", "major", `role '${subj}' is missing a name`, [subj]));
+    for (const c of r.capabilities ?? []) {
+      authorized.add(c);
+      if (!capIds.has(c)) findings.push(mk("RO2.capability", "major", `role '${subj}' authorizes unknown capability '${c}'`, [subj, c]));
+    }
+    if ((r.capabilities ?? []).length === 0) findings.push(mk("RO6.empty", "minor", `role '${subj}' authorizes no capabilities`, [subj]));
+    if ((r.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(r.meta)) {
+      findings.push(mk("RO4.provenance", "major", `role '${subj}' lacks grounded evidence`, [subj]));
+    }
+  }
+  for (const [id, n] of counts) if (n > 1) findings.push(mk("RO3.unique", "blocker", `duplicate role id '${id}' (${n}×)`, [id]));
+  // RO5 — a capability no role can operate: who is responsible? (minor)
+  for (const cid of capIds) if (!authorized.has(cid)) findings.push(mk("RO5.unauthorized", "minor", `capability '${cid}' is authorized by no role`, [cid]));
   return findings;
 }
 

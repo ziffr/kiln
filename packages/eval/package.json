@@ -15,7 +15,8 @@
     "./events": "./src/events.ts",
     "./events.solar": "./src/events.solar.ts",
     "./policies": "./src/policies.ts",
-    "./policies.solar": "./src/policies.solar.ts"
+    "./policies.solar": "./src/policies.solar.ts",
+    "./roles": "./src/roles.ts"
   },
   "dependencies": {
     "@vbd/compiler": "*",

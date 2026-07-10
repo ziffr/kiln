@@ -121,6 +121,19 @@ export interface ContextsDoc {
   contexts: ContextInput[];
 }
 
+/** SPEC-006 role: an authorized persona responsible for a set of capabilities. */
+export interface RoleInput {
+  id: string;
+  name: string;
+  capabilities: string[]; // capability ids this role may operate
+  meta?: Record<string, unknown>;
+}
+
+export interface RolesDoc {
+  version: string;
+  roles: RoleInput[];
+}
+
 /** Namespaced IR node id for an aggregate (REV-010 M1: avoid collision with capability ids). */
 export function aggregateNodeId(id: string): string {
   return `aggregate:${slug(id)}`;
@@ -141,19 +154,23 @@ export function eventNodeId(id: string): string {
 export function policyNodeId(id: string): string {
   return `policy:${slug(id)}`;
 }
+export function roleNodeId(id: string): string {
+  return `role:${slug(id)}`;
+}
 
 /**
  * Deterministic buildHash binding authored input to compiler + schema versions
  * (SPEC-001 §3.4). Mixes every authored artifact present — capabilities, domain (REV-010 M5),
  * and the business-areas partition (SPEC-003 / REV-015 M2) — plus the compiler + schema versions.
  */
-export function computeBuildHash(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc): string {
+export function computeBuildHash(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc, roles?: RolesDoc): string {
   const domainPart = domain ? canonical(domain) : "";
   const contextsPart = contexts ? canonical(contexts) : "";
-  return sha256(`${canonical(doc)}|${domainPart}|${contextsPart}|${COMPILER_VERSION}|${SCHEMA_VERSION}`);
+  const rolesPart = roles ? canonical(roles) : "";
+  return sha256(`${canonical(doc)}|${domainPart}|${contextsPart}|${rolesPart}|${COMPILER_VERSION}|${SCHEMA_VERSION}`);
 }
 
-export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc): IR {
+export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc, roles?: RolesDoc): IR {
   const nodes = new Map<string, IRNode>();
   const edges = new Map<string, IREdge>();
 
@@ -292,6 +309,15 @@ export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, cont
     }
   }
 
+  // SPEC-006 roles: authored role nodes + `authorizes` edges (role → capability).
+  for (const role of roles?.roles ?? []) {
+    const rid = roleNodeId(role.id);
+    addNode({ id: rid, type: "role", origin: "authored", label: role.name ?? role.id, meta: role.meta ?? {} });
+    for (const capId of role.capabilities ?? []) {
+      addEdge({ id: edgeId(rid, capId, "authorizes"), from: rid, to: capId, type: "authorizes", origin: "authored" });
+    }
+  }
+
   const sortedNodes = [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
   const sortedEdges = [...edges.values()].sort((a, b) => a.id.localeCompare(b.id));
 
@@ -300,6 +326,6 @@ export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, cont
     domain: doc.domain,
     nodes: sortedNodes,
     edges: sortedEdges,
-    buildHash: computeBuildHash(doc, domain, contexts),
+    buildHash: computeBuildHash(doc, domain, contexts, roles),
   };
 }

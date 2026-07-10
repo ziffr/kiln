@@ -167,6 +167,7 @@ export function NodeDetail({
   commands = [],
   events = [],
   policies = [],
+  capRoles = [],
   areas = [],
   capAreaId,
   onReassignArea,
@@ -183,6 +184,7 @@ export function NodeDetail({
   commands?: CommandInput[];
   events?: EventInput[];
   policies?: PolicyInput[];
+  capRoles?: string[];
   areas?: { id: string; name: string }[];
   capAreaId?: string;
   onReassignArea?: (capId: string, areaId: string) => void;
@@ -228,6 +230,15 @@ export function NodeDetail({
             {areas.map((a) => <option key={a.id} value={a.id}>{a.name || a.id}</option>)}
           </select>
         </label>
+      )}
+
+      {capRoles.length > 0 && (
+        <div className="nd-row">
+          <span className="nd-label">{t("roles")}</span>
+          <div className="nd-chips">
+            {capRoles.map((r) => <span className="nd-chip prov" key={r}>{r}</span>)}
+          </div>
+        </div>
       )}
 
       <TagList label={t("outcomes")} values={cap.outcomes ?? []} onChange={(v) => patch({ outcomes: v })} />

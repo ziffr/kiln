@@ -17,8 +17,8 @@ import {
   type ContextsDoc,
   type DomainDoc,
 } from "@vbd/compiler";
-import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies } from "@vbd/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies } from "@vbd/skills";
+import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles } from "@vbd/validation";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
@@ -141,9 +141,16 @@ export default function App(): React.JSX.Element {
     [flowDoc, activeDoc],
   );
   const [policiesBusy, setPoliciesBusy] = useState(false);
+  // SPEC-006: roles/permissions — LLM when present, else the live mock (one Operator over all caps).
+  const mockRoles = useMemo(() => mockGenerateRoles(activeDoc), [activeDoc]);
+  const rolesDoc = active.roles ?? mockRoles;
+  const roleFindings = useMemo(() => validateRoles(rolesDoc, activeDoc.capabilities.map((c) => c.id)), [rolesDoc, activeDoc]);
+  const [rolesBusy, setRolesBusy] = useState(false);
   const [showCode, setShowCode] = useState(false);
-  // The map IR must carry domain (owns) + contexts (groups) + behaviour + policy edges.
-  const ir = useMemo(() => compileCapabilities(activeDoc, flowDoc, contextsDoc), [activeDoc, flowDoc, contextsDoc]);
+  // The map IR must carry domain (owns) + contexts (groups) + behaviour + policy + role edges.
+  const ir = useMemo(() => compileCapabilities(activeDoc, flowDoc, contextsDoc, rolesDoc), [activeDoc, flowDoc, contextsDoc, rolesDoc]);
+  // Which roles authorize a given capability (for the in-context display).
+  const rolesForCap = (capId: string): string[] => rolesDoc.roles.filter((r) => (r.capabilities ?? []).includes(capId)).map((r) => r.name || r.id);
 
   // Colour each capability by its area for the map backdrop + legend (REV-016 F1: one surface).
   const AREA_COLORS = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa", "#fb923c", "#22d3ee", "#f87171"];
@@ -189,8 +196,8 @@ export default function App(): React.JSX.Element {
   };
 
   function setNarrative(v: string): void {
-    // Editing invalidates prior LLM snapshots (capabilities/domain/areas) → fall back to the mock.
-    patchActive({ narrative: v, capabilities: null, provider: null, domain: null, contexts: null });
+    // Editing invalidates prior LLM snapshots (capabilities/domain/areas/roles) → fall back to mock.
+    patchActive({ narrative: v, capabilities: null, provider: null, domain: null, contexts: null, roles: null });
     setSelected(null);
   }
 
@@ -205,8 +212,8 @@ export default function App(): React.JSX.Element {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      // A fresh capability set invalidates prior domain + areas snapshots → back to the live mock.
-      patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string, domain: null, contexts: null });
+      // A fresh capability set invalidates prior domain/areas/roles snapshots → back to the live mock.
+      patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string, domain: null, contexts: null, roles: null });
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -278,11 +285,15 @@ export default function App(): React.JSX.Element {
           })),
         }
       : active.contexts;
+    const reconciledRoles = active.roles
+      ? { ...active.roles, roles: active.roles.roles.map((r) => ({ ...r, capabilities: (r.capabilities ?? []).filter((c) => c !== id) })) }
+      : active.roles;
     patchActive({
       capabilities: { ...base, capabilities: base.capabilities.filter((c) => c.id !== id) },
       provider: "hand-edited",
       domain: reconcileDomain(id),
       contexts: reconciledContexts,
+      roles: reconciledRoles,
     });
     setSelected(null);
   }
@@ -387,6 +398,27 @@ export default function App(): React.JSX.Element {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setPoliciesBusy(false);
+    }
+  }
+
+  // SPEC-006: model the roles/personas that operate the capabilities via the real LLM.
+  async function generateRolesModel(): Promise<void> {
+    setRolesBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/roles`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ capabilities: activeDoc, model: active.model, effort: active.effort }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      patchActive({ roles: data.doc });
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRolesBusy(false);
     }
   }
 
@@ -548,7 +580,7 @@ export default function App(): React.JSX.Element {
         <section className="col grow">
           <div className="col-head">
             <h2>{t("capabilities")}</h2>
-            <FindingsBadge count={capFindings.length + domainFindings.length + contextFindings.length + eventFindings.length + policyFindings.length} />
+            <FindingsBadge count={capFindings.length + domainFindings.length + contextFindings.length + eventFindings.length + policyFindings.length + roleFindings.length} />
           </div>
 
           <div className="genbar">
@@ -579,6 +611,9 @@ export default function App(): React.JSX.Element {
             </button>
             <button className="addcap" onClick={() => void generatePoliciesModel()} disabled={policiesBusy}>
               {policiesBusy ? t("generating") : t("genAutomations")}
+            </button>
+            <button className="addcap" onClick={() => void generateRolesModel()} disabled={rolesBusy}>
+              {rolesBusy ? t("generating") : t("genRoles")}
             </button>
             <button className="viewcode" onClick={() => setShowCode((s) => !s)}>{t("viewCode")}</button>
           </div>
@@ -686,8 +721,22 @@ export default function App(): React.JSX.Element {
             </ul>
           )}
 
+          {roleFindings.length > 0 && (
+            <ul className="findings cap-findings domain-findings">
+              <li className="findings-head muted">{t("roles")}</li>
+              {roleFindings.map((f) => {
+                const cap = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x));
+                return (
+                  <li key={f.id} className={cap ? "clickable" : ""} onClick={() => cap && setSelected(cap)}>
+                    <code className={f.severity}>{f.code}</code> {f.message}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
           {showCode && (
-            <CodePreview caps={activeDoc} domain={flowDoc} contexts={contextsDoc} onClose={() => setShowCode(false)} />
+            <CodePreview caps={activeDoc} domain={flowDoc} contexts={contextsDoc} roles={rolesDoc} onClose={() => setShowCode(false)} />
           )}
 
           <div className="map-wrap">
@@ -709,6 +758,7 @@ export default function App(): React.JSX.Element {
                 commands={behaviourDoc.commands ?? []}
                 events={behaviourDoc.events ?? []}
                 policies={flowDoc.policies ?? []}
+                capRoles={selected ? rolesForCap(selected) : []}
                 areas={contextsDoc.contexts.map((c) => ({ id: c.id, name: c.name }))}
                 capAreaId={selected ? areaOf.get(selected)?.id : undefined}
                 onReassignArea={reassignCapabilityArea}

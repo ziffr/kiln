@@ -112,3 +112,11 @@ export function aggregateRecall(scores: CaseScore[]): number {
   const hit = scores.reduce((a, s) => a + s.matched, 0);
   return total ? hit / total : 1;
 }
+export {
+  scoreRolesCase,
+  aggregateRolesRecall,
+  scoreRoleCoverage,
+  type RolesEvalCase,
+  type RolesCaseScore,
+  type RoleCoverage,
+} from "./roles.ts";

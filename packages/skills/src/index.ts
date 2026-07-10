@@ -52,6 +52,15 @@ export {
   POLICY_SYSTEM_PROMPT,
   type PolicyGenerationResult,
 } from "./policies.ts";
+export {
+  mockGenerateRoles,
+  generateRoles,
+  buildRoleRequest,
+  coerceRoles,
+  ROLE_SCHEMA,
+  ROLE_SYSTEM_PROMPT,
+  type RoleGenerationResult,
+} from "./roles.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
 export {
   buildCoachSystemPrompt,

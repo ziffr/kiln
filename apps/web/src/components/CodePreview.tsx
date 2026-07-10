@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { generateAll } from "@vbd/codegen";
-import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc } from "@vbd/compiler";
 
 /**
  * Read-only "generated code" preview — the payoff of the whole model (RES-001): a deterministic
@@ -12,16 +12,18 @@ export function CodePreview({
   caps,
   domain,
   contexts,
+  roles,
   onClose,
 }: {
   caps: CapabilityDoc;
   domain: DomainDoc;
   contexts: ContextsDoc;
+  roles: RolesDoc;
   onClose: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
-  const report = useMemo(() => generateAll(caps, domain, contexts), [caps, domain, contexts]);
-  const [tab, setTab] = useState<"types" | "api" | "modules" | "events" | "workflows">("types");
+  const report = useMemo(() => generateAll(caps, domain, contexts, roles), [caps, domain, contexts, roles]);
+  const [tab, setTab] = useState<"types" | "api" | "modules" | "events" | "workflows" | "permissions">("types");
 
   const apiOps = Object.entries(report.openapi.paths as Record<string, Record<string, { summary?: string; "x-emits"?: string[] }>>)
     .flatMap(([path, ops]) => Object.entries(ops).map(([verb, op]) => ({ path, verb, op })))
@@ -31,7 +33,7 @@ export function CodePreview({
     <div className="code-preview">
       <div className="code-head">
         <div className="code-tabs">
-          {(["types", "api", "modules", "events", "workflows"] as const).map((k) => (
+          {(["types", "api", "modules", "events", "workflows", "permissions"] as const).map((k) => (
             <button key={k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>{t(`code_${k}`)}</button>
           ))}
         </div>
@@ -53,6 +55,7 @@ export function CodePreview({
         )}
         {tab === "modules" && <pre className="code-block">{report.moduleMap}</pre>}
         {tab === "workflows" && <pre className="code-block">{report.workflows}</pre>}
+        {tab === "permissions" && <pre className="code-block">{report.permissions}</pre>}
         {tab === "events" && (
           <ul className="code-ops">
             {report.events.map((e, i) => (

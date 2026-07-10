@@ -123,6 +123,12 @@ export function coerceAggregateBehaviour(
   const obj = (json && typeof json === "object" ? json : {}) as Record<string, unknown>;
   const rawEvents = Array.isArray(obj.events) ? obj.events : [];
   const rawCommands = Array.isArray(obj.commands) ? obj.commands : [];
+  // Boundary evidence: prefer the model's anchor; fall back to the aggregate (the entity whose
+  // lifecycle this behaviour is — honest, non-circular evidence, as the mock does).
+  const withAnchor = (df: unknown): Array<Record<string, unknown>> => {
+    const arr = Array.isArray(df) ? (df as Array<Record<string, unknown>>) : [];
+    return arr.some((d) => typeof d?.anchor === "string" && (d.anchor as string).trim()) ? arr : [{ anchor: agg.id }];
+  };
 
   const events: EventInput[] = rawEvents.map((r) => {
     const e = r as Record<string, unknown>;
@@ -132,7 +138,7 @@ export function coerceAggregateBehaviour(
       name,
       aggregate: agg.id,
       trigger: (["command", "time", "external"].includes(e.trigger as string) ? e.trigger : "command") as EventInput["trigger"],
-      meta: { origin: "llm", derivedFrom: Array.isArray(e.derivedFrom) ? e.derivedFrom : [] },
+      meta: { origin: "llm", derivedFrom: withAnchor(e.derivedFrom) },
     };
   });
   const eventBySlug = new Map(events.map((e) => [slug(e.name), e.id]));
@@ -150,7 +156,7 @@ export function coerceAggregateBehaviour(
       aggregate: agg.id,
       capability: cap,
       emits,
-      meta: { origin: "llm", derivedFrom: Array.isArray(c.derivedFrom) ? c.derivedFrom : [] },
+      meta: { origin: "llm", derivedFrom: withAnchor(c.derivedFrom) },
     };
   });
   return { commands, events };

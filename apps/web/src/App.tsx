@@ -16,8 +16,8 @@ import {
   type ContextInput,
   type ContextsDoc,
 } from "@vbd/compiler";
-import { validateAll, validateDomain, validateContexts } from "@vbd/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts } from "@vbd/skills";
+import { validateAll, validateDomain, validateContexts, validateEvents } from "@vbd/validation";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
@@ -118,8 +118,18 @@ export default function App(): React.JSX.Element {
   const contextsDoc = active.contexts ?? mockContexts;
   const contextFindings = useMemo(() => validateContexts(contextsDoc, activeDoc), [contextsDoc, activeDoc]);
   const [contextsBusy, setContextsBusy] = useState(false);
-  // The map IR must carry domain (owns) + contexts (groups) edges for the projections (REV-015 M4).
-  const ir = useMemo(() => compileCapabilities(activeDoc, domainDoc, contextsDoc), [activeDoc, domainDoc, contextsDoc]);
+  // SPEC-004 behaviour: commands/events live on the domain doc — LLM when present, else live mock.
+  const behaviourDoc = useMemo(
+    () => (((domainDoc.commands?.length ?? 0) + (domainDoc.events?.length ?? 0)) > 0 ? domainDoc : mockGenerateEvents(domainDoc)),
+    [domainDoc],
+  );
+  const eventFindings = useMemo(
+    () => validateEvents(behaviourDoc, activeDoc.capabilities.map((c) => c.id)),
+    [behaviourDoc, activeDoc],
+  );
+  const [behaviourBusy, setBehaviourBusy] = useState(false);
+  // The map IR must carry domain (owns) + contexts (groups) + behaviour edges for the projections.
+  const ir = useMemo(() => compileCapabilities(activeDoc, behaviourDoc, contextsDoc), [activeDoc, behaviourDoc, contextsDoc]);
 
   // Colour each capability by its area for the map backdrop + legend (REV-016 F1: one surface).
   const AREA_COLORS = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa", "#fb923c", "#22d3ee", "#f87171"];
@@ -301,6 +311,27 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  // SPEC-004: model behaviour (commands/events) on the entities via the real LLM (per-aggregate).
+  async function generateBehaviour(): Promise<void> {
+    setBehaviourBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/events`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ domain: domainDoc, capabilities: activeDoc, model: active.model, effort: active.effort }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      patchActive({ domain: data.doc }); // merges commands/events onto the aggregates
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBehaviourBusy(false);
+    }
+  }
+
   // Move a capability to a target area (or "" = unassigned). Single-membership: strip it from every
   // area's `capabilities`/`shared_kernel`, then add to the target. Hand-edit → origin authored.
   function reassignCapabilityArea(capId: string, targetAreaId: string): void {
@@ -459,7 +490,7 @@ export default function App(): React.JSX.Element {
         <section className="col grow">
           <div className="col-head">
             <h2>{t("capabilities")}</h2>
-            <FindingsBadge count={capFindings.length + domainFindings.length + contextFindings.length} />
+            <FindingsBadge count={capFindings.length + domainFindings.length + contextFindings.length + eventFindings.length} />
           </div>
 
           <div className="genbar">
@@ -484,6 +515,9 @@ export default function App(): React.JSX.Element {
             </button>
             <button className="addcap" onClick={() => void generateAreas()} disabled={contextsBusy}>
               {contextsBusy ? t("generating") : t("genAreas")}
+            </button>
+            <button className="addcap" onClick={() => void generateBehaviour()} disabled={behaviourBusy}>
+              {behaviourBusy ? t("generating") : t("genBehaviour")}
             </button>
           </div>
 
@@ -564,6 +598,23 @@ export default function App(): React.JSX.Element {
             </ul>
           )}
 
+          {eventFindings.length > 0 && (
+            <ul className="findings cap-findings domain-findings">
+              <li className="findings-head muted">{t("behaviour")}</li>
+              {eventFindings.map((f) => {
+                // Resolve to the capability owning the referenced entity, so click opens its panel.
+                const aggId = f.subjects.find((x) => behaviourDoc.aggregates.some((a) => a.id === x));
+                const owner = aggId ? behaviourDoc.aggregates.find((a) => a.id === aggId)?.owner : undefined;
+                const cap = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x)) ?? owner;
+                return (
+                  <li key={f.id} className={cap ? "clickable" : ""} onClick={() => cap && setSelected(cap)}>
+                    <code className={f.severity}>{f.code}</code> {f.message}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
           <div className="map-wrap">
             <CapabilityMap ir={ir} areaOf={areaOf} selectedId={selected} onSelect={setSelected} />
             {selectedArea ? (
@@ -580,6 +631,8 @@ export default function App(): React.JSX.Element {
               <NodeDetail
                 doc={activeDoc}
                 aggregates={domainDoc.aggregates}
+                commands={behaviourDoc.commands ?? []}
+                events={behaviourDoc.events ?? []}
                 areas={contextsDoc.contexts.map((c) => ({ id: c.id, name: c.name }))}
                 capAreaId={selected ? areaOf.get(selected)?.id : undefined}
                 onReassignArea={reassignCapabilityArea}

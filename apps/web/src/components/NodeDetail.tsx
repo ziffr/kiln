@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { attributeSpecs, type AggregateInput, type AttributeSpec, type AttrType, type CapabilityDoc, type CapabilityInput } from "@vbd/compiler";
+import { attributeSpecs, type AggregateInput, type AttributeSpec, type AttrType, type CapabilityDoc, type CapabilityInput, type CommandInput, type EventInput } from "@vbd/compiler";
 
 const ATTR_TYPES: AttrType[] = ["text", "number", "boolean", "date", "money", "reference"];
 
@@ -103,9 +103,47 @@ function TagList({
   );
 }
 
+/**
+ * An entity's behaviour (SPEC-004) — collapsed "What happens" (REV-021 F1: hierarchical disclosure).
+ * Business language: "Actions" (commands) → the "what happens" (events they emit). Read-only.
+ */
+function EntityBehaviour({ commands, events }: { commands: CommandInput[]; events: EventInput[] }): React.JSX.Element | null {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  if (commands.length === 0 && events.length === 0) return null;
+  const eventName = (id: string): string => events.find((e) => e.id === id)?.name ?? id;
+  const standalone = events.filter((e) => (e.trigger ?? "command") !== "command");
+  return (
+    <div className="nd-behaviour">
+      <button className="nd-behaviour-toggle" onClick={() => setOpen((o) => !o)}>
+        {open ? "▾" : "▸"} {t("whatHappens")} <span className="muted">({commands.length})</span>
+      </button>
+      {open && (
+        <div className="nd-behaviour-body">
+          {commands.map((c) => (
+            <div className="nd-action" key={c.id}>
+              <span className="nd-action-name">{c.name}</span>
+              {(c.emits ?? []).length > 0 && (
+                <span className="nd-action-emits">→ {(c.emits ?? []).map(eventName).join(", ")}</span>
+              )}
+            </div>
+          ))}
+          {standalone.map((e) => (
+            <div className="nd-action" key={e.id}>
+              <span className="nd-action-emits">⚡ {e.name} <span className="muted">({t(`trigger_${e.trigger}`)})</span></span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function NodeDetail({
   doc,
   aggregates = [],
+  commands = [],
+  events = [],
   areas = [],
   capAreaId,
   onReassignArea,
@@ -119,6 +157,8 @@ export function NodeDetail({
 }: {
   doc: CapabilityDoc;
   aggregates?: AggregateInput[];
+  commands?: CommandInput[];
+  events?: EventInput[];
   areas?: { id: string; name: string }[];
   capAreaId?: string;
   onReassignArea?: (capId: string, areaId: string) => void;
@@ -210,6 +250,10 @@ export function NodeDetail({
                   <AttributeList
                     specs={attributeSpecs(a)}
                     onChange={(v) => onEditAggregate?.({ ...a, attributes: v })}
+                  />
+                  <EntityBehaviour
+                    commands={commands.filter((c) => c.aggregate === a.id)}
+                    events={events.filter((e) => e.aggregate === a.id)}
                   />
                 </div>
               ) : (

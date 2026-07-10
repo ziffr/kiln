@@ -15,6 +15,8 @@ import {
   COMPILER_VERSION,
   SCHEMA_VERSION,
   type CapabilityDoc,
+  type DomainDoc,
+  type ContextsDoc,
 } from "@vbd/compiler";
 
 export const VBD_DIR = ".vbd";
@@ -30,12 +32,16 @@ export interface LoadResult {
   fromCache: boolean;
 }
 
-/** Load the IR for a workspace, using the `.vbd/` cache iff its buildHash matches. */
-export function loadIR(workspaceDir: string, doc: CapabilityDoc): LoadResult {
+/**
+ * Load the IR for a workspace, using the `.vbd/` cache iff its buildHash matches. The domain
+ * (SPEC-002/004) and contexts (SPEC-003) artifacts must enter the hash + IR too, else edits to
+ * entities/behaviour/areas can't invalidate the cache (REV-015 M3 / REV-020 M4).
+ */
+export function loadIR(workspaceDir: string, doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc): LoadResult {
   const cacheDir = join(workspaceDir, VBD_DIR);
   const irPath = join(cacheDir, "ir.json");
   const metaPath = join(cacheDir, "build.meta.json");
-  const expected = computeBuildHash(doc);
+  const expected = computeBuildHash(doc, domain, contexts);
 
   if (existsSync(irPath) && existsSync(metaPath)) {
     try {
@@ -49,18 +55,18 @@ export function loadIR(workspaceDir: string, doc: CapabilityDoc): LoadResult {
     }
   }
 
-  const ir = compileCapabilities(doc);
+  const ir = compileCapabilities(doc, domain, contexts);
   writeCache(cacheDir, ir);
   return { ir, fromCache: false };
 }
 
-/** Whether the cache is present and matches the given authored doc (drift/dirty signal). */
-export function isCacheFresh(workspaceDir: string, doc: CapabilityDoc): boolean {
+/** Whether the cache is present and matches the given authored artifacts (drift/dirty signal). */
+export function isCacheFresh(workspaceDir: string, doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc): boolean {
   const metaPath = join(workspaceDir, VBD_DIR, "build.meta.json");
   if (!existsSync(metaPath)) return false;
   try {
     const meta = JSON.parse(readFileSync(metaPath, "utf8")) as BuildMeta;
-    return meta.buildHash === computeBuildHash(doc);
+    return meta.buildHash === computeBuildHash(doc, domain, contexts);
   } catch {
     return false;
   }

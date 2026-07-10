@@ -195,6 +195,13 @@ textarea {
 .nd-attr-type { font-size: 11px; }
 .nd-add-entity { margin-top: 6px; padding: 4px 10px; font-size: 12px; background: transparent; color: var(--accent); border: 1px dashed var(--edge); border-radius: 8px; cursor: pointer; }
 .nd-add-entity:hover { border-color: var(--accent); }
+.nd-behaviour { margin-top: 4px; }
+.nd-behaviour-toggle { background: transparent; border: none; color: var(--muted); font-size: 11px; cursor: pointer; padding: 2px 0; text-transform: uppercase; letter-spacing: 0.04em; }
+.nd-behaviour-toggle:hover { color: var(--accent); }
+.nd-behaviour-body { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 2px 10px; }
+.nd-action { font-size: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.nd-action-name { font-weight: 600; }
+.nd-action-emits { font-size: 11px; color: var(--muted); }
 .nd-chip.clickable { cursor: pointer; }
 .nd-chip.clickable:hover { border-color: var(--accent); color: var(--accent); }
 

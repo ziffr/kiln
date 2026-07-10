@@ -15,3 +15,6 @@ export default async function handler(req: Req, res: Res): Promise<void> {
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
 }
+
+// Vercel: allow up to 60s for the model call(s).
+export const config = { maxDuration: 60 };

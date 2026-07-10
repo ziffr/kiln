@@ -4,6 +4,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/*.ts": { "runtime": "@vercel/node@5", "maxDuration": 60 }
+    "api/*.ts": { "maxDuration": 60 }
   }
 }

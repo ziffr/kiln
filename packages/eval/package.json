@@ -9,7 +9,9 @@
     "./corpus.solar": "./src/corpus.solar.ts",
     "./generation.solar": "./src/generation.solar.ts",
     "./domain": "./src/domain.ts",
-    "./domain.solar": "./src/domain.solar.ts"
+    "./domain.solar": "./src/domain.solar.ts",
+    "./contexts": "./src/contexts.ts",
+    "./contexts.solar": "./src/contexts.solar.ts"
   },
   "dependencies": {
     "@vbd/compiler": "*",

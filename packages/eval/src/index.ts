@@ -21,6 +21,16 @@ export {
   type DomainCaseScore,
   type DomainCoverage,
 } from "./domain.ts";
+export {
+  scoreContextsCase,
+  scoreContextsFindings,
+  aggregateContextsRecall,
+  scoreContextCoverage,
+  partitionAgreement,
+  type ContextsEvalCase,
+  type ContextsCaseScore,
+  type ContextCoverage,
+} from "./contexts.ts";
 
 export interface ExpectedDefect {
   /** validator code expected to fire, e.g. "V1.purpose", "V2.unique", (future) "V7.overlap". */

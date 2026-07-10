@@ -171,6 +171,9 @@ export function NodeDetail({
   onClose: () => void;
 }): React.JSX.Element | null {
   const { t } = useTranslation();
+  // One entity's body open at a time (REV-021 F1 / REV-026 F1: hierarchical disclosure, keep the
+  // deep panel shallow). Collapsed by default.
+  const [openEntity, setOpenEntity] = useState<string | null>(null);
   if (!selectedId) return null;
   const cap = doc.capabilities.find((c) => c.id === selectedId);
   if (!cap) return null;
@@ -231,8 +234,15 @@ export function NodeDetail({
             <span className="nd-label">{t("entities")}</span>
             {owned.map((a) =>
               editable ? (
-                <div className="nd-entity edit" key={a.id}>
+                <div className={`nd-entity edit ${openEntity === a.id ? "open" : ""}`} key={a.id}>
                   <div className="nd-entity-head">
+                    <button
+                      className="nd-entity-toggle"
+                      onClick={() => setOpenEntity((cur) => (cur === a.id ? null : a.id))}
+                      aria-label="toggle entity"
+                    >
+                      {openEntity === a.id ? "▾" : "▸"}
+                    </button>
                     <input
                       className="nd-entity-name"
                       value={a.name}
@@ -241,20 +251,24 @@ export function NodeDetail({
                     {(a.meta?.origin === "authored") && <span className="nd-authored" title={t("edited")}>✎</span>}
                     <button className="chip-x" onClick={() => onDeleteAggregate?.(a.id)} aria-label="remove entity">×</button>
                   </div>
-                  <code className="nd-id sm">{a.id}</code>
-                  <TagList
-                    label={t("references")}
-                    values={a.references ?? []}
-                    onChange={(v) => onEditAggregate?.({ ...a, references: v })}
-                  />
-                  <AttributeList
-                    specs={attributeSpecs(a)}
-                    onChange={(v) => onEditAggregate?.({ ...a, attributes: v })}
-                  />
-                  <EntityBehaviour
-                    commands={commands.filter((c) => c.aggregate === a.id)}
-                    events={events.filter((e) => e.aggregate === a.id)}
-                  />
+                  {openEntity === a.id && (
+                    <>
+                      <code className="nd-id sm">{a.id}</code>
+                      <TagList
+                        label={t("references")}
+                        values={a.references ?? []}
+                        onChange={(v) => onEditAggregate?.({ ...a, references: v })}
+                      />
+                      <AttributeList
+                        specs={attributeSpecs(a)}
+                        onChange={(v) => onEditAggregate?.({ ...a, attributes: v })}
+                      />
+                      <EntityBehaviour
+                        commands={commands.filter((c) => c.aggregate === a.id)}
+                        events={events.filter((e) => e.aggregate === a.id)}
+                      />
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="nd-entity" key={a.id}>

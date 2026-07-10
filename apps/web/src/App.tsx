@@ -15,6 +15,7 @@ import {
   type CapabilityInput,
   type ContextInput,
   type ContextsDoc,
+  type DomainDoc,
 } from "@vbd/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents } from "@vbd/validation";
 import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents } from "@vbd/skills";
@@ -223,17 +224,32 @@ export default function App(): React.JSX.Element {
   }
 
   // ---- Capability editing (structured forms, REV-004 F1) ----
-  // Editing materializes the live mock into the project's own capabilities, then patches it.
+  // Reconcile (not blanket-clear) an authored domain when a capability is deleted (REV-020 M1 /
+  // REV-025 M1): drop entities the deleted capability owned, plus the commands/events on them; keep
+  // everything else the human authored. A null domain stays null (the live mock re-derives).
+  function reconcileDomain(id: string): DomainDoc | null | undefined {
+    if (!active.domain) return active.domain; // null/undefined → mock re-derives, nothing to preserve
+    const keptAggs = active.domain.aggregates.filter((a) => a.owner !== id);
+    const keptIds = new Set(keptAggs.map((a) => a.id));
+    return {
+      ...active.domain,
+      aggregates: keptAggs.map((a) => ({ ...a, references: (a.references ?? []).filter((r) => keptIds.has(r)) })),
+      commands: (active.domain.commands ?? []).filter((c) => keptIds.has(c.aggregate) && c.capability !== id),
+      events: (active.domain.events ?? []).filter((e) => keptIds.has(e.aggregate)),
+    };
+  }
+
   function editCapability(updated: CapabilityInput): void {
     const base = active.capabilities ?? mockDoc;
     const caps = base.capabilities.map((c) => (c.id === updated.id ? updated : c));
-    patchActive({ capabilities: { ...base, capabilities: caps }, provider: "hand-edited", domain: null });
+    // Ids are stable, so authored entities/behaviour are unaffected — do NOT clear the domain.
+    patchActive({ capabilities: { ...base, capabilities: caps }, provider: "hand-edited" });
   }
   function deleteCapability(id: string): void {
     const base = active.capabilities ?? mockDoc;
-    // Reconcile, don't blanket-clear, the authored areas partition (REV-015 M1): drop the deleted
-    // capability from every area; leave the rest of the partition intact.
-    const reconciled = active.contexts
+    // Reconcile the authored areas partition (drop the deleted member) and the domain (drop its
+    // entities/behaviour) — never blanket-clear.
+    const reconciledContexts = active.contexts
       ? {
           ...active.contexts,
           contexts: active.contexts.contexts.map((c) => ({
@@ -246,8 +262,8 @@ export default function App(): React.JSX.Element {
     patchActive({
       capabilities: { ...base, capabilities: base.capabilities.filter((c) => c.id !== id) },
       provider: "hand-edited",
-      domain: null,
-      contexts: reconciled,
+      domain: reconcileDomain(id),
+      contexts: reconciledContexts,
     });
     setSelected(null);
   }
@@ -257,7 +273,8 @@ export default function App(): React.JSX.Element {
     let id = `capability_${n}`;
     while (base.capabilities.some((c) => c.id === id)) id = `capability_${++n}`;
     const cap: CapabilityInput = { id, name: "New Capability", purpose: "", outcomes: [] };
-    patchActive({ capabilities: { ...base, capabilities: [...base.capabilities, cap] }, provider: "hand-edited", domain: null });
+    // A new capability owns nothing yet — preserve the authored domain (don't clear).
+    patchActive({ capabilities: { ...base, capabilities: [...base.capabilities, cap] }, provider: "hand-edited" });
     setSelected(id);
   }
 

@@ -184,6 +184,8 @@ textarea {
 .nd-entity-refs { font-size: 10px; color: var(--muted); }
 .nd-entity.edit { gap: 4px; padding: 8px; }
 .nd-entity-head { display: flex; align-items: center; gap: 6px; }
+.nd-entity-toggle { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 0 2px; }
+.nd-entity-toggle:hover { color: var(--accent); }
 .nd-entity.edit input.nd-entity-name { flex: 1; background: transparent; border: none; border-bottom: 1px solid var(--edge); color: inherit; padding: 2px 0; font-size: 13px; font-weight: 600; }
 .nd-entity.edit input.nd-entity-name:focus { outline: none; border-bottom-color: var(--accent); }
 .nd-id.sm { margin: 0; font-size: 10px; }

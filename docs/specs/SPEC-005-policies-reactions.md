@@ -2,8 +2,8 @@
 id: SPEC-005
 title: Policies & Reactions — cross-entity workflow rules
 type: spec
-status: Revised
-version: 0.2.0
+status: Approved
+version: 1.0.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
 updated: 2026-07-10
@@ -234,3 +234,25 @@ design on the shelf**, un-shelved when demand returns.
 - Q4 codegen shape → per-area event-handler stubs (PL-M5), decided at build.
 - Q5 surface term → **"Automations" / "Wenn… dann…"**, reusing existing Aktion/Was-passiert terms.
 - Q6 cross-area → **flag distinctly** (`crossesArea`), the highest-value least-visible signal.
+
+### 14. Exit gate — built & verified (PL-M0…M5)
+
+Un-shelved and built after the "whole framework" go-ahead. Gold-free harness (`@vbd/eval/policies`):
+
+| Criterion | Result |
+|---|---|
+| PL defect recall (5 seeded cases) | **1.000** |
+| clean-case precision | **1.000** |
+| mock crossEntityRate / provenanceRate | **1.0 / 1.0** |
+| mock reactionRecall (vs reference) / spuriousRate | **1.0 / 0.0** |
+| **A5 quality (over-wiring guardrail)** | precision instrument in place — `spuriousRate` rises on over-wired sets |
+
+Verified live against Sonnet: the PolicyModeler produced **7 sensible cross-entity hand-offs** on the
+full solar flow (lead→customer, offer→purchase-order, work-order→invoice, …) — **conservative, not a
+policy-per-event** — with only a PL6 self-loop smell flagged. In-context UI shows each reaction under
+its trigger event ("⇒ When … → then … (target entity)"); `@vbd/codegen` emits the reaction handlers
+(Workflows tab). 156 tests.
+
+**Decision:** engineering **GREEN**; A6/A7 (partner value + second-domain) fold into the live stack the
+partner is already using. **SPEC-005 → `Approved`.** Codegen's "no reactions" gap is closed; the
+remaining gap now names roles/workflows/agents/blueprints — the next layers.

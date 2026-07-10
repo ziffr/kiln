@@ -87,6 +87,13 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
 - `.env`, `node_modules/`, `.vbd/`, `dist/` are gitignored — never commit them.
 
 ## Status (keep current)
+- **Building the FULL methodology stack** (user: "the whole enchilada"): policies ✅ → roles →
+  workflows → agents → application/implementation blueprints → deepen codegen (MCP/React/adapters).
+- **SPEC-005 (policies/reactions) BUILT + Approved** — `policy` node + when/then edges,
+  `validatePolicies` (PL1–PL7 incl. joined-graph cycle), `PolicyModeler` (precision-biased, single
+  call) + `/api/policies`, eval with reactionRecall + **spuriousRate** (anti over-wiring), codegen
+  **Workflows** stubs, in-context "Automations" UI. Verified: 7 cross-entity hand-offs on solar.
+- **Deployed on Vercel** (SPA + serverless functions, key server-side): https://vertical-business-designer-web.vercel.app
 - **Full modeling arc built + partner-validated (SPEC-001…004 Approved).** narrative → capabilities →
   business areas → entities (typed attributes) → commands/events. `@vbd/codegen` projects it to TS
   types + OpenAPI (real command operations, not just CRUD) + event catalog + area-module map; visible

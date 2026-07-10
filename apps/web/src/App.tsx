@@ -8,7 +8,7 @@ import {
   customers,
 } from "@vbd/narrative";
 import { compileCapabilities, type CapabilityDoc, type CapabilityInput } from "@vbd/compiler";
-import { validateAll } from "@vbd/validation";
+import { validateAll, validateDomain } from "@vbd/validation";
 import { mockGenerateCapabilities, mockGenerateDomain } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
@@ -105,7 +105,24 @@ export default function App(): React.JSX.Element {
   // SPEC-002: the domain model — LLM-generated when present (DM2), else the live mock (DM1).
   const mockDomain = useMemo(() => mockGenerateDomain(activeDoc), [activeDoc]);
   const domainDoc = active.domain ?? mockDomain;
+  // SPEC-002 DM validators are the authority — run them client-side (isomorphic) over the active
+  // domain so findings surface in the UI, not only inside the /api/domain response.
+  const domainFindings = useMemo(
+    () => validateDomain(domainDoc, activeDoc.capabilities.map((c) => c.id)),
+    [domainDoc, activeDoc],
+  );
   const [domainBusy, setDomainBusy] = useState(false);
+
+  // Resolve a domain finding to the capability whose detail panel shows the offending entity,
+  // so clicking a finding opens the right place (subject is a capability id or an aggregate id).
+  const findingCapability = (subjects: string[]): string | undefined => {
+    for (const s of subjects) {
+      if (activeDoc.capabilities.some((c) => c.id === s)) return s;
+      const agg = domainDoc.aggregates.find((a) => a.id === s);
+      if (agg?.owner && activeDoc.capabilities.some((c) => c.id === agg.owner)) return agg.owner;
+    }
+    return undefined;
+  };
 
   function setNarrative(v: string): void {
     // Editing invalidates prior LLM snapshots (capabilities + domain) → fall back to the live mock.
@@ -303,7 +320,7 @@ export default function App(): React.JSX.Element {
         <section className="col grow">
           <div className="col-head">
             <h2>{t("capabilities")}</h2>
-            <FindingsBadge count={capFindings.length} />
+            <FindingsBadge count={capFindings.length + domainFindings.length} />
           </div>
 
           <div className="genbar">
@@ -345,6 +362,20 @@ export default function App(): React.JSX.Element {
             <ul className="findings cap-findings">
               {capFindings.map((f) => {
                 const subj = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x));
+                return (
+                  <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && setSelected(subj)}>
+                    <code className={f.severity}>{f.code}</code> {f.message}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {domainFindings.length > 0 && (
+            <ul className="findings cap-findings domain-findings">
+              <li className="findings-head muted">{t("entities")}</li>
+              {domainFindings.map((f) => {
+                const subj = findingCapability(f.subjects);
                 return (
                   <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && setSelected(subj)}>
                     <code className={f.severity}>{f.code}</code> {f.message}

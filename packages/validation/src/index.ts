@@ -10,7 +10,7 @@
  */
 
 import { sha256 } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
 
 export type Severity = "blocker" | "major" | "minor";
 
@@ -238,6 +238,86 @@ export function validateDomain(domain: DomainDoc, capabilityIds: string[]): Find
   // DM5 — warning (not error): a capability that owns no aggregate may be under-modeled (or pure orchestration).
   for (const cid of capIds) {
     if (!owned.has(cid)) findings.push(mk("DM5.uncovered", "minor", `capability '${cid}' owns no aggregate yet`, [cid]));
+  }
+  return findings;
+}
+
+/**
+ * SPEC-003 — business-areas (subdomain partition) validators. Pure/isomorphic. Assumes member ids
+ * are already canonicalized to real capability ids (the ContextGrouper skill does that first).
+ * The heart is BC2: it must be a partition (every capability in exactly one area's `capabilities`),
+ * with `shared_kernel` the explicit escape for a capability that legitimately appears in another area.
+ */
+export function validateContexts(contexts: ContextsDoc, doc: CapabilityDoc): Finding[] {
+  const findings: Finding[] = [];
+  const caps = doc.capabilities;
+  const capIds = new Set(caps.map((c) => c.id));
+  const counts = new Map<string, number>(); // duplicate area-id detection
+  const primary = new Map<string, number>(); // how many areas list a capability in `capabilities`
+
+  // Shared-entity index for BC9 cohesion: capability id → set of produced/consumed object slugs.
+  const entitiesOf = (id: string): Set<string> => {
+    const c = caps.find((x) => x.id === id);
+    const s = new Set<string>();
+    for (const e of [...(c?.produces ?? []), ...(c?.consumes ?? [])]) s.add(e.toLowerCase().replace(/\s+/g, "_"));
+    return s;
+  };
+  const dependsPair = (a: string, b: string): boolean => {
+    const ca = caps.find((x) => x.id === a);
+    const cb = caps.find((x) => x.id === b);
+    return !!(ca?.depends_on?.includes(b) || cb?.depends_on?.includes(a));
+  };
+
+  for (const ctx of contexts.contexts) {
+    const subj = ctx.id || ctx.name || "<unknown>";
+    if (!ctx.id || !ctx.id.trim()) {
+      findings.push(mk("BC1.id", "blocker", "business area is missing an id", [subj]));
+    } else {
+      counts.set(ctx.id, (counts.get(ctx.id) ?? 0) + 1);
+      if (!ID_RE.test(ctx.id)) findings.push(mk("BC7.slug", "major", `area id '${ctx.id}' is not a stable slug`, [ctx.id]));
+    }
+    if (!ctx.name || !ctx.name.trim()) findings.push(mk("BC1.name", "major", `area '${subj}' is missing a name`, [subj]));
+    if (!ctx.intent || !ctx.intent.trim()) findings.push(mk("BC5.intent", "minor", `area '${subj}' has no intent`, [subj]));
+    if ((ctx.capabilities ?? []).length === 0) findings.push(mk("BC6.empty", "minor", `area '${subj}' groups no capabilities`, [subj]));
+
+    for (const m of ctx.capabilities ?? []) {
+      primary.set(m, (primary.get(m) ?? 0) + 1);
+      if (!capIds.has(m)) findings.push(mk("BC4.dangling", "major", `area '${subj}' lists unknown capability '${m}'`, [subj, m]));
+    }
+    for (const m of ctx.shared_kernel ?? []) {
+      if (!capIds.has(m)) findings.push(mk("BC4.dangling", "major", `area '${subj}' shared_kernel lists unknown capability '${m}'`, [subj, m]));
+    }
+
+    // BC8 — provenance must cite BOUNDARY EVIDENCE, not merely the area's own members (REV-013 C3).
+    const origin = (ctx.meta as { origin?: string } | undefined)?.origin;
+    if (origin === "llm") {
+      const derived = (ctx.meta as { derivedFrom?: Array<Record<string, unknown>> } | undefined)?.derivedFrom ?? [];
+      const grounded = derived.some((d) => typeof d?.anchor === "string" && (d.anchor as string).trim());
+      if (!grounded) findings.push(mk("BC8.provenance", "major", `area '${subj}' lacks grounded boundary evidence`, [subj]));
+    }
+
+    // BC9 — cohesion smell (minor, deterministic): ≥2 members with zero internal coupling.
+    const members = ctx.capabilities ?? [];
+    if (members.length >= 2) {
+      let coupled = false;
+      for (let i = 0; i < members.length && !coupled; i++) {
+        for (let j = i + 1; j < members.length && !coupled; j++) {
+          const shareEntity = [...entitiesOf(members[i])].some((e) => entitiesOf(members[j]).has(e));
+          if (dependsPair(members[i], members[j]) || shareEntity) coupled = true;
+        }
+      }
+      if (!coupled) findings.push(mk("BC9.cohesion", "minor", `area '${subj}' groups capabilities with no shared dependency or entity`, [subj]));
+    }
+  }
+
+  for (const [id, n] of counts) {
+    if (n > 1) findings.push(mk("BC7.unique", "blocker", `duplicate area id '${id}' (${n}×)`, [id]));
+  }
+  // BC2 — the partition guarantee (repair-triggering): every capability in exactly one area.
+  for (const c of caps) {
+    const n = primary.get(c.id) ?? 0;
+    if (n === 0) findings.push(mk("BC2.unassigned", "major", `capability '${c.id}' belongs to no business area`, [c.id]));
+    else if (n > 1) findings.push(mk("BC2.multiple", "major", `capability '${c.id}' is assigned to ${n} areas`, [c.id]));
   }
   return findings;
 }

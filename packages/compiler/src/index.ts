@@ -54,21 +54,43 @@ export interface DomainDoc {
   aggregates: AggregateInput[];
 }
 
+/** SPEC-003 business-areas layer: a partition of capabilities into subdomains ("areas"). */
+export interface ContextInput {
+  id: string;
+  name: string;
+  intent?: string;
+  capabilities: string[]; // member capability ids (the partition; exactly one area per cap — BC2)
+  shared_kernel?: string[]; // capabilities intentionally also in another area (BC2 escape)
+  meta?: Record<string, unknown>;
+}
+
+export interface ContextsDoc {
+  version: string;
+  contexts: ContextInput[];
+}
+
 /** Namespaced IR node id for an aggregate (REV-010 M1: avoid collision with capability ids). */
 export function aggregateNodeId(id: string): string {
   return `aggregate:${slug(id)}`;
 }
 
-/**
- * Deterministic buildHash binding authored input to compiler + schema versions
- * (SPEC-001 §3.4). Mixes both authored artifacts when a domain model is present (REV-010 M5).
- */
-export function computeBuildHash(doc: CapabilityDoc, domain?: DomainDoc): string {
-  const domainPart = domain ? canonical(domain) : "";
-  return sha256(`${canonical(doc)}|${domainPart}|${COMPILER_VERSION}|${SCHEMA_VERSION}`);
+/** Namespaced IR node id for a business area (SPEC-003; REV-015: collision-free with cap/aggregate ids). */
+export function contextNodeId(id: string): string {
+  return `bctx:${slug(id)}`;
 }
 
-export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc): IR {
+/**
+ * Deterministic buildHash binding authored input to compiler + schema versions
+ * (SPEC-001 §3.4). Mixes every authored artifact present — capabilities, domain (REV-010 M5),
+ * and the business-areas partition (SPEC-003 / REV-015 M2) — plus the compiler + schema versions.
+ */
+export function computeBuildHash(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc): string {
+  const domainPart = domain ? canonical(domain) : "";
+  const contextsPart = contexts ? canonical(contexts) : "";
+  return sha256(`${canonical(doc)}|${domainPart}|${contextsPart}|${COMPILER_VERSION}|${SCHEMA_VERSION}`);
+}
+
+export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc): IR {
   const nodes = new Map<string, IRNode>();
   const edges = new Map<string, IREdge>();
 
@@ -159,6 +181,23 @@ export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc): IR 
     }
   }
 
+  // SPEC-003 business areas: authored bounded_context nodes + `groups` edges (area → capability).
+  // A capability id is used verbatim as the edge target — the same id space as the capability nodes,
+  // so groups edges connect to real capability nodes; area ids are namespaced `bctx:` to avoid clash.
+  for (const ctx of contexts?.contexts ?? []) {
+    const cid = contextNodeId(ctx.id);
+    addNode({
+      id: cid,
+      type: "bounded_context",
+      origin: "authored",
+      label: ctx.name ?? ctx.id,
+      meta: { ...(ctx.meta ?? {}), intent: ctx.intent ?? "" },
+    });
+    for (const member of [...(ctx.capabilities ?? []), ...(ctx.shared_kernel ?? [])]) {
+      addEdge({ id: edgeId(cid, member, "groups"), from: cid, to: member, type: "groups", origin: "authored" });
+    }
+  }
+
   const sortedNodes = [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
   const sortedEdges = [...edges.values()].sort((a, b) => a.id.localeCompare(b.id));
 
@@ -167,6 +206,6 @@ export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc): IR 
     domain: doc.domain,
     nodes: sortedNodes,
     edges: sortedEdges,
-    buildHash: computeBuildHash(doc, domain),
+    buildHash: computeBuildHash(doc, domain, contexts),
   };
 }

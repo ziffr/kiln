@@ -19,6 +19,7 @@ Regenerated whenever a document is added or changes status. See `CONVENTIONS.md`
 | SPEC-001 | MVP — Narrative → Capability Map → Review Loop | spec | Approved | 0.2.0 |
 | SPEC-002 | Domain Model Layer — aggregates, events, commands | spec | Approved | 1.0.0 |
 | SPEC-003 | Business Areas (Subdomains) — the capability-grouping layer | spec | Approved | 1.0.0 |
+| SPEC-004 | Commands & Events — the behaviour layer on the domain model | spec | Draft | 0.1.0 |
 | PLAN-001 | MVP Execution Plan (M0–M5) | plan | Approved | 0.4.0 |
 | ADR-001 | TypeScript end-to-end (shared IR contract) | adr | Approved | 1.0.0 |
 | ADR-002 | Storage & source-of-truth model | adr | Approved | 1.0.0 |

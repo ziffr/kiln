@@ -22,6 +22,7 @@ import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGe
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
+import { CodePreview } from "./components/CodePreview";
 import { NarrativeInput } from "./components/NarrativeInput";
 import {
   loadProjects,
@@ -129,6 +130,7 @@ export default function App(): React.JSX.Element {
     [behaviourDoc, activeDoc],
   );
   const [behaviourBusy, setBehaviourBusy] = useState(false);
+  const [showCode, setShowCode] = useState(false);
   // The map IR must carry domain (owns) + contexts (groups) + behaviour edges for the projections.
   const ir = useMemo(() => compileCapabilities(activeDoc, behaviourDoc, contextsDoc), [activeDoc, behaviourDoc, contextsDoc]);
 
@@ -536,6 +538,7 @@ export default function App(): React.JSX.Element {
             <button className="addcap" onClick={() => void generateBehaviour()} disabled={behaviourBusy}>
               {behaviourBusy ? t("generating") : t("genBehaviour")}
             </button>
+            <button className="viewcode" onClick={() => setShowCode((s) => !s)}>{t("viewCode")}</button>
           </div>
 
           {/* Business Areas legend — the map backdrop's key; click an area to edit it (REV-016). */}
@@ -630,6 +633,10 @@ export default function App(): React.JSX.Element {
                 );
               })}
             </ul>
+          )}
+
+          {showCode && (
+            <CodePreview caps={activeDoc} domain={behaviourDoc} contexts={contextsDoc} onClose={() => setShowCode(false)} />
           )}
 
           <div className="map-wrap">

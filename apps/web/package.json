@@ -9,6 +9,7 @@
     "preview": "vite preview --port 5188"
   },
   "dependencies": {
+    "@vbd/codegen": "*",
     "@vbd/compiler": "*",
     "@vbd/ir": "*",
     "@vbd/narrative": "*",

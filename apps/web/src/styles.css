@@ -216,6 +216,24 @@ textarea {
 .area-chip .area-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--area-color, var(--accent)); }
 .area-chip.add { border-style: dashed; color: var(--accent); }
 .area-detail .nd-id { color: var(--muted); }
+
+/* Code preview — the model → code payoff (read-only projection) */
+.genbar .viewcode { margin-left: auto; padding: 4px 10px; font-size: 12px; background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: 8px; cursor: pointer; }
+.genbar .viewcode:hover { background: var(--card); }
+.code-preview { margin: 6px 0 10px; border: 1px solid var(--edge); border-radius: 10px; background: var(--card); overflow: hidden; }
+.code-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid var(--edge); }
+.code-tabs { display: flex; gap: 4px; }
+.code-tabs button { background: transparent; border: none; color: var(--muted); font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+.code-tabs button.active { color: var(--fg); background: var(--bg); }
+.code-body { max-height: 320px; overflow: auto; }
+.code-block { margin: 0; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.5; white-space: pre; color: var(--fg); }
+.code-ops { list-style: none; margin: 0; padding: 8px 10px; font-size: 12px; }
+.code-ops li { padding: 3px 0; border-top: 1px solid #1f2937; }
+.code-ops li:first-child { border-top: none; }
+.op-verb { color: var(--accent); font-weight: 700; font-size: 10px; }
+.op-emits { color: var(--muted); font-size: 11px; }
+.code-gaps { list-style: none; margin: 0; padding: 8px 10px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--edge); background: var(--bg); }
+.code-gaps li { padding: 2px 0; }
 .genbar .addcap {
   background: var(--card); color: var(--fg); border: 1px solid var(--edge);
   border-radius: 6px; padding: 7px 11px; font-size: 13px; cursor: pointer;

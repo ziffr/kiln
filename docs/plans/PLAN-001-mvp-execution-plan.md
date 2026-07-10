@@ -115,9 +115,13 @@ Monorepo, npm workspaces (ADR-001):
   fields (not raw YAML) + add/delete; edits recompile the IR + re-validate live and mark the source
   hand-edited. **`@vbd/eval` generation-coverage scoring wired** (REV-006 F2): `scoreGenerationCoverage`
   (activity-coverage via provenance anchors + expected-id recall); mock hits 12/12 activities + 8/8
-  expected ids on solar; 47 tests green. **Remaining to CLOSE M2:** **G-DP design partner** to judge
-  A1 correctness at scale; attach LLM-output provenance so generated caps carry `meta.derivedFrom`
-  (V8, M3) — today only the mock does.
+  expected ids on solar. **LLM provenance grounded + V8 landed:** the generator now returns the exact
+  Core Activities each capability derives from; the skill maps them to real narrative anchors +
+  content hashes (bogus citations dropped) so generated caps carry validated `meta.derivedFrom`, and
+  validator **V8** enforces provenance on every LLM-origin capability. **NarrativeCoach transcript
+  persists** per project (localStorage). 48 tests green. **Remaining to CLOSE M2 — engineering
+  complete; only the human gate is open:** a **G-DP design partner** (real operator) to confirm A1
+  capability correctness on a real vertical.
 
 ### M3 — Validation + review loop
 - **Scope:** validators V3–V8; `CapabilityReviewer` (scoped to judgment; self-consistency k;

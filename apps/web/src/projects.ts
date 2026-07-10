@@ -19,7 +19,14 @@ export interface Project {
   provider: string | null;
   /** per-project interview override (tone/depth/domain); empty → global default. */
   coachConfig?: CoachConfig;
+  /** persisted interview transcript (excludes the localized greeting). */
+  coachTranscript?: CoachMsg[];
   updatedAt: number;
+}
+
+export interface CoachMsg {
+  role: "user" | "assistant";
+  content: string;
 }
 
 export interface ProjectState {

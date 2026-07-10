@@ -40,7 +40,7 @@ const CAPABILITY_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["id", "name", "purpose", "outcomes"],
+        required: ["id", "name", "purpose", "outcomes", "derivedFrom"],
         properties: {
           id: { type: "string" },
           name: { type: "string" },
@@ -50,6 +50,8 @@ const CAPABILITY_SCHEMA = {
           produces: { type: "array", items: { type: "string" } },
           consumes: { type: "array", items: { type: "string" } },
           depends_on: { type: "array", items: { type: "string" } },
+          // provenance: the exact Core Activity lines this capability derives from.
+          derivedFrom: { type: "array", items: { type: "string" } },
         },
       },
     },

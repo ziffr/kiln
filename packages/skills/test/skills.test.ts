@@ -104,3 +104,29 @@ test("coerceCapabilityDoc rejects unusable payloads", () => {
   assert.equal(coerceCapabilityDoc({ nope: true }), null);
   assert.ok(coerceCapabilityDoc({ capabilities: [] }));
 });
+
+test("LLM-cited provenance is grounded to real narrative anchors (V8 passes)", async () => {
+  // A scripted 'LLM' that cites a real activity ("Acquire leads") and a bogus one.
+  const provider: LlmProvider = {
+    name: "anthropic:test-model",
+    complete: async () => ({
+      provider: "anthropic:test-model",
+      raw: "",
+      json: {
+        version: "0.2",
+        domain: "solar",
+        capabilities: [
+          { id: "lead_management", name: "Lead Management", purpose: "Acquire leads.", outcomes: ["qualified_lead"], derivedFrom: ["Acquire leads", "Fly to the moon"] },
+        ],
+      },
+    }),
+  };
+  const res = await generateCapabilities(doc, provider);
+  assert.deepEqual(res.findings, []); // grounded provenance → V8 passes
+  const meta = res.doc.capabilities[0].meta as { origin?: string; derivedFrom?: Array<{ anchor?: string }> };
+  assert.equal(meta.origin, "llm");
+  // the real activity was grounded to an anchor; the bogus citation was dropped.
+  assert.deepEqual(meta.derivedFrom?.map((d) => d.anchor), ["acquire-leads"]);
+  // the raw top-level derivedFrom string[] must not leak through
+  assert.equal((res.doc.capabilities[0] as { derivedFrom?: unknown }).derivedFrom, undefined);
+});

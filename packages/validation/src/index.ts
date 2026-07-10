@@ -77,7 +77,20 @@ export function validateV2(doc: CapabilityDoc): Finding[] {
   return findings;
 }
 
-/** Run all M0 validators. */
+/** V8 — every LLM-authored capability must carry valid provenance (SPEC-001 §3.2). */
+export function validateV8(doc: CapabilityDoc): Finding[] {
+  const findings: Finding[] = [];
+  for (const c of doc.capabilities) {
+    const meta = c.meta as { origin?: string; derivedFrom?: unknown[] } | undefined;
+    if (meta?.origin !== "llm") continue; // only LLM-authored caps are held to provenance
+    if (!Array.isArray(meta.derivedFrom) || meta.derivedFrom.length === 0) {
+      findings.push(finding("V8.provenance", "major", `capability '${c.id}' (llm) has no provenance`, [c.id || "<unknown>"]));
+    }
+  }
+  return findings;
+}
+
+/** Run all implemented validators. */
 export function validateAll(doc: CapabilityDoc): Finding[] {
-  return [...validateV1(doc), ...validateV2(doc)];
+  return [...validateV1(doc), ...validateV2(doc), ...validateV8(doc)];
 }

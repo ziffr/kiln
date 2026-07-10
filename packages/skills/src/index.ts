@@ -7,7 +7,8 @@
 
 import type { CapabilityDoc } from "@vbd/compiler";
 import { validateAll, type Finding } from "@vbd/validation";
-import type { NarrativeDoc } from "@vbd/narrative";
+import { anchorize, coreActivities, type NarrativeDoc } from "@vbd/narrative";
+import { sha256 } from "@vbd/ir";
 import type { GenerationResult, LlmProvider } from "./types.ts";
 import { buildCapabilityRequest } from "./prompt.ts";
 
@@ -58,6 +59,30 @@ function hasBlocker(findings: Finding[]): boolean {
 }
 
 /**
+ * Ground LLM-cited provenance against the narrative (SPEC-001 §3.2, V8). The model returns a
+ * top-level `derivedFrom: string[]` of the Core Activity lines it used; we map each to a REAL
+ * narrative anchor + content hash (matched by anchor, tolerant of minor rewording) and drop any
+ * citation that isn't an actual activity — so provenance is validated, never hallucinated.
+ * Mock-generated capabilities already carry `meta.derivedFrom` and pass through untouched.
+ */
+function groundProvenance(doc: CapabilityDoc, narrative: NarrativeDoc, modelId: string): CapabilityDoc {
+  const byAnchor = new Map(coreActivities(narrative).map((a) => [anchorize(a), a]));
+  const capabilities = doc.capabilities.map((cap) => {
+    const cited = (cap as { derivedFrom?: unknown }).derivedFrom;
+    if (!Array.isArray(cited)) return cap; // mock path (or no citation) — leave meta as-is
+    const anchors = [...new Set(cited.map((s) => anchorize(String(s))).filter((a) => byAnchor.has(a)))];
+    const derivedFrom = anchors.map((a) => ({
+      section: "Core Activities",
+      anchor: a,
+      contentHash: sha256(byAnchor.get(a) as string),
+    }));
+    const { derivedFrom: _drop, ...rest } = cap as unknown as Record<string, unknown>;
+    return { ...rest, meta: { ...(cap.meta ?? {}), origin: "llm", modelId, derivedFrom } } as unknown as typeof cap;
+  });
+  return { ...doc, capabilities };
+}
+
+/**
  * CapabilityGenerator skill. Runs the provider, coerces + validates, and retries once with a
  * repair hint if the output is unusable or has blocking validation issues.
  */
@@ -69,6 +94,7 @@ export async function generateCapabilities(
 
   let result = await provider.complete(req);
   let doc = coerceCapabilityDoc(result.json);
+  if (doc) doc = groundProvenance(doc, narrative, result.provider);
   let findings = doc ? validateAll(doc) : [];
   let repaired = false;
 
@@ -80,6 +106,7 @@ export async function generateCapabilities(
     };
     result = await provider.complete(retry);
     doc = coerceCapabilityDoc(result.json);
+    if (doc) doc = groundProvenance(doc, narrative, result.provider);
     findings = doc ? validateAll(doc) : [];
   }
 

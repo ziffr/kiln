@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CoachConfig } from "@vbd/skills";
+import type { CoachMsg as Msg } from "../projects";
 
 const SERVICE_URL = "http://localhost:8787";
-
-type Msg = { role: "user" | "assistant"; content: string };
 
 /**
  * Narrative input with two modes (SPEC-001 §4.1 + user decision): an interactive **Interview**
@@ -19,6 +18,8 @@ export function NarrativeInput({
   effort,
   config,
   onConfig,
+  transcript,
+  onTranscript,
   lang,
 }: {
   narrative: string;
@@ -27,11 +28,17 @@ export function NarrativeInput({
   effort: string;
   config: CoachConfig;
   onConfig: (c: CoachConfig) => void;
+  transcript: Msg[];
+  onTranscript: (t: Msg[]) => void;
   lang: string;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const greeting: Msg = { role: "assistant", content: t("coachGreeting") };
+  // Persisted transcript excludes the localized greeting; prepend a fresh one for display.
+  const [messages, setMessages] = useState<Msg[]>(
+    transcript.length ? [greeting, ...transcript] : [greeting],
+  );
   const [tab, setTab] = useState<"interview" | "markdown">("interview");
-  const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: t("coachGreeting") }]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +46,8 @@ export function NarrativeInput({
   const [ready, setReady] = useState(false);
 
   async function turn(userText: string): Promise<void> {
-    const next = [...messages, { role: "user" as const, content: userText }];
-    setMessages(next);
+    const withUser = [...messages, { role: "user" as const, content: userText }];
+    setMessages(withUser);
     setInput("");
     setBusy(true);
     setError(null);
@@ -48,11 +55,13 @@ export function NarrativeInput({
       const res = await fetch(`${SERVICE_URL}/api/coach`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: next, model, effort, config: { ...config, language: lang } }),
+        body: JSON.stringify({ messages: withUser, model, effort, config: { ...config, language: lang } }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setMessages((m) => [...m, { role: "assistant", content: data.reply || "…" }]);
+      const withReply: Msg[] = [...withUser, { role: "assistant", content: data.reply || "…" }];
+      setMessages(withReply);
+      onTranscript(withReply.slice(1)); // persist without the greeting
       setReady(Boolean(data.readyToGenerate));
       if (typeof data.narrative === "string" && data.narrative.trim()) setPending(data.narrative);
     } catch (e) {

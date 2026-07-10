@@ -195,6 +195,8 @@ export default function App(): React.JSX.Element {
             effort={active.effort}
             config={active.coachConfig ?? {}}
             onConfig={(c) => patchActive({ coachConfig: c })}
+            transcript={active.coachTranscript ?? []}
+            onTranscript={(tr) => patchActive({ coachTranscript: tr })}
             lang={i18n.language}
           />
           {narrativeFindings.length > 0 && (

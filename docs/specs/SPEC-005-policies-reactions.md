@@ -2,17 +2,29 @@
 id: SPEC-005
 title: Policies & Reactions — cross-entity workflow rules
 type: spec
-status: Draft
-version: 0.1.0
+status: Revised
+version: 0.2.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
 updated: 2026-07-10
 supersedes: null
-related: [SPEC-001, SPEC-002, SPEC-003, SPEC-004, RES-001, ADR-001, ADR-002, ADR-004, ADR-006]
+related: [SPEC-001, SPEC-002, SPEC-003, SPEC-004, RES-001, ADR-001, ADR-002, ADR-004, ADR-006, REV-022, REV-023, REV-024, REV-025, REV-026]
 reviewers: [product-strategy, domain-modeling, ai-llm-feasibility, technical-architecture, ux-hitl]
 ---
 
 # SPEC-005 — Policies & Reactions
+
+> **v0.2.0 — reviewed to closure (REV-022…026, all Approve-with-changes; 2 Blockers, ~18 Majors),
+> then BUILD DEFERRED by owner decision.** No strategic Blocker this time — the layer is well-received
+> (product: "strongest standalone value of the arc"; domain: "the legitimate Policy primitive"). But
+> the panel surfaced (a) real **implementation debt** from prior layers — reconcile-not-clear was only
+> wired for contexts, and the collapsible-entity disclosure was only half-built — and (b) a product
+> meta-note: *five element kinds in, the only real-world validation is one design partner; the
+> highest-information move is shipping the whole stack to them, not building layer six.* **Owner
+> decision: consolidate & ship first** — clear the debt, harden the five built layers + codegen, and
+> get a genuine demand signal from the partner before building policies. This spec is a **reviewed,
+> closed, build-ready design on the shelf** (all findings dispositioned in §13); un-shelve when a
+> partner demand signal returns.
 
 > **When this happens, do that.** SPEC-004 modelled the events each entity emits and the commands
 > that cause them — but strictly *within* one entity (the CE.emit_boundary validator forbids a
@@ -176,5 +188,49 @@ PL2/PL3 are the referential-integrity core; PL6/PL7 are workflow smells (warning
   treat all reactions uniformly?
 
 ## 12. Review & closure
-*(Pending — five independent lenses. Findings + disposition logged here to closure before `Approved`,
-per CONVENTIONS §4.)*
+
+Five lenses reviewed v0.1.0 (REV-022…026); all **Approve-with-changes** (2 UX Blockers, ~18 Majors).
+**Build deferred** (consolidate & ship first — see the v0.2.0 note); every finding is nonetheless
+resolved into the design so it stays build-ready.
+
+### 13. Finding disposition
+
+| Finding | Lens | Sev | Disposition | Where |
+|---|---|---|---|---|
+| Panel density/disclosure — 5th editable concept at nesting depth 5; REV-021 F1 collapse only half-built | ux F1 | **Blocker** | **Accepted → clear as consolidation debt BEFORE build**: finish collapsible-entity disclosure (one open at a time) | §7, consolidation |
+| Reaction hides its cross-entity target (shown only under trigger) | ux F2 | **Blocker** | **Fixed** — bidirectional display (author under trigger, read-only under the reacting command) + a derived reaction edge on the single map + navigable target | §4, §7, Q3 |
+| Codegen-named "demand" overstated (hardcoded gap string; userless consumer) | product M1 | Major | **Fixed** — reframed as codegen-*completeness* signal; A7 partner demand is the real test | §0, §8 |
+| Reactions leapfrog the typed-attributes gap (schemas still `unknown` for un-typed entities) | product M2 | Major | **Noted** — typed attributes shipped (opt-in per attribute); handler stubs use them when set; hardening pass to seed types on the example | consolidation |
+| §8 correctness-heavy; A6 tests emission not usefulness (tautology) | product M3 | Major | **Fixed** — A7 primary + demand-framed; A6 asserts a traceable non-trivial reaction chain | §8 |
+| Over-wiring = product-trust risk (confidently-wrong automation map) | product M4 / ai PF-F1 / domain PL-C1 | Major | **Fixed** — precision-over-recall bias, a **hard storm gate** (policies-per-event cap) + a **spurious-rate** metric (not only recall/coverage); mock is the over-wired baseline so mock-green ≠ quality | §5, §8 |
+| Stateful reactions (fan-in/threshold/timeout) will hide in plain-text `condition` | domain PL-C1 | Major | **Fixed** — §2 names what a stateless rule may NOT express + a review-lens keyword smell | §2, §7 |
+| PL7 cycle is a no-op on the policy-only graph (cycle closes via SPEC-004 `emits`) | domain PL-C2 | Major | **Fixed** — PL7 detects over the JOINED command/event/policy graph (reuse V6 DFS) | §6 |
+| No reconciliation with SPEC-004's derived reacts-to hint (authored vs derived same edge) | domain PL-C3 | Major | **Fixed** — an authored policy SUPERSEDES the derived hint for the same (event→command) pair; the reacts-to hint is also honest consolidation debt (dispositioned in SPEC-004, not yet built) | §4, consolidation |
+| Repair allowlist misses PL1 (on/then missing entirely) | domain PL-C4 / ai PF-F2 | Major | **Fixed** — repair triggers on PL1/PL2/PL3 (+ blocker) | §5 |
+| Cross-area reactions are the highest-value signal, not uniform | domain PL-C5 / ux Q6 | Major | **Fixed** — first-class derived `crossesArea` annotation + a lens category | §4, §7, Q6 |
+| Single-call has no conservation law; storm gate is the sole backstop | ai PF-F1 | Major | **Fixed** — see over-wiring row (storm gate + spurious-rate) | §8 |
+| Global on/then snap can silently mis-wire to another entity | ai PF-F2 | Major | **Fixed** — snap id-first against entity-prefixed real ids; enumerate ids in the prompt; pass id sets into the skill | §5 |
+| POLICY_SCHEMA nested objects need `additionalProperties:false` | ai PF-F3 | Major | **Fixed** — schema spec'd with the fix; on/then/condition strings | §5 |
+| PL5 needs a non-circular anchor fallback | ai PF-F4 | Major | **Fixed** — `withAnchor` grounds to the crossed boundary/narrative theme, never on/then | §5, §6 |
+| Invalidation: App blanket-clears domain → destroys authored policies (REV-020 M1 unimplemented) | arch M1 | Major | **Accepted → clear as consolidation debt**: reconcile-not-clear for domain/behaviour/policies in the App | §4, consolidation |
+| "Generate automations" merge semantics unspecified | arch M2 | Major | **Fixed** — server returns `{ ...domain, policies }`; POST the behaviour doc, never full-replace | §5 |
+
+Minors/Nits (imprecise schema-version lever + migration debt; optional-field coerce; addNode
+silent-drop guard; targeted repair prompt; reactionRecall matches the (on,then) edge not name;
+cross-entity panel data; rename IR node `policy`→`reaction`; empty states + button sequencing) —
+**accepted** into §5/§6/§7 or the PL-phase tickets.
+
+**Status:** UX F2 + all domain/AI/arch Majors **Fixed** into the design; the two "debt" items (ux F1
+disclosure, arch M1 reconcile) are **accepted as consolidation work to do NOW** (they affect the
+already-shipped layers regardless of SPEC-005). No strategic Blocker. Build is **deferred** pending a
+partner demand signal (owner decision). So this spec is **`Revised` — a reviewed, closed, build-ready
+design on the shelf**, un-shelved when demand returns.
+
+### Open-question resolutions
+- Q1 stateless vs saga → **stateless rule now; sagas deferred** (N0), with §2 naming the limits.
+- Q2 condition → **plain text, no DSL** (N1); a keyword smell flags hidden statefulness.
+- Q3 where reactions live → **both ends + a derived map edge**; authored once under the trigger,
+  projected read-only under the reaction.
+- Q4 codegen shape → per-area event-handler stubs (PL-M5), decided at build.
+- Q5 surface term → **"Automations" / "Wenn… dann…"**, reusing existing Aktion/Was-passiert terms.
+- Q6 cross-area → **flag distinctly** (`crossesArea`), the highest-value least-visible signal.

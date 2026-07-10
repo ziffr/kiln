@@ -55,6 +55,9 @@ function TagList({
 export function NodeDetail({
   doc,
   aggregates = [],
+  areas = [],
+  capAreaId,
+  onReassignArea,
   selectedId,
   onEdit,
   onDelete,
@@ -65,6 +68,9 @@ export function NodeDetail({
 }: {
   doc: CapabilityDoc;
   aggregates?: AggregateInput[];
+  areas?: { id: string; name: string }[];
+  capAreaId?: string;
+  onReassignArea?: (capId: string, areaId: string) => void;
   selectedId: string | null;
   onEdit: (cap: CapabilityInput) => void;
   onDelete: (id: string) => void;
@@ -95,6 +101,16 @@ export function NodeDetail({
         <span className="nd-label">{t("capPurpose")}</span>
         <textarea value={cap.purpose ?? ""} onChange={(e) => patch({ purpose: e.target.value })} rows={2} />
       </label>
+
+      {onReassignArea && areas.length > 0 && (
+        <label className="nd-field">
+          <span className="nd-label">{t("ndArea")}</span>
+          <select value={capAreaId ?? ""} onChange={(e) => onReassignArea(cap.id, e.target.value)}>
+            <option value="">— {t("unassignedArea")} —</option>
+            {areas.map((a) => <option key={a.id} value={a.id}>{a.name || a.id}</option>)}
+          </select>
+        </label>
+      )}
 
       <TagList label={t("outcomes")} values={cap.outcomes ?? []} onChange={(v) => patch({ outcomes: v })} />
       <TagList label={t("ndActors")} values={cap.actors ?? []} onChange={(v) => patch({ actors: v })} />

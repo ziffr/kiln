@@ -129,7 +129,10 @@ export const CONTEXT_SCHEMA = {
           intent: { type: "string" },
           capabilities: { type: "array", items: { type: "string" } },
           shared_kernel: { type: "array", items: { type: "string" } },
-          derivedFrom: { type: "array", items: { type: "object", properties: { anchor: { type: "string" } } } },
+          derivedFrom: {
+            type: "array",
+            items: { type: "object", additionalProperties: false, properties: { anchor: { type: "string" } } },
+          },
         },
       },
     },

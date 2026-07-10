@@ -7,11 +7,20 @@ import {
   coreActivities,
   customers,
 } from "@vbd/narrative";
-import { compileCapabilities, type AggregateInput, type CapabilityDoc, type CapabilityInput } from "@vbd/compiler";
-import { validateAll, validateDomain } from "@vbd/validation";
-import { mockGenerateCapabilities, mockGenerateDomain } from "@vbd/skills";
+import {
+  compileCapabilities,
+  contextNodeId,
+  type AggregateInput,
+  type CapabilityDoc,
+  type CapabilityInput,
+  type ContextInput,
+  type ContextsDoc,
+} from "@vbd/compiler";
+import { validateAll, validateDomain, validateContexts } from "@vbd/validation";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
+import { AreaDetail } from "./components/AreaDetail";
 import { NarrativeInput } from "./components/NarrativeInput";
 import {
   loadProjects,
@@ -100,11 +109,30 @@ export default function App(): React.JSX.Element {
 
   const mockDoc = useMemo(() => mockGenerateCapabilities(doc), [doc]);
   const activeDoc = active.capabilities ?? mockDoc;
-  const ir = useMemo(() => compileCapabilities(activeDoc), [activeDoc]);
   const capFindings = useMemo(() => validateAll(activeDoc), [activeDoc]);
   // SPEC-002: the domain model — LLM-generated when present (DM2), else the live mock (DM1).
   const mockDomain = useMemo(() => mockGenerateDomain(activeDoc), [activeDoc]);
   const domainDoc = active.domain ?? mockDomain;
+  // SPEC-003: the business-areas partition — LLM (BC-M3) when present, else the live mock (BC-M1).
+  const mockContexts = useMemo(() => mockGroupContexts(activeDoc), [activeDoc]);
+  const contextsDoc = active.contexts ?? mockContexts;
+  const contextFindings = useMemo(() => validateContexts(contextsDoc, activeDoc), [contextsDoc, activeDoc]);
+  const [contextsBusy, setContextsBusy] = useState(false);
+  // The map IR must carry domain (owns) + contexts (groups) edges for the projections (REV-015 M4).
+  const ir = useMemo(() => compileCapabilities(activeDoc, domainDoc, contextsDoc), [activeDoc, domainDoc, contextsDoc]);
+
+  // Colour each capability by its area for the map backdrop + legend (REV-016 F1: one surface).
+  const AREA_COLORS = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa", "#fb923c", "#22d3ee", "#f87171"];
+  const areaOf = useMemo(() => {
+    const m = new Map<string, { id: string; name: string; color: string }>();
+    contextsDoc.contexts.forEach((c, i) => {
+      const color = AREA_COLORS[i % AREA_COLORS.length];
+      for (const cap of [...(c.capabilities ?? []), ...(c.shared_kernel ?? [])]) {
+        if (!m.has(cap)) m.set(cap, { id: c.id, name: c.name, color });
+      }
+    });
+    return m;
+  }, [contextsDoc]);
   // SPEC-002 DM validators are the authority — run them client-side (isomorphic) over the active
   // domain so findings surface in the UI, not only inside the /api/domain response.
   const domainFindings = useMemo(
@@ -112,6 +140,18 @@ export default function App(): React.JSX.Element {
     [domainDoc, activeDoc],
   );
   const [domainBusy, setDomainBusy] = useState(false);
+
+  // The selected area (when a legend chip / bctx: node is selected) and its derived term list
+  // (Q3: read-only ubiquitous language from the members' produced/consumed entity names).
+  const selectedArea = contextsDoc.contexts.find((c) => contextNodeId(c.id) === selected);
+  const areaTerms = (area: ContextInput): string[] => {
+    const terms = new Set<string>();
+    for (const m of [...(area.capabilities ?? []), ...(area.shared_kernel ?? [])]) {
+      const cap = activeDoc.capabilities.find((c) => c.id === m);
+      for (const e of [...(cap?.produces ?? []), ...(cap?.consumes ?? [])]) terms.add(e);
+    }
+    return [...terms];
+  };
 
   // Resolve a domain finding to the capability whose detail panel shows the offending entity,
   // so clicking a finding opens the right place (subject is a capability id or an aggregate id).
@@ -125,8 +165,8 @@ export default function App(): React.JSX.Element {
   };
 
   function setNarrative(v: string): void {
-    // Editing invalidates prior LLM snapshots (capabilities + domain) → fall back to the live mock.
-    patchActive({ narrative: v, capabilities: null, provider: null, domain: null });
+    // Editing invalidates prior LLM snapshots (capabilities/domain/areas) → fall back to the mock.
+    patchActive({ narrative: v, capabilities: null, provider: null, domain: null, contexts: null });
     setSelected(null);
   }
 
@@ -141,8 +181,8 @@ export default function App(): React.JSX.Element {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      // A fresh capability set invalidates any prior domain snapshot → back to the live mock.
-      patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string, domain: null });
+      // A fresh capability set invalidates prior domain + areas snapshots → back to the live mock.
+      patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string, domain: null, contexts: null });
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -181,10 +221,23 @@ export default function App(): React.JSX.Element {
   }
   function deleteCapability(id: string): void {
     const base = active.capabilities ?? mockDoc;
+    // Reconcile, don't blanket-clear, the authored areas partition (REV-015 M1): drop the deleted
+    // capability from every area; leave the rest of the partition intact.
+    const reconciled = active.contexts
+      ? {
+          ...active.contexts,
+          contexts: active.contexts.contexts.map((c) => ({
+            ...c,
+            capabilities: (c.capabilities ?? []).filter((m) => m !== id),
+            shared_kernel: (c.shared_kernel ?? []).filter((m) => m !== id),
+          })),
+        }
+      : active.contexts;
     patchActive({
       capabilities: { ...base, capabilities: base.capabilities.filter((c) => c.id !== id) },
       provider: "hand-edited",
       domain: null,
+      contexts: reconciled,
     });
     setSelected(null);
   }
@@ -225,6 +278,63 @@ export default function App(): React.JSX.Element {
     while (base.aggregates.some((a) => a.id === id)) id = `entity_${++n}`;
     const agg: AggregateInput = { id, name: "New Entity", owner: ownerId, attributes: [], references: [], meta: { origin: "authored" } };
     patchActive({ domain: { ...base, aggregates: [...base.aggregates, agg] } });
+  }
+
+  // ---- Business-areas: generate + editing (SPEC-003; the model proposes, the human decides) ----
+  async function generateAreas(): Promise<void> {
+    setContextsBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/contexts`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ capabilities: activeDoc, model: active.model, effort: active.effort }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      patchActive({ contexts: data.doc as ContextsDoc });
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setContextsBusy(false);
+    }
+  }
+
+  // Move a capability to a target area (or "" = unassigned). Single-membership: strip it from every
+  // area's `capabilities`/`shared_kernel`, then add to the target. Hand-edit → origin authored.
+  function reassignCapabilityArea(capId: string, targetAreaId: string): void {
+    const base = active.contexts ?? mockContexts;
+    const stripped = base.contexts.map((c) => ({
+      ...c,
+      capabilities: (c.capabilities ?? []).filter((m) => m !== capId),
+      shared_kernel: (c.shared_kernel ?? []).filter((m) => m !== capId),
+      meta: { ...(c.meta ?? {}), origin: "authored" },
+    }));
+    const next = targetAreaId
+      ? stripped.map((c) => (c.id === targetAreaId ? { ...c, capabilities: [...c.capabilities, capId] } : c))
+      : stripped;
+    patchActive({ contexts: { ...base, contexts: next } });
+  }
+  function editArea(updated: ContextInput): void {
+    const base = active.contexts ?? mockContexts;
+    const authored = { ...updated, meta: { ...(updated.meta ?? {}), origin: "authored" } };
+    patchActive({ contexts: { ...base, contexts: base.contexts.map((c) => (c.id === updated.id ? authored : c)) } });
+  }
+  function retireArea(id: string): void {
+    // Retiring an area leaves its members unassigned → BC2 flags them for the human to reassign.
+    const base = active.contexts ?? mockContexts;
+    patchActive({ contexts: { ...base, contexts: base.contexts.filter((c) => c.id !== id) } });
+    setSelected(null);
+  }
+  function addArea(): void {
+    const base = active.contexts ?? mockContexts;
+    let n = base.contexts.length + 1;
+    let id = `area_${n}`;
+    while (base.contexts.some((c) => c.id === id)) id = `area_${++n}`;
+    const area: ContextInput = { id, name: "New Area", intent: "", capabilities: [], shared_kernel: [], meta: { origin: "authored" } };
+    patchActive({ contexts: { ...base, contexts: [...base.contexts, area] } });
+    setSelected(contextNodeId(id));
   }
 
   // ---- Project actions ----
@@ -349,7 +459,7 @@ export default function App(): React.JSX.Element {
         <section className="col grow">
           <div className="col-head">
             <h2>{t("capabilities")}</h2>
-            <FindingsBadge count={capFindings.length + domainFindings.length} />
+            <FindingsBadge count={capFindings.length + domainFindings.length + contextFindings.length} />
           </div>
 
           <div className="genbar">
@@ -372,7 +482,30 @@ export default function App(): React.JSX.Element {
             <button className="addcap" onClick={() => void generateDomainModel()} disabled={domainBusy}>
               {domainBusy ? t("generating") : t("genEntities")}
             </button>
+            <button className="addcap" onClick={() => void generateAreas()} disabled={contextsBusy}>
+              {contextsBusy ? t("generating") : t("genAreas")}
+            </button>
           </div>
+
+          {/* Business Areas legend — the map backdrop's key; click an area to edit it (REV-016). */}
+          {contextsDoc.contexts.length > 0 && (
+            <div className="areas-legend">
+              <span className="areas-legend-label">{t("areas")}:</span>
+              {contextsDoc.contexts.map((c, i) => (
+                <button
+                  key={c.id}
+                  className={`area-chip ${selected === contextNodeId(c.id) ? "sel" : ""}`}
+                  style={{ ["--area-color" as string]: AREA_COLORS[i % AREA_COLORS.length] }}
+                  onClick={() => setSelected(contextNodeId(c.id))}
+                  title={c.intent}
+                >
+                  <span className="area-dot" />
+                  {c.name || c.id} <span className="muted">({(c.capabilities ?? []).length})</span>
+                </button>
+              ))}
+              <button className="area-chip add" onClick={addArea}>{t("addArea")}</button>
+            </div>
+          )}
 
           <p className="hint">
             {t("source")}: <strong>{active.provider ?? t("mockLabel")}</strong> · {t("generatedNote")} · {t("ndHint")}
@@ -414,19 +547,51 @@ export default function App(): React.JSX.Element {
             </ul>
           )}
 
+          {contextFindings.length > 0 && (
+            <ul className="findings cap-findings domain-findings">
+              <li className="findings-head muted">{t("areas")}</li>
+              {contextFindings.map((f) => {
+                // Subject is a capability id or an area id — click through to whichever it names.
+                const cap = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x));
+                const area = f.subjects.find((x) => contextsDoc.contexts.some((c) => c.id === x));
+                const target = cap ?? (area ? contextNodeId(area) : undefined);
+                return (
+                  <li key={f.id} className={target ? "clickable" : ""} onClick={() => target && setSelected(target)}>
+                    <code className={f.severity}>{f.code}</code> {f.message}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
           <div className="map-wrap">
-            <CapabilityMap ir={ir} selectedId={selected} onSelect={setSelected} />
-            <NodeDetail
-              doc={activeDoc}
-              aggregates={domainDoc.aggregates}
-              selectedId={selected}
-              onEdit={editCapability}
-              onDelete={deleteCapability}
-              onEditAggregate={editAggregate}
-              onDeleteAggregate={deleteAggregate}
-              onAddAggregate={addAggregate}
-              onClose={() => setSelected(null)}
-            />
+            <CapabilityMap ir={ir} areaOf={areaOf} selectedId={selected} onSelect={setSelected} />
+            {selectedArea ? (
+              <AreaDetail
+                area={selectedArea}
+                doc={activeDoc}
+                terms={areaTerms(selectedArea)}
+                onEdit={editArea}
+                onRetire={retireArea}
+                onSelectCapability={setSelected}
+                onClose={() => setSelected(null)}
+              />
+            ) : (
+              <NodeDetail
+                doc={activeDoc}
+                aggregates={domainDoc.aggregates}
+                areas={contextsDoc.contexts.map((c) => ({ id: c.id, name: c.name }))}
+                capAreaId={selected ? areaOf.get(selected)?.id : undefined}
+                onReassignArea={reassignCapabilityArea}
+                selectedId={selected}
+                onEdit={editCapability}
+                onDelete={deleteCapability}
+                onEditAggregate={editAggregate}
+                onDeleteAggregate={deleteAggregate}
+                onAddAggregate={addAggregate}
+                onClose={() => setSelected(null)}
+              />
+            )}
           </div>
         </section>
       </main>

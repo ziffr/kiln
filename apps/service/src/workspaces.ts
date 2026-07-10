@@ -21,6 +21,9 @@ export interface StoredProject {
   effort: string;
   capabilities: unknown;
   provider: string | null;
+  /** SPEC-002 domain model + SPEC-003 business-areas partition (round-trip; REV-015 M3). */
+  domain?: unknown;
+  contexts?: unknown;
   coachConfig?: unknown;
   coachTranscript?: unknown;
   updatedAt: number;

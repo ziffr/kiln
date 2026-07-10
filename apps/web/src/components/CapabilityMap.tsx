@@ -49,7 +49,14 @@ function Flow({ nodes, edges, onSelect }: { nodes: Node[]; edges: Edge[]; onSele
  * (ADR-003 §5). Positions are a pure function of the IR (never persisted). Clicking a capability
  * selects it (→ node detail panel).
  */
-export function CapabilityMap({ ir, selectedId, onSelect }: { ir: IR } & Selectable): React.JSX.Element {
+type AreaInfo = { id: string; name: string; color: string };
+
+export function CapabilityMap({
+  ir,
+  areaOf,
+  selectedId,
+  onSelect,
+}: { ir: IR; areaOf?: Map<string, AreaInfo> } & Selectable): React.JSX.Element {
   const { t } = useTranslation();
   const [laid, setLaid] = useState<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
 
@@ -106,22 +113,29 @@ export function CapabilityMap({ ir, selectedId, onSelect }: { ir: IR } & Selecta
   // Apply selection styling without recomputing the layout.
   const nodes = useMemo(
     () =>
-      laid.nodes.map((n) => ({
-        ...n,
-        selected: n.id === selectedId,
-        style: {
-          width: NODE_W,
-          padding: 10,
-          borderRadius: 10,
-          border: `1px solid ${n.id === selectedId ? "var(--accent)" : "var(--edge)"}`,
-          boxShadow: n.id === selectedId ? "0 0 0 2px var(--accent)" : "none",
-          background: "var(--card)",
-          color: "var(--fg)",
-          fontSize: 13,
-          fontWeight: 600,
-        },
-      })),
-    [laid.nodes, selectedId],
+      laid.nodes.map((n) => {
+        const area = areaOf?.get(n.id);
+        const sel = n.id === selectedId;
+        return {
+          ...n,
+          selected: sel,
+          style: {
+            width: NODE_W,
+            padding: 10,
+            borderRadius: 10,
+            // The Business-Areas backdrop: a thick coloured left edge tints each capability by its
+            // area (REV-016 F1 — one surface, colour+legend), selection still wins the outline.
+            border: `1px solid ${sel ? "var(--accent)" : "var(--edge)"}`,
+            borderLeft: area ? `6px solid ${area.color}` : `1px solid ${sel ? "var(--accent)" : "var(--edge)"}`,
+            boxShadow: sel ? "0 0 0 2px var(--accent)" : "none",
+            background: "var(--card)",
+            color: "var(--fg)",
+            fontSize: 13,
+            fontWeight: 600,
+          },
+        };
+      }),
+    [laid.nodes, selectedId, areaOf],
   );
 
   // Key by the capability set (NOT selection) so the flow remounts — and fitView-on-init

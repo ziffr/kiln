@@ -190,6 +190,18 @@ textarea {
 .nd-authored { font-size: 11px; color: var(--accent); }
 .nd-add-entity { margin-top: 6px; padding: 4px 10px; font-size: 12px; background: transparent; color: var(--accent); border: 1px dashed var(--edge); border-radius: 8px; cursor: pointer; }
 .nd-add-entity:hover { border-color: var(--accent); }
+.nd-chip.clickable { cursor: pointer; }
+.nd-chip.clickable:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Business-Areas legend (the map backdrop's key) */
+.areas-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 2px; }
+.areas-legend-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.area-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; font-size: 12px; background: var(--card); color: var(--fg); border: 1px solid var(--edge); border-radius: 999px; cursor: pointer; }
+.area-chip:hover { border-color: var(--area-color, var(--accent)); }
+.area-chip.sel { border-color: var(--area-color, var(--accent)); box-shadow: 0 0 0 1px var(--area-color, var(--accent)); }
+.area-chip .area-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--area-color, var(--accent)); }
+.area-chip.add { border-style: dashed; color: var(--accent); }
+.area-detail .nd-id { color: var(--muted); }
 .genbar .addcap {
   background: var(--card); color: var(--fg); border: 1px solid var(--edge);
   border-radius: 6px; padding: 7px 11px; font-size: 13px; cursor: pointer;

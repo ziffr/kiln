@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CoachConfig } from "@vbd/skills";
 import type { CoachMsg as Msg } from "../projects";
@@ -44,6 +44,13 @@ export function NarrativeInput({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const chatRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll the chat to the newest message (and the thinking bubble) as the turn progresses.
+  useEffect(() => {
+    const el = chatRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, busy, pending]);
 
   async function turn(userText: string): Promise<void> {
     const withUser = [...messages, { role: "user" as const, content: userText }];
@@ -90,7 +97,7 @@ export function NarrativeInput({
           <div className="coach-config">
             <label>
               {t("coachDepth")}
-              <select value={config.depth ?? "standard"} onChange={(e) => onConfig({ ...config, depth: e.target.value as CoachConfig["depth"] })}>
+              <select value={config.depth ?? "standard"} disabled={busy} onChange={(e) => onConfig({ ...config, depth: e.target.value as CoachConfig["depth"] })}>
                 <option value="brief">{t("depthBrief")}</option>
                 <option value="standard">{t("depthStandard")}</option>
                 <option value="thorough">{t("depthThorough")}</option>
@@ -101,16 +108,22 @@ export function NarrativeInput({
               <input
                 value={config.domain ?? ""}
                 placeholder={t("coachDomainPlaceholder")}
+                disabled={busy}
                 onChange={(e) => onConfig({ ...config, domain: e.target.value })}
               />
             </label>
           </div>
 
-          <div className="chat">
+          <div className="chat" ref={chatRef}>
             {messages.map((m, i) => (
               <div key={i} className={`bubble ${m.role}`}>{m.content}</div>
             ))}
-            {busy && <div className="bubble assistant muted">{t("coachThinking")}</div>}
+            {busy && (
+              <div className="bubble assistant muted thinking">
+                <span className="typing" aria-hidden="true"><i /><i /><i /></span>
+                {t("coachThinking")}
+              </div>
+            )}
           </div>
 
           {pending && (

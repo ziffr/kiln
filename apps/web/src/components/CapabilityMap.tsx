@@ -131,7 +131,10 @@ export function CapabilityMap({ ir, selectedId, onSelect }: { ir: IR } & Selecta
   return (
     <div style={{ height: "100%", minHeight: 420 }}>
       {laid.nodes.length === 0 ? (
-        <div className="map-empty">…</div>
+        <div className="map-empty">
+          <span className="map-spinner" aria-hidden="true" />
+          <span className="map-empty-label">{t("generating")}</span>
+        </div>
       ) : (
         <ReactFlowProvider key={flowKey}>
           <Flow nodes={nodes} edges={laid.edges} onSelect={onSelect} />

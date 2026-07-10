@@ -180,3 +180,74 @@ textarea {
   background: var(--card); color: var(--fg); border: 1px solid var(--edge);
   border-radius: 6px; padding: 7px 11px; font-size: 13px; cursor: pointer;
 }
+
+/* Capability map loading state */
+.map-empty {
+  height: 100%; min-height: 420px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+}
+.map-spinner {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 3px solid var(--card); border-top-color: var(--accent);
+  animation: vbd-spin 0.8s linear infinite;
+}
+.map-empty-label {
+  font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+@keyframes vbd-spin { to { transform: rotate(360deg); } }
+
+/* Interview "thinking" bubble — animated typing dots */
+.bubble.thinking { display: inline-flex; align-items: center; gap: 8px; }
+.typing { display: inline-flex; align-items: center; gap: 3px; }
+.typing i {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--muted);
+  display: inline-block; animation: vbd-typing 1.2s ease-in-out infinite;
+}
+.typing i:nth-child(2) { animation-delay: 0.2s; }
+.typing i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes vbd-typing {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-spinner { animation-duration: 1.6s; }
+  .typing i { animation: none; opacity: 0.6; }
+}
+
+/* Consistent, subtle scrollbars for the scrolling regions */
+.chat, .cap-findings, .lists, .node-detail, .cols, textarea { scrollbar-width: thin; scrollbar-color: var(--edge) transparent; }
+.chat::-webkit-scrollbar, .cap-findings::-webkit-scrollbar, .lists::-webkit-scrollbar,
+.node-detail::-webkit-scrollbar, .cols::-webkit-scrollbar, textarea::-webkit-scrollbar { width: 9px; height: 9px; }
+.chat::-webkit-scrollbar-thumb, .cap-findings::-webkit-scrollbar-thumb, .lists::-webkit-scrollbar-thumb,
+.node-detail::-webkit-scrollbar-thumb, .cols::-webkit-scrollbar-thumb, textarea::-webkit-scrollbar-thumb {
+  background: var(--edge); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box;
+}
+.chat::-webkit-scrollbar-track, .cap-findings::-webkit-scrollbar-track, .lists::-webkit-scrollbar-track,
+.node-detail::-webkit-scrollbar-track, .cols::-webkit-scrollbar-track, textarea::-webkit-scrollbar-track { background: transparent; }
+
+/* ---- Responsive: stack the three columns on tablet/mobile ---- */
+@media (max-width: 900px) {
+  .cols {
+    flex-direction: column;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+  .col, .col.grow { flex: none; }
+  /* Give the map real room once columns are stacked and the page scrolls. */
+  .map-wrap { min-height: 60vh; }
+  .lists { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .topbar { align-items: flex-start; gap: 10px; padding: 10px 14px; }
+  .brand, .projectbar, .lang { width: 100%; }
+  .projectbar { flex-wrap: wrap; }
+  .projectbar select { max-width: 100%; flex: 1; }
+  .cols { padding: 10px; gap: 10px; }
+  .col { padding: 12px; }
+  .genbar { gap: 8px; }
+  .map-wrap { min-height: 70vh; }
+  .node-detail { width: auto; left: 8px; right: 8px; }
+}

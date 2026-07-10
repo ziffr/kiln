@@ -3,7 +3,7 @@ id: SPEC-004
 title: Commands & Events — the behaviour layer on the domain model
 type: spec
 status: Revised
-version: 0.2.0
+version: 0.3.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
 updated: 2026-07-10
@@ -22,6 +22,11 @@ reviewers: [product-strategy, domain-modeling, ai-llm-feasibility, technical-arc
 > is therefore a **reviewed, closed design on the shelf** — all findings dispositioned in §13, ready to
 > build when the probe clears — not a work order yet. The design fixes below are baked into the spec so
 > it is build-ready.
+>
+> **v0.3.0 update — BUILT.** [[RES-001]] cleared (CRUD-only was the last codegen gap → this layer is
+> empirically justified). SPEC-004 was un-shelved and built (CE-M0…M4 + eval); exit gate in §14 is
+> green on every structural/quality/breadth axis (commandRecall 1.0; dental second domain clean).
+> Status stays `Revised` pending the A6 partner value check.
 
 > **The verbs and the facts.** SPEC-002 modelled the nouns (aggregates/entities each capability
 > owns). SPEC-004 adds the **behaviour**: the **commands** that change an aggregate and the **events**
@@ -248,3 +253,40 @@ what behaviour must contain. Re-open to build (then `Approved` on its own §8 ga
 - Q4 aggregate lifecycle → **defer** (N4); creation-command smell only.
 - Q5 UI density → **same panel, hierarchical one-path-open disclosure, no drawer** (ux F1).
 - Q6 naming → **review-lens hint only, no deterministic validator, never auto-correct** (bilingual).
+
+## 14. Exit gate — CE eval + go/no-go (built after RES-001)
+
+The codegen probe ([[RES-001]]) cleared: model→scaffolding works and **CRUD-only was the last codegen
+gap → SPEC-004 was empirically justified**, so it was un-shelved and built (CE-M0…M4). The gold-free
+harness (`@vbd/eval/events`) adds the quality instrument REV-019 CE-F1 demanded. Results:
+
+| Criterion | Metric | Result | Verdict |
+|---|---|---|---|
+| A2 defect recall | `validateEvents` over 6 seeded cases | **1.000** | ✅ |
+| — clean precision | no false positives | **1.000** | ✅ |
+| A3 determinism | command/event nodes + issues/changes/emits/on edges; buildHash mixes domain; store cache threads domain (REV-020 M4) | verified | ✅ |
+| A4 coverage | mock command/event coverage + provenanceRate (solar) | **1.000 / 1.000 / 1.000** | ✅ |
+| A4 guardrail | max commands per entity (LLM, solar) | **5** (no event-storm) | ✅ |
+| **A5 quality** | **commandRecall** of the LLM vs a human reference | **1.000** | ✅ |
+| A5 second-domain | dental clinic: caps → entities → behaviour, **no code change** | 8 entities, domain-accurate behaviour, 0 findings | ✅ |
+| A6 partner value | partner rates the behaviour view "worth acting on" | pending | ⛔ open |
+
+**On A5 — a decisive quality result.** Unlike the contexts ARI (0.294, a granularity gap), the behaviour
+`commandRecall` is **1.000**: the LLM recovered every reference command (Qualify/Convert Lead, Issue
+Invoice, Record Payment) — event-storming, not CRUD. The design held up live: "Record Payment" emits
+both `invoice_paid` **and** `invoice_payment_failed` (a command is a request that may be rejected);
+"Invoice Overdue" carries `trigger: time` (the trigger discriminator); every emit stays within its
+entity (no boundary violation). Grounded provenance, 0 findings.
+
+**A5 second-domain (breadth).** The dental clinic, through the unchanged stack, produced rich
+domain-accurate behaviour across 8 entities — *Record No-Show*, *Appeal Insurance Claim*,
+*Propose/Accept/Reject Treatment Plan*, *Invoice Overdue (time)* — 0 findings, no code change.
+Verticality generalizes for the behaviour layer.
+
+**Decision — GO (engineering) / HOLD (Approved) on the partner:**
+- **GO** — every structural + quality + breadth gate is green (defect recall, precision, coverage,
+  provenance, guardrails, commandRecall 1.0, second domain). The layer is sound and shipped, and the
+  codegen probe's last gap is now filled (behaviour beyond CRUD is modellable).
+- **HOLD** on `Approved` until **A6**: the design partner (who validated capabilities, entities, and
+  areas) reviews the behaviour view. Status stays **`Revised`** (engineering-complete, A6 pending),
+  consistent with SPEC-002/003's posture before their partner sign-off. 134 tests; web build passes.

@@ -47,7 +47,7 @@ The **IR is the contract**: every view and validator reads it. Validators are pu
 - **TypeScript end-to-end** (ADR-001). Node ≥ 20 runs `.ts` natively (type-stripping) — packages
   have **no build step**. `@types/node`/`typescript` are intentionally not installed, so the editor
   shows "cannot find module 'node:*'" squiggles — harmless; runtime is fine.
-- **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **111** passing). Every
+- **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **134** passing). Every
   new pure function gets a test in `packages/*/test/*.test.ts`.
 - **Web:** Vite. `npm run build --workspace @vbd/web` must pass. Verify UI changes **in the browser**
   (the preview tools), not just tests — the invariants are visual.
@@ -102,14 +102,20 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   PASSED** (dental, no code change); A5 ARI a qualified pass (LLM over-segments vs a coarse single
   reference); **HOLD** on `Approved` pending A6 partner value check.
 - **Design partner validated capabilities + entities + areas** → **SPEC-002 & SPEC-003 `Approved`** (v1.0.0).
-- **SPEC-004 (commands & events) reviewed to closure (REV-017..021) but BUILD DEFERRED** — the product
-  Blocker (codegen thesis never probed, 3rd recurrence) led to a **codegen probe first**. The reviewed
-  design is on the shelf, build-ready (SPEC-004 §13).
 - **RES-001 codegen probe done** — `@vbd/codegen` (deterministic model→code projection: TS types +
-  OpenAPI + area-module map + gap report). Finding: **thesis holds for scaffolding** (solar → 8 TS
-  interfaces, 16 OpenAPI paths, 3 area modules, no LLM); two gaps name the next work — (1) entities
-  lack **typed attributes** (schemas emit `unknown`), (2) **CRUD-only without commands/events** →
-  SPEC-004 is now *empirically* justified. `@vbd/codegen` is the yardstick for future layers.
+  OpenAPI + area-module map + gap report). **Thesis holds for scaffolding** (solar → 8 TS interfaces,
+  16 OpenAPI paths, 3 area modules, no LLM). Two gaps named the next work, both now CLOSED: typed
+  attributes + commands/events. `@vbd/codegen` is the yardstick for future layers.
+- **Typed entity attributes** — `AttributeSpec {name, type}` (text/number/boolean/date/money/reference);
+  codegen emits real TS/OpenAPI types; LLM + human editor both set types. The codegen "untyped" gap is
+  closed.
+- **SPEC-004 (commands & events) reviewed to closure (REV-017..021), then BUILT** after RES-001
+  justified it. IR: command/event nodes + issues/changes/emits/on edges. `validateEvents` (CE1–CE8 +
+  emit-boundary). `EventModeler` = events-first, command-is-a-request (emits 0..n), **per-aggregate
+  fan-out**, trigger discriminator (command/time/external), `/api/events`. In-context "What happens"
+  UI. CE eval with a **commandRecall** quality metric. Exit gate GREEN (§14): commandRecall **1.0**,
+  dental second-domain clean, 0 findings. Status `Revised`, **A6 (partner review of behaviour) the
+  one open item.**
 - Full arc works end-to-end: narrative interview (or markdown) → capabilities (mock / real Sonnet 5)
   → elk map with **Business-Areas backdrop** → editable capability/entity/area forms → validators
   (V1–V8, DM, BC) → multi-project (server + localStorage) → spend estimate.

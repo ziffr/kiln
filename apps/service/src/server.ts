@@ -21,6 +21,7 @@ import {
   type LlmRequest,
 } from "@vbd/skills";
 import { DEFAULT_EFFORT, DEFAULT_MODEL, EFFORTS, MODELS, modelById } from "./models.ts";
+import { deleteProject, listProjects, saveProject, type StoredProject } from "./workspaces.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const API_KEY = process.env.VBD_ANTHROPIC_API_KEY;
@@ -116,7 +117,7 @@ function send(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, {
     "content-type": "application/json",
     "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
     "access-control-allow-headers": "content-type",
   });
   res.end(payload);
@@ -239,6 +240,24 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && req.url === "/api/usage") {
       // Estimated spend since this service process started. Not remaining credit (Console-only).
       return send(res, 200, { sessionSpendUsd, note: "estimate since service start; not remaining credit" });
+    }
+
+    // Project persistence (ADR-006): filesystem workspace store.
+    if (req.url?.startsWith("/api/projects")) {
+      const m = /^\/api\/projects(?:\/([^/?]+))?$/.exec(req.url);
+      const id = m?.[1];
+      if (req.method === "GET" && !id) return send(res, 200, { projects: listProjects() });
+      if (req.method === "PUT" && id) {
+        const p = JSON.parse((await readBody(req)) || "{}") as StoredProject;
+        if (p.id !== id) return send(res, 400, { error: "project id mismatch" });
+        saveProject(p);
+        return send(res, 200, { ok: true });
+      }
+      if (req.method === "DELETE" && id) {
+        deleteProject(id);
+        return send(res, 200, { ok: true });
+      }
+      return send(res, 405, { error: "method not allowed" });
     }
 
     if (req.method === "GET" && (req.url === "/" || req.url === "/health")) {

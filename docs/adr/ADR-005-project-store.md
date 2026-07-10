@@ -2,7 +2,7 @@
 id: ADR-005
 title: Project store — client-side (localStorage) for the MVP, git-backed workspaces later
 type: adr
-status: Approved
+status: Superseded
 version: 1.0.0
 author: Claude (Opus 4.8)
 created: 2026-07-10

@@ -7,6 +7,9 @@ dist/
 .vbd/
 workspaces/*/.vbd/
 
+# Server-side project data (ADR-006) — user workspaces, not versioned in this repo
+data/
+
 # Local env / secrets
 .env
 .env.*

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   parseNarrative,
@@ -20,6 +20,7 @@ import {
   type Project,
   type ProjectState,
 } from "./projects";
+import { serverListProjects, serverSaveProject, serverDeleteProject } from "./projectStore";
 
 const SERVICE_URL = "http://localhost:8787";
 
@@ -39,10 +40,43 @@ function FindingsBadge({ count }: { count: number }): React.JSX.Element {
 export default function App(): React.JSX.Element {
   const { t, i18n } = useTranslation();
 
-  // ---- Projects (localStorage, ADR-005) ----
-  const [state, setState] = useState<ProjectState>(() => loadProjects());
-  useEffect(() => saveProjects(state), [state]);
+  // ---- Projects: server-backed when reachable, localStorage cache/fallback (ADR-006) ----
+  const [state, setState] = useState<ProjectState>(() => loadProjects()); // instant local render
+  const [serverUp, setServerUp] = useState(false);
+  useEffect(() => saveProjects(state), [state]); // always mirror to localStorage (+ activeId pref)
   const active = state.projects.find((p) => p.id === state.activeId) ?? state.projects[0];
+
+  // On load: adopt the server's projects; if the server is empty, migrate local projects up once.
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const server = await serverListProjects();
+      if (cancelled || server === null) return; // offline → stay on localStorage
+      setServerUp(true);
+      if (server.length === 0) {
+        for (const p of stateRef.current.projects) await serverSaveProject(p); // one-time import
+      } else {
+        setState((s) => ({
+          projects: server,
+          activeId: server.some((p) => p.id === s.activeId) ? s.activeId : server[0].id,
+        }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Persist the active project to the server (debounced) whenever it changes.
+  useEffect(() => {
+    if (!serverUp || !active) return;
+    const timer = setTimeout(() => void serverSaveProject(active), 700);
+    return () => clearTimeout(timer);
+  }, [active, serverUp]);
 
   const patchActive = (patch: Partial<Project>): void =>
     setState((s) => ({
@@ -136,11 +170,13 @@ export default function App(): React.JSX.Element {
   function deleteProject(): void {
     if (state.projects.length <= 1) return;
     if (!window.confirm(`${t("deleteConfirm")} "${active.name}"`)) return;
+    const removedId = active.id;
     setState((s) => {
       const remaining = s.projects.filter((p) => p.id !== s.activeId);
       return { projects: remaining, activeId: remaining[0].id };
     });
     setSelected(null);
+    if (serverUp) void serverDeleteProject(removedId);
   }
 
   const supportsEffort = MODELS.find((m) => m.id === active.model)?.supportsEffort ?? true;

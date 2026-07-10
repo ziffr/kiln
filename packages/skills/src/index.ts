@@ -23,6 +23,16 @@ export {
   DOMAIN_SYSTEM_PROMPT,
   type DomainGenerationResult,
 } from "./domain.ts";
+export {
+  mockGroupContexts,
+  generateContexts,
+  buildContextRequest,
+  coerceContextsDoc,
+  fingerprintId,
+  CONTEXT_SCHEMA,
+  CONTEXT_SYSTEM_PROMPT,
+  type ContextGenerationResult,
+} from "./contexts.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
 export {
   buildCoachSystemPrompt,

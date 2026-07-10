@@ -47,7 +47,7 @@ The **IR is the contract**: every view and validator reads it. Validators are pu
 - **TypeScript end-to-end** (ADR-001). Node ≥ 20 runs `.ts` natively (type-stripping) — packages
   have **no build step**. `@types/node`/`typescript` are intentionally not installed, so the editor
   shows "cannot find module 'node:*'" squiggles — harmless; runtime is fine.
-- **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **48** passing). Every
+- **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **75** passing). Every
   new pure function gets a test in `packages/*/test/*.test.ts`.
 - **Web:** Vite. `npm run build --workspace @vbd/web` must pass. Verify UI changes **in the browser**
   (the preview tools), not just tests — the invariants are visual.
@@ -88,6 +88,12 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
 
 ## Status (keep current)
 - **M0, M1 complete.** **M2 engineering-complete** — only the human gate is open (a design partner
-  to confirm A1 capability correctness). Provenance + V8 done; V3–V7 validators are the current work.
+  to confirm A1 capability correctness). Provenance + V8 done.
+- **SPEC-002 (domain layer, aggregates-first) engineering-complete** — DM1 mock, DM2
+  `DomainGenerator` (+ `/api/domain`), DM validators surfaced in the UI, **editable entity forms**,
+  and the DM eval (`@vbd/eval/domain`) all shipped. Exit gate GREEN on solar (recall/precision/
+  coverage/provenance all 1.000; SPEC-002 §13). **GO** on engineering; **HOLD** on `Approved`/SPEC-003
+  until the design-partner gate (§0.1, A1/A6) clears. Remaining eng task: A4 second-domain smoke.
 - Full arc works end-to-end: narrative interview (or markdown) → capabilities (mock offline / real
-  Sonnet 5) → elk map + editable forms → validators → multi-project (localStorage) → spend estimate.
+  Sonnet 5) → elk map + editable forms → validators → **domain entities (mock/LLM, editable)** →
+  multi-project (server + localStorage) → spend estimate.

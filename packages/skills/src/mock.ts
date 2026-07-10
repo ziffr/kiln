@@ -18,25 +18,27 @@ interface Rule {
   name: string;
   purpose: string;
   outcome: string;
+  /** the primary entity/record this capability owns (seeds the domain model, SPEC-002). */
+  entity: string;
 }
 
 // General business-capability rules (not solar-specific) so the mock reads as domain-agnostic.
 const RULES: Rule[] = [
-  { match: /lead|acqui|prospect/i, id: "lead_management", name: "Lead Management", purpose: "Acquire and qualify prospective customers.", outcome: "qualified_lead" },
-  { match: /custom|client|qualif|onboard/i, id: "customer_management", name: "Customer Management", purpose: "Manage customer relationships.", outcome: "customer_onboarded" },
-  { match: /survey|design|plan|engineer|assess/i, id: "planning", name: "Planning", purpose: "Create technical designs for the customer's situation.", outcome: "approved_design" },
-  { match: /offer|quote|propos|contract|sell|sale/i, id: "offer_management", name: "Offer Management", purpose: "Turn designs into commercial offers and win orders.", outcome: "signed_contract" },
-  { match: /purchas|procure|material|supply|equip/i, id: "procurement", name: "Procurement", purpose: "Source and secure components and their availability.", outcome: "materials_available" },
-  { match: /schedul|install|commission|mount|build|execut|deliver/i, id: "installation", name: "Installation", purpose: "Execute and commission the ordered work on site.", outcome: "work_commissioned" },
-  { match: /invoice|bill|payment|financ/i, id: "billing", name: "Billing", purpose: "Financial settlement of delivered work.", outcome: "invoice_paid" },
-  { match: /monitor|maintain|service|support|warrant|operate/i, id: "monitoring", name: "Monitoring & Service", purpose: "Operate, monitor, and maintain delivered systems.", outcome: "system_healthy" },
+  { match: /lead|acqui|prospect/i, id: "lead_management", name: "Lead Management", purpose: "Acquire and qualify prospective customers.", outcome: "qualified_lead", entity: "Lead" },
+  { match: /custom|client|qualif|onboard/i, id: "customer_management", name: "Customer Management", purpose: "Manage customer relationships.", outcome: "customer_onboarded", entity: "Customer" },
+  { match: /survey|design|plan|engineer|assess/i, id: "planning", name: "Planning", purpose: "Create technical designs for the customer's situation.", outcome: "approved_design", entity: "Design" },
+  { match: /offer|quote|propos|contract|sell|sale/i, id: "offer_management", name: "Offer Management", purpose: "Turn designs into commercial offers and win orders.", outcome: "signed_contract", entity: "Offer" },
+  { match: /purchas|procure|material|supply|equip/i, id: "procurement", name: "Procurement", purpose: "Source and secure components and their availability.", outcome: "materials_available", entity: "PurchaseOrder" },
+  { match: /schedul|install|commission|mount|build|execut|deliver/i, id: "installation", name: "Installation", purpose: "Execute and commission the ordered work on site.", outcome: "work_commissioned", entity: "WorkOrder" },
+  { match: /invoice|bill|payment|financ/i, id: "billing", name: "Billing", purpose: "Financial settlement of delivered work.", outcome: "invoice_paid", entity: "Invoice" },
+  { match: /monitor|maintain|service|support|warrant|operate/i, id: "monitoring", name: "Monitoring & Service", purpose: "Operate, monitor, and maintain delivered systems.", outcome: "system_healthy", entity: "ServiceTicket" },
 ];
 
 function ruleFor(activity: string): Rule {
   const hit = RULES.find((r) => r.match.test(activity));
   if (hit) return hit;
   const id = slug(activity) || "activity";
-  return { match: /.^/, id, name: activity, purpose: `Handle: ${activity}.`, outcome: `${id}_done` };
+  return { match: /.^/, id, name: activity, purpose: `Handle: ${activity}.`, outcome: `${id}_done`, entity: activity };
 }
 
 /** Deterministically derive a CapabilityDoc from a narrative (client-side safe). */
@@ -61,6 +63,7 @@ export function mockGenerateCapabilities(narrative: NarrativeDoc): CapabilityDoc
       name: rule.name,
       purpose: rule.purpose,
       outcomes: [rule.outcome],
+      produces: [rule.entity], // seeds the domain model (SPEC-002 DM1)
       depends_on: i > 0 ? [order[i - 1]] : [],
       meta: {
         origin: "llm",

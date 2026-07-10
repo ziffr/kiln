@@ -9,7 +9,7 @@ import {
 } from "@vbd/narrative";
 import { compileCapabilities, type CapabilityDoc, type CapabilityInput } from "@vbd/compiler";
 import { validateAll } from "@vbd/validation";
-import { mockGenerateCapabilities } from "@vbd/skills";
+import { mockGenerateCapabilities, mockGenerateDomain } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
 import { NarrativeInput } from "./components/NarrativeInput";
@@ -102,6 +102,8 @@ export default function App(): React.JSX.Element {
   const activeDoc = active.capabilities ?? mockDoc;
   const ir = useMemo(() => compileCapabilities(activeDoc), [activeDoc]);
   const capFindings = useMemo(() => validateAll(activeDoc), [activeDoc]);
+  // SPEC-002 DM1: derive the domain model (mock, client-side) for the in-context entities view.
+  const domainDoc = useMemo(() => mockGenerateDomain(activeDoc), [activeDoc]);
 
   function setNarrative(v: string): void {
     // Editing invalidates a prior LLM snapshot → fall back to the live mock.
@@ -328,6 +330,7 @@ export default function App(): React.JSX.Element {
             <CapabilityMap ir={ir} selectedId={selected} onSelect={setSelected} />
             <NodeDetail
               doc={activeDoc}
+              aggregates={domainDoc.aggregates}
               selectedId={selected}
               onEdit={editCapability}
               onDelete={deleteCapability}

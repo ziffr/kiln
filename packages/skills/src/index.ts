@@ -14,6 +14,7 @@ import { buildCapabilityRequest } from "./prompt.ts";
 
 export * from "./types.ts";
 export { mockGenerateCapabilities, MockProvider } from "./mock.ts";
+export { mockGenerateDomain } from "./domain.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
 export {
   buildCoachSystemPrompt,

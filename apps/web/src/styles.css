@@ -176,6 +176,10 @@ textarea {
   border: 1px solid var(--warn-bg); border-radius: 6px; padding: 6px; cursor: pointer; font-size: 12px;
 }
 .nd-delete:hover { background: var(--warn-bg); }
+.nd-entities { margin-top: 12px; padding-top: 10px; border-top: 1px solid #1f2937; }
+.nd-entity { display: flex; flex-direction: column; gap: 1px; padding: 5px 8px; margin-top: 5px; background: #0b1020; border: 1px solid var(--edge); border-radius: 8px; }
+.nd-entity-name { font-size: 13px; font-weight: 600; }
+.nd-entity-refs { font-size: 10px; color: var(--muted); }
 .genbar .addcap {
   background: var(--card); color: var(--fg); border: 1px solid var(--edge);
   border-radius: 6px; padding: 7px 11px; font-size: 13px; cursor: pointer;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { CapabilityDoc, CapabilityInput } from "@vbd/compiler";
+import type { AggregateInput, CapabilityDoc, CapabilityInput } from "@vbd/compiler";
 
 /**
  * Node detail — an editable capability FORM (SPEC-001 §7.5; REV-004 F1: structured forms, not
@@ -54,12 +54,14 @@ function TagList({
 
 export function NodeDetail({
   doc,
+  aggregates = [],
   selectedId,
   onEdit,
   onDelete,
   onClose,
 }: {
   doc: CapabilityDoc;
+  aggregates?: AggregateInput[];
   selectedId: string | null;
   onEdit: (cap: CapabilityInput) => void;
   onDelete: (id: string) => void;
@@ -104,6 +106,25 @@ export function NodeDetail({
           </div>
         </div>
       )}
+
+      {(() => {
+        // In-context domain drill-down (SPEC-002 DM1): the entities this capability owns.
+        const owned = aggregates.filter((a) => a.owner === cap.id);
+        if (owned.length === 0) return null;
+        return (
+          <div className="nd-entities">
+            <span className="nd-label">{t("entities")}</span>
+            {owned.map((a) => (
+              <div className="nd-entity" key={a.id}>
+                <span className="nd-entity-name">{a.name}</span>
+                {(a.references ?? []).length > 0 && (
+                  <span className="nd-entity-refs">{t("references")}: {(a.references ?? []).join(", ")}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       <button className="nd-delete" onClick={() => onDelete(cap.id)}>{t("deleteCap")}</button>
     </aside>

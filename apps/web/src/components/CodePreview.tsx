@@ -21,7 +21,7 @@ export function CodePreview({
 }): React.JSX.Element {
   const { t } = useTranslation();
   const report = useMemo(() => generateAll(caps, domain, contexts), [caps, domain, contexts]);
-  const [tab, setTab] = useState<"types" | "api" | "modules" | "events">("types");
+  const [tab, setTab] = useState<"types" | "api" | "modules" | "events" | "workflows">("types");
 
   const apiOps = Object.entries(report.openapi.paths as Record<string, Record<string, { summary?: string; "x-emits"?: string[] }>>)
     .flatMap(([path, ops]) => Object.entries(ops).map(([verb, op]) => ({ path, verb, op })))
@@ -31,7 +31,7 @@ export function CodePreview({
     <div className="code-preview">
       <div className="code-head">
         <div className="code-tabs">
-          {(["types", "api", "modules", "events"] as const).map((k) => (
+          {(["types", "api", "modules", "events", "workflows"] as const).map((k) => (
             <button key={k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>{t(`code_${k}`)}</button>
           ))}
         </div>
@@ -52,6 +52,7 @@ export function CodePreview({
           </ul>
         )}
         {tab === "modules" && <pre className="code-block">{report.moduleMap}</pre>}
+        {tab === "workflows" && <pre className="code-block">{report.workflows}</pre>}
         {tab === "events" && (
           <ul className="code-ops">
             {report.events.map((e, i) => (

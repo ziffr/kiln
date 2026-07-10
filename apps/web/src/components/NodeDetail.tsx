@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { attributeSpecs, type AggregateInput, type AttributeSpec, type AttrType, type CapabilityDoc, type CapabilityInput, type CommandInput, type EventInput } from "@vbd/compiler";
+import { attributeSpecs, type AggregateInput, type AttributeSpec, type AttrType, type CapabilityDoc, type CapabilityInput, type CommandInput, type EventInput, type PolicyInput } from "@vbd/compiler";
 
 const ATTR_TYPES: AttrType[] = ["text", "number", "boolean", "date", "money", "reference"];
 
@@ -107,12 +107,26 @@ function TagList({
  * An entity's behaviour (SPEC-004) — collapsed "What happens" (REV-021 F1: hierarchical disclosure).
  * Business language: "Actions" (commands) → the "what happens" (events they emit). Read-only.
  */
-function EntityBehaviour({ commands, events }: { commands: CommandInput[]; events: EventInput[] }): React.JSX.Element | null {
+function EntityBehaviour({
+  commands,
+  events,
+  policies,
+  allCommands,
+}: {
+  commands: CommandInput[];
+  events: EventInput[];
+  policies: PolicyInput[];
+  allCommands: CommandInput[];
+}): React.JSX.Element | null {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   if (commands.length === 0 && events.length === 0) return null;
   const eventName = (id: string): string => events.find((e) => e.id === id)?.name ?? id;
+  const cmdName = (id: string): string => allCommands.find((c) => c.id === id)?.name ?? id;
+  const cmdEntity = (id: string): string | undefined => allCommands.find((c) => c.id === id)?.aggregate;
   const standalone = events.filter((e) => (e.trigger ?? "command") !== "command");
+  // Reactions triggered by THIS entity's events (SPEC-005) — the cross-entity hand-off, shown here.
+  const reactionsFor = (eventId: string): PolicyInput[] => policies.filter((p) => p.on === eventId);
   return (
     <div className="nd-behaviour">
       <button className="nd-behaviour-toggle" onClick={() => setOpen((o) => !o)}>
@@ -128,6 +142,14 @@ function EntityBehaviour({ commands, events }: { commands: CommandInput[]; event
               )}
             </div>
           ))}
+          {events.map((e) =>
+            reactionsFor(e.id).map((p) => (
+              <div className="nd-action nd-reaction" key={p.id}>
+                <span className="nd-action-emits">⇒ {t("whenThen", { when: e.name, then: cmdName(p.then) })}</span>
+                {cmdEntity(p.then) && <span className="muted"> ({cmdEntity(p.then)})</span>}
+              </div>
+            )),
+          )}
           {standalone.map((e) => (
             <div className="nd-action" key={e.id}>
               <span className="nd-action-emits">⚡ {e.name} <span className="muted">({t(`trigger_${e.trigger}`)})</span></span>
@@ -144,6 +166,7 @@ export function NodeDetail({
   aggregates = [],
   commands = [],
   events = [],
+  policies = [],
   areas = [],
   capAreaId,
   onReassignArea,
@@ -159,6 +182,7 @@ export function NodeDetail({
   aggregates?: AggregateInput[];
   commands?: CommandInput[];
   events?: EventInput[];
+  policies?: PolicyInput[];
   areas?: { id: string; name: string }[];
   capAreaId?: string;
   onReassignArea?: (capId: string, areaId: string) => void;
@@ -266,6 +290,8 @@ export function NodeDetail({
                       <EntityBehaviour
                         commands={commands.filter((c) => c.aggregate === a.id)}
                         events={events.filter((e) => e.aggregate === a.id)}
+                        policies={policies}
+                        allCommands={commands}
                       />
                     </>
                   )}

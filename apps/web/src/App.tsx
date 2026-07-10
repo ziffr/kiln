@@ -17,8 +17,8 @@ import {
   type ContextsDoc,
   type DomainDoc,
 } from "@vbd/compiler";
-import { validateAll, validateDomain, validateContexts, validateEvents } from "@vbd/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents } from "@vbd/skills";
+import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies } from "@vbd/validation";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
@@ -131,9 +131,19 @@ export default function App(): React.JSX.Element {
     [behaviourDoc, activeDoc],
   );
   const [behaviourBusy, setBehaviourBusy] = useState(false);
+  // SPEC-005: reactions (policies) live on the domain doc — LLM when present, else live mock.
+  const flowDoc = useMemo(
+    () => ((behaviourDoc.policies?.length ?? 0) > 0 ? behaviourDoc : mockGeneratePolicies(behaviourDoc)),
+    [behaviourDoc],
+  );
+  const policyFindings = useMemo(
+    () => validatePolicies(flowDoc, activeDoc.capabilities.map((c) => c.id)),
+    [flowDoc, activeDoc],
+  );
+  const [policiesBusy, setPoliciesBusy] = useState(false);
   const [showCode, setShowCode] = useState(false);
-  // The map IR must carry domain (owns) + contexts (groups) + behaviour edges for the projections.
-  const ir = useMemo(() => compileCapabilities(activeDoc, behaviourDoc, contextsDoc), [activeDoc, behaviourDoc, contextsDoc]);
+  // The map IR must carry domain (owns) + contexts (groups) + behaviour + policy edges.
+  const ir = useMemo(() => compileCapabilities(activeDoc, flowDoc, contextsDoc), [activeDoc, flowDoc, contextsDoc]);
 
   // Colour each capability by its area for the map backdrop + legend (REV-016 F1: one surface).
   const AREA_COLORS = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa", "#fb923c", "#22d3ee", "#f87171"];
@@ -234,11 +244,17 @@ export default function App(): React.JSX.Element {
     if (!active.domain) return active.domain; // null/undefined → mock re-derives, nothing to preserve
     const keptAggs = active.domain.aggregates.filter((a) => a.owner !== id);
     const keptIds = new Set(keptAggs.map((a) => a.id));
+    const commands = (active.domain.commands ?? []).filter((c) => keptIds.has(c.aggregate) && c.capability !== id);
+    const events = (active.domain.events ?? []).filter((e) => keptIds.has(e.aggregate));
+    const cmdIds = new Set(commands.map((c) => c.id));
+    const evtIds = new Set(events.map((e) => e.id));
     return {
       ...active.domain,
       aggregates: keptAggs.map((a) => ({ ...a, references: (a.references ?? []).filter((r) => keptIds.has(r)) })),
-      commands: (active.domain.commands ?? []).filter((c) => keptIds.has(c.aggregate) && c.capability !== id),
-      events: (active.domain.events ?? []).filter((e) => keptIds.has(e.aggregate)),
+      commands,
+      events,
+      // drop reactions whose trigger event or reaction command no longer exists
+      policies: (active.domain.policies ?? []).filter((p) => evtIds.has(p.on) && cmdIds.has(p.then)),
     };
   }
 
@@ -343,12 +359,34 @@ export default function App(): React.JSX.Element {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      patchActive({ domain: data.doc }); // merges commands/events onto the aggregates
+      // Fresh commands/events invalidate any prior reactions (they referenced old ids) → drop them.
+      patchActive({ domain: { ...data.doc, policies: undefined } });
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBehaviourBusy(false);
+    }
+  }
+
+  // SPEC-005: model reactions (policies) wiring events → downstream commands via the real LLM.
+  async function generatePoliciesModel(): Promise<void> {
+    setPoliciesBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/policies`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ domain: behaviourDoc, capabilities: activeDoc, model: active.model, effort: active.effort }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      patchActive({ domain: data.doc }); // merges policies onto the behaviour doc
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPoliciesBusy(false);
     }
   }
 
@@ -510,7 +548,7 @@ export default function App(): React.JSX.Element {
         <section className="col grow">
           <div className="col-head">
             <h2>{t("capabilities")}</h2>
-            <FindingsBadge count={capFindings.length + domainFindings.length + contextFindings.length + eventFindings.length} />
+            <FindingsBadge count={capFindings.length + domainFindings.length + contextFindings.length + eventFindings.length + policyFindings.length} />
           </div>
 
           <div className="genbar">
@@ -538,6 +576,9 @@ export default function App(): React.JSX.Element {
             </button>
             <button className="addcap" onClick={() => void generateBehaviour()} disabled={behaviourBusy}>
               {behaviourBusy ? t("generating") : t("genBehaviour")}
+            </button>
+            <button className="addcap" onClick={() => void generatePoliciesModel()} disabled={policiesBusy}>
+              {policiesBusy ? t("generating") : t("genAutomations")}
             </button>
             <button className="viewcode" onClick={() => setShowCode((s) => !s)}>{t("viewCode")}</button>
           </div>
@@ -636,8 +677,17 @@ export default function App(): React.JSX.Element {
             </ul>
           )}
 
+          {policyFindings.length > 0 && (
+            <ul className="findings cap-findings domain-findings">
+              <li className="findings-head muted">{t("automations")}</li>
+              {policyFindings.map((f) => (
+                <li key={f.id}><code className={f.severity}>{f.code}</code> {f.message}</li>
+              ))}
+            </ul>
+          )}
+
           {showCode && (
-            <CodePreview caps={activeDoc} domain={behaviourDoc} contexts={contextsDoc} onClose={() => setShowCode(false)} />
+            <CodePreview caps={activeDoc} domain={flowDoc} contexts={contextsDoc} onClose={() => setShowCode(false)} />
           )}
 
           <div className="map-wrap">
@@ -658,6 +708,7 @@ export default function App(): React.JSX.Element {
                 aggregates={domainDoc.aggregates}
                 commands={behaviourDoc.commands ?? []}
                 events={behaviourDoc.events ?? []}
+                policies={flowDoc.policies ?? []}
                 areas={contextsDoc.contexts.map((c) => ({ id: c.id, name: c.name }))}
                 capAreaId={selected ? areaOf.get(selected)?.id : undefined}
                 onReassignArea={reassignCapabilityArea}

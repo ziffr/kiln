@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { generateAll } from "@vbd/codegen";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
 
 /**
  * Read-only "generated code" preview — the payoff of the whole model (RES-001): a deterministic
@@ -13,17 +13,23 @@ export function CodePreview({
   domain,
   contexts,
   roles,
+  workflows,
+  agents,
   onClose,
 }: {
   caps: CapabilityDoc;
   domain: DomainDoc;
   contexts: ContextsDoc;
   roles: RolesDoc;
+  workflows: WorkflowsDoc;
+  agents: AgentsDoc;
   onClose: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
-  const report = useMemo(() => generateAll(caps, domain, contexts, roles), [caps, domain, contexts, roles]);
-  const [tab, setTab] = useState<"types" | "api" | "modules" | "events" | "workflows" | "permissions">("types");
+  const report = useMemo(() => generateAll(caps, domain, contexts, roles, workflows, agents), [caps, domain, contexts, roles, workflows, agents]);
+  type Tab = "types" | "api" | "modules" | "events" | "reactions" | "permissions" | "processes" | "agents" | "app" | "deploy";
+  const [tab, setTab] = useState<Tab>("types");
+  const TABS: Tab[] = ["types", "api", "modules", "events", "reactions", "permissions", "processes", "agents", "app", "deploy"];
 
   const apiOps = Object.entries(report.openapi.paths as Record<string, Record<string, { summary?: string; "x-emits"?: string[] }>>)
     .flatMap(([path, ops]) => Object.entries(ops).map(([verb, op]) => ({ path, verb, op })))
@@ -33,7 +39,7 @@ export function CodePreview({
     <div className="code-preview">
       <div className="code-head">
         <div className="code-tabs">
-          {(["types", "api", "modules", "events", "workflows", "permissions"] as const).map((k) => (
+          {TABS.map((k) => (
             <button key={k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>{t(`code_${k}`)}</button>
           ))}
         </div>
@@ -54,8 +60,12 @@ export function CodePreview({
           </ul>
         )}
         {tab === "modules" && <pre className="code-block">{report.moduleMap}</pre>}
-        {tab === "workflows" && <pre className="code-block">{report.workflows}</pre>}
+        {tab === "reactions" && <pre className="code-block">{report.reactionHandlers}</pre>}
         {tab === "permissions" && <pre className="code-block">{report.permissions}</pre>}
+        {tab === "processes" && <pre className="code-block">{report.processes}</pre>}
+        {tab === "agents" && <pre className="code-block">{report.agents}</pre>}
+        {tab === "app" && <pre className="code-block">{report.appBlueprint}</pre>}
+        {tab === "deploy" && <pre className="code-block">{report.deployBlueprint}</pre>}
         {tab === "events" && (
           <ul className="code-ops">
             {report.events.map((e, i) => (

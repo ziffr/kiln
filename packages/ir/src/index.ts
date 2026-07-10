@@ -17,7 +17,9 @@ export type NodeType =
   | "command" // SPEC-004: an action that changes an aggregate
   | "event" // SPEC-004: a fact that resulted
   | "policy" // SPEC-005: a reaction rule (on event → then command)
-  | "role"; // SPEC-006: an authorized persona
+  | "role" // SPEC-006: an authorized persona
+  | "workflow" // SPEC-007: a named multi-step process
+  | "agent"; // SPEC-008: an autonomous operator
 
 export type EdgeType =
   | "produces"
@@ -33,7 +35,9 @@ export type EdgeType =
   | "on" // event → aggregate (SPEC-004)
   | "when" // event → policy (SPEC-005: the trigger)
   | "then" // policy → command (SPEC-005: the reaction)
-  | "authorizes"; // role → capability (SPEC-006)
+  | "authorizes" // role → capability (SPEC-006)
+  | "step" // workflow → command (SPEC-007: an ordered step)
+  | "operates"; // agent → capability (SPEC-008)
 
 /** authored = editable, round-trips to text; derived = read-only projection. */
 export type Origin = "authored" | "derived";

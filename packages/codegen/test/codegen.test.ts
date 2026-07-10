@@ -116,16 +116,19 @@ test("detectGaps is behaviour-aware: with commands the gap becomes reactions (SP
   assert.ok(gaps.some((g) => /SPEC-005/.test(g) && /reaction/.test(g)));
 });
 
-test("with policies, codegen emits reaction handlers and the gap advances to roles/workflows", async () => {
-  const { generateWorkflows } = await import("../src/index.ts");
+test("with policies, codegen emits reaction handlers and the gap advances to execution adapters", async () => {
+  const { generateReactionHandlers, generateProcesses, generateAgentConfig } = await import("../src/index.ts");
   const withPolicies: DomainDoc = {
     ...behaviour,
     policies: [{ id: "p1", name: "When Lead Qualified, Issue Invoice", on: "lead_qualified", then: "qualify_lead", condition: "if converted" }],
   };
-  const wf = generateWorkflows(withPolicies);
-  assert.match(wf, /on\("Lead Qualified"/);
-  assert.match(wf, /await commands\./);
+  const rh = generateReactionHandlers(withPolicies);
+  assert.match(rh, /on\("Lead Qualified"/);
+  assert.match(rh, /await commands\./);
+  // SPEC-007 processes + SPEC-008 agents
+  assert.match(generateProcesses(withPolicies, { version: "0.1", workflows: [{ id: "otc", name: "Order to Cash", steps: ["qualify_lead"] }] }), /export async function otc/);
+  assert.match(generateAgentConfig(caps, { version: "0.1", agents: [{ id: "sa", name: "Sales Assistant", capabilities: ["lead_management"], goal: "sell" }] }), /Sales Assistant/);
   const gaps = detectGaps(caps, withPolicies);
   assert.ok(!gaps.some((g) => /no downstream commands/.test(g)));
-  assert.ok(gaps.some((g) => /roles/.test(g) && /workflows/.test(g)));
+  assert.ok(gaps.some((g) => /adapters/.test(g) && /MCP/.test(g)));
 });

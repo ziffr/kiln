@@ -61,6 +61,22 @@ export {
   ROLE_SYSTEM_PROMPT,
   type RoleGenerationResult,
 } from "./roles.ts";
+export {
+  mockGenerateWorkflows,
+  generateWorkflows,
+  coerceWorkflows,
+  WORKFLOW_SCHEMA,
+  WORKFLOW_SYSTEM_PROMPT,
+  type WorkflowGenerationResult,
+} from "./workflows.ts";
+export {
+  mockGenerateAgents,
+  generateAgents,
+  coerceAgents,
+  AGENT_SCHEMA,
+  AGENT_SYSTEM_PROMPT,
+  type AgentGenerationResult,
+} from "./agents.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
 export {
   buildCoachSystemPrompt,

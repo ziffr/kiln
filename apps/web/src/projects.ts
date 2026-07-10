@@ -4,7 +4,7 @@
  * last-generated capabilities, and model/effort prefs.
  */
 
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
 import type { CoachConfig } from "@vbd/skills";
 import { narrativeMd } from "./data/solar";
 
@@ -23,6 +23,9 @@ export interface Project {
   contexts?: ContextsDoc | null;
   /** last roles/permissions model (SPEC-006; null → live mock). */
   roles?: RolesDoc | null;
+  /** last workflows (SPEC-007) + agents (SPEC-008); null → live mock. */
+  workflows?: WorkflowsDoc | null;
+  agents?: AgentsDoc | null;
   /** per-project interview override (tone/depth/domain); empty → global default. */
   coachConfig?: CoachConfig;
   /** persisted interview transcript (excludes the localized greeting). */

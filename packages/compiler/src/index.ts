@@ -134,6 +134,31 @@ export interface RolesDoc {
   roles: RoleInput[];
 }
 
+/** SPEC-007 workflow: a named multi-step process (an ordered sequence of commands). */
+export interface WorkflowInput {
+  id: string;
+  name: string;
+  steps: string[]; // ordered command ids
+  meta?: Record<string, unknown>;
+}
+export interface WorkflowsDoc {
+  version: string;
+  workflows: WorkflowInput[];
+}
+
+/** SPEC-008 agent: an autonomous operator responsible for a set of capabilities. */
+export interface AgentInput {
+  id: string;
+  name: string;
+  capabilities: string[]; // capability ids it operates
+  goal?: string; // one-line objective
+  meta?: Record<string, unknown>;
+}
+export interface AgentsDoc {
+  version: string;
+  agents: AgentInput[];
+}
+
 /** Namespaced IR node id for an aggregate (REV-010 M1: avoid collision with capability ids). */
 export function aggregateNodeId(id: string): string {
   return `aggregate:${slug(id)}`;
@@ -157,20 +182,24 @@ export function policyNodeId(id: string): string {
 export function roleNodeId(id: string): string {
   return `role:${slug(id)}`;
 }
+export function workflowNodeId(id: string): string {
+  return `workflow:${slug(id)}`;
+}
+export function agentNodeId(id: string): string {
+  return `agent:${slug(id)}`;
+}
 
 /**
  * Deterministic buildHash binding authored input to compiler + schema versions
  * (SPEC-001 §3.4). Mixes every authored artifact present — capabilities, domain (REV-010 M5),
  * and the business-areas partition (SPEC-003 / REV-015 M2) — plus the compiler + schema versions.
  */
-export function computeBuildHash(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc, roles?: RolesDoc): string {
-  const domainPart = domain ? canonical(domain) : "";
-  const contextsPart = contexts ? canonical(contexts) : "";
-  const rolesPart = roles ? canonical(roles) : "";
-  return sha256(`${canonical(doc)}|${domainPart}|${contextsPart}|${rolesPart}|${COMPILER_VERSION}|${SCHEMA_VERSION}`);
+export function computeBuildHash(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc, roles?: RolesDoc, workflows?: WorkflowsDoc, agents?: AgentsDoc): string {
+  const parts = [domain, contexts, roles, workflows, agents].map((a) => (a ? canonical(a) : "")).join("|");
+  return sha256(`${canonical(doc)}|${parts}|${COMPILER_VERSION}|${SCHEMA_VERSION}`);
 }
 
-export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc, roles?: RolesDoc): IR {
+export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc, roles?: RolesDoc, workflows?: WorkflowsDoc, agents?: AgentsDoc): IR {
   const nodes = new Map<string, IRNode>();
   const edges = new Map<string, IREdge>();
 
@@ -318,6 +347,20 @@ export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, cont
     }
   }
 
+  // SPEC-007 workflows: authored workflow nodes (ordered steps in meta) + `step` edges → commands.
+  for (const wf of workflows?.workflows ?? []) {
+    const wid = workflowNodeId(wf.id);
+    addNode({ id: wid, type: "workflow", origin: "authored", label: wf.name ?? wf.id, meta: { ...(wf.meta ?? {}), steps: wf.steps ?? [] } });
+    for (const cmd of wf.steps ?? []) addEdge({ id: edgeId(wid, commandNodeId(cmd), "step"), from: wid, to: commandNodeId(cmd), type: "step", origin: "authored" });
+  }
+
+  // SPEC-008 agents: authored agent nodes + `operates` edges (agent → capability).
+  for (const agent of agents?.agents ?? []) {
+    const aid = agentNodeId(agent.id);
+    addNode({ id: aid, type: "agent", origin: "authored", label: agent.name ?? agent.id, meta: { ...(agent.meta ?? {}), goal: agent.goal ?? "" } });
+    for (const capId of agent.capabilities ?? []) addEdge({ id: edgeId(aid, capId, "operates"), from: aid, to: capId, type: "operates", origin: "authored" });
+  }
+
   const sortedNodes = [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
   const sortedEdges = [...edges.values()].sort((a, b) => a.id.localeCompare(b.id));
 
@@ -326,6 +369,6 @@ export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, cont
     domain: doc.domain,
     nodes: sortedNodes,
     edges: sortedEdges,
-    buildHash: computeBuildHash(doc, domain, contexts, roles),
+    buildHash: computeBuildHash(doc, domain, contexts, roles, workflows, agents),
   };
 }

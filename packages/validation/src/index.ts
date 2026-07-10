@@ -10,7 +10,7 @@
  */
 
 import { sha256 } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
 
 const isGroundedAnchor = (meta: unknown): boolean => {
   const derived = (meta as { derivedFrom?: Array<Record<string, unknown>> } | undefined)?.derivedFrom ?? [];
@@ -485,6 +485,48 @@ export function validateRoles(roles: RolesDoc, capabilityIds: string[]): Finding
   for (const [id, n] of counts) if (n > 1) findings.push(mk("RO3.unique", "blocker", `duplicate role id '${id}' (${n}×)`, [id]));
   // RO5 — a capability no role can operate: who is responsible? (minor)
   for (const cid of capIds) if (!authorized.has(cid)) findings.push(mk("RO5.unauthorized", "minor", `capability '${cid}' is authorized by no role`, [cid]));
+  return findings;
+}
+
+/** SPEC-007 — workflow validators. A workflow is an ordered sequence of existing commands. */
+export function validateWorkflows(workflows: WorkflowsDoc, commandIds: string[]): Finding[] {
+  const findings: Finding[] = [];
+  const cmds = new Set(commandIds);
+  const counts = new Map<string, number>();
+  for (const w of workflows.workflows) {
+    const subj = w.id || w.name || "<workflow>";
+    if (!w.id || !w.id.trim()) findings.push(mk("WF1.required", "blocker", "workflow is missing an id", [subj]));
+    else {
+      counts.set(w.id, (counts.get(w.id) ?? 0) + 1);
+      if (!ID_RE.test(w.id)) findings.push(mk("WF3.slug", "major", `workflow id '${w.id}' is not a stable slug`, [w.id]));
+    }
+    if (!w.name || !w.name.trim()) findings.push(mk("WF1.required", "major", `workflow '${subj}' is missing a name`, [subj]));
+    for (const s of w.steps ?? []) if (!cmds.has(s)) findings.push(mk("WF2.step", "major", `workflow '${subj}' has an unknown step command '${s}'`, [subj, s]));
+    if ((w.steps ?? []).length < 2) findings.push(mk("WF5.length", "minor", `workflow '${subj}' has fewer than 2 steps`, [subj]));
+    if ((w.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(w.meta)) findings.push(mk("WF4.provenance", "major", `workflow '${subj}' lacks grounded evidence`, [subj]));
+  }
+  for (const [id, n] of counts) if (n > 1) findings.push(mk("WF3.unique", "blocker", `duplicate workflow id '${id}' (${n}×)`, [id]));
+  return findings;
+}
+
+/** SPEC-008 — agent validators. An agent operates a set of existing capabilities toward a goal. */
+export function validateAgents(agents: AgentsDoc, capabilityIds: string[]): Finding[] {
+  const findings: Finding[] = [];
+  const capIds = new Set(capabilityIds);
+  const counts = new Map<string, number>();
+  for (const a of agents.agents) {
+    const subj = a.id || a.name || "<agent>";
+    if (!a.id || !a.id.trim()) findings.push(mk("AG1.required", "blocker", "agent is missing an id", [subj]));
+    else {
+      counts.set(a.id, (counts.get(a.id) ?? 0) + 1);
+      if (!ID_RE.test(a.id)) findings.push(mk("AG3.slug", "major", `agent id '${a.id}' is not a stable slug`, [a.id]));
+    }
+    if (!a.name || !a.name.trim()) findings.push(mk("AG1.required", "major", `agent '${subj}' is missing a name`, [subj]));
+    for (const c of a.capabilities ?? []) if (!capIds.has(c)) findings.push(mk("AG2.capability", "major", `agent '${subj}' operates unknown capability '${c}'`, [subj, c]));
+    if ((a.capabilities ?? []).length === 0) findings.push(mk("AG5.empty", "minor", `agent '${subj}' operates no capabilities`, [subj]));
+    if ((a.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(a.meta)) findings.push(mk("AG4.provenance", "major", `agent '${subj}' lacks grounded evidence`, [subj]));
+  }
+  for (const [id, n] of counts) if (n > 1) findings.push(mk("AG3.unique", "blocker", `duplicate agent id '${id}' (${n}×)`, [id]));
   return findings;
 }
 

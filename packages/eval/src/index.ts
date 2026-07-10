@@ -120,3 +120,5 @@ export {
   type RolesCaseScore,
   type RoleCoverage,
 } from "./roles.ts";
+export { scoreWorkflowsCase, aggregateWorkflowsRecall, scoreWorkflowCoverage, type WorkflowsEvalCase, type WorkflowCoverage } from "./workflows.ts";
+export { scoreAgentsCase, aggregateAgentsRecall, scoreAgentCoverage, type AgentsEvalCase, type AgentCoverage } from "./agents.ts";

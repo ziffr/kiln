@@ -17,8 +17,8 @@ import {
   type ContextsDoc,
   type DomainDoc,
 } from "@vbd/compiler";
-import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles } from "@vbd/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles } from "@vbd/skills";
+import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@vbd/validation";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
@@ -146,9 +146,21 @@ export default function App(): React.JSX.Element {
   const rolesDoc = active.roles ?? mockRoles;
   const roleFindings = useMemo(() => validateRoles(rolesDoc, activeDoc.capabilities.map((c) => c.id)), [rolesDoc, activeDoc]);
   const [rolesBusy, setRolesBusy] = useState(false);
+  // SPEC-007 workflows + SPEC-008 agents — LLM when present, else the live mock.
+  const mockWorkflowsDoc = useMemo(() => mockGenerateWorkflows(behaviourDoc), [behaviourDoc]);
+  const workflowsDoc = active.workflows ?? mockWorkflowsDoc;
+  const workflowFindings = useMemo(() => validateWorkflows(workflowsDoc, (behaviourDoc.commands ?? []).map((c) => c.id)), [workflowsDoc, behaviourDoc]);
+  const [workflowsBusy, setWorkflowsBusy] = useState(false);
+  const mockAgentsDoc = useMemo(() => mockGenerateAgents(activeDoc), [activeDoc]);
+  const agentsDoc = active.agents ?? mockAgentsDoc;
+  const agentFindings = useMemo(() => validateAgents(agentsDoc, activeDoc.capabilities.map((c) => c.id)), [agentsDoc, activeDoc]);
+  const [agentsBusy, setAgentsBusy] = useState(false);
   const [showCode, setShowCode] = useState(false);
-  // The map IR must carry domain (owns) + contexts (groups) + behaviour + policy + role edges.
-  const ir = useMemo(() => compileCapabilities(activeDoc, flowDoc, contextsDoc, rolesDoc), [activeDoc, flowDoc, contextsDoc, rolesDoc]);
+  // The map IR carries every layer: domain + contexts + behaviour/policies + roles + workflows + agents.
+  const ir = useMemo(
+    () => compileCapabilities(activeDoc, flowDoc, contextsDoc, rolesDoc, workflowsDoc, agentsDoc),
+    [activeDoc, flowDoc, contextsDoc, rolesDoc, workflowsDoc, agentsDoc],
+  );
   // Which roles authorize a given capability (for the in-context display).
   const rolesForCap = (capId: string): string[] => rolesDoc.roles.filter((r) => (r.capabilities ?? []).includes(capId)).map((r) => r.name || r.id);
 
@@ -197,7 +209,7 @@ export default function App(): React.JSX.Element {
 
   function setNarrative(v: string): void {
     // Editing invalidates prior LLM snapshots (capabilities/domain/areas/roles) → fall back to mock.
-    patchActive({ narrative: v, capabilities: null, provider: null, domain: null, contexts: null, roles: null });
+    patchActive({ narrative: v, capabilities: null, provider: null, domain: null, contexts: null, roles: null, workflows: null, agents: null });
     setSelected(null);
   }
 
@@ -213,7 +225,7 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       // A fresh capability set invalidates prior domain/areas/roles snapshots → back to the live mock.
-      patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string, domain: null, contexts: null, roles: null });
+      patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string, domain: null, contexts: null, roles: null, workflows: null, agents: null });
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -422,6 +434,28 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  // SPEC-007/008: generate workflows (from behaviour) and agents (from capabilities) via the LLM.
+  async function generateWorkflowsModel(): Promise<void> {
+    setWorkflowsBusy(true); setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/workflows`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ domain: behaviourDoc, model: active.model, effort: active.effort }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      patchActive({ workflows: data.doc });
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setWorkflowsBusy(false); }
+  }
+  async function generateAgentsModel(): Promise<void> {
+    setAgentsBusy(true); setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/agents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, model: active.model, effort: active.effort }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      patchActive({ agents: data.doc });
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setAgentsBusy(false); }
+  }
+
   // Move a capability to a target area (or "" = unassigned). Single-membership: strip it from every
   // area's `capabilities`/`shared_kernel`, then add to the target. Hand-edit → origin authored.
   function reassignCapabilityArea(capId: string, targetAreaId: string): void {
@@ -580,7 +614,7 @@ export default function App(): React.JSX.Element {
         <section className="col grow">
           <div className="col-head">
             <h2>{t("capabilities")}</h2>
-            <FindingsBadge count={capFindings.length + domainFindings.length + contextFindings.length + eventFindings.length + policyFindings.length + roleFindings.length} />
+            <FindingsBadge count={capFindings.length + domainFindings.length + contextFindings.length + eventFindings.length + policyFindings.length + roleFindings.length + workflowFindings.length + agentFindings.length} />
           </div>
 
           <div className="genbar">
@@ -614,6 +648,12 @@ export default function App(): React.JSX.Element {
             </button>
             <button className="addcap" onClick={() => void generateRolesModel()} disabled={rolesBusy}>
               {rolesBusy ? t("generating") : t("genRoles")}
+            </button>
+            <button className="addcap" onClick={() => void generateWorkflowsModel()} disabled={workflowsBusy}>
+              {workflowsBusy ? t("generating") : t("genWorkflows")}
+            </button>
+            <button className="addcap" onClick={() => void generateAgentsModel()} disabled={agentsBusy}>
+              {agentsBusy ? t("generating") : t("genAgents")}
             </button>
             <button className="viewcode" onClick={() => setShowCode((s) => !s)}>{t("viewCode")}</button>
           </div>
@@ -735,8 +775,17 @@ export default function App(): React.JSX.Element {
             </ul>
           )}
 
+          {(workflowFindings.length + agentFindings.length) > 0 && (
+            <ul className="findings cap-findings domain-findings">
+              <li className="findings-head muted">{t("workflows")} · {t("agents")}</li>
+              {[...workflowFindings, ...agentFindings].map((f) => (
+                <li key={f.id}><code className={f.severity}>{f.code}</code> {f.message}</li>
+              ))}
+            </ul>
+          )}
+
           {showCode && (
-            <CodePreview caps={activeDoc} domain={flowDoc} contexts={contextsDoc} roles={rolesDoc} onClose={() => setShowCode(false)} />
+            <CodePreview caps={activeDoc} domain={flowDoc} contexts={contextsDoc} roles={rolesDoc} workflows={workflowsDoc} agents={agentsDoc} onClose={() => setShowCode(false)} />
           )}
 
           <div className="map-wrap">

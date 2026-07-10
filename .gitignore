@@ -13,3 +13,6 @@ data/
 # Local env / secrets
 .env
 .env.*
+
+# Generated serverless functions (bundled from apps/web/functions by build-functions.mjs)
+apps/web/api/

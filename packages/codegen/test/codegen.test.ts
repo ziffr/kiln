@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { generateTypes, generateOpenApi, generateModuleMap, detectGaps, generateAll } from "../src/index.ts";
+import { generateTypes, generateOpenApi, generateModuleMap, generateEventCatalog, detectGaps, generateAll } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
 
 const caps: CapabilityDoc = {
@@ -67,7 +67,51 @@ test("detectGaps flags untyped attributes, aggregate-less capabilities, and the 
   assert.ok(gaps.some((g) => /CRUD-only/.test(g) && /SPEC-004/.test(g)));
 });
 
-test("generateAll returns all four artifacts", () => {
+test("generateAll returns all artifacts incl. an event catalog", () => {
   const r = generateAll(caps, domain, contexts);
-  assert.ok(r.types && r.openapi && r.moduleMap && r.gaps.length >= 2);
+  assert.ok(r.types && r.openapi && r.moduleMap && Array.isArray(r.events) && r.gaps.length >= 2);
+});
+
+// --- SPEC-004 behaviour → real command operations beyond CRUD ---
+
+const behaviour: DomainDoc = {
+  version: "0.2",
+  aggregates: [
+    { id: "lead", name: "Lead", owner: "lead_management", attributes: [{ name: "score", type: "number" }] },
+    { id: "invoice", name: "Invoice", owner: "billing", attributes: [{ name: "amount", type: "money" }] },
+  ],
+  events: [
+    { id: "lead_qualified", name: "Lead Qualified", aggregate: "lead", trigger: "command" },
+    { id: "invoice_overdue", name: "Invoice Overdue", aggregate: "invoice", trigger: "time" },
+  ],
+  commands: [
+    { id: "capture_lead", name: "Capture Lead", aggregate: "lead", capability: "lead_management", emits: [] },
+    { id: "qualify_lead", name: "Qualify Lead", aggregate: "lead", capability: "lead_management", emits: ["lead_qualified"] },
+  ],
+};
+
+test("commands become instance operations with x-emits; create-verbs go on the collection", () => {
+  const api = generateOpenApi(caps, behaviour, contexts) as any;
+  // Qualify Lead → POST /leads/{id}/qualify_lead, carrying its emitted event
+  const qualify = api.paths["/leads/{id}/qualify_lead"]?.post;
+  assert.ok(qualify);
+  assert.deepEqual(qualify["x-emits"], ["Lead Qualified"]);
+  assert.ok(qualify.responses["409"]); // command may be rejected
+  // Capture Lead is a create-verb → on the collection, not an instance action
+  assert.ok(Object.keys(api.paths["/leads"]).some((k) => k.startsWith("post")));
+  assert.ok(!api.paths["/leads/{id}/capture_lead"]);
+});
+
+test("event catalog lists facts with trigger and emitting commands", () => {
+  const cat = generateEventCatalog(behaviour);
+  const qualified = cat.find((e) => e.name === "Lead Qualified");
+  assert.deepEqual(qualified?.emittedBy, ["Qualify Lead"]);
+  const overdue = cat.find((e) => e.name === "Invoice Overdue");
+  assert.equal(overdue?.trigger, "time");
+});
+
+test("detectGaps is behaviour-aware: with commands the gap becomes reactions (SPEC-005)", () => {
+  const gaps = detectGaps(caps, behaviour);
+  assert.ok(!gaps.some((g) => /CRUD-only/.test(g)));
+  assert.ok(gaps.some((g) => /SPEC-005/.test(g) && /reaction/.test(g)));
 });

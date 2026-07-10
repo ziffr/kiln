@@ -49,6 +49,8 @@ export interface CodegenReport {
   types: string;
   openapi: Record<string, unknown>;
   moduleMap: string;
+  /** async event catalog (SPEC-004): the facts the system publishes. */
+  events: Array<Record<string, unknown>>;
   /** what the model cannot yet express — the probe's finding (RES-001). */
   gaps: string[];
 }
@@ -70,10 +72,19 @@ export function generateTypes(caps: CapabilityDoc, domain: DomainDoc): string {
   return lines.join("\n");
 }
 
-/** Minimal OpenAPI 3 sketch: a CRUD resource per aggregate, tagged by its owning capability's area. */
+const CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+
+/**
+ * OpenAPI 3 sketch. Reads are generic (GET list/item). WRITES are the modelled COMMANDS (SPEC-004),
+ * not generic CRUD — a command becomes a real domain operation (`POST /leads/{id}/qualify_lead`),
+ * carrying the events it emits in `x-emits`. Falls back to plain create/update/delete for entities
+ * with no commands. Tagged by business area.
+ */
 export function generateOpenApi(caps: CapabilityDoc, domain: DomainDoc, contexts?: ContextsDoc): Record<string, unknown> {
   const areaOfCap = new Map<string, string>();
   for (const c of contexts?.contexts ?? []) for (const m of [...(c.capabilities ?? []), ...(c.shared_kernel ?? [])]) areaOfCap.set(m, c.name || c.id);
+  const eventName = new Map((domain.events ?? []).map((e) => [e.id, e.name]));
+  const cmdsOf = (aggId: string) => (domain.commands ?? []).filter((c) => c.aggregate === aggId);
 
   const paths: Record<string, unknown> = {};
   const schemas: Record<string, unknown> = {};
@@ -85,15 +96,34 @@ export function generateOpenApi(caps: CapabilityDoc, domain: DomainDoc, contexts
     for (const attr of attributeSpecs(a)) props[slug(attr.name)] = attr.type ? OA_TYPE[attr.type] : { description: "type not modelled" };
     schemas[T] = { type: "object", properties: props };
     const ref = { $ref: `#/components/schemas/${T}` };
-    paths[`/${res}`] = {
-      get: { tags: [tag], summary: `List ${T}`, responses: { "200": { description: "ok" } } },
-      post: { tags: [tag], summary: `Create ${T}`, requestBody: { content: { "application/json": { schema: ref } } }, responses: { "201": { description: "created" } } },
-    };
-    paths[`/${res}/{id}`] = {
-      get: { tags: [tag], summary: `Get ${T}`, responses: { "200": { description: "ok" } } },
-      put: { tags: [tag], summary: `Update ${T}`, responses: { "200": { description: "ok" } } },
-      delete: { tags: [tag], summary: `Delete ${T}`, responses: { "204": { description: "deleted" } } },
-    };
+
+    const collection: Record<string, unknown> = { get: { tags: [tag], summary: `List ${T}`, responses: { "200": { description: "ok" } } } };
+    const item: Record<string, unknown> = { get: { tags: [tag], summary: `Get ${T}`, responses: { "200": { description: "ok" } } } };
+
+    const commands = cmdsOf(a.id);
+    if (commands.length === 0) {
+      // No behaviour modelled → generic CRUD fallback.
+      (collection as Record<string, unknown>).post = { tags: [tag], summary: `Create ${T}`, requestBody: { content: { "application/json": { schema: ref } } }, responses: { "201": { description: "created" } } };
+      (item as Record<string, unknown>).put = { tags: [tag], summary: `Update ${T}`, responses: { "200": { description: "ok" } } };
+      (item as Record<string, unknown>).delete = { tags: [tag], summary: `Delete ${T}`, responses: { "204": { description: "deleted" } } };
+    } else {
+      for (const cmd of commands) {
+        const action = slug(cmd.name);
+        const emits = (cmd.emits ?? []).map((e) => eventName.get(e) ?? e);
+        const op = {
+          tags: [tag],
+          summary: cmd.name,
+          operationId: slug(cmd.id),
+          "x-emits": emits,
+          requestBody: { content: { "application/json": { schema: ref } } },
+          responses: { "200": { description: emits.length ? `emits: ${emits.join(", ")}` : "ok" }, "409": { description: "command rejected" } },
+        };
+        if (CREATE_VERB.test(`${action}_`)) (collection as Record<string, unknown>)[`post_${action}`] = op;
+        else paths[`/${res}/{id}/${action}`] = { post: op };
+      }
+    }
+    paths[`/${res}`] = collection;
+    paths[`/${res}/{id}`] = item;
   }
   return {
     openapi: "3.0.3",
@@ -101,6 +131,21 @@ export function generateOpenApi(caps: CapabilityDoc, domain: DomainDoc, contexts
     paths,
     components: { schemas },
   };
+}
+
+/**
+ * Event catalog (SPEC-004): the async facts the system publishes — an entity's events with their
+ * trigger and the commands that emit them. The seam a message bus / event log generates from.
+ */
+export function generateEventCatalog(domain: DomainDoc): Array<Record<string, unknown>> {
+  const emittedBy = new Map<string, string[]>();
+  for (const c of domain.commands ?? []) for (const e of c.emits ?? []) (emittedBy.get(e) ?? emittedBy.set(e, []).get(e)!).push(c.name);
+  return (domain.events ?? []).map((e) => ({
+    name: e.name,
+    entity: e.aggregate,
+    trigger: e.trigger ?? "command",
+    emittedBy: emittedBy.get(e.id) ?? [],
+  }));
 }
 
 /** A text tree: business area → capabilities → the aggregates they own. Areas as module seams. */
@@ -140,10 +185,22 @@ export function detectGaps(caps: CapabilityDoc, domain: DomainDoc): string[] {
   const noResource = caps.capabilities.filter((c) => !owners.has(c.id)).map((c) => c.id);
   if (noResource.length) gaps.push(`${noResource.length} capabilities own no entity (${noResource.join(", ")}) → no data resource generated.`);
 
-  // The headline gap: without the behaviour layer (SPEC-004) the API is CRUD-only.
-  gaps.push(
-    "Operations are CRUD-only: the model has no commands/events, so domain actions (e.g. \"Qualify Lead\", \"Issue Invoice\") and their events cannot be generated. This is exactly the SPEC-004 behaviour layer — the probe confirms it is the next codegen-relevant modelling need.",
-  );
+  const cmds = domain.commands ?? [];
+  if (cmds.length === 0) {
+    // No behaviour → CRUD-only (the original RES-001 gap).
+    gaps.push(
+      "Operations are CRUD-only: the model has no commands/events, so domain actions (e.g. \"Qualify Lead\") cannot be generated. Model the SPEC-004 behaviour layer.",
+    );
+  } else {
+    // Behaviour present → real command operations generate. The remaining gap is REACTIONS:
+    // events don't trigger downstream commands (no cross-entity workflow). That is SPEC-005.
+    const anyReaction = false; // policies/reactions are not modelled in the domain doc (N0)
+    if (!anyReaction) {
+      gaps.push(
+        `${cmds.length} command operations generate, but events trigger no downstream commands — cross-entity workflows/reactions (e.g. Invoice Paid → Schedule Installation) can't be generated. This is the SPEC-005 policy/reaction layer.`,
+      );
+    }
+  }
   return gaps;
 }
 
@@ -152,6 +209,7 @@ export function generateAll(caps: CapabilityDoc, domain: DomainDoc, contexts?: C
     types: generateTypes(caps, domain),
     openapi: generateOpenApi(caps, domain, contexts),
     moduleMap: generateModuleMap(caps, domain, contexts),
+    events: generateEventCatalog(domain),
     gaps: detectGaps(caps, domain),
   };
 }

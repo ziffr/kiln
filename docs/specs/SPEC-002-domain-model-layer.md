@@ -2,8 +2,8 @@
 id: SPEC-002
 title: Domain Model Layer — capabilities → aggregates, events, commands
 type: spec
-status: Revised
-version: 0.3.0
+status: Approved
+version: 1.0.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
 updated: 2026-07-10
@@ -239,3 +239,8 @@ Success-criteria (§8) status:
 
 Status stays **`Revised` / build-gated** — the eval clears the *quality* question, not the
 *strategic* one. Re-review to `Approved` when the design-partner gate clears.
+
+**UPDATE 2026-07-10 — `Approved`.** The design partner reviewed the capability layer (SPEC-001 A1)
+AND reacted positively to the domain/entities view — clearing **A1 + A6** and the §0.1 build gate's
+demand condition. All exit criteria are now met (A2/A3/A4/A5 green per §13; A4 second-domain via
+SPEC-003 §14; A1/A6 by the partner). **SPEC-002 → `Approved`.**

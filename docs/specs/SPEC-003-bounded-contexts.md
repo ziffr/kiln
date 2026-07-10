@@ -2,8 +2,8 @@
 id: SPEC-003
 title: Business Areas (Subdomains) — the capability-grouping layer
 type: spec
-status: Revised
-version: 0.3.0
+status: Approved
+version: 1.0.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
 updated: 2026-07-10
@@ -335,3 +335,8 @@ Chain). Verticality generalizes — the project's biggest bet — with no code c
   finer partitions) — resolve by pairing it with A6 and multiple references. Status stays
   **`Revised`** (engineering-complete, pending the A6 human value check), consistent with SPEC-002's
   posture. 106 tests pass; web build passes; verified end-to-end against Sonnet.
+
+**UPDATE 2026-07-10 — `Approved`.** The design partner reacted positively to the Business Areas view,
+clearing **A6** (the one open gate). With the structural gates green and A7 passed, **SPEC-003 →
+`Approved`**. A5 remains a diagnostic (ARI paired with the human judgment; bless multiple reference
+partitions before making it a hard threshold), not a blocker.

@@ -10,13 +10,18 @@ import {
 import { compileCapabilities, type CapabilityDoc } from "@vbd/compiler";
 import { validateAll } from "@vbd/validation";
 import { mockGenerateCapabilities } from "@vbd/skills";
-import { narrativeMd } from "./data/solar";
 import { CapabilityMap } from "./components/CapabilityMap";
+import { NodeDetail } from "./components/NodeDetail";
+import {
+  loadProjects,
+  saveProjects,
+  newProject,
+  type Project,
+  type ProjectState,
+} from "./projects";
 
-// The service holds the Anthropic key and runs the real model (ADR-003/004).
 const SERVICE_URL = "http://localhost:8787";
 
-// Mirrors the service catalog (apps/service/src/models.ts). Effort is unsupported on Haiku.
 const MODELS = [
   { id: "claude-sonnet-5", label: "Sonnet 5", supportsEffort: true },
   { id: "claude-opus-4-8", label: "Opus 4.8", supportsEffort: true },
@@ -27,46 +32,47 @@ const EFFORTS = ["low", "medium", "high", "max"];
 function FindingsBadge({ count }: { count: number }): React.JSX.Element {
   const { t } = useTranslation();
   const ok = count === 0;
-  return (
-    <span className={`badge ${ok ? "ok" : "warn"}`}>
-      {ok ? t("clean") : t("findingsCount", { count })}
-    </span>
-  );
+  return <span className={`badge ${ok ? "ok" : "warn"}`}>{ok ? t("clean") : t("findingsCount", { count })}</span>;
 }
 
 export default function App(): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const [text, setText] = useState(narrativeMd);
 
-  // Model selection (default: "sonnet medium").
-  const [model, setModel] = useState("claude-sonnet-5");
-  const [effort, setEffort] = useState("medium");
-  const supportsEffort = MODELS.find((m) => m.id === model)?.supportsEffort ?? true;
+  // ---- Projects (localStorage, ADR-005) ----
+  const [state, setState] = useState<ProjectState>(() => loadProjects());
+  useEffect(() => saveProjects(state), [state]);
+  const active = state.projects.find((p) => p.id === state.activeId) ?? state.projects[0];
 
-  // LLM-generated capabilities (on demand); falls back to the offline mock.
-  const [llmDoc, setLlmDoc] = useState<CapabilityDoc | null>(null);
-  const [provider, setProvider] = useState<string | null>(null);
+  const patchActive = (patch: Partial<Project>): void =>
+    setState((s) => ({
+      ...s,
+      projects: s.projects.map((p) => (p.id === s.activeId ? { ...p, ...patch, updatedAt: Date.now() } : p)),
+    }));
+
+  // ---- Transient UI state ----
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const [spend, setSpend] = useState<{
     estCostUsd: number;
     sessionSpendUsd: number;
     usage: { input: number; output: number };
   } | null>(null);
 
+  const text = active.narrative;
   const doc = useMemo(() => parseNarrative(text), [text]);
   const narrativeFindings = useMemo(() => validateNarrative(doc), [doc]);
 
-  // Editing the narrative invalidates a prior LLM snapshot → fall back to the live mock.
-  useEffect(() => {
-    setLlmDoc(null);
-    setProvider(null);
-  }, [text]);
-
   const mockDoc = useMemo(() => mockGenerateCapabilities(doc), [doc]);
-  const activeDoc = llmDoc ?? mockDoc;
+  const activeDoc = active.capabilities ?? mockDoc;
   const ir = useMemo(() => compileCapabilities(activeDoc), [activeDoc]);
   const capFindings = useMemo(() => validateAll(activeDoc), [activeDoc]);
+
+  function setNarrative(v: string): void {
+    // Editing invalidates a prior LLM snapshot → fall back to the live mock.
+    patchActive({ narrative: v, capabilities: null, provider: null });
+    setSelected(null);
+  }
 
   async function generate(): Promise<void> {
     setBusy(true);
@@ -75,12 +81,11 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/generate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ narrative: text, model, effort }),
+        body: JSON.stringify({ narrative: text, model: active.model, effort: active.effort }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setLlmDoc(data.doc as CapabilityDoc);
-      setProvider(data.provider as string);
+      patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string });
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -89,21 +94,61 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  // ---- Project actions ----
+  function addProject(): void {
+    const name = window.prompt(t("newProjectPrompt"), "");
+    if (name === null) return;
+    const p = newProject(name);
+    setState((s) => ({ projects: [...s.projects, p], activeId: p.id }));
+    setSelected(null);
+  }
+  function renameProject(): void {
+    const name = window.prompt(t("renamePrompt"), active.name);
+    if (name === null || !name.trim()) return;
+    patchActive({ name: name.trim() });
+  }
+  function deleteProject(): void {
+    if (state.projects.length <= 1) return;
+    if (!window.confirm(`${t("deleteConfirm")} "${active.name}"`)) return;
+    setState((s) => {
+      const remaining = s.projects.filter((p) => p.id !== s.activeId);
+      return { projects: remaining, activeId: remaining[0].id };
+    });
+    setSelected(null);
+  }
+
+  const supportsEffort = MODELS.find((m) => m.id === active.model)?.supportsEffort ?? true;
+
   return (
     <div className="app">
       <header className="topbar">
-        <div>
+        <div className="brand">
           <h1>{t("appTitle")}</h1>
           <p className="tagline">{t("tagline")}</p>
         </div>
+
+        <div className="projectbar">
+          <span className="muted">{t("project")}:</span>
+          <select
+            value={active.id}
+            onChange={(e) => {
+              setState((s) => ({ ...s, activeId: e.target.value }));
+              setSelected(null);
+            }}
+          >
+            {state.projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <button onClick={addProject}>+ {t("newProject")}</button>
+          <button onClick={renameProject}>{t("rename")}</button>
+          <button onClick={deleteProject} disabled={state.projects.length <= 1}>{t("del")}</button>
+        </div>
+
         <div className="lang">
           <span>{t("language")}:</span>
           {(["de", "en"] as const).map((lng) => (
-            <button
-              key={lng}
-              className={i18n.language === lng ? "active" : ""}
-              onClick={() => void i18n.changeLanguage(lng)}
-            >
+            <button key={lng} className={i18n.language === lng ? "active" : ""} onClick={() => void i18n.changeLanguage(lng)}>
               {lng.toUpperCase()}
             </button>
           ))}
@@ -117,13 +162,11 @@ export default function App(): React.JSX.Element {
             <FindingsBadge count={narrativeFindings.length} />
           </div>
           <p className="hint">{t("narrativeHint")}</p>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} />
+          <textarea value={text} onChange={(e) => setNarrative(e.target.value)} spellCheck={false} />
           {narrativeFindings.length > 0 && (
             <ul className="findings">
               {narrativeFindings.map((f) => (
-                <li key={f.id}>
-                  <code>{f.code}</code> {f.message}
-                </li>
+                <li key={f.id}><code>{f.code}</code> {f.message}</li>
               ))}
             </ul>
           )}
@@ -138,9 +181,7 @@ export default function App(): React.JSX.Element {
             {doc.sections.map((s) => (
               <li key={s.anchor}>
                 <span className="s-head">{s.heading}</span>
-                <span className="muted">
-                  #{s.anchor} · {s.items.length} {t("items")}
-                </span>
+                <span className="muted">#{s.anchor} · {s.items.length} {t("items")}</span>
               </li>
             ))}
           </ul>
@@ -169,18 +210,14 @@ export default function App(): React.JSX.Element {
           <div className="genbar">
             <label>
               {t("model")}
-              <select value={model} onChange={(e) => setModel(e.target.value)}>
-                {MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
-                ))}
+              <select value={active.model} onChange={(e) => patchActive({ model: e.target.value })}>
+                {MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
             </label>
             <label>
               {t("effort")}
-              <select value={effort} onChange={(e) => setEffort(e.target.value)} disabled={!supportsEffort}>
-                {EFFORTS.map((ef) => (
-                  <option key={ef} value={ef}>{ef}</option>
-                ))}
+              <select value={active.effort} onChange={(e) => patchActive({ effort: e.target.value })} disabled={!supportsEffort}>
+                {EFFORTS.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
               </select>
             </label>
             <button className="generate" onClick={() => void generate()} disabled={busy}>
@@ -189,27 +226,22 @@ export default function App(): React.JSX.Element {
           </div>
 
           <p className="hint">
-            {t("source")}: <strong>{provider ?? t("mockLabel")}</strong> · {t("generatedNote")}
+            {t("source")}: <strong>{active.provider ?? t("mockLabel")}</strong> · {t("generatedNote")} · {t("ndHint")}
           </p>
           {spend && (
             <p className="spend" title={t("creditNote")}>
-              💳 ${spend.estCostUsd.toFixed(4)} {t("thisCall")} · ${spend.sessionSpendUsd.toFixed(4)}{" "}
-              {t("thisSession")}
-              <span className="muted">
-                {" "}
-                · {spend.usage.input + spend.usage.output} {t("tokens")}
-              </span>
+              💳 ${spend.estCostUsd.toFixed(4)} {t("thisCall")} · ${spend.sessionSpendUsd.toFixed(4)} {t("thisSession")}
+              <span className="muted"> · {spend.usage.input + spend.usage.output} {t("tokens")}</span>
               <br />
               <span className="muted">{t("creditNote")}</span>
             </p>
           )}
-          {error && (
-            <p className="err-line">
-              <code>{error}</code> — {t("serviceHint")}
-            </p>
-          )}
+          {error && <p className="err-line"><code>{error}</code> — {t("serviceHint")}</p>}
 
-          <CapabilityMap ir={ir} />
+          <div className="map-wrap">
+            <CapabilityMap ir={ir} selectedId={selected} onSelect={setSelected} />
+            <NodeDetail doc={activeDoc} selectedId={selected} onClose={() => setSelected(null)} />
+          </div>
         </section>
       </main>
     </div>

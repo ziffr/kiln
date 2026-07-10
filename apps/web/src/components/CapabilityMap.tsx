@@ -1,80 +1,140 @@
-import { useMemo } from "react";
-import { ReactFlow, Background, Controls, type Node, type Edge } from "@xyflow/react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  Background,
+  Controls,
+  useReactFlow,
+  useNodesInitialized,
+  type Node,
+  type Edge,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import ELK from "elkjs/lib/elk.bundled.js";
 import type { IR } from "@vbd/ir";
 import { useTranslation } from "react-i18next";
 
-/**
- * Capability Map — a projection of the IR (SPEC-001 §3.3). Node positions are computed
- * deterministically from dependency depth and are NOT persisted (REV-002 F2). A later
- * milestone swaps this simple layered layout for elkjs (ADR-003 §5).
- */
-export function CapabilityMap({ ir }: { ir: IR }): React.JSX.Element {
-  const { t } = useTranslation();
+const elk = new ELK();
+const NODE_W = 190;
+const NODE_H = 54;
 
-  const { nodes, edges } = useMemo(() => {
-    const capIds = ir.nodes.filter((n) => n.type === "capability").map((n) => n.id);
+type Selectable = { selectedId: string | null; onSelect: (id: string | null) => void };
+
+/** Inner flow — refits once React Flow has measured the elk-positioned nodes. */
+function Flow({ nodes, edges, onSelect }: { nodes: Node[]; edges: Edge[]; onSelect: (id: string | null) => void }): React.JSX.Element {
+  const rf = useReactFlow();
+  const inited = useNodesInitialized();
+  useEffect(() => {
+    if (inited && nodes.length) rf.fitView({ padding: 0.2, duration: 200 });
+  }, [inited, nodes, rf]);
+
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      fitView
+      minZoom={0.15}
+      proOptions={{ hideAttribution: true }}
+      onNodeClick={(_, n) => onSelect(n.id)}
+      onPaneClick={() => onSelect(null)}
+    >
+      <Background color="var(--edge)" gap={20} />
+      <Controls showInteractive={false} />
+    </ReactFlow>
+  );
+}
+
+/**
+ * Capability Map — a projection of the IR (SPEC-001 §3.3), laid out with elkjs layered layout
+ * (ADR-003 §5). Positions are a pure function of the IR (never persisted). Clicking a capability
+ * selects it (→ node detail panel).
+ */
+export function CapabilityMap({ ir, selectedId, onSelect }: { ir: IR } & Selectable): React.JSX.Element {
+  const { t } = useTranslation();
+  const [laid, setLaid] = useState<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
+
+  useEffect(() => {
+    let cancelled = false;
+    const caps = ir.nodes.filter((n) => n.type === "capability");
+    const depEdges = ir.edges.filter((e) => e.type === "depends_on");
     const labelOf = new Map(ir.nodes.map((n) => [n.id, n.label]));
 
-    const deps = new Map<string, string[]>();
-    ir.edges
-      .filter((e) => e.type === "depends_on")
-      .forEach((e) => deps.set(e.from, [...(deps.get(e.from) ?? []), e.to]));
-
-    const depth = new Map<string, number>();
-    const calc = (id: string, seen: Set<string>): number => {
-      const cached = depth.get(id);
-      if (cached !== undefined) return cached;
-      if (seen.has(id)) return 0; // cycle guard
-      seen.add(id);
-      const d = (deps.get(id) ?? []).reduce((m, x) => Math.max(m, calc(x, seen) + 1), 0);
-      depth.set(id, d);
-      return d;
+    const graph = {
+      id: "root",
+      layoutOptions: {
+        "elk.algorithm": "layered",
+        // Vertical layout fits the narrow, tall capabilities column far better than RIGHT.
+        "elk.direction": "DOWN",
+        "elk.spacing.nodeNode": "28",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "48",
+      },
+      children: caps.map((c) => ({ id: c.id, width: NODE_W, height: NODE_H })),
+      edges: depEdges.map((e) => ({ id: e.id, sources: [e.from], targets: [e.to] })),
     };
-    capIds.forEach((id) => calc(id, new Set()));
 
-    const rowByDepth = new Map<number, number>();
-    const nodes: Node[] = capIds.map((id) => {
-      const d = depth.get(id) ?? 0;
-      const row = rowByDepth.get(d) ?? 0;
-      rowByDepth.set(d, row + 1);
-      return {
-        id,
-        position: { x: d * 260 + 30, y: row * 110 + 30 },
-        data: { label: labelOf.get(id) ?? id },
+    elk
+      .layout(graph)
+      .then((res) => {
+        if (cancelled) return;
+        const pos = new Map((res.children ?? []).map((c) => [c.id, { x: c.x ?? 0, y: c.y ?? 0 }]));
+        const nodes: Node[] = caps.map((c) => ({
+          id: c.id,
+          position: pos.get(c.id) ?? { x: 0, y: 0 },
+          data: { label: labelOf.get(c.id) ?? c.id },
+          width: NODE_W,
+          height: NODE_H,
+        }));
+        const edges: Edge[] = depEdges.map((e) => ({
+          id: e.id,
+          source: e.from,
+          target: e.to,
+          label: t("dependsOn"),
+          labelStyle: { fill: "var(--muted)", fontSize: 10 },
+          style: { stroke: "var(--edge)" },
+        }));
+        setLaid({ nodes, edges });
+      })
+      .catch(() => setLaid({ nodes: [], edges: [] }));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ir, t]);
+
+  // Apply selection styling without recomputing the layout.
+  const nodes = useMemo(
+    () =>
+      laid.nodes.map((n) => ({
+        ...n,
+        selected: n.id === selectedId,
         style: {
-          width: 200,
+          width: NODE_W,
           padding: 10,
           borderRadius: 10,
-          border: "1px solid var(--edge)",
+          border: `1px solid ${n.id === selectedId ? "var(--accent)" : "var(--edge)"}`,
+          boxShadow: n.id === selectedId ? "0 0 0 2px var(--accent)" : "none",
           background: "var(--card)",
           color: "var(--fg)",
           fontSize: 13,
           fontWeight: 600,
         },
-      };
-    });
+      })),
+    [laid.nodes, selectedId],
+  );
 
-    const edges: Edge[] = ir.edges
-      .filter((e) => e.type === "depends_on")
-      .map((e) => ({
-        id: e.id,
-        source: e.from,
-        target: e.to,
-        label: t("dependsOn"),
-        labelStyle: { fill: "var(--muted)", fontSize: 10 },
-        style: { stroke: "var(--edge)" },
-      }));
-
-    return { nodes, edges };
-  }, [ir, t]);
+  // Key by the capability set (NOT selection) so the flow remounts — and fitView-on-init
+  // runs against measured nodes — whenever the model changes, but never when you just select.
+  const flowKey = useMemo(() => laid.nodes.map((n) => n.id).join("|"), [laid.nodes]);
 
   return (
     <div style={{ height: "100%", minHeight: 420 }}>
-      <ReactFlow nodes={nodes} edges={edges} fitView proOptions={{ hideAttribution: true }}>
-        <Background color="var(--edge)" gap={20} />
-        <Controls showInteractive={false} />
-      </ReactFlow>
+      {laid.nodes.length === 0 ? (
+        <div className="map-empty">…</div>
+      ) : (
+        <ReactFlowProvider key={flowKey}>
+          <Flow nodes={nodes} edges={laid.edges} onSelect={onSelect} />
+        </ReactFlowProvider>
+      )}
     </div>
   );
 }

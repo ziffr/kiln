@@ -101,9 +101,13 @@ Monorepo, npm workspaces (ADR-001):
   `POST /api/generate`. **`apps/web`**: live mock by default + a **model/effort selector**
   (default **Sonnet 5 / medium**) and a **"Generate with LLM"** button. **Verified end-to-end with
   a live Sonnet 5 call**: clean output (`repaired:false`, 0 findings), and the model's own grouping
-  (merged Sales+Offer) — real judgment, not the mock's keyword mechanics. **Remaining to CLOSE M2:**
-  **G-DP design partner** to judge A1 correctness at scale; node detail panel + elkjs layout; wire
-  `@vbd/eval` generation-coverage scoring; attach LLM-output provenance (V8, M3).
+  (merged Sales+Offer) — real judgment, not the mock's keyword mechanics. **Polish landed:**
+  **elkjs** vertical layered layout (fits the column; useNodesInitialized refit); **node detail
+  panel** (purpose, outcomes, depends_on, provenance chips); **light projects** — several
+  businesses side-by-side, per-project narrative + capabilities + model/effort, localStorage
+  ([ADR-005](../adr/ADR-005-project-store.md)). **Remaining to CLOSE M2:** **G-DP design partner**
+  to judge A1 correctness at scale; wire `@vbd/eval` generation-coverage scoring; attach LLM-output
+  provenance (V8, M3).
 
 ### M3 — Validation + review loop
 - **Scope:** validators V3–V8; `CapabilityReviewer` (scoped to judgment; self-consistency k;

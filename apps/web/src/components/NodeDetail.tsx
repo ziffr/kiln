@@ -1,6 +1,57 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { AggregateInput, CapabilityDoc, CapabilityInput } from "@vbd/compiler";
+import { attributeSpecs, type AggregateInput, type AttributeSpec, type AttrType, type CapabilityDoc, type CapabilityInput } from "@vbd/compiler";
+
+const ATTR_TYPES: AttrType[] = ["text", "number", "boolean", "date", "money", "reference"];
+
+/** Editor for an entity's typed attributes (RES-001: types make codegen emit real schemas). */
+function AttributeList({ specs, onChange }: { specs: AttributeSpec[]; onChange: (next: AttributeSpec[]) => void }): React.JSX.Element {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState("");
+  const add = (): void => {
+    const n = draft.trim();
+    if (n && !specs.some((s) => s.name === n)) onChange([...specs, { name: n, type: "text" }]);
+    setDraft("");
+  };
+  return (
+    <div className="nd-row">
+      <span className="nd-label">{t("attributes")}</span>
+      <div className="nd-attrs">
+        {specs.map((s, i) => (
+          <div className="nd-attr" key={i}>
+            <input
+              className="nd-attr-name"
+              value={s.name}
+              onChange={(e) => onChange(specs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+            />
+            <select
+              className="nd-attr-type"
+              value={s.type ?? ""}
+              onChange={(e) => onChange(specs.map((x, j) => (j === i ? { ...x, type: (e.target.value || undefined) as AttrType | undefined } : x)))}
+            >
+              <option value="">—</option>
+              {ATTR_TYPES.map((tp) => <option key={tp} value={tp}>{t(`attrType_${tp}`)}</option>)}
+            </select>
+            <button className="chip-x" onClick={() => onChange(specs.filter((_, j) => j !== i))} aria-label="remove attribute">×</button>
+          </div>
+        ))}
+      </div>
+      <input
+        className="nd-tag-input"
+        value={draft}
+        placeholder={t("addTag")}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add();
+          }
+        }}
+        onBlur={add}
+      />
+    </div>
+  );
+}
 
 /**
  * Node detail — an editable capability FORM (SPEC-001 §7.5; REV-004 F1: structured forms, not
@@ -156,9 +207,8 @@ export function NodeDetail({
                     values={a.references ?? []}
                     onChange={(v) => onEditAggregate?.({ ...a, references: v })}
                   />
-                  <TagList
-                    label={t("attributes")}
-                    values={a.attributes ?? []}
+                  <AttributeList
+                    specs={attributeSpecs(a)}
                     onChange={(v) => onEditAggregate?.({ ...a, attributes: v })}
                   />
                 </div>

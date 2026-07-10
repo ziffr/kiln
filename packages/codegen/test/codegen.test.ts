@@ -15,8 +15,9 @@ const caps: CapabilityDoc = {
 const domain: DomainDoc = {
   version: "0.1",
   aggregates: [
-    { id: "lead", name: "Lead", owner: "lead_management", attributes: ["contact", "status"], references: [] },
-    { id: "invoice", name: "Invoice", owner: "billing", attributes: ["amount"], references: ["lead"] },
+    // mixed: an untyped string attr (back-compat) + a typed spec
+    { id: "lead", name: "Lead", owner: "lead_management", attributes: ["contact", { name: "score", type: "number" }], references: [] },
+    { id: "invoice", name: "Invoice", owner: "billing", attributes: [{ name: "amount", type: "money" }, { name: "due_date", type: "date" }], references: ["lead"] },
   ],
 };
 const contexts: ContextsDoc = {
@@ -27,12 +28,21 @@ const contexts: ContextsDoc = {
   ],
 };
 
-test("generateTypes emits a TS interface per aggregate with an id and its attributes", () => {
+test("generateTypes emits a TS interface per aggregate, mapping business types (untyped → unknown)", () => {
   const ts = generateTypes(caps, domain);
   assert.match(ts, /export interface Lead \{/);
   assert.match(ts, /id: string;/);
-  assert.match(ts, /contact: unknown;/);
+  assert.match(ts, /contact: unknown;/); // untyped string attr → unknown
+  assert.match(ts, /score: number;/); // typed number
+  assert.match(ts, /amount: number;/); // money → number
+  assert.match(ts, /due_date: string;/); // date → string
   assert.match(ts, /leadId: string; \/\/ reference → lead/); // Invoice references Lead
+});
+
+test("detectGaps counts only UNTYPED attributes (typed ones don't count)", () => {
+  const gaps = detectGaps(caps, domain);
+  const untypedGap = gaps.find((g) => /UNTYPED/.test(g));
+  assert.match(untypedGap ?? "", /^1 attributes/); // only Lead.contact is untyped
 });
 
 test("generateOpenApi emits CRUD paths per aggregate, tagged by business area", () => {

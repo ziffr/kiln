@@ -39,14 +39,31 @@ export interface CapabilityDoc {
   capabilities: CapabilityInput[];
 }
 
+/**
+ * Business-friendly attribute types (RES-001 codegen gap: untyped attributes → `unknown` schemas).
+ * A small closed set the operator can choose from; codegen maps each to a concrete TS/OpenAPI type.
+ */
+export type AttrType = "text" | "number" | "boolean" | "date" | "money" | "reference";
+
+export interface AttributeSpec {
+  name: string;
+  type?: AttrType; // absent = untyped (back-compat / not yet decided)
+}
+
 /** SPEC-002 domain model (aggregates-first): entities each capability owns. */
 export interface AggregateInput {
   id: string;
   name: string;
   owner: string; // capability id (exactly one — DM2)
-  attributes?: string[];
+  /** attribute names, or typed specs. Plain strings stay valid (back-compat, coerced on read). */
+  attributes?: (string | AttributeSpec)[];
   references?: string[]; // other aggregate ids this one references (shared entities)
   meta?: Record<string, unknown>;
+}
+
+/** Normalize an aggregate's attributes to typed specs — accepts legacy `string[]` and mixed arrays. */
+export function attributeSpecs(agg: Pick<AggregateInput, "attributes">): AttributeSpec[] {
+  return (agg.attributes ?? []).map((a) => (typeof a === "string" ? { name: a } : a));
 }
 
 export interface DomainDoc {

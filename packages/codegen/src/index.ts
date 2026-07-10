@@ -14,7 +14,27 @@
  */
 
 import { slug } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
+import { attributeSpecs, type AttrType, type CapabilityDoc, type DomainDoc, type ContextsDoc } from "@vbd/compiler";
+
+/** Business attribute type → TypeScript type. */
+const TS_TYPE: Record<AttrType, string> = {
+  text: "string",
+  number: "number",
+  boolean: "boolean",
+  date: "string",
+  money: "number",
+  reference: "string",
+};
+
+/** Business attribute type → OpenAPI schema fragment. */
+const OA_TYPE: Record<AttrType, Record<string, string>> = {
+  text: { type: "string" },
+  number: { type: "number" },
+  boolean: { type: "boolean" },
+  date: { type: "string", format: "date" },
+  money: { type: "number", format: "decimal" },
+  reference: { type: "string", format: "id" },
+};
 
 const pascal = (s: string): string =>
   slug(s)
@@ -39,7 +59,11 @@ export function generateTypes(caps: CapabilityDoc, domain: DomainDoc): string {
   for (const a of domain.aggregates) {
     lines.push(`export interface ${pascal(a.name || a.id)} {`);
     lines.push(`  id: string;`);
-    for (const attr of a.attributes ?? []) lines.push(`  ${slug(attr)}: unknown; // TODO: attribute type not modelled`);
+    for (const attr of attributeSpecs(a)) {
+      const ts = attr.type ? TS_TYPE[attr.type] : "unknown";
+      const note = attr.type ? "" : " // TODO: attribute type not modelled";
+      lines.push(`  ${slug(attr.name)}: ${ts};${note}`);
+    }
     for (const ref of a.references ?? []) lines.push(`  ${slug(ref)}Id: string; // reference → ${ref}`);
     lines.push(`}`, "");
   }
@@ -58,7 +82,7 @@ export function generateOpenApi(caps: CapabilityDoc, domain: DomainDoc, contexts
     const res = plural(slug(a.id));
     const tag = areaOfCap.get(a.owner) ?? a.owner ?? "ungrouped";
     const props: Record<string, unknown> = { id: { type: "string" } };
-    for (const attr of a.attributes ?? []) props[slug(attr)] = { type: "string", description: "type not modelled" };
+    for (const attr of attributeSpecs(a)) props[slug(attr.name)] = attr.type ? OA_TYPE[attr.type] : { description: "type not modelled" };
     schemas[T] = { type: "object", properties: props };
     const ref = { $ref: `#/components/schemas/${T}` };
     paths[`/${res}`] = {
@@ -103,10 +127,10 @@ export function generateModuleMap(caps: CapabilityDoc, domain: DomainDoc, contex
 /** Detect what the model cannot yet express — the probe's central finding (RES-001). */
 export function detectGaps(caps: CapabilityDoc, domain: DomainDoc): string[] {
   const gaps: string[] = [];
-  const untyped = domain.aggregates.reduce((n, a) => n + (a.attributes?.length ?? 0), 0);
+  const untyped = domain.aggregates.reduce((n, a) => n + attributeSpecs(a).filter((s) => !s.type).length, 0);
   if (untyped > 0) {
     gaps.push(
-      `${untyped} attributes across ${domain.aggregates.length} entities are UNTYPED (name only) → schemas emit \`unknown\`/\`string\`. Faithful data types need a typed-attributes model.`,
+      `${untyped} attributes across ${domain.aggregates.length} entities are UNTYPED → those fields emit \`unknown\`. Give them a business type (text/number/boolean/date/money/reference) for faithful schemas.`,
     );
   }
   const noAttrs = domain.aggregates.filter((a) => (a.attributes ?? []).length === 0).map((a) => a.id);

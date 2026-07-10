@@ -58,6 +58,7 @@ For each capability, identify the business ENTITIES (records/things the business
 - An entity is a noun the business keeps records of (e.g. Lead, Invoice, Customer) — not a step or action.
 - Each entity is owned by EXACTLY ONE capability: set "owner" to a capability id from the list below.
 - Seed entities from what each capability produces/consumes; prefer a few clear entities per capability. Do not invent facts.
+- "attributes": the fields the entity records, each with a business "type": text, number, boolean, date, money, or reference (a link to another entity). E.g. an Invoice has amount (money), due_date (date), paid (boolean).
 - "references": ids of other entities this one relates to (e.g. an Invoice references a Contract).
 
 Output ONLY JSON matching the schema. Every entity's "owner" MUST be one of the given capability ids.
@@ -92,7 +93,18 @@ export const DOMAIN_SCHEMA = {
           id: { type: "string" },
           name: { type: "string" },
           owner: { type: "string" },
-          attributes: { type: "array", items: { type: "string" } },
+          attributes: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["name"],
+              properties: {
+                name: { type: "string" },
+                type: { type: "string", enum: ["text", "number", "boolean", "date", "money", "reference"] },
+              },
+            },
+          },
           references: { type: "array", items: { type: "string" } },
         },
       },

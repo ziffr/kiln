@@ -9,6 +9,7 @@
     "preview": "vite preview --port 5188"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@vbd/codegen": "*",
     "@vbd/compiler": "*",
     "@vbd/ir": "*",

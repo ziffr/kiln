@@ -32,8 +32,9 @@ import {
   type ProjectState,
 } from "./projects";
 import { serverListProjects, serverSaveProject, serverDeleteProject } from "./projectStore";
+import { SERVICE_URL } from "./config";
 
-const SERVICE_URL = "http://localhost:8787";
+
 
 const MODELS = [
   { id: "claude-sonnet-5", label: "Sonnet 5", supportsEffort: true },

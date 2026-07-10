@@ -175,29 +175,35 @@ export async function generateEvents(domain: DomainDoc, caps: CapabilityDoc, pro
   const isRepairable = (f: Finding): boolean =>
     f.severity === "blocker" || f.code.startsWith("CE2.") || f.code.startsWith("CE3.") || f.code.startsWith("CE4.") || f.code === "CE.emit_boundary";
 
-  let providerName = provider.name;
-  let repaired = false;
-  const allCommands: CommandInput[] = [];
-  const allEvents: EventInput[] = [];
+  // Fan out per aggregate CONCURRENTLY — bounded work, and it keeps the whole call within a
+  // serverless timeout (sequential over ~8 entities would be too slow).
+  const batches = await Promise.all(
+    domain.aggregates.map(async (agg) => {
+      const req = buildEventRequest(agg, caps);
+      let res = await provider.complete(req);
+      let batch = coerceAggregateBehaviour(res.json, agg, caps);
+      // Validate this aggregate's batch in isolation; repair once if its references are broken.
+      const f = validateEvents({ ...domain, commands: batch.commands, events: batch.events }, capIds);
+      let repaired = false;
+      if (f.some(isRepairable)) {
+        repaired = true;
+        const bad = f.filter(isRepairable).map((x) => x.subjects.join("/")).join(", ");
+        res = await provider.complete({ ...req, user: `${req.user}\n\nThe previous output had invalid references (${bad}). Keep every command's capability among the listed ids and every emit within this entity. Return corrected JSON only.` });
+        batch = coerceAggregateBehaviour(res.json, agg, caps);
+      }
+      return { ...batch, repaired, provider: res.provider };
+    }),
+  );
 
-  for (const agg of domain.aggregates) {
-    const req = buildEventRequest(agg, caps);
-    let res = await provider.complete(req);
-    providerName = res.provider;
-    let batch = coerceAggregateBehaviour(res.json, agg, caps);
-    // Validate this aggregate's batch in isolation; repair once if its references are broken.
-    const f = validateEvents({ ...domain, commands: batch.commands, events: batch.events }, capIds);
-    if (f.some(isRepairable)) {
-      repaired = true;
-      const bad = f.filter(isRepairable).map((x) => x.subjects.join("/")).join(", ");
-      res = await provider.complete({ ...req, user: `${req.user}\n\nThe previous output had invalid references (${bad}). Keep every command's capability among the listed ids and every emit within this entity. Return corrected JSON only.` });
-      providerName = res.provider;
-      batch = coerceAggregateBehaviour(res.json, agg, caps);
-    }
-    allCommands.push(...batch.commands);
-    allEvents.push(...batch.events);
-  }
-
-  const doc: DomainDoc = { ...domain, commands: allCommands, events: allEvents };
-  return { doc, findings: validateEvents(doc, capIds), provider: providerName, repaired };
+  const doc: DomainDoc = {
+    ...domain,
+    commands: batches.flatMap((b) => b.commands),
+    events: batches.flatMap((b) => b.events),
+  };
+  return {
+    doc,
+    findings: validateEvents(doc, capIds),
+    provider: batches[0]?.provider ?? provider.name,
+    repaired: batches.some((b) => b.repaired),
+  };
 }

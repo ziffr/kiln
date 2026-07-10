@@ -6,7 +6,7 @@
 
 import type { Project } from "./projects";
 
-const SERVICE_URL = "http://localhost:8787";
+import { SERVICE_URL } from "./config";
 
 /** Returns the server's projects, or null if the service is unreachable. */
 export async function serverListProjects(): Promise<Project[] | null> {

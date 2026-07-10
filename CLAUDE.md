@@ -47,7 +47,7 @@ The **IR is the contract**: every view and validator reads it. Validators are pu
 - **TypeScript end-to-end** (ADR-001). Node ≥ 20 runs `.ts` natively (type-stripping) — packages
   have **no build step**. `@types/node`/`typescript` are intentionally not installed, so the editor
   shows "cannot find module 'node:*'" squiggles — harmless; runtime is fine.
-- **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **106** passing). Every
+- **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **111** passing). Every
   new pure function gets a test in `packages/*/test/*.test.ts`.
 - **Web:** Vite. `npm run build --workspace @vbd/web` must pass. Verify UI changes **in the browser**
   (the preview tools), not just tests — the invariants are visual.
@@ -101,7 +101,15 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   BC eval with an ARI partition-agreement gate. Exit gate (§14): structural GREEN + **A7 second-domain
   PASSED** (dental, no code change); A5 ARI a qualified pass (LLM over-segments vs a coarse single
   reference); **HOLD** on `Approved` pending A6 partner value check.
-- **Design partner validated the capability layer** (SPEC-001 A1) — cleared SPEC-002 §0.1 gate #1.
+- **Design partner validated capabilities + entities + areas** → **SPEC-002 & SPEC-003 `Approved`** (v1.0.0).
+- **SPEC-004 (commands & events) reviewed to closure (REV-017..021) but BUILD DEFERRED** — the product
+  Blocker (codegen thesis never probed, 3rd recurrence) led to a **codegen probe first**. The reviewed
+  design is on the shelf, build-ready (SPEC-004 §13).
+- **RES-001 codegen probe done** — `@vbd/codegen` (deterministic model→code projection: TS types +
+  OpenAPI + area-module map + gap report). Finding: **thesis holds for scaffolding** (solar → 8 TS
+  interfaces, 16 OpenAPI paths, 3 area modules, no LLM); two gaps name the next work — (1) entities
+  lack **typed attributes** (schemas emit `unknown`), (2) **CRUD-only without commands/events** →
+  SPEC-004 is now *empirically* justified. `@vbd/codegen` is the yardstick for future layers.
 - Full arc works end-to-end: narrative interview (or markdown) → capabilities (mock / real Sonnet 5)
   → elk map with **Business-Areas backdrop** → editable capability/entity/area forms → validators
   (V1–V8, DM, BC) → multi-project (server + localStorage) → spend estimate.

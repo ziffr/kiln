@@ -4,7 +4,7 @@
  * last-generated capabilities, and model/effort prefs.
  */
 
-import type { CapabilityDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
 import type { CoachConfig } from "@vbd/skills";
 import { narrativeMd } from "./data/solar";
 
@@ -17,6 +17,8 @@ export interface Project {
   /** last LLM-generated capabilities (null → use the live mock). */
   capabilities: CapabilityDoc | null;
   provider: string | null;
+  /** last LLM-generated domain model (null → live mock derivation). */
+  domain?: DomainDoc | null;
   /** per-project interview override (tone/depth/domain); empty → global default. */
   coachConfig?: CoachConfig;
   /** persisted interview transcript (excludes the localized greeting). */

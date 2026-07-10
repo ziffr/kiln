@@ -13,6 +13,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { parseNarrative } from "@vbd/narrative";
 import {
   generateCapabilities,
+  generateDomain,
   safeParseJson,
   buildCoachSystemPrompt,
   COACH_SCHEMA,
@@ -20,44 +21,15 @@ import {
   type LlmProvider,
   type LlmRequest,
 } from "@vbd/skills";
+import type { CapabilityDoc } from "@vbd/compiler";
 import { DEFAULT_EFFORT, DEFAULT_MODEL, EFFORTS, MODELS, modelById } from "./models.ts";
 import { deleteProject, listProjects, saveProject, type StoredProject } from "./workspaces.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const API_KEY = process.env.VBD_ANTHROPIC_API_KEY;
 
-// LLM-facing JSON schema for structured outputs (SPEC-001 §3.2 shape, simplified to what the
-// structured-outputs feature supports — no pattern/minItems). Forces the exact field names so
-// the model can't drift to name/description (claude-api skill → Structured Outputs).
-const CAPABILITY_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["version", "domain", "capabilities"],
-  properties: {
-    version: { type: "string" },
-    domain: { type: "string" },
-    capabilities: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "name", "purpose", "outcomes", "derivedFrom"],
-        properties: {
-          id: { type: "string" },
-          name: { type: "string" },
-          purpose: { type: "string" },
-          outcomes: { type: "array", items: { type: "string" } },
-          actors: { type: "array", items: { type: "string" } },
-          produces: { type: "array", items: { type: "string" } },
-          consumes: { type: "array", items: { type: "string" } },
-          depends_on: { type: "array", items: { type: "string" } },
-          // provenance: the exact Core Activity lines this capability derives from.
-          derivedFrom: { type: "array", items: { type: "string" } },
-        },
-      },
-    },
-  },
-};
+// Structured-output schemas now live in @vbd/skills (CAPABILITY_SCHEMA / DOMAIN_SCHEMA) and travel
+// on each LlmRequest's `schema` field; the provider reads req.schema.
 
 interface UsageAcc {
   input: number;
@@ -82,9 +54,9 @@ function anthropicProvider(
   return {
     name: `anthropic:${model}`,
     async complete(req: LlmRequest) {
-      const outputConfig: Record<string, unknown> = {
-        format: { type: "json_schema", schema: CAPABILITY_SCHEMA },
-      };
+      const outputConfig: Record<string, unknown> = {};
+      // The request carries its own structured-output schema (capability vs domain vs …).
+      if (req.schema) outputConfig.format = { type: "json_schema", schema: req.schema };
       // effort is GA on Sonnet 5 / Opus 4.x; omit on Haiku 4.5 (it errors there).
       if (supportsEffort && effort) outputConfig.effort = effort;
 
@@ -184,6 +156,30 @@ const server = createServer(async (req, res) => {
         sessionSpendUsd,
         pricing: { inPerM: model.inPerM, outPerM: model.outPerM },
       });
+    }
+
+    if (req.method === "POST" && req.url === "/api/domain") {
+      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      const body = JSON.parse((await readBody(req)) || "{}") as {
+        capabilities?: CapabilityDoc;
+        model?: string;
+        effort?: string;
+      };
+      if (!body.capabilities?.capabilities?.length) {
+        return send(res, 400, { error: "capabilities are required" });
+      }
+      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
+
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const result = await generateDomain(body.capabilities, provider);
+
+      const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
+      const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+
+      return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
     }
 
     if (req.method === "POST" && req.url === "/api/coach") {

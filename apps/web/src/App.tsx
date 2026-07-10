@@ -102,12 +102,14 @@ export default function App(): React.JSX.Element {
   const activeDoc = active.capabilities ?? mockDoc;
   const ir = useMemo(() => compileCapabilities(activeDoc), [activeDoc]);
   const capFindings = useMemo(() => validateAll(activeDoc), [activeDoc]);
-  // SPEC-002 DM1: derive the domain model (mock, client-side) for the in-context entities view.
-  const domainDoc = useMemo(() => mockGenerateDomain(activeDoc), [activeDoc]);
+  // SPEC-002: the domain model — LLM-generated when present (DM2), else the live mock (DM1).
+  const mockDomain = useMemo(() => mockGenerateDomain(activeDoc), [activeDoc]);
+  const domainDoc = active.domain ?? mockDomain;
+  const [domainBusy, setDomainBusy] = useState(false);
 
   function setNarrative(v: string): void {
-    // Editing invalidates a prior LLM snapshot → fall back to the live mock.
-    patchActive({ narrative: v, capabilities: null, provider: null });
+    // Editing invalidates prior LLM snapshots (capabilities + domain) → fall back to the live mock.
+    patchActive({ narrative: v, capabilities: null, provider: null, domain: null });
     setSelected(null);
   }
 
@@ -122,7 +124,8 @@ export default function App(): React.JSX.Element {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string });
+      // A fresh capability set invalidates any prior domain snapshot → back to the live mock.
+      patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string, domain: null });
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -131,18 +134,40 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  // SPEC-002 DM2: generate the domain model (entities per capability) with the real LLM, server-side.
+  async function generateDomainModel(): Promise<void> {
+    setDomainBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/domain`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ capabilities: activeDoc, model: active.model, effort: active.effort }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      patchActive({ domain: data.doc });
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDomainBusy(false);
+    }
+  }
+
   // ---- Capability editing (structured forms, REV-004 F1) ----
   // Editing materializes the live mock into the project's own capabilities, then patches it.
   function editCapability(updated: CapabilityInput): void {
     const base = active.capabilities ?? mockDoc;
     const caps = base.capabilities.map((c) => (c.id === updated.id ? updated : c));
-    patchActive({ capabilities: { ...base, capabilities: caps }, provider: "hand-edited" });
+    patchActive({ capabilities: { ...base, capabilities: caps }, provider: "hand-edited", domain: null });
   }
   function deleteCapability(id: string): void {
     const base = active.capabilities ?? mockDoc;
     patchActive({
       capabilities: { ...base, capabilities: base.capabilities.filter((c) => c.id !== id) },
       provider: "hand-edited",
+      domain: null,
     });
     setSelected(null);
   }
@@ -152,7 +177,7 @@ export default function App(): React.JSX.Element {
     let id = `capability_${n}`;
     while (base.capabilities.some((c) => c.id === id)) id = `capability_${++n}`;
     const cap: CapabilityInput = { id, name: "New Capability", purpose: "", outcomes: [] };
-    patchActive({ capabilities: { ...base, capabilities: [...base.capabilities, cap] }, provider: "hand-edited" });
+    patchActive({ capabilities: { ...base, capabilities: [...base.capabilities, cap] }, provider: "hand-edited", domain: null });
     setSelected(id);
   }
 
@@ -298,6 +323,9 @@ export default function App(): React.JSX.Element {
               {busy ? t("generating") : t("generateBtn")}
             </button>
             <button className="addcap" onClick={addCapability}>{t("addCap")}</button>
+            <button className="addcap" onClick={() => void generateDomainModel()} disabled={domainBusy}>
+              {domainBusy ? t("generating") : t("genEntities")}
+            </button>
           </div>
 
           <p className="hint">

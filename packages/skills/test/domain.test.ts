@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mockGenerateDomain } from "../src/index.ts";
+import { mockGenerateDomain, generateDomain, type LlmProvider } from "../src/index.ts";
 import { validateDomain } from "@vbd/validation";
 import type { CapabilityDoc } from "@vbd/compiler";
 
@@ -35,6 +35,32 @@ test("generated aggregates carry capability-targeting provenance", () => {
     assert.equal(meta.origin, "llm");
     assert.ok(meta.derivedFrom?.[0]?.capability);
   }
+});
+
+test("generateDomain grounds provenance to the owning capability and validates", async () => {
+  const provider: LlmProvider = {
+    name: "anthropic:test",
+    complete: async () => ({
+      provider: "anthropic:test",
+      raw: "",
+      json: { version: "0.1", aggregates: [{ id: "design", name: "Design", owner: "planning" }] },
+    }),
+  };
+  const res = await generateDomain(caps, provider);
+  assert.equal(res.repaired, false);
+  assert.ok(!res.findings.some((f) => f.severity === "blocker" || f.severity === "major"));
+  const meta = res.doc.aggregates[0].meta as { origin?: string; derivedFrom?: Array<{ capability?: string }> };
+  assert.equal(meta.origin, "llm");
+  assert.equal(meta.derivedFrom?.[0]?.capability, "planning");
+});
+
+test("generateDomain flags an aggregate whose owner isn't a capability (DM2)", async () => {
+  const provider: LlmProvider = {
+    name: "anthropic:test",
+    complete: async () => ({ provider: "anthropic:test", raw: "", json: { version: "0.1", aggregates: [{ id: "x", name: "X", owner: "ghost" }] } }),
+  };
+  const res = await generateDomain(caps, provider);
+  assert.ok(res.findings.some((f) => f.code === "DM2.owner"));
 });
 
 test("the mock domain validates cleanly except a DM5 warning for the aggregate-less capability", () => {

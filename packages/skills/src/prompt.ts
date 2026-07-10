@@ -54,11 +54,41 @@ export function renderUserPrompt(narrative: NarrativeDoc): string {
   ].join("\n");
 }
 
+/** Structured-output schema for capability generation (used by the provider's output_config). */
+export const CAPABILITY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["version", "domain", "capabilities"],
+  properties: {
+    version: { type: "string" },
+    domain: { type: "string" },
+    capabilities: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "name", "purpose", "outcomes", "derivedFrom"],
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          purpose: { type: "string" },
+          outcomes: { type: "array", items: { type: "string" } },
+          actors: { type: "array", items: { type: "string" } },
+          produces: { type: "array", items: { type: "string" } },
+          consumes: { type: "array", items: { type: "string" } },
+          depends_on: { type: "array", items: { type: "string" } },
+          derivedFrom: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
+  },
+} as const;
+
 export function buildCapabilityRequest(narrative: NarrativeDoc): LlmRequest {
   return {
     system: CAPABILITY_SYSTEM_PROMPT,
     user: renderUserPrompt(narrative),
-    schema: { $ref: "@vbd/schema/capability.schema.json" },
+    schema: CAPABILITY_SCHEMA,
     context: narrative,
   };
 }

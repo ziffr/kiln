@@ -2,17 +2,26 @@
 id: SPEC-004
 title: Commands & Events — the behaviour layer on the domain model
 type: spec
-status: Draft
-version: 0.1.0
+status: Revised
+version: 0.2.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
 updated: 2026-07-10
 supersedes: null
-related: [SPEC-001, SPEC-002, SPEC-003, ADR-001, ADR-002, ADR-004, ADR-006]
+related: [SPEC-001, SPEC-002, SPEC-003, RES-001, ADR-001, ADR-002, ADR-004, ADR-006, REV-017, REV-018, REV-019, REV-020, REV-021]
 reviewers: [product-strategy, domain-modeling, ai-llm-feasibility, technical-architecture, ux-hitl]
 ---
 
 # SPEC-004 — Commands & Events
+
+> **v0.2.0 — reviewed to closure (REV-017…021, all Approve-with-changes; 3 Blockers, ~22 Majors),
+> then BUILD DEFERRED by owner decision.** The product Blocker (REV-017 B1) is the third recurrence of
+> "the codegen thesis that justifies the whole arc has never been probed." Owner decision: run a
+> **codegen probe first** ([[RES-001]] — entities/areas → schema + API stub) to test model→code and
+> to learn what commands/events must actually contain, *then* build SPEC-004 informed by it. This spec
+> is therefore a **reviewed, closed design on the shelf** — all findings dispositioned in §13, ready to
+> build when the probe clears — not a work order yet. The design fixes below are baked into the spec so
+> it is build-ready.
 
 > **The verbs and the facts.** SPEC-002 modelled the nouns (aggregates/entities each capability
 > owns). SPEC-004 adds the **behaviour**: the **commands** that change an aggregate and the **events**
@@ -190,6 +199,52 @@ analogs of SPEC-002 DM5.
   (deterministically hard), or leave it to the review lens?
 
 ## 12. Review & closure
-*(Pending — five independent lenses: product-strategy, domain-modeling, ai-llm-feasibility,
-technical-architecture, ux-hitl. Findings + disposition logged here to closure before `Approved`,
-per CONVENTIONS §4.)*
+
+Five independent lenses reviewed v0.1.0 (REV-017…021); all **Approve-with-changes** (3 Blockers,
+~22 Majors). Disposition below. **Build is deferred pending [[RES-001]] (the codegen probe)** per the
+owner decision on the product Blocker; every technical/design finding is nonetheless resolved into the
+spec so it is build-ready.
+
+### 13. Finding disposition
+
+| Finding | Lens | Sev | Disposition | Where |
+|---|---|---|---|---|
+| Codegen thesis never probed; gate on correctness not demand (3rd recurrence) | product B1 | **Blocker** | **Owner-accepted → codegen probe first** ([[RES-001]]); build SPEC-004 after | v0.2 note, §0 |
+| Panel density realizes R2 — commands/events crowd an already-dense NodeDetail | ux F1 | **Blocker** | **Fixed** — hierarchical one-path-open disclosure; entity blocks collapse (one open); nested "What happens" expander; reject drawer (Q5) | §7 |
+| "command"/"event" raw jargon in a business-language product | ux F2 | **Blocker** | **Fixed** — surface **Actions / What happens** (Aktionen / Was passiert); avoid "Results"↔Outcomes and "Aktionen"↔Akteure collisions; jargon secondary | §7, Q6 |
+| Justified as Product B but gated as A; least operator-legible layer | product M1 | Major | **Accepted** — driver named honestly; probe tests the B thesis | §0, [[RES-001]] |
+| §8 inverted (5 correctness + 1 soft A6); no value-primary reframe | product M2 | Major | **Fixed** — §8 makes A6 primary + adds a demand/threshold instrument | §8 |
+| Behaviour-without-policies is thin standalone value | product M3 | Major | **Fixed** — pull the read-only **reacts-to hint** forward (Q2=yes) | §2 N0, §4, §7 |
+| Commands-first vs event-storming (events-first) | domain CE-C1 | Major | **Fixed** — generate **events first, then commands**; de-CRUD the mock | §5 |
+| "Command changes an aggregate" too coarse; a command may be rejected | domain CE-C2 | Major | **Fixed** — command is a *request*; `emits` is 0..n (reject paths emit none); drop any "≥1 event" rule | §0, §3, §6 |
+| Nothing constrains emitted events to the command's own aggregate (hidden saga) | domain CE-C3 | Major | **Fixed** — **CE-emit-boundary** validator: `emits` events must be `on` the command's aggregate | §6 |
+| CE6 provenance circular (grounds to own capability) — regresses from BC8 | domain CE-C4 / ai CE-F6 | Major | **Fixed** — ground to narrative/outcome **anchor** (the BC8 pattern), not members | §3, §5, §6 |
+| Time-/external-triggered events unmodeled; CE8 false-positives them | domain CE-C5 | Major | **Fixed** — event `trigger: command|time|external`; CE8 exempts non-command triggers | §3, §6 |
+| Events are islands without a reaction hint | domain CE-C6 | Major | **Fixed** — derive read-only reacts-to hint now (= product M3) | §4, §7 |
+| No behaviour-quality instrument; A2/A4 hollow + no event-storm upper bound | ai CE-F1 | Major | **Fixed** — command-recall vs a human-blessed reference set + over-generation guardrails (the contexts-ARI lesson) | §8 |
+| Repair trigger won't fire (CE2/3/4 are major, not blocker) | ai CE-F2 | Major | **Fixed** — repair allowlists `CE2./CE3./CE4.` + targets the prompt | §5 |
+| No coerce/canonicalize across 3–4 id spaces | ai CE-F3 | Major | **Fixed** — `coerceEventsDoc(json, aggIds, capIds)` snaps ids before validation | §5 |
+| EVENT_SCHEMA nested objects need `additionalProperties:false`; don't bound counts | ai CE-F4 | Major | **Fixed** — schema spec'd with the contexts fix; `emits` strings, no maxItems | §5 |
+| Single-call leaves event-storm (R1) with no structural brake | ai CE-F5 | Major | **Fixed** — **per-aggregate fan-out** (commands/events are aggregate-local) | §5 |
+| Invalidation wrong both ways — blanket domain:null wipes authored; no reconcile on aggregate edit | arch M1 | Major | **Fixed** — reconcile-not-clear + named App wiring | §4 |
+| "domain schema-version" lever doesn't exist (global SCHEMA_VERSION only) | arch M2 | Major | **Fixed** — add a per-artifact domain schema-version to the hash (also pays REV-010 M5/REV-015 M2) | §4 |
+| "Generate behaviour" must MERGE into domain, not replace it | arch M3 | Major | **Fixed** — patch merges commands/events, preserves aggregates | §5, §7 |
+| `@vbd/store` cache hash omits domain → commands/events can't invalidate it | arch M4 | Major | **Fixed** — store passes domain to computeBuildHash/compile | §4 |
+
+Minors/Nits (per-namespace CE5 uniqueness to avoid silent addNode drop; optional `commands?/events?`
+for back-compat coerce; creation-command coverage smell; exempt reference-only aggregates from CE7;
+rename IR edge `handles`→`issues`; naming stays a review-lens hint not a validator (Q6); name the
+fan-out cost) — **accepted** into §5/§6/§7 or the CE-phase tickets.
+
+**Status:** all UX Blockers **Fixed**; all technical/domain/AI Majors **Fixed or Accepted** into the
+design; the **product Blocker is owner-accepted as "codegen probe first" ([[RES-001]])**. So this spec
+is **`Revised` — a reviewed, closed, build-ready design, held on the shelf** until the probe informs
+what behaviour must contain. Re-open to build (then `Approved` on its own §8 gate) after RES-001.
+
+### Open-question resolutions
+- Q1 artifact placement → **extend the domain doc**, but only after the M1 reconcile fix (arch).
+- Q2 event consumers → **derive a read-only reacts-to hint now** (product M3 + domain CE-C6).
+- Q3 command payloads → **defer** (RES-001 may reveal these are the real codegen need — N1).
+- Q4 aggregate lifecycle → **defer** (N4); creation-command smell only.
+- Q5 UI density → **same panel, hierarchical one-path-open disclosure, no drawer** (ux F1).
+- Q6 naming → **review-lens hint only, no deterministic validator, never auto-correct** (bilingual).

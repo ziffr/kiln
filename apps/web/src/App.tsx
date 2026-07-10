@@ -23,6 +23,7 @@ import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
 import { CodePreview } from "./components/CodePreview";
+import { Guide } from "./components/Guide";
 import { NarrativeInput } from "./components/NarrativeInput";
 import {
   loadProjects,
@@ -156,6 +157,7 @@ export default function App(): React.JSX.Element {
   const agentFindings = useMemo(() => validateAgents(agentsDoc, activeDoc.capabilities.map((c) => c.id)), [agentsDoc, activeDoc]);
   const [agentsBusy, setAgentsBusy] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   // The map IR carries every layer: domain + contexts + behaviour/policies + roles + workflows + agents.
   const ir = useMemo(
     () => compileCapabilities(activeDoc, flowDoc, contextsDoc, rolesDoc, workflowsDoc, agentsDoc),
@@ -521,11 +523,14 @@ export default function App(): React.JSX.Element {
 
   return (
     <div className="app">
+      {showGuide && <Guide onClose={() => setShowGuide(false)} />}
       <header className="topbar">
         <div className="brand">
           <h1>{t("appTitle")}</h1>
           <p className="tagline">{t("tagline")}</p>
         </div>
+
+        <button className="guide-open" onClick={() => setShowGuide(true)}>{t("guideOpen")}</button>
 
         <div className="projectbar">
           <span className="muted">{t("project")}:</span>

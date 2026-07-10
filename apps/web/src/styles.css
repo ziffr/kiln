@@ -309,3 +309,23 @@ textarea {
   .map-wrap { min-height: 70vh; }
   .node-detail { width: auto; left: 8px; right: 8px; }
 }
+
+/* User guide overlay */
+.guide-open { padding: 5px 12px; font-size: 13px; background: var(--accent); color: #0b1020; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.guide-open:hover { filter: brightness(1.08); }
+.guide-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px; z-index: 100; overflow: auto; }
+.guide { background: var(--card); border: 1px solid var(--edge); border-radius: 14px; max-width: 780px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+.guide-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-bottom: 1px solid var(--edge); position: sticky; top: 0; background: var(--card); border-radius: 14px 14px 0 0; }
+.guide-head h2 { margin: 0; font-size: 18px; }
+.guide-body { padding: 8px 22px 24px; }
+.guide-intro { color: var(--fg); font-size: 14px; line-height: 1.65; margin: 12px 0; }
+.guide-steps { list-style: none; margin: 18px 0 0; padding: 0; counter-reset: none; }
+.guide-step { padding: 14px 0; border-top: 1px solid #1f2937; }
+.guide-step h3 { margin: 0 0 6px; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+.guide-n { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #0b1020; font-size: 13px; font-weight: 700; flex: none; }
+.guide-step p { font-size: 13.5px; line-height: 1.6; margin: 5px 0; color: var(--fg); }
+.guide-step p strong { color: var(--accent); }
+.guide-example { color: var(--muted) !important; font-style: italic; }
+.guide-example strong { color: var(--muted) !important; font-style: normal; }
+.guide-closing { margin-top: 20px; padding-top: 12px; border-top: 2px solid var(--edge); }
+.guide-closing p { font-size: 13.5px; line-height: 1.6; margin: 10px 0; color: var(--fg); }

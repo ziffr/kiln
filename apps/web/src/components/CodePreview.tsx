@@ -27,9 +27,9 @@ export function CodePreview({
 }): React.JSX.Element {
   const { t } = useTranslation();
   const report = useMemo(() => generateAll(caps, domain, contexts, roles, workflows, agents), [caps, domain, contexts, roles, workflows, agents]);
-  type Tab = "types" | "api" | "modules" | "events" | "reactions" | "permissions" | "processes" | "agents" | "app" | "deploy";
+  type Tab = "types" | "api" | "modules" | "events" | "reactions" | "permissions" | "processes" | "agents" | "app" | "deploy" | "mcp" | "react";
   const [tab, setTab] = useState<Tab>("types");
-  const TABS: Tab[] = ["types", "api", "modules", "events", "reactions", "permissions", "processes", "agents", "app", "deploy"];
+  const TABS: Tab[] = ["types", "api", "mcp", "react", "modules", "events", "reactions", "permissions", "processes", "agents", "app", "deploy"];
 
   const apiOps = Object.entries(report.openapi.paths as Record<string, Record<string, { summary?: string; "x-emits"?: string[] }>>)
     .flatMap(([path, ops]) => Object.entries(ops).map(([verb, op]) => ({ path, verb, op })))
@@ -66,6 +66,8 @@ export function CodePreview({
         {tab === "agents" && <pre className="code-block">{report.agents}</pre>}
         {tab === "app" && <pre className="code-block">{report.appBlueprint}</pre>}
         {tab === "deploy" && <pre className="code-block">{report.deployBlueprint}</pre>}
+        {tab === "mcp" && <pre className="code-block">{report.mcp}</pre>}
+        {tab === "react" && <pre className="code-block">{report.react}</pre>}
         {tab === "events" && (
           <ul className="code-ops">
             {report.events.map((e, i) => (

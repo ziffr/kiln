@@ -88,7 +88,7 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
 
 ## Status (keep current)
 - **Building the FULL methodology stack** (user: "the whole enchilada"): policies ✅ → roles ✅ →
-  workflows → agents → application/implementation blueprints → deepen codegen (MCP/React/adapters).
+  workflows ✅ → agents ✅ → application/implementation blueprints ✅ → execution codegen MCP/React ✅ (adapters hand-owned per ADR-002). FULL STACK BUILT.
 - **SPEC-005 (policies/reactions) BUILT + Approved** — `policy` node + when/then edges,
   `validatePolicies` (PL1–PL7 incl. joined-graph cycle), `PolicyModeler` (precision-biased, single
   call) + `/api/policies`, eval with reactionRecall + **spuriousRate** (anti over-wiring), codegen

@@ -132,3 +132,13 @@ test("with policies, codegen emits reaction handlers and the gap advances to exe
   assert.ok(!gaps.some((g) => /no downstream commands/.test(g)));
   assert.ok(gaps.some((g) => /adapters/.test(g) && /MCP/.test(g)));
 });
+
+test("execution codegen: MCP tools + React scaffold generate from the model", async () => {
+  const { generateMcpTools, generateReactApp } = await import("../src/index.ts");
+  const mcp = generateMcpTools(behaviour);
+  assert.match(mcp, /export const tools/);
+  assert.match(mcp, /name: "qualify_lead"/);
+  const react = generateReactApp(caps, behaviour, contexts);
+  assert.match(react, /<Route path="\/leads"/);
+  assert.match(react, /LeadList/);
+});

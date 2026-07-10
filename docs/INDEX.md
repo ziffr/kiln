@@ -22,6 +22,8 @@ Regenerated whenever a document is added or changes status. See `CONVENTIONS.md`
 | SPEC-004 | Commands & Events — the behaviour layer on the domain model | spec | Approved | 1.0.0 |
 | SPEC-005 | Policies & Reactions — cross-entity workflow rules | spec | Approved | 1.0.0 |
 | SPEC-006 | Roles & Permissions — the authorized-persona layer | spec | Approved | 1.0.0 |
+| SPEC-007 | Workflows — end-to-end multi-step processes | spec | Approved | 1.0.0 |
+| SPEC-008 | Agents — autonomous operators + codegen pipeline end | spec | Approved | 1.0.0 |
 | PLAN-001 | MVP Execution Plan (M0–M5) | plan | Approved | 0.4.0 |
 | RES-001 | Codegen probe — model → scaffolding, and what's missing | research | Approved | 1.0.0 |
 | ADR-001 | TypeScript end-to-end (shared IR contract) | adr | Approved | 1.0.0 |

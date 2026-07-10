@@ -12,6 +12,7 @@ import { validateAll } from "@vbd/validation";
 import { mockGenerateCapabilities } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
+import { NarrativeInput } from "./components/NarrativeInput";
 import {
   loadProjects,
   saveProjects,
@@ -186,8 +187,16 @@ export default function App(): React.JSX.Element {
             <h2>{t("narrative")}</h2>
             <FindingsBadge count={narrativeFindings.length} />
           </div>
-          <p className="hint">{t("narrativeHint")}</p>
-          <textarea value={text} onChange={(e) => setNarrative(e.target.value)} spellCheck={false} />
+          <NarrativeInput
+            key={active.id}
+            narrative={text}
+            onNarrative={setNarrative}
+            model={active.model}
+            effort={active.effort}
+            config={active.coachConfig ?? {}}
+            onConfig={(c) => patchActive({ coachConfig: c })}
+            lang={i18n.language}
+          />
           {narrativeFindings.length > 0 && (
             <ul className="findings">
               {narrativeFindings.map((f) => (

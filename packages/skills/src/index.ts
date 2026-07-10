@@ -14,6 +14,14 @@ import { buildCapabilityRequest } from "./prompt.ts";
 export * from "./types.ts";
 export { mockGenerateCapabilities, MockProvider } from "./mock.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
+export {
+  buildCoachSystemPrompt,
+  COACH_SCHEMA,
+  COACH_SECTIONS,
+  DEFAULT_COACH_CONFIG,
+  NARRATIVE_TEMPLATE_HINT,
+  type CoachConfig,
+} from "./coach.ts";
 
 /**
  * Extract a JSON object from a model response, tolerating stray fences/prose.

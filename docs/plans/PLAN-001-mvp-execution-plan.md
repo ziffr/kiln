@@ -80,8 +80,13 @@ Monorepo, npm workspaces (ADR-001):
   the narrative, shows sections/anchors/findings, and renders the Capability Map — all computing
   **client-side** over the pure `@vbd/*` packages (made isomorphic; SHA-256 no longer needs
   node:crypto). Build passes (203 modules); verified in-browser (clean model → no findings;
-  broken narrative → NV1/NV2 surface live). **Remaining M1 polish (→ M4):** replace the raw
-  textarea with the structured **form** editor (REV-004 F1) and the `apps/service` API.
+  broken narrative → NV1/NV2 surface live). **NarrativeCoach interview landed** (SPEC-001 §4.1):
+  the narrative column now has two input tabs — an interactive **Interview** (default) that elicits
+  the narrative via LLM Q&A then writes the structured markdown (interview → propose → user applies →
+  review/edit), and **Markdown** (paste/advanced). Configurable prompt (`@vbd/skills/coach.ts`):
+  global default + per-project depth/domain override; runs in the UI language; `/api/coach` in the
+  service (key server-side). Verified end-to-end (elicited an EV-charging business via German Q&A →
+  applied → parsed → capability map). `apps/service` API is live (M2).
 
 ### M2 — Capability generation + map  *(first LLM; design-partner gate applies — see §5)*
 - **Scope:** `CapabilityGenerator` skill (schema-constrained, provenance `derivedFrom`);

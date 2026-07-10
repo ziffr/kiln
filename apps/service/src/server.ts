@@ -14,6 +14,9 @@ import { parseNarrative } from "@vbd/narrative";
 import {
   generateCapabilities,
   safeParseJson,
+  buildCoachSystemPrompt,
+  COACH_SCHEMA,
+  type CoachConfig,
   type LlmProvider,
   type LlmRequest,
 } from "@vbd/skills";
@@ -177,6 +180,57 @@ const server = createServer(async (req, res) => {
         estCostUsd,
         sessionSpendUsd,
         pricing: { inPerM: model.inPerM, outPerM: model.outPerM },
+      });
+    }
+
+    if (req.method === "POST" && req.url === "/api/coach") {
+      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      const body = JSON.parse((await readBody(req)) || "{}") as {
+        messages?: Array<{ role: "user" | "assistant"; content: string }>;
+        model?: string;
+        effort?: string;
+        config?: CoachConfig;
+      };
+      // The Messages API requires the first turn to be a user turn — drop any leading greeting.
+      const all = Array.isArray(body.messages) ? body.messages : [];
+      const firstUser = all.findIndex((m) => m.role === "user");
+      const messages = firstUser >= 0 ? all.slice(firstUser) : [];
+      if (messages.length === 0) return send(res, 400, { error: "at least one user message is required" });
+
+      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
+
+      const outputConfig: Record<string, unknown> = { format: { type: "json_schema", schema: COACH_SCHEMA } };
+      if (model.supportsEffort && effort) outputConfig.effort = effort;
+
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const resp = await client.messages.create({
+        model: model.id,
+        max_tokens: 16000,
+        system: buildCoachSystemPrompt(body.config ?? {}),
+        messages,
+        output_config: outputConfig,
+      } as unknown as Anthropic.MessageCreateParamsNonStreaming);
+      const u = resp.usage;
+      usage.input += u.input_tokens ?? 0;
+      usage.output += u.output_tokens ?? 0;
+      const text = resp.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("")
+        .trim();
+      const parsed = (safeParseJson(text) as Record<string, unknown> | null) ?? {};
+      const estCostUsd = round((usage.input * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+
+      return send(res, 200, {
+        reply: typeof parsed.reply === "string" ? parsed.reply : "",
+        sectionsFilled: Array.isArray(parsed.sectionsFilled) ? parsed.sectionsFilled : [],
+        readyToGenerate: Boolean(parsed.readyToGenerate),
+        narrative: typeof parsed.narrative === "string" ? parsed.narrative : null,
+        model: model.id,
+        estCostUsd,
+        sessionSpendUsd,
       });
     }
 

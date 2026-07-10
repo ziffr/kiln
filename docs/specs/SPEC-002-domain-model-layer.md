@@ -17,7 +17,7 @@ reviewers: [product-strategy, domain-modeling, ai-llm-feasibility, technical-arc
 > **v0.2.0 — revised after 5-lens review (REV-007…011).** The spec is technically sound but the
 > panel raised a **strategic build-gate** (REV-008, Blocker) and converged on a **narrower first
 > cut**. Changes: build is now **gated** (§0.1); MVP scope cut to **aggregates + a `references`
-> edge only** — commands/events deferred to SPEC-003 (Q1); DM5 is a **warning** not an error;
+> edge only** — commands/events deferred to SPEC-004 (Q1); DM5 is a **warning** not an error;
 > provenance uses a new **capability-targeting anchor** (§3); IR ids are **namespaced**, authored
 > aggregates **supersede** derived `domain_object` nodes; storage matches ADR-006 reality; UX is
 > **in-context progressive disclosure in business language**, not a second graph tab. Full
@@ -60,11 +60,11 @@ human-in-the-loop editing, provenance. It is the *same loop, one layer deeper*.
 - G6. Keep it vertical-agnostic; prove on solar, smoke-test a second domain.
 
 ## 2. Non-goals (this spec) — narrowed to aggregates-first per review (Q1)
-- N0. **Commands & events** — DEFERRED to SPEC-003. The MVP is **aggregates + a `references`
+- N0. **Commands & events** — DEFERRED to SPEC-004. The MVP is **aggregates + a `references`
   edge** only (entities each capability owns, plus cross-capability references for shared entities
   like Customer). Commands/events are the more B-flavored, higher-variance part (REV-008 M4,
   REV-009 F3/F4, REV-011 F1) — model the nouns first, add the verbs/facts once aggregates hold up.
-- N1. **Policies, roles, agents** — SPEC-003+.
+- N1. **Policies, roles, agents** — SPEC-004+.
 - N2. **Code / API generation** — later; this produces a *model*, not a system.
 - N3. Full event-sourcing semantics.
 - N4. Rich ER cardinality; the MVP has `owns` (single owner) + `references` (many) only.
@@ -132,7 +132,7 @@ Pure over the IR, added alongside V1–V8:
   reusing SPEC-001's NodeDetail/review patterns. Likely a tab alongside the Capability Map, or an
   expansion when a capability is selected.
 
-## 8. Success criteria (go/no-go to SPEC-003)
+## 8. Success criteria (go/no-go to SPEC-004)
 - A1. From the solar capabilities, DomainGenerator produces a domain model a domain reviewer calls
   "substantially correct" (≥80% aggregates right, no critical omission after one review cycle).
 - A2. Validators DM1–DM8 are deterministic, unit-tested, and catch seeded defects (missing owner,
@@ -164,7 +164,7 @@ Pure over the IR, added alongside V1–V8:
 
 ## 11. Open questions (for reviewers)
 - Q1. Is aggregates+commands+events the right first cut, or should DM MVP be **aggregates only**
-  (defer commands/events to SPEC-003)? (Simplicity vs. completeness.)
+  (defer commands/events to SPEC-004)? (Simplicity vs. completeness.)
 - Q2. Domain view as a **separate tab** vs. an **expansion of the selected capability**? (UX)
 - Q3. Should attributes be typed (string/number/date) now, or free-form names first?
 - Q4. DM5 "every capability owns ≥1 aggregate" — is that always true? Some capabilities may be pure
@@ -182,7 +182,7 @@ Five independent lenses reviewed v0.1.0 (REV-007…011); all returned **Approve-
 | Premature: build depth before validating capability layer / A6 tests build not demand | product | **Blocker** | **Accepted → build-gated** | §0.1 |
 | UX: 3 DDD terms at once, no plain-language/gating | ux | **Blocker** | **Fixed** | §7 (business language + progressive disclosure) |
 | UX: Q2 must be in-context drill-down, not a 2nd graph tab | ux | **Blocker** | **Fixed** | §7 |
-| Aggregates+commands+events wrong first cut → aggregates-only (Q1) | product/ai/ux/domain | Major | **Fixed** | §2 N0 (commands/events → SPEC-003) |
+| Aggregates+commands+events wrong first cut → aggregates-only (Q1) | product/ai/ux/domain | Major | **Fixed** | §2 N0 (commands/events → SPEC-004) |
 | Shared entities need a `references` edge (single-owner too strict) | domain | Major | **Fixed** | §2 N4, §4 |
 | DM5 every-capability-owns-aggregate should be a warning | all | Major | **Fixed** | §6 (DM5 = warning) |
 | Add overlap/duplicate-aggregate validator (V7 analog) | domain | Major | **Accepted** | §6 (DM9 added) |
@@ -232,7 +232,7 @@ Success-criteria (§8) status:
 **Decision — GO / HOLD (split):**
 - **GO** on the engineering axis: the aggregates-first increment passes its structural exit gate
   (recall, precision, coverage, provenance all green). The code is sound to keep and build on.
-- **HOLD** on declaring SPEC-002 `Approved` and on starting **SPEC-003** (commands/events). The
+- **HOLD** on declaring SPEC-002 `Approved` and on starting **SPEC-004** (commands/events). The
   strategic build gate (§0.1) and the human criteria A1/A6 remain open until a **design partner**
   validates the capability layer (A1 of SPEC-001) and signals demand for the domain layer. Running
   A4 (second-domain smoke) is the one remaining engineering task and can proceed independently.

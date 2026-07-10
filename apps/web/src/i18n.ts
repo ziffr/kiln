@@ -30,6 +30,10 @@ const resources = {
       source: "Quelle",
       mockLabel: "Mock (offline, ohne LLM)",
       serviceHint: "LLM-Dienst starten: npm run dev --workspace @vbd/service",
+      thisCall: "dieser Aufruf",
+      thisSession: "diese Sitzung",
+      tokens: "Tokens",
+      creditNote: "Geschätzte Ausgaben (kein Restguthaben). Kontostand nur in der Anthropic-Konsole.",
     },
   },
   en: {
@@ -58,6 +62,10 @@ const resources = {
       source: "Source",
       mockLabel: "mock (offline, no LLM)",
       serviceHint: "Start the LLM service: npm run dev --workspace @vbd/service",
+      thisCall: "this call",
+      thisSession: "this session",
+      tokens: "tokens",
+      creditNote: "Estimated spend (not remaining credit). Balance lives only in the Anthropic Console.",
     },
   },
 };

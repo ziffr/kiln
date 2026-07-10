@@ -53,8 +53,26 @@ const CAPABILITY_SCHEMA = {
   },
 };
 
-/** Build an LlmProvider backed by the Anthropic SDK for a specific model + effort. */
-function anthropicProvider(client: Anthropic, model: string, effort: string, supportsEffort: boolean): LlmProvider {
+interface UsageAcc {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheCreate: number;
+}
+
+// Process-lifetime running total of estimated spend (reset when the service restarts).
+let sessionSpendUsd = 0;
+
+const round = (n: number, dp = 6): number => Math.round(n * 10 ** dp) / 10 ** dp;
+
+/** Build an LlmProvider backed by the Anthropic SDK; accumulates token usage into `usage`. */
+function anthropicProvider(
+  client: Anthropic,
+  model: string,
+  effort: string,
+  supportsEffort: boolean,
+  usage: UsageAcc,
+): LlmProvider {
   return {
     name: `anthropic:${model}`,
     async complete(req: LlmRequest) {
@@ -73,6 +91,11 @@ function anthropicProvider(client: Anthropic, model: string, effort: string, sup
       };
 
       const resp = await client.messages.create(params as unknown as Anthropic.MessageCreateParamsNonStreaming);
+      const u = resp.usage;
+      usage.input += u.input_tokens ?? 0;
+      usage.output += u.output_tokens ?? 0;
+      usage.cacheRead += u.cache_read_input_tokens ?? 0;
+      usage.cacheCreate += u.cache_creation_input_tokens ?? 0;
       const text = resp.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
         .map((b) => b.text)
@@ -137,14 +160,29 @@ const server = createServer(async (req, res) => {
         : DEFAULT_EFFORT;
 
       const narrative = parseNarrative(body.narrative);
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort);
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
       const result = await generateCapabilities(narrative, provider);
+
+      // Estimated cost (cache reads ~0.1×, cache writes ~1.25× input rate). Estimate, not billing.
+      const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
+      const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
 
       return send(res, 200, {
         ...result,
         model: model.id,
         effort: model.supportsEffort ? effort : null,
+        usage,
+        estCostUsd,
+        sessionSpendUsd,
+        pricing: { inPerM: model.inPerM, outPerM: model.outPerM },
       });
+    }
+
+    if (req.method === "GET" && req.url === "/api/usage") {
+      // Estimated spend since this service process started. Not remaining credit (Console-only).
+      return send(res, 200, { sessionSpendUsd, note: "estimate since service start; not remaining credit" });
     }
 
     if (req.method === "GET" && (req.url === "/" || req.url === "/health")) {

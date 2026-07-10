@@ -81,5 +81,7 @@ textarea {
 .genbar .generate:disabled { opacity: 0.6; cursor: default; }
 .err-line { font-size: 12px; color: var(--warn-fg); margin: 0 0 8px; }
 .err-line code { color: var(--warn-fg); }
+.spend { font-size: 12px; color: var(--ok-fg); margin: 0 0 8px; line-height: 1.5; }
+.spend .muted { font-size: 11px; }
 
 .react-flow__attribution { display: none; }

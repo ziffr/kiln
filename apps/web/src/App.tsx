@@ -48,6 +48,11 @@ export default function App(): React.JSX.Element {
   const [provider, setProvider] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [spend, setSpend] = useState<{
+    estCostUsd: number;
+    sessionSpendUsd: number;
+    usage: { input: number; output: number };
+  } | null>(null);
 
   const doc = useMemo(() => parseNarrative(text), [text]);
   const narrativeFindings = useMemo(() => validateNarrative(doc), [doc]);
@@ -76,6 +81,7 @@ export default function App(): React.JSX.Element {
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setLlmDoc(data.doc as CapabilityDoc);
       setProvider(data.provider as string);
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -185,6 +191,18 @@ export default function App(): React.JSX.Element {
           <p className="hint">
             {t("source")}: <strong>{provider ?? t("mockLabel")}</strong> · {t("generatedNote")}
           </p>
+          {spend && (
+            <p className="spend" title={t("creditNote")}>
+              💳 ${spend.estCostUsd.toFixed(4)} {t("thisCall")} · ${spend.sessionSpendUsd.toFixed(4)}{" "}
+              {t("thisSession")}
+              <span className="muted">
+                {" "}
+                · {spend.usage.input + spend.usage.output} {t("tokens")}
+              </span>
+              <br />
+              <span className="muted">{t("creditNote")}</span>
+            </p>
+          )}
           {error && (
             <p className="err-line">
               <code>{error}</code> — {t("serviceHint")}

@@ -2,8 +2,8 @@
 id: SPEC-004
 title: Commands & Events — the behaviour layer on the domain model
 type: spec
-status: Revised
-version: 0.3.0
+status: Approved
+version: 1.0.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
 updated: 2026-07-10
@@ -290,3 +290,8 @@ Verticality generalizes for the behaviour layer.
 - **HOLD** on `Approved` until **A6**: the design partner (who validated capabilities, entities, and
   areas) reviews the behaviour view. Status stays **`Revised`** (engineering-complete, A6 pending),
   consistent with SPEC-002/003's posture before their partner sign-off. 134 tests; web build passes.
+
+**UPDATE 2026-07-10 — `Approved`.** The design partner reviewed and signed off on the behaviour view,
+clearing **A6**. With every structural/quality/breadth gate green and A6 met, **SPEC-004 → `Approved`**.
+The full methodology arc (narrative → capabilities → areas → entities → commands/events) is now built
+and partner-validated.

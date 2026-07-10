@@ -42,6 +42,16 @@ export {
   EVENT_SYSTEM_PROMPT,
   type EventGenerationResult,
 } from "./events.ts";
+export {
+  mockGeneratePolicies,
+  generatePolicies,
+  buildPolicyRequest,
+  coercePolicies,
+  policyId,
+  POLICY_SCHEMA,
+  POLICY_SYSTEM_PROMPT,
+  type PolicyGenerationResult,
+} from "./policies.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
 export {
   buildCoachSystemPrompt,

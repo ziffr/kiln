@@ -86,12 +86,24 @@ export interface EventInput {
   meta?: Record<string, unknown>;
 }
 
+/** SPEC-005 reaction rule: when an event occurs, issue a command (a stateless cross-entity hand-off). */
+export interface PolicyInput {
+  id: string;
+  name: string;
+  on: string; // trigger: an event id
+  then: string; // reaction: a command id
+  condition?: string; // plain-language guard (not evaluated — N1)
+  meta?: Record<string, unknown>;
+}
+
 export interface DomainDoc {
   version: string;
   aggregates: AggregateInput[];
   /** SPEC-004 — behaviour on the aggregates (optional; absent on pre-behaviour snapshots). */
   commands?: CommandInput[];
   events?: EventInput[];
+  /** SPEC-005 — reactions wiring events to downstream commands. */
+  policies?: PolicyInput[];
 }
 
 /** SPEC-003 business-areas layer: a partition of capabilities into subdomains ("areas"). */
@@ -125,6 +137,9 @@ export function commandNodeId(id: string): string {
 }
 export function eventNodeId(id: string): string {
   return `event:${slug(id)}`;
+}
+export function policyNodeId(id: string): string {
+  return `policy:${slug(id)}`;
 }
 
 /**
@@ -250,6 +265,14 @@ export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, cont
       const aid = aggregateNodeId(evt.aggregate);
       addEdge({ id: edgeId(eid, aid, "on"), from: eid, to: aid, type: "on", origin: "authored" });
     }
+  }
+
+  // SPEC-005 policies: authored policy nodes + when (event → policy) + then (policy → command) edges.
+  for (const pol of domain?.policies ?? []) {
+    const pid = policyNodeId(pol.id);
+    addNode({ id: pid, type: "policy", origin: "authored", label: pol.name ?? pol.id, meta: { ...(pol.meta ?? {}), condition: pol.condition ?? "" } });
+    if (pol.on) addEdge({ id: edgeId(eventNodeId(pol.on), pid, "when"), from: eventNodeId(pol.on), to: pid, type: "when", origin: "authored" });
+    if (pol.then) addEdge({ id: edgeId(pid, commandNodeId(pol.then), "then"), from: pid, to: commandNodeId(pol.then), type: "then", origin: "authored" });
   }
 
   // SPEC-003 business areas: authored bounded_context nodes + `groups` edges (area → capability).

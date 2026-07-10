@@ -392,6 +392,72 @@ export function validateEvents(domain: DomainDoc, capabilityIds: string[]): Find
   return findings;
 }
 
+/**
+ * SPEC-005 — policy/reaction validators. Pure/isomorphic. A policy is a stateless `on event → then
+ * command` rule (the sanctioned cross-entity hand-off). PL7 cycle detection runs over the JOINED
+ * graph (command→emits→event→when→policy→then→command), since the policy layer alone is a forest.
+ */
+export function validatePolicies(domain: DomainDoc, _capabilityIds: string[]): Finding[] {
+  const findings: Finding[] = [];
+  const eventIds = new Set((domain.events ?? []).map((e) => e.id).filter(Boolean));
+  const commandIds = new Set((domain.commands ?? []).map((c) => c.id).filter(Boolean));
+  const aggOfEvent = new Map((domain.events ?? []).map((e) => [e.id, e.aggregate]));
+  const aggOfCommand = new Map((domain.commands ?? []).map((c) => [c.id, c.aggregate]));
+  const counts = new Map<string, number>();
+  const policies = domain.policies ?? [];
+
+  for (const p of policies) {
+    const subj = p.id || p.name || "<policy>";
+    if (!p.id || !p.id.trim()) findings.push(mk("PL1.required", "blocker", "policy is missing an id", [subj]));
+    else {
+      counts.set(p.id, (counts.get(p.id) ?? 0) + 1);
+      if (!ID_RE.test(p.id)) findings.push(mk("PL4.slug", "major", `policy id '${p.id}' is not a stable slug`, [p.id]));
+    }
+    if (!p.name || !p.name.trim()) findings.push(mk("PL1.required", "major", `policy '${subj}' is missing a name`, [subj]));
+    if (!p.on || !eventIds.has(p.on)) findings.push(mk("PL2.trigger", "major", `policy '${subj}' triggers on an unknown event '${p.on ?? "?"}'`, [subj, p.on ?? "?"]));
+    if (!p.then || !commandIds.has(p.then)) findings.push(mk("PL3.reaction", "major", `policy '${subj}' reacts with an unknown command '${p.then ?? "?"}'`, [subj, p.then ?? "?"]));
+    if ((p.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(p.meta)) {
+      findings.push(mk("PL5.provenance", "major", `policy '${subj}' lacks grounded evidence`, [subj]));
+    }
+    // PL6 — a reaction that stays on the trigger's own entity is usually redundant with the command's own emit.
+    if (p.on && p.then && aggOfEvent.get(p.on) && aggOfEvent.get(p.on) === aggOfCommand.get(p.then)) {
+      findings.push(mk("PL6.self_loop", "minor", `policy '${subj}' reacts within the same entity ('${aggOfEvent.get(p.on)}') — usually a command's own emit`, [subj]));
+    }
+  }
+  for (const [id, n] of counts) {
+    if (n > 1) findings.push(mk("PL4.unique", "blocker", `duplicate policy id '${id}' (${n}×)`, [id]));
+  }
+
+  // PL7 — cycle over the joined command/event/policy graph (reuse the V6-style DFS).
+  const adj = new Map<string, string[]>();
+  const push = (a: string, b: string): void => void (adj.get(a)?.push(b) ?? adj.set(a, [b]));
+  for (const c of domain.commands ?? []) for (const e of c.emits ?? []) push(`c:${c.id}`, `e:${e}`);
+  for (const p of policies) {
+    if (p.on) push(`e:${p.on}`, `p:${p.id}`);
+    if (p.then) push(`p:${p.id}`, `c:${p.then}`);
+  }
+  const WHITE = 0, GREY = 1, BLACK = 2;
+  const color = new Map<string, number>();
+  const cyclePolicies = new Set<string>();
+  const dfs = (n: string, stack: string[]): void => {
+    color.set(n, GREY);
+    stack.push(n);
+    for (const m of adj.get(n) ?? []) {
+      if (color.get(m) === GREY) {
+        // back-edge → cycle; record any policy nodes on the stack from m onward
+        const i = stack.indexOf(m);
+        for (const s of stack.slice(i)) if (s.startsWith("p:")) cyclePolicies.add(s.slice(2));
+      } else if ((color.get(m) ?? WHITE) === WHITE) dfs(m, stack);
+    }
+    stack.pop();
+    color.set(n, BLACK);
+  };
+  for (const n of adj.keys()) if ((color.get(n) ?? WHITE) === WHITE) dfs(n, []);
+  for (const id of cyclePolicies) findings.push(mk("PL7.cycle", "minor", `policy '${id}' is part of a reaction cycle`, [id]));
+
+  return findings;
+}
+
 /** Run all implemented validators (V1–V2, V4–V8; V3 outcome-coverage needs the narrative). */
 export function validateAll(doc: CapabilityDoc): Finding[] {
   return [

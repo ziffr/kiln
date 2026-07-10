@@ -42,6 +42,18 @@ export {
   type BehaviourCoverage,
   type BehaviourReference,
 } from "./events.ts";
+export {
+  scorePoliciesCase,
+  scorePoliciesFindings,
+  aggregatePoliciesRecall,
+  scorePolicyCoverage,
+  reactionRecall,
+  spuriousRate,
+  type PoliciesEvalCase,
+  type PoliciesCaseScore,
+  type PolicyCoverage,
+  type PolicyReference,
+} from "./policies.ts";
 
 export interface ExpectedDefect {
   /** validator code expected to fire, e.g. "V1.purpose", "V2.unique", (future) "V7.overlap". */

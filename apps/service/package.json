@@ -1,0 +1,18 @@
+{
+  "name": "@vbd/service",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=../../.env --watch src/server.ts",
+    "start": "node --env-file=../../.env src/server.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@vbd/compiler": "*",
+    "@vbd/ir": "*",
+    "@vbd/narrative": "*",
+    "@vbd/skills": "*",
+    "@vbd/validation": "*"
+  }
+}

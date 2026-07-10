@@ -3,7 +3,7 @@ id: ADR-004
 title: LLM provider & skill runtime — provider-agnostic, server-side secrets, mock for offline
 type: adr
 status: Approved
-version: 1.0.0
+version: 1.1.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
 updated: 2026-07-10
@@ -31,13 +31,22 @@ is testable without a live model (REV-003 F2), and enforces structured output + 
    in tests** (no key, no network), so the whole pipeline — generation → provenance → validation →
    IR → map — is exercisable offline today. It is explicitly a *stand-in for the LLM's mechanical
    derivation*, not a substitute for its judgment.
-3. **`AnthropicProvider`** — the real provider (default model `claude-sonnet-5`, configurable),
-   a thin `fetch` client. It runs **server-side only** (`apps/service`, later milestone); the API
-   key comes from server env (`VBD_ANTHROPIC_API_KEY`) and **never reaches the browser** (REV-005).
-   The client requests generation from the service; it does not call the model directly.
-4. **Structured output + repair:** every skill request carries a JSON-Schema; provider output is
-   validated; on invalid/blocking output the skill runs **one repair retry**, then surfaces a soft
-   error (SPEC-001 §4.4, REV-003 F7). Repair prompts re-apply input-delimiting (REV-005 F10).
+3. **Real provider — the official `@anthropic-ai/sdk`, server-side, in `apps/service`.** The
+   project is TypeScript, so per the claude-api guidance the real call uses the **official SDK**
+   (not raw HTTP), and it runs **server-side only** (`apps/service`); the key comes from server env
+   (`VBD_ANTHROPIC_API_KEY`, loaded via `node --env-file`) and **never reaches the browser**
+   (REV-005). The client POSTs the narrative to `POST /api/generate`; it does not call the model
+   directly. `@vbd/skills` stays **SDK-free/isomorphic** (mock + prompt + parsing only); the SDK
+   dependency lives solely in the service. *(v1.0.0 proposed a dependency-free `fetch` client in
+   `@vbd/skills`; superseded to avoid mixing SDK + raw HTTP in one project.)*
+4. **Model & effort are user-selectable in-app.** Default is **`claude-sonnet-5` at
+   `output_config.effort: "medium"`** ("sonnet medium"). Effort is GA (no beta header) on Sonnet 5
+   / Opus 4.x but **errors on Haiku 4.5**, so effort is coupled to the model in the catalog
+   (`GET /api/models`) and omitted for models that don't support it.
+5. **Structured output + repair:** generation requests use **structured outputs**
+   (`output_config.format` = a JSON Schema of the capabilities shape) so the model can't drift to
+   `name`/`description`; output is coerced + validated; on invalid/blocking output the skill runs
+   **one repair retry**, then surfaces a soft error (SPEC-001 §4.4, REV-003 F7).
 5. **Prompt-injection posture:** the narrative is wrapped as explicit DATA, not instructions;
    every generated capability must cite `meta.derivedFrom` anchors (evidence), and deterministic
    validators (`@vbd/validation`) are the backstop for all objective claims (REV-005 F3).

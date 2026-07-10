@@ -33,20 +33,27 @@ packages/
   skills/             @vbd/skills — LLM skill runtime; CapabilityGenerator + MockProvider (M2)
 apps/
   web/                @vbd/web — React + Vite SPA (narrative editor + Capability Map, DE/EN)
+  service/            @vbd/service — server-side API (holds the LLM key; @anthropic-ai/sdk)
 workspaces/
   solar-example/      reference solar-installer narrative + capabilities
 ```
 
 ## Run the app
 
+The web app runs standalone with an **offline mock** generator. For **real LLM generation**,
+also run the service (it holds the Anthropic key). Put your key in a git-ignored `.env` at the
+repo root: `VBD_ANTHROPIC_API_KEY=sk-ant-...`
+
 ```bash
-npm install                      # links workspaces + installs web deps
-npm run dev --workspace @vbd/web # Vite dev server on http://localhost:5188
-npm run build --workspace @vbd/web
+npm install                          # links workspaces + installs deps
+npm run dev --workspace @vbd/web     # web (Vite) on http://localhost:5188
+npm run dev --workspace @vbd/service # API on http://localhost:8787 (loads .env)
 ```
 
-The pure packages (`ir`/`compiler`/`validation`/`narrative`) run **both** in Node (tests) and
-the browser (the app computes parse→validate live client-side).
+Then open the web app, pick a model (default **Sonnet 5 / medium**), and click **Generate with
+LLM**. The key never reaches the browser — the app POSTs the narrative to the service, which calls
+Anthropic via the official SDK. The pure packages (`ir`/`compiler`/`validation`/`narrative`) run
+in Node (tests), the browser (live mock), and the service (real generation).
 
 ## Develop
 

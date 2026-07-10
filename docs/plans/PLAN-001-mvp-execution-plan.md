@@ -93,15 +93,17 @@ Monorepo, npm workspaces (ADR-001):
 - **DoD:** solar narrative → capability map a domain reviewer calls "substantially correct"
   (pre-A1); every LLM capability carries valid provenance (V8 passes); the minimal harness runs
   against the seed corpus and reports a number.
-- **Status:** 🟡 **pipeline delivered (mock provider).** [ADR-004](../adr/ADR-004-llm-provider-and-skill-runtime.md)
-  + `@vbd/skills`: provider-agnostic `LlmProvider`, `CapabilityGenerator` (schema coercion +
-  one repair retry), `MockProvider` (deterministic keyword→capability derivation with provenance
-  anchors), `AnthropicProvider` (server-side stub). 7 tests green. **`apps/web` now GENERATES the
-  Capability Map from the narrative live** (edit narrative → new capabilities → new map),
-  client-side via the mock. **Remaining to CLOSE M2:** real `AnthropicProvider` via `apps/service`
-  + a wired key (secrets server-side, REV-005); **G-DP design-partner** to judge A1 correctness;
-  node detail panel + elkjs layout; wire `@vbd/eval` generation-coverage scoring. The mock proves
-  the *plumbing*, not the model's *judgment*.
+- **Status:** 🟢 **pipeline delivered — mock AND real LLM.** [ADR-004](../adr/ADR-004-llm-provider-and-skill-runtime.md)
+  + `@vbd/skills`: provider-agnostic `LlmProvider`, `CapabilityGenerator` (schema coercion + one
+  repair retry), `MockProvider` (deterministic, offline). **`apps/service`** (new): server-side API
+  using the **official `@anthropic-ai/sdk`**, key from `VBD_ANTHROPIC_API_KEY` (never in the
+  browser, REV-005), **structured outputs** to lock the JSON shape; `GET /api/models`,
+  `POST /api/generate`. **`apps/web`**: live mock by default + a **model/effort selector**
+  (default **Sonnet 5 / medium**) and a **"Generate with LLM"** button. **Verified end-to-end with
+  a live Sonnet 5 call**: clean output (`repaired:false`, 0 findings), and the model's own grouping
+  (merged Sales+Offer) — real judgment, not the mock's keyword mechanics. **Remaining to CLOSE M2:**
+  **G-DP design partner** to judge A1 correctness at scale; node detail panel + elkjs layout; wire
+  `@vbd/eval` generation-coverage scoring; attach LLM-output provenance (V8, M3).
 
 ### M3 — Validation + review loop
 - **Scope:** validators V3–V8; `CapabilityReviewer` (scoped to judgment; self-consistency k;

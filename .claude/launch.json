@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace", "@vbd/web"],
       "port": 5188
+    },
+    {
+      "name": "service",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "@vbd/service"],
+      "port": 8787
     }
   ]
 }

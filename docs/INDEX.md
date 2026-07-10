@@ -21,7 +21,7 @@ Regenerated whenever a document is added or changes status. See `CONVENTIONS.md`
 | ADR-001 | TypeScript end-to-end (shared IR contract) | adr | Approved | 1.0.0 |
 | ADR-002 | Storage & source-of-truth model | adr | Approved | 1.0.0 |
 | ADR-003 | Front-end stack — React + Vite SPA, hosted, bilingual, IR-driven | adr | Approved | 1.0.0 |
-| ADR-004 | LLM provider & skill runtime | adr | Approved | 1.0.0 |
+| ADR-004 | LLM provider & skill runtime | adr | Approved | 1.1.0 |
 
 ## Reviews
 

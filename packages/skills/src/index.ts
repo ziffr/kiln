@@ -13,8 +13,25 @@ import { buildCapabilityRequest } from "./prompt.ts";
 
 export * from "./types.ts";
 export { mockGenerateCapabilities, MockProvider } from "./mock.ts";
-export { AnthropicProvider, safeParseJson, type AnthropicOptions } from "./anthropic.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
+
+/**
+ * Extract a JSON object from a model response, tolerating stray fences/prose.
+ * Lives here (dependency-free) so both the mock path and the SDK-backed service can use it.
+ * The real Anthropic call uses the official @anthropic-ai/sdk and runs server-side only
+ * (ADR-004) — @vbd/skills stays isomorphic and SDK-free.
+ */
+export function safeParseJson(raw: string): unknown {
+  const fenced = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  const start = fenced.indexOf("{");
+  const end = fenced.lastIndexOf("}");
+  const candidate = start >= 0 && end > start ? fenced.slice(start, end + 1) : fenced;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return null;
+  }
+}
 
 /** Minimal shape coercion — returns a CapabilityDoc or null if the payload is unusable. */
 export function coerceCapabilityDoc(json: unknown): CapabilityDoc | null {

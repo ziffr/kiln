@@ -17,6 +17,7 @@ import {
   generateContexts,
   critiqueContexts,
   critiqueLayer,
+  CRITIQUE_EFFORT,
   type LayerKind,
   type ReviewModel,
   generateEvents,
@@ -73,7 +74,9 @@ function anthropicProvider(
       const params = {
         model,
         max_tokens: 16000, // leave room for adaptive thinking (Sonnet 5 default) + JSON output
-        system: req.system,
+        // Cache the (stable) system prompt: re-review + refine reuse the same system per layer, so
+        // repeat calls read it from cache (~0.1× input) instead of re-billing it (prompt-caching).
+        system: [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user" as const, content: req.user }],
         output_config: outputConfig,
       };
@@ -250,7 +253,9 @@ const server = createServer(async (req, res) => {
       };
       if (!body.layer || !body.capabilities?.capabilities?.length) return send(res, 400, { error: "layer and capabilities are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
-      const effort = model.supportsEffort ? "high" : DEFAULT_EFFORT; // adaptive: critique gets more reasoning
+      // Adaptive effort per layer (clamped to what the catalog allows); Haiku ignores effort.
+      const wantEffort = CRITIQUE_EFFORT[body.layer] ?? "high";
+      const effort = model.supportsEffort ? ((EFFORTS as readonly string[]).includes(wantEffort) ? wantEffort : "high") : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
       const review: ReviewModel = {

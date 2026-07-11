@@ -86,6 +86,7 @@ export {
   critiqueToFeedback,
   resolveTarget,
   CRITIQUE_SCHEMA,
+  CRITIQUE_EFFORT,
   type LayerKind,
   type ReviewModel,
   type CritiqueResult,

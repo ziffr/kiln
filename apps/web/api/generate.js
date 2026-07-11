@@ -517,7 +517,8 @@ function anthropicProvider(client, model, effort, supportsEffort, usage) {
       const resp = await client.messages.create({
         model,
         max_tokens: 16e3,
-        system: req.system,
+        // Cache the stable system prompt so re-review/refine reuse it from cache (prompt-caching).
+        system: [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: req.user }],
         output_config: outputConfig
       });

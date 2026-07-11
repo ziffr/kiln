@@ -555,7 +555,7 @@ export default function App(): React.JSX.Element {
         const layer = row.kind;
         setAutoLayer(layer);
         let findings = await reviewLayer(layer, acc);
-        if (layer === "capabilities") continue; // review-only
+        if (layer === "capabilities" || layer === "holistic") continue; // review-only
         let round = 0;
         while (!autoStopRef.current && round < MAX_REFINES && findings.some((f) => f.severity === "concern")) {
           const refined = await refineLayer(layer, findings, acc);
@@ -588,7 +588,10 @@ export default function App(): React.JSX.Element {
     { kind: "roles", label: t("roles"), count: rolesDoc.roles.length },
     { kind: "workflows", label: t("workflows"), count: workflowsDoc.workflows.length },
     { kind: "agents", label: t("agents"), count: agentsDoc.agents.length },
-  ] as { kind: LayerKind; label: string; count: number }[]).filter((r) => r.count > 0 || r.kind === "automations");
+  ] as { kind: LayerKind; label: string; count: number }[])
+    .filter((r) => r.count > 0 || r.kind === "automations")
+    // The cross-layer consistency pass — always available; reasons over the whole model at once.
+    .concat([{ kind: "holistic", label: t("holistic"), count: activeDoc.capabilities.length }]);
 
   // SPEC-007/008: generate workflows (from behaviour) and agents (from capabilities) via the LLM.
   async function generateWorkflowsModel(): Promise<void> {
@@ -947,7 +950,7 @@ export default function App(): React.JSX.Element {
             layers={reviewLayers}
             critique={critique}
             busy={reviewBusy}
-            refinable={(k) => k !== "capabilities"}
+            refinable={(k) => k !== "capabilities" && k !== "holistic"}
             onReview={(k) => void reviewLayer(k)}
             onRefine={(k) => void refineLayer(k)}
             onSelect={selectFinding}

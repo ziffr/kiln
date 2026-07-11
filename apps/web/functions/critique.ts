@@ -1,6 +1,6 @@
-import { critiqueLayer, type LayerKind, type ReviewModel } from "@vbd/skills";
+import { critiqueLayer, CRITIQUE_EFFORT, type LayerKind, type ReviewModel } from "@vbd/skills";
 import type { CapabilityDoc } from "@vbd/compiler";
-import { requireClient, readBody, newUsage, estCost, anthropicProvider, modelById, DEFAULT_MODEL, DEFAULT_EFFORT, type Req, type Res } from "./_lib.ts";
+import { requireClient, readBody, newUsage, estCost, anthropicProvider, modelById, DEFAULT_MODEL, DEFAULT_EFFORT, EFFORTS, type Req, type Res } from "./_lib.ts";
 
 // Generic semantic critic: the LLM reviews ANY layer of its own output (advisory). Higher effort —
 // critique is a hard reasoning task, and this is where "using the LLM better" pays off.
@@ -19,7 +19,9 @@ export default async function handler(req: Req, res: Res): Promise<void> {
   }>(req);
   if (!body.layer || !body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "layer and capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
-  const effort = model.supportsEffort ? "high" : DEFAULT_EFFORT; // adaptive: critique gets more reasoning
+  // Adaptive effort per layer (clamped to the catalog); Haiku ignores effort.
+  const wantEffort = CRITIQUE_EFFORT[body.layer] ?? "high";
+  const effort = model.supportsEffort ? ((EFFORTS as readonly string[]).includes(wantEffort) ? wantEffort : "high") : DEFAULT_EFFORT;
   const usage = newUsage();
   const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
   const review: ReviewModel = {

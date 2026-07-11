@@ -60,7 +60,8 @@ export function anthropicProvider(client: Anthropic, model: string, effort: stri
       const resp = await client.messages.create({
         model,
         max_tokens: 16000,
-        system: req.system,
+        // Cache the stable system prompt so re-review/refine reuse it from cache (prompt-caching).
+        system: [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user" as const, content: req.user }],
         output_config: outputConfig,
       } as unknown as Anthropic.MessageCreateParamsNonStreaming);

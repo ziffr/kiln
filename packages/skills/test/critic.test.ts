@@ -50,3 +50,39 @@ test("generateContexts threads reviewer feedback into the prompt (Refine loop)",
   await generateContexts(caps, provider, "REVIEWER SAYS: merge the areas");
   assert.ok(seen.includes("REVIEWER SAYS: merge the areas"));
 });
+
+test("CRITIQUE_EFFORT covers every layer incl. holistic, with valid effort values", async () => {
+  const { CRITIQUE_EFFORT } = await import("../src/index.ts");
+  const valid = new Set(["low", "medium", "high", "max"]);
+  for (const k of ["capabilities", "areas", "entities", "behaviour", "automations", "roles", "workflows", "agents", "holistic"]) {
+    assert.ok(valid.has(CRITIQUE_EFFORT[k]), `${k} → ${CRITIQUE_EFFORT[k]}`);
+  }
+  assert.equal(CRITIQUE_EFFORT.holistic, "high"); // hardest pass gets the top tier
+  assert.equal(CRITIQUE_EFFORT.roles, "medium"); // mechanical layer gets less
+});
+
+test("holistic critic reviews the whole model and its prompt spans all layers", async () => {
+  const { buildCritiqueRequest, critiqueLayer } = await import("../src/index.ts");
+  const full = {
+    caps,
+    domain: { aggregates: [{ id: "invoice", owner: "billing", attributes: [] }], commands: [], events: [], policies: [] },
+    contexts: { version: "0.1", contexts: [] },
+    roles: { version: "0.1", roles: [] },
+    workflows: { version: "0.1", workflows: [] },
+    agents: { version: "0.1", agents: [] },
+  } as any;
+  const req = buildCritiqueRequest("holistic", full);
+  assert.match(req.user, /coverage/i);
+  assert.match(req.system, /WHOLE model/i);
+  const provider = { name: "t", complete: async () => ({ provider: "t", raw: "", json: { findings: [{ severity: "concern", message: "billing has an entity but no behaviour", target: "billing" }] } }) } as any;
+  const res = await critiqueLayer("holistic", full, provider);
+  assert.equal(res.findings.length, 1);
+  assert.equal(res.findings[0].target, "billing");
+});
+
+test("few-shot exemplar is embedded in each layer's system prompt", async () => {
+  const { buildCritiqueRequest } = await import("../src/index.ts");
+  const req = buildCritiqueRequest("entities", { caps } as any);
+  assert.match(req.system, /Example of the KIND of finding/i);
+  assert.match(req.system, /Invoice/); // the entities exemplar
+});

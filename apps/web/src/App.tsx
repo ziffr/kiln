@@ -25,8 +25,10 @@ import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGe
 import { SettingsModal } from "./components/SettingsModal";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { StageRail, type StageId, type StageInfo } from "./components/StageRail";
-import { BehaviourView, AutomationsView, RolesMatrix, WorkflowsView, AgentsView, AreasView } from "./components/StageViews";
+import { BehaviourView, AutomationsView, RolesMatrix, WorkflowsView } from "./components/StageViews";
 import { EntityDiagram } from "./components/EntityDiagram";
+import { AreaDiagram } from "./components/AreaDiagram";
+import { AgentDiagram } from "./components/AgentDiagram";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
 import { CodePreview } from "./components/CodePreview";
@@ -882,13 +884,13 @@ export default function App(): React.JSX.Element {
               </div>
             )}
             {stage === "capabilities" && <div className="map-wrap"><CapabilityMap ir={ir} areaOf={new Map()} selectedId={selected} onSelect={setSelected} /></div>}
-            {stage === "areas" && <AreasView contexts={contextsDoc} caps={activeDoc} colors={AREA_COLORS} onSelectArea={(id) => setSelected(contextNodeId(id))} t={t} />}
+            {stage === "areas" && <AreaDiagram contexts={contextsDoc} caps={activeDoc} colors={AREA_COLORS} onSelectArea={(id) => setSelected(contextNodeId(id))} onSelectCap={setSelected} t={t} />}
             {stage === "entities" && <EntityDiagram domain={domainDoc} caps={activeDoc} onSelect={setSelected} />}
             {stage === "behaviour" && <BehaviourView domain={behaviourDoc} t={t} />}
             {stage === "automations" && <AutomationsView domain={flowDoc} t={t} />}
             {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} t={t} />}
             {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} />}
-            {stage === "agents" && <AgentsView agents={agentsDoc} caps={activeDoc} t={t} />}
+            {stage === "agents" && <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={setSelected} t={t} />}
             {stage === "code" && (
               <CodePreview
                 caps={activeDoc}

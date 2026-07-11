@@ -274,9 +274,12 @@ function coercePolicies(json, domain) {
   }
   return { ...domain, policies };
 }
-async function generatePolicies(domain, capabilityIds, provider) {
+async function generatePolicies(domain, capabilityIds, provider, feedback) {
   const isRepairable = (f) => f.severity === "blocker" || f.code.startsWith("PL1.") || f.code.startsWith("PL2.") || f.code.startsWith("PL3.");
   const req = buildPolicyRequest(domain);
+  if (feedback) req.user += `
+
+${feedback}`;
   let res = await provider.complete(req);
   let doc = coercePolicies(res.json, domain);
   let findings = validatePolicies(doc, capabilityIds);
@@ -379,7 +382,7 @@ async function handler(req, res) {
   const capIds = (body.capabilities?.capabilities ?? []).map((c) => c.id);
   const usage = newUsage();
   const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
-  const result = await generatePolicies(body.domain, capIds, provider);
+  const result = await generatePolicies(body.domain, capIds, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
 }

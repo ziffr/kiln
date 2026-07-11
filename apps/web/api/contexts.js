@@ -273,8 +273,11 @@ function coerceContextsDoc(json, caps) {
   });
   return { version: typeof obj.version === "string" ? obj.version : "0.1", contexts };
 }
-async function generateContexts(caps, provider) {
+async function generateContexts(caps, provider, feedback) {
   const req = buildContextRequest(caps);
+  if (feedback) req.user += `
+
+${feedback}`;
   const isRepairable = (f) => f.severity === "blocker" || f.code.startsWith("BC2.");
   let result = await provider.complete(req);
   let doc = coerceContextsDoc(result.json, caps);
@@ -381,7 +384,7 @@ async function handler(req, res) {
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
   const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
-  const result = await generateContexts(body.capabilities, provider);
+  const result = await generateContexts(body.capabilities, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
 }

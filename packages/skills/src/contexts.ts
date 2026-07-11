@@ -271,8 +271,9 @@ export async function critiqueContexts(caps: CapabilityDoc, contexts: ContextsDo
 }
 
 /** ContextGrouper skill: capabilities → business-areas partition, canonicalized + validated. */
-export async function generateContexts(caps: CapabilityDoc, provider: LlmProvider): Promise<ContextGenerationResult> {
+export async function generateContexts(caps: CapabilityDoc, provider: LlmProvider, feedback?: string): Promise<ContextGenerationResult> {
   const req = buildContextRequest(caps);
+  if (feedback) req.user += `\n\n${feedback}`;
   // Repair fires on a broken PARTITION (BC2.*), not only blockers (REV-014 BC-F1).
   const isRepairable = (f: Finding): boolean => f.severity === "blocker" || f.code.startsWith("BC2.");
 

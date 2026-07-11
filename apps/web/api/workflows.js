@@ -220,10 +220,13 @@ function coerceWorkflows(json, domain) {
   }
   return { version: typeof obj.version === "string" ? obj.version : "0.1", workflows };
 }
-async function generateWorkflows(domain, provider) {
+async function generateWorkflows(domain, provider, feedback) {
   const cmdIds = (domain.commands ?? []).map((c) => c.id);
   const isRepairable = (f) => f.severity === "blocker" || f.code.startsWith("WF2.");
   const req = buildWorkflowRequest(domain);
+  if (feedback) req.user += `
+
+${feedback}`;
   let res = await provider.complete(req);
   let doc = coerceWorkflows(res.json, domain);
   let findings = validateWorkflows(doc, cmdIds);
@@ -325,7 +328,7 @@ async function handler(req, res) {
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
   const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
-  const result = await generateWorkflows(body.domain, provider);
+  const result = await generateWorkflows(body.domain, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
 }

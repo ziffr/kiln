@@ -97,10 +97,11 @@ export interface RoleGenerationResult {
 }
 
 /** RoleModeler skill: capabilities → authorized roles, canonicalized + validated. */
-export async function generateRoles(caps: CapabilityDoc, provider: LlmProvider): Promise<RoleGenerationResult> {
+export async function generateRoles(caps: CapabilityDoc, provider: LlmProvider, feedback?: string): Promise<RoleGenerationResult> {
   const capIds = caps.capabilities.map((c) => c.id);
   const isRepairable = (f: Finding): boolean => f.severity === "blocker" || f.code.startsWith("RO2.");
   const req = buildRoleRequest(caps);
+  if (feedback) req.user += `\n\n${feedback}`;
 
   let res = await provider.complete(req);
   let doc = coerceRoles(res.json, caps);

@@ -158,9 +158,10 @@ export interface DomainGenerationResult {
 }
 
 /** DomainGenerator skill: capabilities → domain model, coerced, provenance-grounded, validated. */
-export async function generateDomain(caps: CapabilityDoc, provider: LlmProvider): Promise<DomainGenerationResult> {
+export async function generateDomain(caps: CapabilityDoc, provider: LlmProvider, feedback?: string): Promise<DomainGenerationResult> {
   const capIds = caps.capabilities.map((c) => c.id);
   const req = buildDomainRequest(caps);
+  if (feedback) req.user += `\n\n${feedback}`;
 
   let result = await provider.complete(req);
   let doc = coerceDomainDoc(result.json);

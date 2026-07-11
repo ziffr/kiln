@@ -91,10 +91,11 @@ export interface WorkflowGenerationResult {
   repaired: boolean;
 }
 
-export async function generateWorkflows(domain: DomainDoc, provider: LlmProvider): Promise<WorkflowGenerationResult> {
+export async function generateWorkflows(domain: DomainDoc, provider: LlmProvider, feedback?: string): Promise<WorkflowGenerationResult> {
   const cmdIds = (domain.commands ?? []).map((c) => c.id);
   const isRepairable = (f: Finding): boolean => f.severity === "blocker" || f.code.startsWith("WF2.");
   const req = buildWorkflowRequest(domain);
+  if (feedback) req.user += `\n\n${feedback}`;
   let res = await provider.complete(req);
   let doc = coerceWorkflows(res.json, domain);
   let findings = validateWorkflows(doc, cmdIds);

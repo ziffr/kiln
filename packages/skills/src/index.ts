@@ -35,7 +35,6 @@ export {
   CONTEXT_CRITIQUE_SCHEMA,
   type ContextGenerationResult,
   type ContextCritiqueResult,
-  type CritiqueFinding,
 } from "./contexts.ts";
 export {
   mockGenerateEvents,
@@ -81,6 +80,17 @@ export {
   AGENT_SYSTEM_PROMPT,
   type AgentGenerationResult,
 } from "./agents.ts";
+export {
+  critiqueLayer,
+  buildCritiqueRequest,
+  critiqueToFeedback,
+  resolveTarget,
+  CRITIQUE_SCHEMA,
+  type LayerKind,
+  type ReviewModel,
+  type CritiqueResult,
+  type CritiqueFinding,
+} from "./critic.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
 export {
   buildCoachSystemPrompt,

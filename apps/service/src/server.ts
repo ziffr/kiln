@@ -16,6 +16,9 @@ import {
   generateDomain,
   generateContexts,
   critiqueContexts,
+  critiqueLayer,
+  type LayerKind,
+  type ReviewModel,
   generateEvents,
   generatePolicies,
   generateRoles,
@@ -180,7 +183,7 @@ const server = createServer(async (req, res) => {
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
-      const result = await generateDomain(body.capabilities, provider);
+      const result = await generateDomain(body.capabilities, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -205,7 +208,7 @@ const server = createServer(async (req, res) => {
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
-      const result = await generateContexts(body.capabilities, provider);
+      const result = await generateContexts(body.capabilities, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -231,6 +234,40 @@ const server = createServer(async (req, res) => {
       return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
     }
 
+    // Generic semantic critic: the LLM reviews ANY layer of its own output (advisory). Run at higher
+    // effort — critique is a hard reasoning task, and this is where "using the LLM better" pays off.
+    if (req.method === "POST" && req.url === "/api/critique") {
+      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      const body = JSON.parse((await readBody(req)) || "{}") as {
+        layer?: LayerKind;
+        capabilities?: CapabilityDoc;
+        domain?: unknown;
+        contexts?: unknown;
+        roles?: unknown;
+        workflows?: unknown;
+        agents?: unknown;
+        model?: string;
+      };
+      if (!body.layer || !body.capabilities?.capabilities?.length) return send(res, 400, { error: "layer and capabilities are required" });
+      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const effort = model.supportsEffort ? "high" : DEFAULT_EFFORT; // adaptive: critique gets more reasoning
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const review: ReviewModel = {
+        caps: body.capabilities,
+        domain: body.domain as never,
+        contexts: body.contexts as never,
+        roles: body.roles as never,
+        workflows: body.workflows as never,
+        agents: body.agents as never,
+      };
+      const result = await critiqueLayer(body.layer, review, provider);
+      const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
+      const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+      return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
     // SPEC-004 CE-M3: model behaviour (commands/events) on the entities, per-aggregate, server-side.
     if (req.method === "POST" && req.url === "/api/events") {
       if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
@@ -247,7 +284,7 @@ const server = createServer(async (req, res) => {
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
-      const result = await generateEvents(body.domain as never, body.capabilities, provider);
+      const result = await generateEvents(body.domain as never, body.capabilities, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -274,7 +311,7 @@ const server = createServer(async (req, res) => {
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
-      const result = await generatePolicies(body.domain as never, capIds, provider);
+      const result = await generatePolicies(body.domain as never, capIds, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -292,7 +329,7 @@ const server = createServer(async (req, res) => {
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
-      const result = await generateRoles(body.capabilities, provider);
+      const result = await generateRoles(body.capabilities, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
@@ -308,7 +345,7 @@ const server = createServer(async (req, res) => {
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
-      const result = await generateWorkflows(body.domain as never, provider);
+      const result = await generateWorkflows(body.domain as never, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
@@ -324,7 +361,7 @@ const server = createServer(async (req, res) => {
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
-      const result = await generateAgents(body.capabilities, provider);
+      const result = await generateAgents(body.capabilities, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);

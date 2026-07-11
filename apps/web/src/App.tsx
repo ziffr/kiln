@@ -16,13 +16,17 @@ import {
   type ContextInput,
   type ContextsDoc,
   type DomainDoc,
+  type RolesDoc,
+  type WorkflowsDoc,
+  type AgentsDoc,
 } from "@vbd/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@vbd/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents } from "@vbd/skills";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, critiqueToFeedback, resolveTarget, type LayerKind, type CritiqueFinding } from "@vbd/skills";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
 import { CodePreview } from "./components/CodePreview";
+import { ReviewPanel } from "./components/ReviewPanel";
 import { Guide } from "./components/Guide";
 import { NarrativeInput } from "./components/NarrativeInput";
 import {
@@ -122,11 +126,13 @@ export default function App(): React.JSX.Element {
   const contextsDoc = active.contexts ?? mockContexts;
   const contextFindings = useMemo(() => validateContexts(contextsDoc, activeDoc), [contextsDoc, activeDoc]);
   const [contextsBusy, setContextsBusy] = useState(false);
-  // Semantic critic (AI review of the areas) — advisory findings, cleared whenever the areas change.
-  const [contextCritique, setContextCritique] = useState<import("@vbd/skills").CritiqueFinding[] | null>(null);
-  const [critiqueBusy, setCritiqueBusy] = useState(false);
-  const areasSig = contextsDoc.contexts.map((c) => `${c.id}:${(c.capabilities ?? []).join(",")}`).join("|");
-  useEffect(() => setContextCritique(null), [areasSig]);
+  // Semantic critic (AI review across every layer). critique[layer] === undefined → not reviewed;
+  // [] → reviewed-clean (closure); >0 → advisory findings. A capability change shifts every derived
+  // layer, so all critique goes stale → clear it.
+  const [critique, setCritique] = useState<Partial<Record<LayerKind, CritiqueFinding[]>>>({});
+  const [reviewBusy, setReviewBusy] = useState<LayerKind | null>(null);
+  const capSig = activeDoc.capabilities.map((c) => c.id).join(",");
+  useEffect(() => setCritique({}), [capSig]);
   // SPEC-004 behaviour: commands/events live on the domain doc — LLM when present, else live mock.
   const behaviourDoc = useMemo(
     () => (((domainDoc.commands?.length ?? 0) + (domainDoc.events?.length ?? 0)) > 0 ? domainDoc : mockGenerateEvents(domainDoc)),
@@ -441,26 +447,92 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  // The semantic critic: ask the LLM to review the current area partition (advisory, higher effort).
-  async function critiqueAreas(): Promise<void> {
-    setCritiqueBusy(true);
+  // ---- Semantic critic: the Review → Refine → Re-review → Clean loop, any layer (advisory) ----
+  // Review: ask the LLM (higher effort, server-side) to critique one layer of its own output.
+  async function reviewLayer(layer: LayerKind): Promise<void> {
+    setReviewBusy(layer);
     setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/context-critique`, {
+      const res = await fetch(`${SERVICE_URL}/api/critique`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, contexts: contextsDoc, model: active.model, effort: active.effort }),
+        body: JSON.stringify({
+          layer,
+          capabilities: activeDoc,
+          domain: flowDoc,
+          contexts: contextsDoc,
+          roles: rolesDoc,
+          workflows: workflowsDoc,
+          agents: agentsDoc,
+          model: active.model,
+          effort: active.effort,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setContextCritique(data.findings ?? []);
+      setCritique((prev) => ({ ...prev, [layer]: (data.findings ?? []) as CritiqueFinding[] }));
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setCritiqueBusy(false);
+      setReviewBusy(null);
     }
   }
+
+  // Refine: re-generate the layer feeding its own critique back in as guidance, then clear its
+  // findings so the user re-reviews to confirm closure. Reuses each layer's generate endpoint.
+  async function refineLayer(layer: LayerKind): Promise<void> {
+    const findings = critique[layer];
+    if (!findings || findings.length === 0) return;
+    const feedback = critiqueToFeedback(findings);
+    const common = { model: active.model, effort: active.effort, feedback };
+    let url = "";
+    let body: Record<string, unknown> = {};
+    let apply: (doc: unknown) => void = () => {};
+    switch (layer) {
+      case "areas": url = "/api/contexts"; body = { capabilities: activeDoc, ...common }; apply = (d) => patchActive({ contexts: d as ContextsDoc }); break;
+      case "entities": url = "/api/domain"; body = { capabilities: activeDoc, ...common }; apply = (d) => patchActive({ domain: d as DomainDoc }); break;
+      case "behaviour": url = "/api/events"; body = { domain: domainDoc, capabilities: activeDoc, ...common }; apply = (d) => patchActive({ domain: { ...(d as DomainDoc), policies: undefined } }); break;
+      case "automations": url = "/api/policies"; body = { domain: behaviourDoc, capabilities: activeDoc, ...common }; apply = (d) => patchActive({ domain: d as DomainDoc }); break;
+      case "roles": url = "/api/roles"; body = { capabilities: activeDoc, ...common }; apply = (d) => patchActive({ roles: d as RolesDoc }); break;
+      case "workflows": url = "/api/workflows"; body = { domain: behaviourDoc, ...common }; apply = (d) => patchActive({ workflows: d as WorkflowsDoc }); break;
+      case "agents": url = "/api/agents"; body = { capabilities: activeDoc, ...common }; apply = (d) => patchActive({ agents: d as AgentsDoc }); break;
+      default: return; // capabilities: review-only (regenerating from the narrative would reset downstream)
+    }
+    setReviewBusy(layer);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}${url}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      apply(data.doc);
+      setCritique((prev) => ({ ...prev, [layer]: undefined })); // refined → re-review to confirm closure
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReviewBusy(null);
+    }
+  }
+
+  // Click a finding → select the capability / area / entity it is about.
+  function selectFinding(f: CritiqueFinding): void {
+    const r = resolveTarget(f.target, { caps: activeDoc, contexts: contextsDoc, domain: flowDoc });
+    if (!r) return;
+    setSelected(r.kind === "area" ? contextNodeId(r.id) : r.id);
+  }
+
+  // The layers the Review panel drives (only those with content to review).
+  const reviewLayers = ([
+    { kind: "capabilities", label: t("capabilities"), count: activeDoc.capabilities.length },
+    { kind: "areas", label: t("areas"), count: contextsDoc.contexts.length },
+    { kind: "entities", label: t("entities"), count: domainDoc.aggregates.length },
+    { kind: "behaviour", label: t("behaviour"), count: (behaviourDoc.commands?.length ?? 0) + (behaviourDoc.events?.length ?? 0) },
+    { kind: "automations", label: t("automations"), count: flowDoc.policies?.length ?? 0 },
+    { kind: "roles", label: t("roles"), count: rolesDoc.roles.length },
+    { kind: "workflows", label: t("workflows"), count: workflowsDoc.workflows.length },
+    { kind: "agents", label: t("agents"), count: agentsDoc.agents.length },
+  ] as { kind: LayerKind; label: string; count: number }[]).filter((r) => r.count > 0 || r.kind === "automations");
 
   // SPEC-007/008: generate workflows (from behaviour) and agents (from capabilities) via the LLM.
   async function generateWorkflowsModel(): Promise<void> {
@@ -706,26 +778,7 @@ export default function App(): React.JSX.Element {
                 </button>
               ))}
               <button className="area-chip add" onClick={addArea}>{t("addArea")}</button>
-              <button className="area-chip critic" onClick={() => void critiqueAreas()} disabled={critiqueBusy}>
-                {critiqueBusy ? t("generating") : `✨ ${t("reviewAreas")}`}
-              </button>
             </div>
-          )}
-
-          {contextCritique && (
-            <ul className="findings cap-findings critique-findings">
-              <li className="findings-head muted">✨ {t("aiReviewAreas")}</li>
-              {contextCritique.length === 0 && <li className="muted">{t("aiReviewClean")}</li>}
-              {contextCritique.map((f) => {
-                const target = f.capability ?? (f.area ? contextNodeId(f.area) : undefined);
-                return (
-                  <li key={f.id} className={target ? "clickable" : ""} onClick={() => target && setSelected(target)}>
-                    <code className={f.severity === "concern" ? "major" : "minor"}>{f.severity}</code> {f.message}
-                    {f.suggestion && <span className="critique-fix"> → {f.suggestion}</span>}
-                  </li>
-                );
-              })}
-            </ul>
           )}
 
           <p className="hint">
@@ -833,6 +886,17 @@ export default function App(): React.JSX.Element {
               ))}
             </ul>
           )}
+
+          <ReviewPanel
+            layers={reviewLayers}
+            critique={critique}
+            busy={reviewBusy}
+            refinable={(k) => k !== "capabilities"}
+            onReview={(k) => void reviewLayer(k)}
+            onRefine={(k) => void refineLayer(k)}
+            onSelect={selectFinding}
+            t={t}
+          />
 
           {showCode && (
             <CodePreview caps={activeDoc} domain={flowDoc} contexts={contextsDoc} roles={rolesDoc} workflows={workflowsDoc} agents={agentsDoc} onClose={() => setShowCode(false)} />

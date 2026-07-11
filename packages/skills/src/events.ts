@@ -170,7 +170,7 @@ export interface EventGenerationResult {
 }
 
 /** EventModeler: per-aggregate fan-out → merged, canonicalized, validated behaviour on the domain. */
-export async function generateEvents(domain: DomainDoc, caps: CapabilityDoc, provider: LlmProvider): Promise<EventGenerationResult> {
+export async function generateEvents(domain: DomainDoc, caps: CapabilityDoc, provider: LlmProvider, feedback?: string): Promise<EventGenerationResult> {
   const capIds = caps.capabilities.map((c) => c.id);
   const isRepairable = (f: Finding): boolean =>
     f.severity === "blocker" || f.code.startsWith("CE2.") || f.code.startsWith("CE3.") || f.code.startsWith("CE4.") || f.code === "CE.emit_boundary";
@@ -180,6 +180,7 @@ export async function generateEvents(domain: DomainDoc, caps: CapabilityDoc, pro
   const batches = await Promise.all(
     domain.aggregates.map(async (agg) => {
       const req = buildEventRequest(agg, caps);
+      if (feedback) req.user += `\n\n${feedback}`;
       let res = await provider.complete(req);
       let batch = coerceAggregateBehaviour(res.json, agg, caps);
       // Validate this aggregate's batch in isolation; repair once if its references are broken.

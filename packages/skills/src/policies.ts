@@ -140,10 +140,11 @@ export interface PolicyGenerationResult {
 }
 
 /** PolicyModeler skill: events + commands → cross-entity reactions, canonicalized + validated. */
-export async function generatePolicies(domain: DomainDoc, capabilityIds: string[], provider: LlmProvider): Promise<PolicyGenerationResult> {
+export async function generatePolicies(domain: DomainDoc, capabilityIds: string[], provider: LlmProvider, feedback?: string): Promise<PolicyGenerationResult> {
   const isRepairable = (f: Finding): boolean =>
     f.severity === "blocker" || f.code.startsWith("PL1.") || f.code.startsWith("PL2.") || f.code.startsWith("PL3.");
   const req = buildPolicyRequest(domain);
+  if (feedback) req.user += `\n\n${feedback}`;
 
   let res = await provider.complete(req);
   let doc = coercePolicies(res.json, domain);

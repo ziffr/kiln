@@ -92,10 +92,11 @@ export interface AgentGenerationResult {
   repaired: boolean;
 }
 
-export async function generateAgents(caps: CapabilityDoc, provider: LlmProvider): Promise<AgentGenerationResult> {
+export async function generateAgents(caps: CapabilityDoc, provider: LlmProvider, feedback?: string): Promise<AgentGenerationResult> {
   const capIds = caps.capabilities.map((c) => c.id);
   const isRepairable = (f: Finding): boolean => f.severity === "blocker" || f.code.startsWith("AG2.");
   const req = buildAgentRequest(caps);
+  if (feedback) req.user += `\n\n${feedback}`;
   let res = await provider.complete(req);
   let doc = coerceAgents(res.json, caps);
   let findings = validateAgents(doc, capIds);

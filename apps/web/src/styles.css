@@ -338,3 +338,29 @@ textarea {
 .critique-findings code.major { color: #fca5a5; }
 .critique-findings code.minor { color: #c4b5fd; }
 .critique-fix { color: var(--muted); }
+
+/* AI Review panel — the closure dashboard (Review → Refine → Re-review → Clean) */
+.review-panel { margin-top: 14px; border: 1px solid #1f2937; border-radius: 8px; padding: 10px 12px; background: #0d1220; }
+.review-head { font-weight: 600; color: #c4b5fd; }
+.review-sub { margin: 2px 0 8px; font-size: 12px; }
+.review-row { border-top: 1px solid #161e2e; padding: 6px 0; }
+.review-row:first-of-type { border-top: none; }
+.review-row-head { display: flex; align-items: center; gap: 8px; }
+.review-dot { width: 16px; text-align: center; font-weight: 700; }
+.review-dot.idle { color: #4b5563; }
+.review-dot.warn { color: #fbbf24; }
+.review-dot.clean { color: #34d399; }
+.review-label { font-weight: 500; }
+.review-status { font-size: 12px; }
+.review-actions { margin-left: auto; display: flex; gap: 6px; }
+.review-btn { font-size: 12px; padding: 2px 8px; border: 1px solid #374151; border-radius: 5px; background: transparent; color: #cbd5e1; cursor: pointer; }
+.review-btn:hover:not(:disabled) { border-color: #6d28d9; color: #c4b5fd; }
+.review-btn.refine { border-color: #6d28d9; color: #c4b5fd; }
+.review-btn:disabled { opacity: 0.5; cursor: default; }
+.review-findings { list-style: none; margin: 6px 0 2px; padding: 0 0 0 24px; }
+.review-findings li { padding: 3px 0; font-size: 13px; line-height: 1.4; }
+.review-findings li.clickable { cursor: pointer; }
+.review-findings li.clickable:hover { color: #fff; }
+.review-findings code.major { color: #fca5a5; }
+.review-findings code.minor { color: #c4b5fd; }
+.review-fix { color: var(--muted); }

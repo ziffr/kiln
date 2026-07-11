@@ -295,12 +295,15 @@ function coerceAggregateBehaviour(json, agg, caps) {
   });
   return { commands, events };
 }
-async function generateEvents(domain, caps, provider) {
+async function generateEvents(domain, caps, provider, feedback) {
   const capIds = caps.capabilities.map((c) => c.id);
   const isRepairable = (f) => f.severity === "blocker" || f.code.startsWith("CE2.") || f.code.startsWith("CE3.") || f.code.startsWith("CE4.") || f.code === "CE.emit_boundary";
   const batches = await Promise.all(
     domain.aggregates.map(async (agg) => {
       const req = buildEventRequest(agg, caps);
+      if (feedback) req.user += `
+
+${feedback}`;
       let res = await provider.complete(req);
       let batch = coerceAggregateBehaviour(res.json, agg, caps);
       const f = validateEvents({ ...domain, commands: batch.commands, events: batch.events }, capIds);
@@ -415,7 +418,7 @@ async function handler(req, res) {
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
   const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
-  const result = await generateEvents(body.domain, body.capabilities, provider);
+  const result = await generateEvents(body.domain, body.capabilities, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
 }

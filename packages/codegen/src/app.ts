@@ -43,10 +43,27 @@ export function projectAppModel(caps: CapabilityDoc, domain: DomainDoc, contexts
 
 const J = (v: unknown): string => JSON.stringify(v, null, 2);
 
+/** The command-handler module (business logic per command). Generic by default; the LLM pass swaps
+ *  in richer bodies. Kept in its own file so enhancement is an isolated, low-risk file replacement. */
+function handlersFile(m: AppModel, overrides: Record<string, string> = {}): string {
+  const lines = [
+    "// Command handlers: (input, ctx) => a record to store. ctx = { genId, all(entity), find(entity,id) }.",
+    "// Refine the business logic here (defaults, computed fields, validation).",
+    "export const HANDLERS = {",
+  ];
+  for (const c of m.commands) {
+    const body = overrides[c.id]?.trim() || "(input, ctx) => ({ ...input })";
+    lines.push(`  ${JSON.stringify(c.id)}: ${body}, // ${c.name} → ${c.entity}`);
+  }
+  lines.push("};");
+  return lines.join("\n");
+}
+
 /** The zero-dependency Node API server (runs with `node server.mjs`). */
 function serverFile(m: AppModel): string {
   return `// ${m.domain} — generated API (zero-dependency Node). Run: node server.mjs
 import { createServer } from 'node:http';
+import { HANDLERS } from './handlers.mjs';
 
 export const MODEL = ${J({ entities: m.entities, commands: m.commands, events: m.events, policies: m.policies })};
 
@@ -56,12 +73,15 @@ const eventLog = [];
 let seq = 1;
 const genId = () => 'id_' + (seq++);
 
-// Execute a modelled command: create a record on its entity, append emitted events, and fire any
-// reactions (policies) whose trigger event matches — a real cross-entity hand-off, depth-guarded.
+// Execute a modelled command: run its handler to build the record, append emitted events, and fire
+// any reactions (policies) whose trigger event matches — a real cross-entity hand-off, depth-guarded.
 export function runCommand(cmdId, input = {}, depth = 0) {
   const cmd = MODEL.commands.find(c => c.id === cmdId);
   if (!cmd) throw new Error('unknown command ' + cmdId);
-  const rec = { id: genId(), ...input, _command: cmdId, _at: Date.now() };
+  const ctx = { genId, all: (e) => db[e] || [], find: (e, id) => (db[e] || []).find(r => r.id === id) };
+  let built = {};
+  try { built = HANDLERS[cmdId] ? HANDLERS[cmdId](input, ctx) : { ...input }; } catch (e) { built = { ...input, _handlerError: String(e && e.message || e) }; }
+  const rec = { id: genId(), ...built, _command: cmdId, _at: Date.now() };
   (db[cmd.entity] ||= []).push(rec);
   const emitted = [];
   for (const evId of cmd.emits) {
@@ -122,7 +142,13 @@ function clientFiles(m: AppModel): Record<string, string> {
   };
 }
 
-export function generateApp(caps: CapabilityDoc, domain: DomainDoc, contexts?: ContextsDoc, _roles?: RolesDoc): Record<string, string> {
+export function generateApp(
+  caps: CapabilityDoc,
+  domain: DomainDoc,
+  contexts?: ContextsDoc,
+  _roles?: RolesDoc,
+  handlerCode?: Record<string, string>, // optional LLM-written handler bodies, keyed by command id
+): Record<string, string> {
   const m = projectAppModel(caps, domain, contexts);
   const files: Record<string, string> = {
     "package.json": J({
@@ -133,6 +159,7 @@ export function generateApp(caps: CapabilityDoc, domain: DomainDoc, contexts?: C
       description: `Generated ${m.domain} app — API + admin client, derived from the business model.`,
     }),
     "server.mjs": serverFile(m),
+    "handlers.mjs": handlersFile(m, handlerCode ?? {}),
     "model.json": J(m),
     "README.md": readme(m),
     ...clientFiles(m),

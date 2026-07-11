@@ -94,6 +94,7 @@ export {
   type CritiqueResult,
   type CritiqueFinding,
 } from "./critic.ts";
+export { generateAppLogic, APP_LOGIC_SCHEMA, APP_LOGIC_SYSTEM_PROMPT, type AppLogicResult } from "./applogic.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
 export {
   buildCoachSystemPrompt,

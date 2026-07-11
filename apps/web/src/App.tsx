@@ -1030,7 +1030,26 @@ export default function App(): React.JSX.Element {
           />
 
           {showCode && (
-            <CodePreview caps={activeDoc} domain={flowDoc} contexts={contextsDoc} roles={rolesDoc} workflows={workflowsDoc} agents={agentsDoc} onClose={() => setShowCode(false)} />
+            <CodePreview
+              caps={activeDoc}
+              domain={flowDoc}
+              contexts={contextsDoc}
+              roles={rolesDoc}
+              workflows={workflowsDoc}
+              agents={agentsDoc}
+              requestAppLogic={async () => {
+                const res = await fetch(`${SERVICE_URL}/api/app-logic`, {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, model: modelFor("behaviour"), effort: active.effort }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+                setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                return data as { handlers: Record<string, string>; written: number; skipped: number };
+              }}
+              onClose={() => setShowCode(false)}
+            />
           )}
 
           <div className="map-wrap">

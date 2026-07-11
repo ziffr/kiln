@@ -16,6 +16,7 @@ export function CodePreview({
   roles,
   workflows,
   agents,
+  requestAppLogic,
   onClose,
 }: {
   caps: CapabilityDoc;
@@ -24,9 +25,27 @@ export function CodePreview({
   roles: RolesDoc;
   workflows: WorkflowsDoc;
   agents: AgentsDoc;
+  requestAppLogic: () => Promise<{ handlers: Record<string, string>; written: number; skipped: number }>;
   onClose: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const [exporting, setExporting] = useState(false);
+  const [exportNote, setExportNote] = useState<string | null>(null);
+  const zipName = `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`;
+
+  async function exportApp(withAI: boolean): Promise<void> {
+    setExporting(true);
+    setExportNote(null);
+    try {
+      const handlers = withAI ? (await requestAppLogic()) : null;
+      downloadZip(generateApp(caps, domain, contexts, roles, handlers?.handlers), zipName);
+      if (handlers) setExportNote(t("exportAppAiNote", { written: handlers.written, total: handlers.written + handlers.skipped }));
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(false);
+    }
+  }
   const report = useMemo(() => generateAll(caps, domain, contexts, roles, workflows, agents), [caps, domain, contexts, roles, workflows, agents]);
   type Tab = "types" | "api" | "modules" | "events" | "reactions" | "permissions" | "processes" | "agents" | "app" | "deploy" | "mcp" | "react";
   const [tab, setTab] = useState<Tab>("types");
@@ -44,13 +63,15 @@ export function CodePreview({
             <button key={k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>{t(`code_${k}`)}</button>
           ))}
         </div>
-        <button
-          className="code-export"
-          onClick={() => downloadZip(generateApp(caps, domain, contexts, roles), `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`)}
-          title={t("exportAppHint")}
-        >
-          ⬇ {t("exportApp")}
-        </button>
+        <span className="code-export-group">
+          {exportNote && <span className="code-export-note muted">{exportNote}</span>}
+          <button className="code-export ghost" onClick={() => void exportApp(false)} disabled={exporting} title={t("exportAppHint")}>
+            ⬇ {t("exportApp")}
+          </button>
+          <button className="code-export" onClick={() => void exportApp(true)} disabled={exporting} title={t("exportAppAiHint")}>
+            {exporting ? t("generating") : `✨ ${t("exportAppAi")}`}
+          </button>
+        </span>
         <button className="nd-close" onClick={onClose} aria-label="close">×</button>
       </div>
 

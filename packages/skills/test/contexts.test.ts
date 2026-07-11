@@ -98,3 +98,20 @@ test("generateContexts repairs a broken partition (a capability left unassigned)
   assert.equal(res.repaired, true);
   assert.ok(!res.findings.some((f) => f.code.startsWith("BC2.")));
 });
+
+test("critiqueContexts returns advisory findings and resolves area/capability ids for click-through", async () => {
+  const { critiqueContexts } = await import("../src/index.ts");
+  const provider = {
+    name: "anthropic:test",
+    complete: async () => ({ provider: "anthropic:test", raw: "", json: { findings: [
+      { severity: "concern", message: "over-segmented", suggestion: "merge", area: "Sales", capability: "Lead Management" },
+    ] } }),
+  } as any;
+  const contexts = { version: "0.1", contexts: [{ id: "c_sales", name: "Sales", capabilities: ["lead_management"] }] };
+  const res = await critiqueContexts(caps, contexts as any, provider);
+  assert.equal(res.findings.length, 1);
+  assert.equal(res.findings[0].severity, "concern");
+  assert.equal(res.findings[0].area, "c_sales"); // name → id resolved
+  assert.equal(res.findings[0].capability, "lead_management"); // name → id resolved
+  assert.ok(res.findings[0].id); // stable id for React
+});

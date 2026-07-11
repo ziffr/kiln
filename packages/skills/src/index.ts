@@ -26,12 +26,16 @@ export {
 export {
   mockGroupContexts,
   generateContexts,
+  critiqueContexts,
   buildContextRequest,
   coerceContextsDoc,
   fingerprintId,
   CONTEXT_SCHEMA,
   CONTEXT_SYSTEM_PROMPT,
+  CONTEXT_CRITIQUE_SCHEMA,
   type ContextGenerationResult,
+  type ContextCritiqueResult,
+  type CritiqueFinding,
 } from "./contexts.ts";
 export {
   mockGenerateEvents,

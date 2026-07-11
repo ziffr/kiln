@@ -15,6 +15,7 @@ import {
   generateCapabilities,
   generateDomain,
   generateContexts,
+  critiqueContexts,
   generateEvents,
   generatePolicies,
   generateRoles,
@@ -210,6 +211,23 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
 
+      return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
+    // Semantic critic: the LLM reviews a generated business-area partition (advisory). Higher effort
+    // by default — this is a hard reasoning task, and it's where "using the LLM better" pays off.
+    if (req.method === "POST" && req.url === "/api/context-critique") {
+      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; contexts?: unknown; model?: string; effort?: string };
+      if (!body.capabilities?.capabilities?.length || !body.contexts) return send(res, 400, { error: "capabilities and contexts are required" });
+      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const effort = model.supportsEffort ? "high" : DEFAULT_EFFORT; // critique benefits from more reasoning
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const result = await critiqueContexts(body.capabilities, body.contexts as never, provider);
+      const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
+      const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
     }
 

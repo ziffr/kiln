@@ -122,6 +122,11 @@ export default function App(): React.JSX.Element {
   const contextsDoc = active.contexts ?? mockContexts;
   const contextFindings = useMemo(() => validateContexts(contextsDoc, activeDoc), [contextsDoc, activeDoc]);
   const [contextsBusy, setContextsBusy] = useState(false);
+  // Semantic critic (AI review of the areas) — advisory findings, cleared whenever the areas change.
+  const [contextCritique, setContextCritique] = useState<import("@vbd/skills").CritiqueFinding[] | null>(null);
+  const [critiqueBusy, setCritiqueBusy] = useState(false);
+  const areasSig = contextsDoc.contexts.map((c) => `${c.id}:${(c.capabilities ?? []).join(",")}`).join("|");
+  useEffect(() => setContextCritique(null), [areasSig]);
   // SPEC-004 behaviour: commands/events live on the domain doc — LLM when present, else live mock.
   const behaviourDoc = useMemo(
     () => (((domainDoc.commands?.length ?? 0) + (domainDoc.events?.length ?? 0)) > 0 ? domainDoc : mockGenerateEvents(domainDoc)),
@@ -436,6 +441,27 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  // The semantic critic: ask the LLM to review the current area partition (advisory, higher effort).
+  async function critiqueAreas(): Promise<void> {
+    setCritiqueBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/context-critique`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ capabilities: activeDoc, contexts: contextsDoc, model: active.model, effort: active.effort }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setContextCritique(data.findings ?? []);
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCritiqueBusy(false);
+    }
+  }
+
   // SPEC-007/008: generate workflows (from behaviour) and agents (from capabilities) via the LLM.
   async function generateWorkflowsModel(): Promise<void> {
     setWorkflowsBusy(true); setError(null);
@@ -680,7 +706,26 @@ export default function App(): React.JSX.Element {
                 </button>
               ))}
               <button className="area-chip add" onClick={addArea}>{t("addArea")}</button>
+              <button className="area-chip critic" onClick={() => void critiqueAreas()} disabled={critiqueBusy}>
+                {critiqueBusy ? t("generating") : `✨ ${t("reviewAreas")}`}
+              </button>
             </div>
+          )}
+
+          {contextCritique && (
+            <ul className="findings cap-findings critique-findings">
+              <li className="findings-head muted">✨ {t("aiReviewAreas")}</li>
+              {contextCritique.length === 0 && <li className="muted">{t("aiReviewClean")}</li>}
+              {contextCritique.map((f) => {
+                const target = f.capability ?? (f.area ? contextNodeId(f.area) : undefined);
+                return (
+                  <li key={f.id} className={target ? "clickable" : ""} onClick={() => target && setSelected(target)}>
+                    <code className={f.severity === "concern" ? "major" : "minor"}>{f.severity}</code> {f.message}
+                    {f.suggestion && <span className="critique-fix"> → {f.suggestion}</span>}
+                  </li>
+                );
+              })}
+            </ul>
           )}
 
           <p className="hint">

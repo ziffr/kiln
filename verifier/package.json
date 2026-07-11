@@ -1,0 +1,12 @@
+{
+  "name": "@vbd/verifier",
+  "private": true,
+  "type": "module",
+  "description": "Sandboxed build-and-run verifier for generated VBD apps (Docker).",
+  "scripts": {
+    "build:image": "docker build -t vbd-verifier .",
+    "up": "node service.mjs",
+    "sample": "node probe.mjs",
+    "probe": "node probe.mjs http://localhost:8900/verify"
+  }
+}

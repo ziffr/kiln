@@ -364,3 +364,13 @@ textarea {
 .review-findings code.major { color: #fca5a5; }
 .review-findings code.minor { color: #c4b5fd; }
 .review-fix { color: var(--muted); }
+
+/* Auto mode controls */
+.review-head { display: flex; align-items: center; gap: 8px; }
+.review-auto { margin-left: auto; display: flex; align-items: center; gap: 8px; font-weight: 400; }
+.review-auto-status { font-size: 12px; }
+.review-btn.auto { border-color: #6d28d9; color: #c4b5fd; }
+.review-btn.auto:hover { border-color: #a78bfa; background: #1a1033; }
+.review-btn.stop { border-color: #b91c1c; color: #fca5a5; }
+.review-btn.stop:hover { background: #2a1010; }
+.review-row.auto-active { background: #12172a; border-radius: 6px; }

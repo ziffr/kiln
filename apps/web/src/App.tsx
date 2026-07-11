@@ -54,6 +54,16 @@ function FindingsBadge({ count }: { count: number }): React.JSX.Element {
   return <span className={`badge ${ok ? "ok" : "warn"}`}>{ok ? t("clean") : t("findingsCount", { count })}</span>;
 }
 
+// A partial model override — lets the auto-review loop feed just-refined docs into the next
+// Review/Refine without waiting for React's async state to flush (which would leave them stale).
+interface ModelOverride {
+  contexts?: ContextsDoc;
+  domain?: DomainDoc;
+  roles?: RolesDoc;
+  workflows?: WorkflowsDoc;
+  agents?: AgentsDoc;
+}
+
 export default function App(): React.JSX.Element {
   const { t, i18n } = useTranslation();
 
@@ -133,6 +143,10 @@ export default function App(): React.JSX.Element {
   const [reviewBusy, setReviewBusy] = useState<LayerKind | null>(null);
   const capSig = activeDoc.capabilities.map((c) => c.id).join(",");
   useEffect(() => setCritique({}), [capSig]);
+  // Auto mode: run the whole Review→Refine→Re-review loop to closure, layer by layer.
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoLayer, setAutoLayer] = useState<LayerKind | null>(null);
+  const autoStopRef = useRef(false);
   // SPEC-004 behaviour: commands/events live on the domain doc — LLM when present, else live mock.
   const behaviourDoc = useMemo(
     () => (((domainDoc.commands?.length ?? 0) + (domainDoc.events?.length ?? 0)) > 0 ? domainDoc : mockGenerateEvents(domainDoc)),
@@ -448,56 +462,63 @@ export default function App(): React.JSX.Element {
   }
 
   // ---- Semantic critic: the Review → Refine → Re-review → Clean loop, any layer (advisory) ----
-  // Review: ask the LLM (higher effort, server-side) to critique one layer of its own output.
-  async function reviewLayer(layer: LayerKind): Promise<void> {
+  // A model override lets the auto loop feed a just-refined doc straight into the next review,
+  // bypassing React's async state (the render-time docs would otherwise be stale mid-loop).
+  const reviewBody = (layer: LayerKind, ov: ModelOverride) => ({
+    layer,
+    capabilities: activeDoc,
+    domain: ov.domain ?? flowDoc,
+    contexts: ov.contexts ?? contextsDoc,
+    roles: ov.roles ?? rolesDoc,
+    workflows: ov.workflows ?? workflowsDoc,
+    agents: ov.agents ?? agentsDoc,
+    model: active.model,
+    effort: active.effort,
+  });
+
+  // Review: ask the LLM (higher effort, server-side) to critique one layer. Returns the findings.
+  async function reviewLayer(layer: LayerKind, ov: ModelOverride = {}): Promise<CritiqueFinding[]> {
     setReviewBusy(layer);
     setError(null);
     try {
       const res = await fetch(`${SERVICE_URL}/api/critique`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          layer,
-          capabilities: activeDoc,
-          domain: flowDoc,
-          contexts: contextsDoc,
-          roles: rolesDoc,
-          workflows: workflowsDoc,
-          agents: agentsDoc,
-          model: active.model,
-          effort: active.effort,
-        }),
+        body: JSON.stringify(reviewBody(layer, ov)),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setCritique((prev) => ({ ...prev, [layer]: (data.findings ?? []) as CritiqueFinding[] }));
+      const findings = (data.findings ?? []) as CritiqueFinding[];
+      setCritique((prev) => ({ ...prev, [layer]: findings }));
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      return findings;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      return [];
     } finally {
       setReviewBusy(null);
     }
   }
 
-  // Refine: re-generate the layer feeding its own critique back in as guidance, then clear its
-  // findings so the user re-reviews to confirm closure. Reuses each layer's generate endpoint.
-  async function refineLayer(layer: LayerKind): Promise<void> {
-    const findings = critique[layer];
-    if (!findings || findings.length === 0) return;
-    const feedback = critiqueToFeedback(findings);
-    const common = { model: active.model, effort: active.effort, feedback };
+  // Refine: re-generate the layer feeding its own critique back in as guidance. Returns the override
+  // for the freshly-refined doc (so the caller can re-review against it) or null. `ov.domain` lets a
+  // downstream refine consume upstream layers refined earlier in the same auto run.
+  async function refineLayer(layer: LayerKind, findings?: CritiqueFinding[], ov: ModelOverride = {}): Promise<ModelOverride | null> {
+    const fs = findings ?? critique[layer];
+    if (!fs || fs.length === 0) return null;
+    const common = { model: active.model, effort: active.effort, feedback: critiqueToFeedback(fs) };
     let url = "";
     let body: Record<string, unknown> = {};
-    let apply: (doc: unknown) => void = () => {};
+    let applyDoc: (doc: unknown) => ModelOverride = () => ({});
     switch (layer) {
-      case "areas": url = "/api/contexts"; body = { capabilities: activeDoc, ...common }; apply = (d) => patchActive({ contexts: d as ContextsDoc }); break;
-      case "entities": url = "/api/domain"; body = { capabilities: activeDoc, ...common }; apply = (d) => patchActive({ domain: d as DomainDoc }); break;
-      case "behaviour": url = "/api/events"; body = { domain: domainDoc, capabilities: activeDoc, ...common }; apply = (d) => patchActive({ domain: { ...(d as DomainDoc), policies: undefined } }); break;
-      case "automations": url = "/api/policies"; body = { domain: behaviourDoc, capabilities: activeDoc, ...common }; apply = (d) => patchActive({ domain: d as DomainDoc }); break;
-      case "roles": url = "/api/roles"; body = { capabilities: activeDoc, ...common }; apply = (d) => patchActive({ roles: d as RolesDoc }); break;
-      case "workflows": url = "/api/workflows"; body = { domain: behaviourDoc, ...common }; apply = (d) => patchActive({ workflows: d as WorkflowsDoc }); break;
-      case "agents": url = "/api/agents"; body = { capabilities: activeDoc, ...common }; apply = (d) => patchActive({ agents: d as AgentsDoc }); break;
-      default: return; // capabilities: review-only (regenerating from the narrative would reset downstream)
+      case "areas": url = "/api/contexts"; body = { capabilities: activeDoc, ...common }; applyDoc = (d) => { patchActive({ contexts: d as ContextsDoc }); return { contexts: d as ContextsDoc }; }; break;
+      case "entities": url = "/api/domain"; body = { capabilities: activeDoc, ...common }; applyDoc = (d) => { patchActive({ domain: d as DomainDoc }); return { domain: d as DomainDoc }; }; break;
+      case "behaviour": url = "/api/events"; body = { domain: ov.domain ?? domainDoc, capabilities: activeDoc, ...common }; applyDoc = (d) => { const dd = { ...(d as DomainDoc), policies: undefined }; patchActive({ domain: dd }); return { domain: dd }; }; break;
+      case "automations": url = "/api/policies"; body = { domain: ov.domain ?? behaviourDoc, capabilities: activeDoc, ...common }; applyDoc = (d) => { patchActive({ domain: d as DomainDoc }); return { domain: d as DomainDoc }; }; break;
+      case "roles": url = "/api/roles"; body = { capabilities: activeDoc, ...common }; applyDoc = (d) => { patchActive({ roles: d as RolesDoc }); return { roles: d as RolesDoc }; }; break;
+      case "workflows": url = "/api/workflows"; body = { domain: ov.domain ?? behaviourDoc, ...common }; applyDoc = (d) => { patchActive({ workflows: d as WorkflowsDoc }); return { workflows: d as WorkflowsDoc }; }; break;
+      case "agents": url = "/api/agents"; body = { capabilities: activeDoc, ...common }; applyDoc = (d) => { patchActive({ agents: d as AgentsDoc }); return { agents: d as AgentsDoc }; }; break;
+      default: return null; // capabilities: review-only (regenerating from the narrative would reset downstream)
     }
     setReviewBusy(layer);
     setError(null);
@@ -505,13 +526,48 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}${url}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      apply(data.doc);
+      const override = applyDoc(data.doc);
       setCritique((prev) => ({ ...prev, [layer]: undefined })); // refined → re-review to confirm closure
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      return override;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      return null;
     } finally {
       setReviewBusy(null);
+    }
+  }
+
+  // Auto mode: drive every layer to closure on its own. For each layer, Review → while there are
+  // "concern"-level findings (bounded by MAX_REFINES), Refine and re-review; stop early when only
+  // subjective suggestions remain. Cooperative-cancellable via the Stop button. Threads an
+  // accumulating override so each re-review (and downstream refine) sees the freshly-refined docs.
+  async function autoReview(): Promise<void> {
+    if (autoRunning) return;
+    setAutoRunning(true);
+    autoStopRef.current = false;
+    setError(null);
+    const MAX_REFINES = 2;
+    try {
+      let acc: ModelOverride = {};
+      for (const row of reviewLayers) {
+        if (autoStopRef.current) break;
+        const layer = row.kind;
+        setAutoLayer(layer);
+        let findings = await reviewLayer(layer, acc);
+        if (layer === "capabilities") continue; // review-only
+        let round = 0;
+        while (!autoStopRef.current && round < MAX_REFINES && findings.some((f) => f.severity === "concern")) {
+          const refined = await refineLayer(layer, findings, acc);
+          if (!refined || autoStopRef.current) break;
+          acc = { ...acc, ...refined };
+          findings = await reviewLayer(layer, acc);
+          round += 1;
+        }
+      }
+    } finally {
+      setAutoRunning(false);
+      setAutoLayer(null);
     }
   }
 
@@ -895,6 +951,10 @@ export default function App(): React.JSX.Element {
             onReview={(k) => void reviewLayer(k)}
             onRefine={(k) => void refineLayer(k)}
             onSelect={selectFinding}
+            autoRunning={autoRunning}
+            autoLayer={autoLayer}
+            onAuto={() => void autoReview()}
+            onStop={() => { autoStopRef.current = true; }}
             t={t}
           />
 

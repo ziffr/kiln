@@ -888,10 +888,10 @@ export default function App(): React.JSX.Element {
             )}
             {stage === "capabilities" && <div className="map-wrap"><CapabilityMap ir={ir} areaOf={new Map()} selectedId={selected} onSelect={setSelected} /></div>}
             {stage === "areas" && <AreaDiagram contexts={contextsDoc} caps={activeDoc} colors={AREA_COLORS} onSelectArea={(id) => setSelected(contextNodeId(id))} onSelectCap={setSelected} t={t} />}
-            {stage === "entities" && <EntityDiagram domain={domainDoc} caps={activeDoc} onSelect={setSelected} />}
-            {stage === "behaviour" && <BehaviourView domain={behaviourDoc} t={t} />}
-            {stage === "automations" && <AutomationsView domain={flowDoc} t={t} />}
-            {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} t={t} />}
+            {stage === "entities" && <EntityDiagram domain={domainDoc} caps={activeDoc} selectedId={selected} onSelect={setSelected} />}
+            {stage === "behaviour" && <BehaviourView domain={behaviourDoc} highlight={selectedAggregate?.id} t={t} />}
+            {stage === "automations" && <AutomationsView domain={flowDoc} highlight={selectedAggregate?.id} t={t} />}
+            {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} highlightCap={selectedAggregate?.owner ?? selected} t={t} />}
             {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} />}
             {stage === "agents" && <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={setSelected} t={t} />}
             {stage === "code" && (

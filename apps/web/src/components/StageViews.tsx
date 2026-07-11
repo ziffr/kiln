@@ -32,7 +32,8 @@ export function EntitiesView({ domain, caps, onSelect, t }: { domain: DomainDoc;
 }
 
 // Behaviour → event-storming style: per entity, commands (blue) emit events (orange).
-export function BehaviourView({ domain, t }: { domain: DomainDoc; t: T }): React.JSX.Element {
+// `highlight` (an entity id, e.g. arrived-at via a cross-layer trace jump) glows its group.
+export function BehaviourView({ domain, highlight, t }: { domain: DomainDoc; highlight?: string | null; t: T }): React.JSX.Element {
   const commands = domain.commands ?? [];
   const events = domain.events ?? [];
   if (!commands.length && !events.length) return <Empty msg={t("emptyBehaviour")} />;
@@ -43,7 +44,7 @@ export function BehaviourView({ domain, t }: { domain: DomainDoc; t: T }): React
   return (
     <div className="behaviour-view">
       {[...byAgg].filter(([, v]) => v.cmds.length || v.evs.length).map(([agg, v]) => (
-        <div key={agg} className="behaviour-agg">
+        <div key={agg} className={`behaviour-agg${agg === highlight ? " hot" : ""}`}>
           <div className="behaviour-agg-name">{domain.aggregates.find((a) => a.id === agg)?.name || agg}</div>
           <div className="behaviour-flow">
             {v.cmds.map((c) => (
@@ -65,11 +66,15 @@ export function BehaviourView({ domain, t }: { domain: DomainDoc; t: T }): React
 
 // Automations → a bipartite wiring diagram: trigger events (left) curve to the commands they run
 // (right). Reads at a glance which events drive which actions across entities.
-export function AutomationsView({ domain, t }: { domain: DomainDoc; t: T }): React.JSX.Element {
+export function AutomationsView({ domain, highlight, t }: { domain: DomainDoc; highlight?: string | null; t: T }): React.JSX.Element {
   const policies = domain.policies ?? [];
   const evName = (id: string) => (domain.events ?? []).find((e) => e.id === id)?.name || id;
   const cmdName = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.name || id;
   if (!policies.length) return <Empty msg={t("emptyAutomations")} />;
+  // Which events/commands belong to the highlighted entity (arrived-at via a trace jump) — used to
+  // glow the boxes it touches and the wires crossing into/out of it.
+  const evAgg = (id: string) => (domain.events ?? []).find((e) => e.id === id)?.aggregate;
+  const cmdAgg = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.aggregate;
   const events = [...new Set(policies.map((p) => p.on))];
   const commands = [...new Set(policies.map((p) => p.then))];
   const GAP = 54, PADY = 12, BOX_H = 34, COL_W = 190, GAP_X = 300;
@@ -83,17 +88,18 @@ export function AutomationsView({ domain, t }: { domain: DomainDoc; t: T }): Rea
         <defs><marker id="wire-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8" /></marker></defs>
         {policies.map((p, i) => {
           const y1 = evY[p.on], y2 = cmdY[p.then], x1 = COL_W, x2 = GAP_X;
-          return <path key={i} d={`M ${x1} ${y1} C ${x1 + 70} ${y1}, ${x2 - 70} ${y2}, ${x2} ${y2}`} className="wire" markerEnd="url(#wire-arrow)" />;
+          const hot = highlight && (evAgg(p.on) === highlight || cmdAgg(p.then) === highlight);
+          return <path key={i} d={`M ${x1} ${y1} C ${x1 + 70} ${y1}, ${x2 - 70} ${y2}, ${x2} ${y2}`} className={`wire${hot ? " hot" : ""}`} markerEnd="url(#wire-arrow)" />;
         })}
       </svg>
-      {events.map((e, i) => <div key={e} className="storm event wire-box" style={{ top: i * GAP + PADY, left: 0, width: COL_W }}>{evName(e)}</div>)}
-      {commands.map((c, i) => <div key={c} className="storm command wire-box" style={{ top: i * GAP + PADY, left: GAP_X, width: COL_W }}>{cmdName(c)}</div>)}
+      {events.map((e, i) => <div key={e} className={`storm event wire-box${highlight && evAgg(e) === highlight ? " hot" : ""}`} style={{ top: i * GAP + PADY, left: 0, width: COL_W }}>{evName(e)}</div>)}
+      {commands.map((c, i) => <div key={c} className={`storm command wire-box${highlight && cmdAgg(c) === highlight ? " hot" : ""}`} style={{ top: i * GAP + PADY, left: GAP_X, width: COL_W }}>{cmdName(c)}</div>)}
     </div>
   );
 }
 
-// Roles → a role × capability matrix.
-export function RolesMatrix({ roles, caps, t }: { roles: RolesDoc; caps: CapabilityDoc; t: T }): React.JSX.Element {
+// Roles → a role × capability matrix. `highlightCap` glows the row for the arrived-at entity's owner.
+export function RolesMatrix({ roles, caps, highlightCap, t }: { roles: RolesDoc; caps: CapabilityDoc; highlightCap?: string | null; t: T }): React.JSX.Element {
   if (!roles.roles.length) return <Empty msg={t("emptyRoles")} />;
   return (
     <div className="matrix-wrap">
@@ -101,7 +107,7 @@ export function RolesMatrix({ roles, caps, t }: { roles: RolesDoc; caps: Capabil
         <thead><tr><th />{roles.roles.map((r) => <th key={r.id} className="rot">{r.name || r.id}</th>)}</tr></thead>
         <tbody>
           {caps.capabilities.map((c) => (
-            <tr key={c.id}>
+            <tr key={c.id} className={c.id === highlightCap ? "hot" : ""}>
               <td className="matrix-cap">{c.name}</td>
               {roles.roles.map((r) => (
                 <td key={r.id} className="matrix-cell">{(r.capabilities ?? []).includes(c.id) ? <span className="matrix-yes">●</span> : ""}</td>

@@ -595,9 +595,16 @@ textarea {
 .storm.event, .wire-box.event { background: var(--evt); color: var(--evt-fg); }
 .storm { border-radius: 7px; font-weight: 500; }
 .wire-box { border-radius: 7px; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
-.behaviour-agg { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; background: var(--panel-2); }
+.behaviour-agg { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; background: var(--panel-2); transition: border-color .18s, box-shadow .18s; }
 .behaviour-agg-name { font-size: 14px; }
 .wire { stroke: var(--edge); stroke-width: 1.75; }
+
+/* Cross-layer trace: glow the element the jump landed on (origin entity, its wiring, its owner row). */
+.behaviour-agg.hot { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 18px -6px var(--accent); }
+.wire-box.hot { outline: 2px solid var(--accent); outline-offset: 1px; }
+.wire.hot { stroke: var(--accent); stroke-width: 2.5; opacity: 1; }
+.role-matrix tr.hot .matrix-cap { color: var(--accent); font-weight: 700; }
+.role-matrix tr.hot td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 
 /* ER nodes */
 .er-node-head { background: var(--cmd); }

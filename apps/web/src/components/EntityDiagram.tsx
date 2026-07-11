@@ -64,7 +64,7 @@ function Flow({ nodes, edges, bounds, paneRef, onSelect }: { nodes: Node[]; edge
   );
 }
 
-export function EntityDiagram({ domain, caps, onSelect }: { domain: DomainDoc; caps: CapabilityDoc; onSelect: (id: string) => void }): React.JSX.Element {
+export function EntityDiagram({ domain, caps, selectedId, onSelect }: { domain: DomainDoc; caps: CapabilityDoc; selectedId?: string | null; onSelect: (id: string) => void }): React.JSX.Element {
   const [laid, setLaid] = useState<{ nodes: Node[]; edges: Edge[]; bounds: Bounds }>({ nodes: [], edges: [], bounds: { x: 0, y: 0, width: 1, height: 1 } });
   const sig = useMemo(() => domain.aggregates.map((a) => `${a.id}:${(a.references ?? []).join(",")}:${attributeSpecs(a).length}`).join("|"), [domain]);
 
@@ -106,6 +106,14 @@ export function EntityDiagram({ domain, caps, onSelect }: { domain: DomainDoc; c
   }, [sig, domain, caps]);
 
   const paneRef = useRef<HTMLDivElement | null>(null);
+  // Apply selection styling (e.g. the origin entity of a cross-layer trace jump) without recomputing
+  // the elk layout — a glowing accent border on the matching node.
+  const nodes = useMemo(
+    () => laid.nodes.map((n) => (n.id === selectedId
+      ? { ...n, selected: true, style: { ...(n.style as object), border: "1px solid var(--accent)", boxShadow: "0 0 0 2px var(--accent)" } }
+      : n)),
+    [laid.nodes, selectedId],
+  );
   if (!domain.aggregates.length) return <div className="stage-empty">—</div>;
   return (
     <div className="diagram-wrap" ref={paneRef}>
@@ -113,7 +121,7 @@ export function EntityDiagram({ domain, caps, onSelect }: { domain: DomainDoc; c
         <div className="map-empty"><span className="map-spinner" aria-hidden="true" /></div>
       ) : (
         <ReactFlowProvider key={laid.nodes.map((n) => n.id).join("|")}>
-          <Flow nodes={laid.nodes} edges={laid.edges} bounds={laid.bounds} paneRef={paneRef} onSelect={onSelect} />
+          <Flow nodes={nodes} edges={laid.edges} bounds={laid.bounds} paneRef={paneRef} onSelect={onSelect} />
         </ReactFlowProvider>
       )}
     </div>

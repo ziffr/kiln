@@ -86,3 +86,15 @@ test("few-shot exemplar is embedded in each layer's system prompt", async () => 
   assert.match(req.system, /Example of the KIND of finding/i);
   assert.match(req.system, /Invoice/); // the entities exemplar
 });
+
+test("LAYER_TIER classifies every layer and the hard-reasoning ones are 'heavy'", async () => {
+  const { LAYER_TIER } = await import("../src/index.ts");
+  const valid = new Set(["light", "standard", "heavy"]);
+  for (const k of ["capabilities", "areas", "entities", "behaviour", "automations", "roles", "workflows", "agents", "holistic"]) {
+    assert.ok(valid.has(LAYER_TIER[k]), `${k} → ${LAYER_TIER[k]}`);
+  }
+  // the judgment-laden stages get the strongest tier
+  for (const k of ["areas", "automations", "holistic", "capabilities"]) assert.equal(LAYER_TIER[k], "heavy", k);
+  // pure extraction/scaffolding stays light
+  for (const k of ["entities", "roles", "agents"]) assert.equal(LAYER_TIER[k], "light", k);
+});

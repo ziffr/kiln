@@ -21,7 +21,7 @@ import {
   type AgentsDoc,
 } from "@vbd/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@vbd/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, critiqueToFeedback, resolveTarget, CRITIQUE_EFFORT, type LayerKind, type CritiqueFinding } from "@vbd/skills";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, critiqueToFeedback, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding } from "@vbd/skills";
 import { SettingsModal } from "./components/SettingsModal";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
@@ -48,6 +48,9 @@ const MODELS = [
   { id: "claude-haiku-4-5", label: "Haiku 4.5", supportsEffort: false },
 ];
 const EFFORTS = ["low", "medium", "high", "max"];
+// Default per-tier models when "pick model per step" is on: upgrade the hard-reasoning stages to
+// Opus, keep the rest on Sonnet (quality-first; the user can drop light stages to Haiku for cost).
+const DEFAULT_TIER_MODELS = { light: "claude-sonnet-5", standard: "claude-sonnet-5", heavy: "claude-opus-4-8" };
 
 function FindingsBadge({ count }: { count: number }): React.JSX.Element {
   const { t } = useTranslation();
@@ -249,7 +252,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/generate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ narrative: text, model: active.model, effort: active.effort }),
+        body: JSON.stringify({ narrative: text, model: modelFor("capabilities"), effort: active.effort }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -271,7 +274,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/domain`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, model: active.model, effort: active.effort }),
+        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("entities"), effort: active.effort }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -386,7 +389,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/contexts`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, model: active.model, effort: active.effort }),
+        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("areas"), effort: active.effort }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -407,7 +410,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/events`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ domain: domainDoc, capabilities: activeDoc, model: active.model, effort: active.effort }),
+        body: JSON.stringify({ domain: domainDoc, capabilities: activeDoc, model: modelFor("behaviour"), effort: active.effort }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -429,7 +432,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/policies`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ domain: behaviourDoc, capabilities: activeDoc, model: active.model, effort: active.effort }),
+        body: JSON.stringify({ domain: behaviourDoc, capabilities: activeDoc, model: modelFor("automations"), effort: active.effort }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -450,7 +453,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/roles`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, model: active.model, effort: active.effort }),
+        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("roles"), effort: active.effort }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -471,6 +474,13 @@ export default function App(): React.JSX.Element {
   const critiqueEffortFor = (layer: LayerKind): string =>
     active.adaptiveEffort === false ? active.effort : active.effortByLayer?.[layer] ?? CRITIQUE_EFFORT[layer] ?? "high";
 
+  // The model a given stage runs at: when "pick model per step" is on, by difficulty tier; else the
+  // one global model. Applies to a stage's generation AND its review.
+  const tierModels = active.tierModels ?? DEFAULT_TIER_MODELS;
+  const modelFor = (layer: LayerKind): string =>
+    active.adaptiveModel ? tierModels[LAYER_TIER[layer]] ?? active.model : active.model;
+  const supportsEffortFor = (layer: LayerKind): boolean => MODELS.find((m) => m.id === modelFor(layer))?.supportsEffort ?? true;
+
   const reviewBody = (layer: LayerKind, ov: ModelOverride) => ({
     layer,
     capabilities: activeDoc,
@@ -479,7 +489,7 @@ export default function App(): React.JSX.Element {
     roles: ov.roles ?? rolesDoc,
     workflows: ov.workflows ?? workflowsDoc,
     agents: ov.agents ?? agentsDoc,
-    model: active.model,
+    model: modelFor(layer),
     effort: critiqueEffortFor(layer),
   });
 
@@ -513,7 +523,7 @@ export default function App(): React.JSX.Element {
   async function refineLayer(layer: LayerKind, findings?: CritiqueFinding[], ov: ModelOverride = {}): Promise<ModelOverride | null> {
     const fs = findings ?? critique[layer];
     if (!fs || fs.length === 0) return null;
-    const common = { model: active.model, effort: active.effort, feedback: critiqueToFeedback(fs) };
+    const common = { model: modelFor(layer), effort: active.effort, feedback: critiqueToFeedback(fs) };
     let url = "";
     let body: Record<string, unknown> = {};
     let applyDoc: (doc: unknown) => ModelOverride = () => ({});
@@ -611,7 +621,7 @@ export default function App(): React.JSX.Element {
   async function generateWorkflowsModel(): Promise<void> {
     setWorkflowsBusy(true); setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/workflows`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ domain: behaviourDoc, model: active.model, effort: active.effort }) });
+      const res = await fetch(`${SERVICE_URL}/api/workflows`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ domain: behaviourDoc, model: modelFor("workflows"), effort: active.effort }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ workflows: data.doc });
@@ -621,7 +631,7 @@ export default function App(): React.JSX.Element {
   async function generateAgentsModel(): Promise<void> {
     setAgentsBusy(true); setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/agents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, model: active.model, effort: active.effort }) });
+      const res = await fetch(`${SERVICE_URL}/api/agents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, model: modelFor("agents"), effort: active.effort }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ agents: data.doc });
@@ -702,12 +712,19 @@ export default function App(): React.JSX.Element {
           effortByLayer={active.effortByLayer ?? {}}
           defaults={CRITIQUE_EFFORT}
           globalEffort={active.effort}
-          modelLabel={MODELS.find((m) => m.id === active.model)?.label ?? active.model}
+          globalModelLabel={MODELS.find((m) => m.id === active.model)?.label ?? active.model}
           supportsEffort={supportsEffort}
           efforts={EFFORTS}
+          models={MODELS}
+          adaptiveModel={active.adaptiveModel === true}
+          tierModels={tierModels}
+          tierOf={LAYER_TIER}
+          modelLabelFor={(kind) => MODELS.find((m) => m.id === modelFor(kind))?.label ?? modelFor(kind)}
           onToggleAdaptive={(v) => patchActive({ adaptiveEffort: v })}
           onSetLayerEffort={(kind, effort) => patchActive({ effortByLayer: { ...(active.effortByLayer ?? {}), [kind]: effort } })}
-          onReset={() => patchActive({ adaptiveEffort: true, effortByLayer: {} })}
+          onToggleAdaptiveModel={(v) => patchActive({ adaptiveModel: v })}
+          onSetTierModel={(tier, modelId) => patchActive({ tierModels: { ...tierModels, [tier]: modelId } })}
+          onReset={() => patchActive({ adaptiveEffort: true, effortByLayer: {}, adaptiveModel: false, tierModels: DEFAULT_TIER_MODELS })}
           onClose={() => setShowSettings(false)}
           t={t}
         />
@@ -983,7 +1000,9 @@ export default function App(): React.JSX.Element {
             critique={critique}
             busy={reviewBusy}
             refinable={(k) => k !== "capabilities" && k !== "holistic"}
-            effortFor={(k) => (supportsEffort ? critiqueEffortFor(k) : "—")}
+            effortFor={(k) => (supportsEffortFor(k) ? critiqueEffortFor(k) : "—")}
+            modelLabelFor={(k) => MODELS.find((m) => m.id === modelFor(k))?.label ?? modelFor(k)}
+            showModel={active.adaptiveModel === true}
             onReview={(k) => void reviewLayer(k)}
             onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
             onSelect={selectFinding}

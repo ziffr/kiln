@@ -87,6 +87,8 @@ export {
   resolveTarget,
   CRITIQUE_SCHEMA,
   CRITIQUE_EFFORT,
+  LAYER_TIER,
+  type Tier,
   type LayerKind,
   type ReviewModel,
   type CritiqueResult,

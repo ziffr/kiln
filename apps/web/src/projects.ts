@@ -30,6 +30,10 @@ export interface Project {
    *  false = use the global `effort` for every review. effortByLayer overrides the built-in preset. */
   adaptiveEffort?: boolean;
   effortByLayer?: Record<string, string>;
+  /** Per-stage model tiering. adaptiveModel (default false) = pick a model per stage by difficulty
+   *  tier; false = use the single global `model` everywhere. tierModels maps light/standard/heavy. */
+  adaptiveModel?: boolean;
+  tierModels?: { light: string; standard: string; heavy: string };
   /** per-project interview override (tone/depth/domain); empty → global default. */
   coachConfig?: CoachConfig;
   /** persisted interview transcript (excludes the localized greeting). */

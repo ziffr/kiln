@@ -13,6 +13,22 @@ import type { LlmProvider, LlmRequest } from "./types.ts";
 
 export type LayerKind = "capabilities" | "areas" | "entities" | "behaviour" | "automations" | "roles" | "workflows" | "agents" | "holistic";
 
+// Difficulty tier per stage — used to pick a model by cognitive demand (light=extraction/scaffolding,
+// standard=domain modelling, heavy=judgment-laden partitioning/wiring/reasoning). Applies to BOTH a
+// stage's generation and its review. The user maps each tier → a concrete model (opt-in).
+export type Tier = "light" | "standard" | "heavy";
+export const LAYER_TIER: Record<LayerKind, Tier> = {
+  capabilities: "heavy", // abstraction from prose — foundational, sets everything downstream
+  areas: "heavy", // partitioning judgment (measured over-segmentation weak spot)
+  entities: "light", // schema extraction
+  behaviour: "standard", // domain actions / events
+  automations: "heavy", // reaction wiring (over-wiring risk)
+  roles: "light",
+  workflows: "standard",
+  agents: "light",
+  holistic: "heavy", // whole-model cross-layer reasoning
+};
+
 // Adaptive effort per layer (GA on Sonnet 5 / Opus; ignored on Haiku). Subtle, cross-cutting or
 // foundational layers get more reasoning; mechanical ones get less — spend where it pays off.
 export const CRITIQUE_EFFORT: Record<LayerKind, string> = {

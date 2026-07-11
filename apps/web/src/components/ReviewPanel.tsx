@@ -18,6 +18,8 @@ interface Props {
   busy: LayerKind | null;
   refinable: (k: LayerKind) => boolean;
   effortFor: (k: LayerKind) => string;
+  modelLabelFor: (k: LayerKind) => string;
+  showModel: boolean;
   onReview: (k: LayerKind) => void;
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
   onSelect: (f: CritiqueFinding) => void;
@@ -29,7 +31,7 @@ interface Props {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-export function ReviewPanel({ layers, critique, busy, refinable, effortFor, onReview, onApply, onSelect, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
+export function ReviewPanel({ layers, critique, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, onSelect, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
   const autoLabel = autoLayer ? layers.find((l) => l.kind === autoLayer)?.label ?? autoLayer : "";
   return (
     <div className="review-panel">
@@ -59,6 +61,7 @@ export function ReviewPanel({ layers, critique, busy, refinable, effortFor, onRe
           active={autoLayer === row.kind}
           canApply={refinable(row.kind)}
           effort={effortFor(row.kind)}
+          modelLabel={showModel ? modelLabelFor(row.kind) : ""}
           autoRunning={autoRunning}
           onReview={onReview}
           onApply={onApply}
@@ -77,6 +80,7 @@ interface RowProps {
   active: boolean;
   canApply: boolean;
   effort: string;
+  modelLabel: string;
   autoRunning: boolean;
   onReview: (k: LayerKind) => void;
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
@@ -84,7 +88,7 @@ interface RowProps {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function LayerReviewRow({ row, findings, isBusy, active, canApply, effort, autoRunning, onReview, onApply, onSelect, t }: RowProps): React.JSX.Element {
+function LayerReviewRow({ row, findings, isBusy, active, canApply, effort, modelLabel, autoRunning, onReview, onApply, onSelect, t }: RowProps): React.JSX.Element {
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -138,6 +142,7 @@ function LayerReviewRow({ row, findings, isBusy, active, canApply, effort, autoR
           {clean || showApplied ? "✓" : open ? "⚠" : "○"}
         </span>
         <span className="review-label">{row.label}</span>
+        {modelLabel && <span className="review-effort muted" title={t("settingsModel")}>{modelLabel}</span>}
         <span className="review-effort muted" title={t("settingsEffort")}>{effort}</span>
         <span className="review-status muted">{statusText}</span>
         <span className="review-actions">

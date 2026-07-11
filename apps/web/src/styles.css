@@ -400,3 +400,8 @@ textarea {
 .settings-table select { min-width: 90px; }
 .settings-badge { margin-left: 8px; font-size: 11px; color: #c4b5fd; }
 .settings-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+
+/* Model-tier settings */
+.settings-h { font-size: 13px; margin: 16px 0 4px; color: #cbd5e1; }
+.settings-h:first-child { margin-top: 2px; }
+.settings-tier-tag { margin-left: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #7c8aa0; border: 1px solid #2a3448; border-radius: 3px; padding: 0 4px; }

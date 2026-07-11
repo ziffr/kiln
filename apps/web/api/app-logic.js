@@ -75,23 +75,32 @@ function attributeSpecs(agg) {
 }
 
 // ../../packages/codegen/src/app.ts
-function projectAppModel(caps, domain, contexts) {
+function projectAppModel(caps, domain, contexts, rolesDoc) {
   const areaOfCap = /* @__PURE__ */ new Map();
   for (const c of contexts?.contexts ?? []) for (const m of [...c.capabilities ?? [], ...c.shared_kernel ?? []]) areaOfCap.set(m, c.name || c.id);
+  const roles = (rolesDoc?.roles ?? []).map((r) => ({ name: r.name || r.id, capabilities: r.capabilities ?? [] }));
+  const entities = domain.aggregates.map((a) => ({
+    id: slug(a.id),
+    name: a.name || a.id,
+    owner: a.owner,
+    area: areaOfCap.get(a.owner) ?? "General",
+    fields: attributeSpecs(a).map((s) => ({ name: s.name, type: s.type || "text" })),
+    references: (a.references ?? []).map((r) => slug(r))
+  }));
+  const permissions = {};
+  for (const e of entities) {
+    const allowed = roles.filter((r) => r.capabilities.includes(e.owner)).map((r) => r.name);
+    if (allowed.length) permissions[e.id] = allowed;
+  }
   return {
     domain: caps.domain || "business",
-    entities: domain.aggregates.map((a) => ({
-      id: slug(a.id),
-      name: a.name || a.id,
-      owner: a.owner,
-      area: areaOfCap.get(a.owner) ?? "General",
-      fields: attributeSpecs(a).map((s) => ({ name: s.name, type: s.type || "text" })),
-      references: (a.references ?? []).map((r) => slug(r))
-    })),
+    entities,
     commands: (domain.commands ?? []).map((c) => ({ id: slug(c.id), name: c.name, entity: slug(c.aggregate), emits: (c.emits ?? []).map((e) => slug(e)) })),
     events: (domain.events ?? []).map((e) => ({ id: slug(e.id), name: e.name, entity: slug(e.aggregate), trigger: e.trigger || "command" })),
     policies: (domain.policies ?? []).map((p) => ({ name: p.name, on: slug(p.on), then: slug(p.then) })),
-    areas: (contexts?.contexts ?? []).map((c) => ({ name: c.name || c.id, capabilities: (c.capabilities ?? []).map((m) => slug(m)) }))
+    areas: (contexts?.contexts ?? []).map((c) => ({ name: c.name || c.id, capabilities: (c.capabilities ?? []).map((m) => slug(m)) })),
+    roles,
+    permissions
   };
 }
 

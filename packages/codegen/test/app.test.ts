@@ -34,3 +34,20 @@ test("projectAppModel maps entities, fields, commands, events, policies and area
   assert.equal(m.commands[0].id, "capture_lead");
   assert.equal(m.entities.find((e) => e.id === "lead")?.area, "Sales");
 });
+
+test("generateApp emits QA config + docs and a hardened server", () => {
+  const roles = { version: "0.1", roles: [{ id: "installer", name: "Installer", capabilities: ["installation"] }] } as any;
+  const files = generateApp(caps, domain, contexts, roles);
+  for (const p of ["eslint.config.js", ".prettierrc", "jsconfig.json", ".editorconfig", ".gitignore", "ARCHITECTURE.md"]) {
+    assert.ok(files[p] && files[p].length > 0, `missing ${p}`);
+  }
+  // hardening present
+  assert.match(files["server.mjs"], /function validate\(/);
+  assert.match(files["server.mjs"], /mayWrite\(/);
+  assert.match(files["server.mjs"], /PERMISSIONS = /);
+  // roles → permissions wired (Installer owns installation which owns 'job')
+  assert.match(files["server.mjs"], /"job":\s*\[\s*"Installer"\s*\]/);
+  // doc banner standard present
+  assert.match(files["server.mjs"], /Why:/);
+  assert.match(files["ARCHITECTURE.md"], /Key decisions/);
+});

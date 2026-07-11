@@ -24,6 +24,8 @@ import { validateAll, validateDomain, validateContexts, validateEvents, validate
 import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, critiqueToFeedback, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding } from "@vbd/skills";
 import { SettingsModal } from "./components/SettingsModal";
 import { CapabilityMap } from "./components/CapabilityMap";
+import { StageRail, type StageId, type StageInfo } from "./components/StageRail";
+import { EntitiesView, BehaviourView, AutomationsView, RolesMatrix, WorkflowsView, AgentsView, AreasView } from "./components/StageViews";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
 import { CodePreview } from "./components/CodePreview";
@@ -55,12 +57,6 @@ const EFFORTS = ["low", "medium", "high", "max"];
 // Default per-tier models when "pick model per step" is on: upgrade the hard-reasoning stages to
 // Opus, keep the rest on Sonnet (quality-first; the user can drop light stages to Haiku for cost).
 const DEFAULT_TIER_MODELS = { light: "claude-sonnet-5", standard: "claude-sonnet-5", heavy: "claude-opus-4-8" };
-
-function FindingsBadge({ count }: { count: number }): React.JSX.Element {
-  const { t } = useTranslation();
-  const ok = count === 0;
-  return <span className={`badge ${ok ? "ok" : "warn"}`}>{ok ? t("clean") : t("findingsCount", { count })}</span>;
-}
 
 // A partial model override — lets the auto-review loop feed just-refined docs into the next
 // Review/Refine without waiting for React's async state to flush (which would leave them stale).
@@ -189,9 +185,10 @@ export default function App(): React.JSX.Element {
   const agentsDoc = active.agents ?? mockAgentsDoc;
   const agentFindings = useMemo(() => validateAgents(agentsDoc, activeDoc.capabilities.map((c) => c.id)), [agentsDoc, activeDoc]);
   const [agentsBusy, setAgentsBusy] = useState(false);
-  const [showCode, setShowCode] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [stage, setStage] = useState<StageId>("capabilities");
   // The map IR carries every layer: domain + contexts + behaviour/policies + roles + workflows + agents.
   const ir = useMemo(
     () => compileCapabilities(activeDoc, flowDoc, contextsDoc, rolesDoc, workflowsDoc, agentsDoc),
@@ -234,15 +231,6 @@ export default function App(): React.JSX.Element {
 
   // Resolve a domain finding to the capability whose detail panel shows the offending entity,
   // so clicking a finding opens the right place (subject is a capability id or an aggregate id).
-  const findingCapability = (subjects: string[]): string | undefined => {
-    for (const s of subjects) {
-      if (activeDoc.capabilities.some((c) => c.id === s)) return s;
-      const agg = domainDoc.aggregates.find((a) => a.id === s);
-      if (agg?.owner && activeDoc.capabilities.some((c) => c.id === agg.owner)) return agg.owner;
-    }
-    return undefined;
-  };
-
   function setNarrative(v: string): void {
     // Editing invalidates prior LLM snapshots (capabilities/domain/areas/roles) → fall back to mock.
     patchActive({ narrative: v, capabilities: null, provider: null, domain: null, contexts: null, roles: null, workflows: null, agents: null });
@@ -717,6 +705,40 @@ export default function App(): React.JSX.Element {
 
   const supportsEffort = MODELS.find((m) => m.id === active.model)?.supportsEffort ?? true;
 
+  // ---- Stage pipeline (progressive disclosure) ----
+  const layerStatus = (authored: unknown, live: number): "empty" | "mock" | "ready" => (authored ? "ready" : live > 0 ? "mock" : "empty");
+  const stages: StageInfo[] = [
+    { id: "narrative", label: t("narrative"), status: text.trim() ? "ready" : "empty", findings: narrativeFindings.length },
+    { id: "capabilities", label: t("capabilities"), status: layerStatus(active.capabilities, activeDoc.capabilities.length), findings: capFindings.length },
+    { id: "areas", label: t("areas"), status: layerStatus(active.contexts, contextsDoc.contexts.length), findings: contextFindings.length },
+    { id: "entities", label: t("entities"), status: layerStatus(active.domain, domainDoc.aggregates.length), findings: domainFindings.length },
+    { id: "behaviour", label: t("behaviour"), status: layerStatus(active.domain?.commands?.length, (behaviourDoc.commands?.length ?? 0) + (behaviourDoc.events?.length ?? 0)), findings: eventFindings.length },
+    { id: "automations", label: t("automations"), status: layerStatus(active.domain?.policies?.length, flowDoc.policies?.length ?? 0), findings: policyFindings.length },
+    { id: "roles", label: t("roles"), status: layerStatus(active.roles, rolesDoc.roles.length), findings: roleFindings.length },
+    { id: "workflows", label: t("workflows"), status: layerStatus(active.workflows, workflowsDoc.workflows.length), findings: workflowFindings.length },
+    { id: "agents", label: t("agents"), status: layerStatus(active.agents, agentsDoc.agents.length), findings: agentFindings.length },
+    { id: "code", label: t("viewCode"), status: "ready", findings: 0 },
+  ];
+  const stageGen: Partial<Record<StageId, { run: () => void; busy: boolean; label: string }>> = {
+    capabilities: { run: () => void generate(), busy, label: t("generateBtn") },
+    areas: { run: () => void generateAreas(), busy: contextsBusy, label: t("genAreas") },
+    entities: { run: () => void generateDomainModel(), busy: domainBusy, label: t("genEntities") },
+    behaviour: { run: () => void generateBehaviour(), busy: behaviourBusy, label: t("genBehaviour") },
+    automations: { run: () => void generatePoliciesModel(), busy: policiesBusy, label: t("genAutomations") },
+    roles: { run: () => void generateRolesModel(), busy: rolesBusy, label: t("genRoles") },
+    workflows: { run: () => void generateWorkflowsModel(), busy: workflowsBusy, label: t("genWorkflows") },
+    agents: { run: () => void generateAgentsModel(), busy: agentsBusy, label: t("genAgents") },
+  };
+  const stageFindings: Partial<Record<StageId, typeof capFindings>> = {
+    capabilities: capFindings, areas: contextFindings, entities: domainFindings, behaviour: eventFindings,
+    automations: policyFindings, roles: roleFindings, workflows: workflowFindings, agents: agentFindings,
+  };
+  const REVIEW_KIND: Partial<Record<StageId, LayerKind>> = {
+    capabilities: "capabilities", areas: "areas", entities: "entities", behaviour: "behaviour",
+    automations: "automations", roles: "roles", workflows: "workflows", agents: "agents",
+  };
+  const activeStage = stages.find((s) => s.id === stage) ?? stages[1];
+
   return (
     <div className="app">
       {showGuide && <Guide onClose={() => setShowGuide(false)} />}
@@ -744,12 +766,40 @@ export default function App(): React.JSX.Element {
           t={t}
         />
       )}
+      {showReview && (
+        <div className="guide-overlay" onClick={() => setShowReview(false)}>
+          <div className="guide review-overlay" onClick={(e) => e.stopPropagation()}>
+            <div className="guide-head"><h2>✨ {t("aiReviewTitle")}</h2><button className="nd-close" onClick={() => setShowReview(false)} aria-label="close">×</button></div>
+            <div className="guide-body">
+              <ReviewPanel
+                layers={reviewLayers}
+                critique={critique}
+                busy={reviewBusy}
+                refinable={(k) => k !== "capabilities" && k !== "holistic"}
+                effortFor={(k) => (supportsEffortFor(k) ? critiqueEffortFor(k) : "—")}
+                modelLabelFor={(k) => MODELS.find((m) => m.id === modelFor(k))?.label ?? modelFor(k)}
+                showModel={active.adaptiveModel === true}
+                onReview={(k) => void reviewLayer(k)}
+                onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
+                onSelect={(f) => { selectFinding(f); setShowReview(false); }}
+                onSettings={() => { setShowReview(false); setShowSettings(true); }}
+                autoRunning={autoRunning}
+                autoLayer={autoLayer}
+                onAuto={() => void autoReview()}
+                onStop={() => { autoStopRef.current = true; }}
+                t={t}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       <header className="topbar">
         <div className="brand">
           <h1>{t("appTitle")}</h1>
           <p className="tagline">{t("tagline")}</p>
         </div>
 
+        <button className="guide-open" onClick={() => setShowReview(true)}>✨ {t("aiReviewTitle")}</button>
         <button className="guide-open" onClick={() => setShowGuide(true)}>{t("guideOpen")}</button>
         <button className="guide-open" onClick={() => setShowSettings(true)}>⚙︎ {t("settingsOpen")}</button>
 
@@ -781,342 +831,156 @@ export default function App(): React.JSX.Element {
         </div>
       </header>
 
-      <main className="cols">
-        <section className="col">
-          <div className="col-head">
-            <h2>{t("narrative")}</h2>
-            <FindingsBadge count={narrativeFindings.length} />
-          </div>
-          <NarrativeInput
-            key={active.id}
-            narrative={text}
-            onNarrative={setNarrative}
-            model={active.model}
-            effort={active.effort}
-            config={active.coachConfig ?? {}}
-            onConfig={(c) => patchActive({ coachConfig: c })}
-            transcript={active.coachTranscript ?? []}
-            onTranscript={(tr) => patchActive({ coachTranscript: tr })}
-            lang={i18n.language}
-          />
-          {narrativeFindings.length > 0 && (
-            <ul className="findings">
-              {narrativeFindings.map((f) => (
-                <li key={f.id}><code>{f.code}</code> {f.message}</li>
-              ))}
-            </ul>
-          )}
-        </section>
+      <div className="workspace">
+        <StageRail stages={stages} active={stage} onSelect={(s) => { setStage(s); setSelected(null); }} t={t} />
 
-        <section className="col">
-          <div className="col-head">
-            <h2>{t("sections")}</h2>
-            <span className="muted">{doc.title}</span>
-          </div>
-          <ul className="sections">
-            {doc.sections.map((s) => (
-              <li key={s.anchor}>
-                <span className="s-head">{s.heading}</span>
-                <span className="muted">#{s.anchor} · {s.items.length} {t("items")}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="lists">
-            <div>
-              <h3>{t("outcomes")}</h3>
-              <ul>{businessOutcomes(doc).map((o) => <li key={o}>{o}</li>)}</ul>
+        <main className="stage-main">
+          <div className="stage-head">
+            <div className="stage-title">
+              <h2>{activeStage.label}</h2>
+              <p className="stage-desc muted">{t(`stageDesc_${stage}`)}</p>
             </div>
-            <div>
-              <h3>{t("activities")}</h3>
-              <ul>{coreActivities(doc).map((a) => <li key={a}>{a}</li>)}</ul>
-            </div>
-            <div>
-              <h3>{t("customers")}</h3>
-              <ul>{customers(doc).map((c) => <li key={c}>{c}</li>)}</ul>
-            </div>
-          </div>
-        </section>
-
-        <section className="col grow">
-          <div className="col-head">
-            <h2>{t("capabilities")}</h2>
-            <FindingsBadge count={capFindings.length + domainFindings.length + contextFindings.length + eventFindings.length + policyFindings.length + roleFindings.length + workflowFindings.length + agentFindings.length} />
-          </div>
-
-          <div className="genbar">
-            <label>
-              {t("model")}
-              <select value={active.model} onChange={(e) => patchActive({ model: e.target.value })}>
-                {MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-              </select>
-            </label>
-            <label>
-              {t("effort")}
-              <select value={active.effort} onChange={(e) => patchActive({ effort: e.target.value })} disabled={!supportsEffort}>
-                {EFFORTS.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
-              </select>
-            </label>
-            <button className="generate" onClick={() => void generate()} disabled={busy}>
-              {busy ? t("generating") : t("generateBtn")}
-            </button>
-            <button className="addcap" onClick={addCapability}>{t("addCap")}</button>
-            <button className="addcap" onClick={() => void generateDomainModel()} disabled={domainBusy}>
-              {domainBusy ? t("generating") : t("genEntities")}
-            </button>
-            <button className="addcap" onClick={() => void generateAreas()} disabled={contextsBusy}>
-              {contextsBusy ? t("generating") : t("genAreas")}
-            </button>
-            <button className="addcap" onClick={() => void generateBehaviour()} disabled={behaviourBusy}>
-              {behaviourBusy ? t("generating") : t("genBehaviour")}
-            </button>
-            <button className="addcap" onClick={() => void generatePoliciesModel()} disabled={policiesBusy}>
-              {policiesBusy ? t("generating") : t("genAutomations")}
-            </button>
-            <button className="addcap" onClick={() => void generateRolesModel()} disabled={rolesBusy}>
-              {rolesBusy ? t("generating") : t("genRoles")}
-            </button>
-            <button className="addcap" onClick={() => void generateWorkflowsModel()} disabled={workflowsBusy}>
-              {workflowsBusy ? t("generating") : t("genWorkflows")}
-            </button>
-            <button className="addcap" onClick={() => void generateAgentsModel()} disabled={agentsBusy}>
-              {agentsBusy ? t("generating") : t("genAgents")}
-            </button>
-            <button className="viewcode" onClick={() => setShowCode((s) => !s)}>{t("viewCode")}</button>
-          </div>
-
-          {/* Business Areas legend — the map backdrop's key; click an area to edit it (REV-016). */}
-          {contextsDoc.contexts.length > 0 && (
-            <div className="areas-legend">
-              <span className="areas-legend-label">{t("areas")}:</span>
-              {contextsDoc.contexts.map((c, i) => (
-                <button
-                  key={c.id}
-                  className={`area-chip ${selected === contextNodeId(c.id) ? "sel" : ""}`}
-                  style={{ ["--area-color" as string]: AREA_COLORS[i % AREA_COLORS.length] }}
-                  onClick={() => setSelected(contextNodeId(c.id))}
-                  title={c.intent}
-                >
-                  <span className="area-dot" />
-                  {c.name || c.id} <span className="muted">({(c.capabilities ?? []).length})</span>
+            <div className="stage-actions">
+              {stageGen[stage] && (
+                <button className="generate" onClick={stageGen[stage]!.run} disabled={stageGen[stage]!.busy}>
+                  {stageGen[stage]!.busy ? t("generating") : stageGen[stage]!.label}
                 </button>
-              ))}
-              <button className="area-chip add" onClick={addArea}>{t("addArea")}</button>
+              )}
+              {stage === "capabilities" && <button className="addcap" onClick={addCapability}>{t("addCap")}</button>}
+              {stage === "areas" && <button className="addcap" onClick={addArea}>{t("addArea")}</button>}
+              {REVIEW_KIND[stage] && (
+                <button className="addcap" onClick={() => void reviewLayer(REVIEW_KIND[stage]!)} disabled={reviewBusy === REVIEW_KIND[stage]}>
+                  {reviewBusy === REVIEW_KIND[stage] ? t("generating") : `✨ ${t("aiReviewGo")}`}
+                </button>
+              )}
             </div>
-          )}
+          </div>
 
-          <p className="hint">
-            {t("source")}: <strong>{active.provider ?? t("mockLabel")}</strong> · {t("generatedNote")} · {t("ndHint")}
-          </p>
-          {spend && (
-            <p className="spend" title={t("creditNote")}>
-              💳 ${spend.estCostUsd.toFixed(4)} {t("thisCall")} · ${spend.sessionSpendUsd.toFixed(4)} {t("thisSession")}
-              <span className="muted"> · {spend.usage.input + spend.usage.output} {t("tokens")}</span>
-              <br />
-              <span className="muted">{t("creditNote")}</span>
-            </p>
-          )}
-          {error && <p className="err-line"><code>{error}</code> — {t("serviceHint")}</p>}
+          {error && <p className="err-line"><code>{error}</code> &mdash; {t("serviceHint")}</p>}
 
-          {capFindings.length > 0 && (
-            <ul className="findings cap-findings">
-              {capFindings.map((f) => {
-                const subj = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x));
-                return (
-                  <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && setSelected(subj)}>
-                    <code className={f.severity}>{f.code}</code> {f.message}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {domainFindings.length > 0 && (
-            <ul className="findings cap-findings domain-findings">
-              <li className="findings-head muted">{t("entities")}</li>
-              {domainFindings.map((f) => {
-                const subj = findingCapability(f.subjects);
-                return (
-                  <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && setSelected(subj)}>
-                    <code className={f.severity}>{f.code}</code> {f.message}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {contextFindings.length > 0 && (
-            <ul className="findings cap-findings domain-findings">
-              <li className="findings-head muted">{t("areas")}</li>
-              {contextFindings.map((f) => {
-                // Subject is a capability id or an area id — click through to whichever it names.
-                const cap = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x));
-                const area = f.subjects.find((x) => contextsDoc.contexts.some((c) => c.id === x));
-                const target = cap ?? (area ? contextNodeId(area) : undefined);
-                return (
-                  <li key={f.id} className={target ? "clickable" : ""} onClick={() => target && setSelected(target)}>
-                    <code className={f.severity}>{f.code}</code> {f.message}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {eventFindings.length > 0 && (
-            <ul className="findings cap-findings domain-findings">
-              <li className="findings-head muted">{t("behaviour")}</li>
-              {eventFindings.map((f) => {
-                // Resolve to the capability owning the referenced entity, so click opens its panel.
-                const aggId = f.subjects.find((x) => behaviourDoc.aggregates.some((a) => a.id === x));
-                const owner = aggId ? behaviourDoc.aggregates.find((a) => a.id === aggId)?.owner : undefined;
-                const cap = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x)) ?? owner;
-                return (
-                  <li key={f.id} className={cap ? "clickable" : ""} onClick={() => cap && setSelected(cap)}>
-                    <code className={f.severity}>{f.code}</code> {f.message}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {policyFindings.length > 0 && (
-            <ul className="findings cap-findings domain-findings">
-              <li className="findings-head muted">{t("automations")}</li>
-              {policyFindings.map((f) => (
-                <li key={f.id}><code className={f.severity}>{f.code}</code> {f.message}</li>
-              ))}
-            </ul>
-          )}
-
-          {roleFindings.length > 0 && (
-            <ul className="findings cap-findings domain-findings">
-              <li className="findings-head muted">{t("roles")}</li>
-              {roleFindings.map((f) => {
-                const cap = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x));
-                return (
-                  <li key={f.id} className={cap ? "clickable" : ""} onClick={() => cap && setSelected(cap)}>
-                    <code className={f.severity}>{f.code}</code> {f.message}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {(workflowFindings.length + agentFindings.length) > 0 && (
-            <ul className="findings cap-findings domain-findings">
-              <li className="findings-head muted">{t("workflows")} · {t("agents")}</li>
-              {[...workflowFindings, ...agentFindings].map((f) => (
-                <li key={f.id}><code className={f.severity}>{f.code}</code> {f.message}</li>
-              ))}
-            </ul>
-          )}
-
-          <ReviewPanel
-            layers={reviewLayers}
-            critique={critique}
-            busy={reviewBusy}
-            refinable={(k) => k !== "capabilities" && k !== "holistic"}
-            effortFor={(k) => (supportsEffortFor(k) ? critiqueEffortFor(k) : "—")}
-            modelLabelFor={(k) => MODELS.find((m) => m.id === modelFor(k))?.label ?? modelFor(k)}
-            showModel={active.adaptiveModel === true}
-            onReview={(k) => void reviewLayer(k)}
-            onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
-            onSelect={selectFinding}
-            onSettings={() => setShowSettings(true)}
-            autoRunning={autoRunning}
-            autoLayer={autoLayer}
-            onAuto={() => void autoReview()}
-            onStop={() => { autoStopRef.current = true; }}
-            t={t}
-          />
-
-          {showCode && (
-            <CodePreview
-              caps={activeDoc}
-              domain={flowDoc}
-              contexts={contextsDoc}
-              roles={rolesDoc}
-              workflows={workflowsDoc}
-              agents={agentsDoc}
-              requestAppLogic={async (feedback?: string) => {
-                const res = await fetch(`${SERVICE_URL}/api/app-logic`, {
-                  method: "POST",
-                  headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, feedback, model: modelFor("behaviour"), effort: active.effort }),
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-                setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
-                return data as { handlers: Record<string, string>; written: number; skipped: number };
-              }}
-              requestAppComponents={async () => {
-                const res = await fetch(`${SERVICE_URL}/api/app-components`, {
-                  method: "POST",
-                  headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, model: modelFor("entities"), effort: active.effort }),
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-                setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
-                return data as { views: Record<string, unknown>; written: number; skipped: number };
-              }}
-              requestVerify={async (files) => {
-                const res = await fetch(`${SERVICE_URL}/api/verify`, {
-                  method: "POST",
-                  headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ files }),
-                });
-                return await res.json();
-              }}
-              requestCodeReview={async (handlerCode) => {
-                const res = await fetch(`${SERVICE_URL}/api/code-review`, {
-                  method: "POST",
-                  headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, handlerCode, model: modelFor("behaviour") }),
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-                setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
-                return data.findings ?? [];
-              }}
-              onClose={() => setShowCode(false)}
-            />
-          )}
-
-          <div className="map-wrap">
-            <CapabilityMap ir={ir} areaOf={areaOf} selectedId={selected} onSelect={setSelected} />
-            {selectedArea ? (
-              <AreaDetail
-                area={selectedArea}
-                doc={activeDoc}
-                terms={areaTerms(selectedArea)}
-                onEdit={editArea}
-                onRetire={retireArea}
-                onSelectCapability={setSelected}
-                onClose={() => setSelected(null)}
-              />
-            ) : (
-              <NodeDetail
-                doc={activeDoc}
-                aggregates={domainDoc.aggregates}
-                commands={behaviourDoc.commands ?? []}
-                events={behaviourDoc.events ?? []}
-                policies={flowDoc.policies ?? []}
-                capRoles={selected ? rolesForCap(selected) : []}
-                areas={contextsDoc.contexts.map((c) => ({ id: c.id, name: c.name }))}
-                capAreaId={selected ? areaOf.get(selected)?.id : undefined}
-                onReassignArea={reassignCapabilityArea}
-                selectedId={selected}
-                onEdit={editCapability}
-                onDelete={deleteCapability}
-                onEditAggregate={editAggregate}
-                onDeleteAggregate={deleteAggregate}
-                onAddAggregate={addAggregate}
-                onClose={() => setSelected(null)}
+          <div className="stage-body">
+            {stage === "narrative" && (
+              <div className="narrative-stage">
+                <NarrativeInput
+                  key={active.id}
+                  narrative={text}
+                  onNarrative={setNarrative}
+                  model={active.model}
+                  effort={active.effort}
+                  config={active.coachConfig ?? {}}
+                  onConfig={(c) => patchActive({ coachConfig: c })}
+                  transcript={active.coachTranscript ?? []}
+                  onTranscript={(tr) => patchActive({ coachTranscript: tr })}
+                  lang={i18n.language}
+                />
+                <div className="lists narrative-summary">
+                  <div><h3>{t("outcomes")}</h3><ul>{businessOutcomes(doc).map((o) => <li key={o}>{o}</li>)}</ul></div>
+                  <div><h3>{t("activities")}</h3><ul>{coreActivities(doc).map((a) => <li key={a}>{a}</li>)}</ul></div>
+                  <div><h3>{t("customers")}</h3><ul>{customers(doc).map((c) => <li key={c}>{c}</li>)}</ul></div>
+                </div>
+              </div>
+            )}
+            {stage === "capabilities" && <div className="map-wrap"><CapabilityMap ir={ir} areaOf={new Map()} selectedId={selected} onSelect={setSelected} /></div>}
+            {stage === "areas" && <AreasView contexts={contextsDoc} caps={activeDoc} colors={AREA_COLORS} onSelectArea={(id) => setSelected(contextNodeId(id))} t={t} />}
+            {stage === "entities" && <EntitiesView domain={domainDoc} caps={activeDoc} onSelect={setSelected} t={t} />}
+            {stage === "behaviour" && <BehaviourView domain={behaviourDoc} t={t} />}
+            {stage === "automations" && <AutomationsView domain={flowDoc} t={t} />}
+            {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} t={t} />}
+            {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} />}
+            {stage === "agents" && <AgentsView agents={agentsDoc} caps={activeDoc} t={t} />}
+            {stage === "code" && (
+              <CodePreview
+                caps={activeDoc}
+                domain={flowDoc}
+                contexts={contextsDoc}
+                roles={rolesDoc}
+                workflows={workflowsDoc}
+                agents={agentsDoc}
+                requestAppLogic={async (feedback?: string) => {
+                  const res = await fetch(`${SERVICE_URL}/api/app-logic`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, feedback, model: modelFor("behaviour"), effort: active.effort }) });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+                  setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                  return data as { handlers: Record<string, string>; written: number; skipped: number };
+                }}
+                requestAppComponents={async () => {
+                  const res = await fetch(`${SERVICE_URL}/api/app-components`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, model: modelFor("entities"), effort: active.effort }) });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+                  setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                  return data as { views: Record<string, unknown>; written: number; skipped: number };
+                }}
+                requestVerify={async (files) => {
+                  const res = await fetch(`${SERVICE_URL}/api/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ files }) });
+                  return await res.json();
+                }}
+                requestCodeReview={async (handlerCode) => {
+                  const res = await fetch(`${SERVICE_URL}/api/code-review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, handlerCode, model: modelFor("behaviour") }) });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+                  setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                  return data.findings ?? [];
+                }}
+                onClose={() => setStage("capabilities")}
               />
             )}
           </div>
-        </section>
-      </main>
+
+          {stageFindings[stage] && stageFindings[stage]!.length > 0 && (
+            <ul className="findings cap-findings">
+              {stageFindings[stage]!.map((f) => {
+                const subj = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x));
+                return <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && setSelected(subj)}><code className={f.severity}>{f.code}</code> {f.message}</li>;
+              })}
+            </ul>
+          )}
+          {REVIEW_KIND[stage] && critique[REVIEW_KIND[stage]!] && (
+            <ul className="findings cap-findings critique-inline">
+              <li className="findings-head muted">{`✨ ${t("aiReviewTitle")}`}</li>
+              {critique[REVIEW_KIND[stage]!]!.length === 0 && <li className="muted">{t("aiReviewOk")}</li>}
+              {critique[REVIEW_KIND[stage]!]!.map((f) => (
+                <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)}>
+                  <code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {spend && (
+            <p className="spend" title={t("creditNote")}>
+              &#128179; ${spend.estCostUsd.toFixed(4)} {t("thisCall")} &middot; ${spend.sessionSpendUsd.toFixed(4)} {t("thisSession")}
+              <span className="muted"> &middot; {spend.usage.input + spend.usage.output} {t("tokens")}</span>
+            </p>
+          )}
+        </main>
+
+        <aside className="stage-detail">
+          {selectedArea ? (
+            <AreaDetail area={selectedArea} doc={activeDoc} terms={areaTerms(selectedArea)} onEdit={editArea} onRetire={retireArea} onSelectCapability={setSelected} onClose={() => setSelected(null)} />
+          ) : selected ? (
+            <NodeDetail
+              doc={activeDoc}
+              aggregates={domainDoc.aggregates}
+              commands={behaviourDoc.commands ?? []}
+              events={behaviourDoc.events ?? []}
+              policies={flowDoc.policies ?? []}
+              capRoles={selected ? rolesForCap(selected) : []}
+              areas={contextsDoc.contexts.map((c) => ({ id: c.id, name: c.name }))}
+              capAreaId={selected ? areaOf.get(selected)?.id : undefined}
+              onReassignArea={reassignCapabilityArea}
+              selectedId={selected}
+              onEdit={editCapability}
+              onDelete={deleteCapability}
+              onEditAggregate={editAggregate}
+              onDeleteAggregate={deleteAggregate}
+              onAddAggregate={addAggregate}
+              onClose={() => setSelected(null)}
+            />
+          ) : (
+            <div className="detail-hint muted">{t("ndHint")}</div>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

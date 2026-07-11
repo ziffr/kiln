@@ -1,0 +1,2954 @@
+{
+  "capabilities": {
+    "version": "0.2",
+    "domain": "solar_installation",
+    "capabilities": [
+      {
+        "id": "lead_management",
+        "name": "Lead Management",
+        "purpose": "Acquire and qualify potential customers for solar projects.",
+        "outcomes": [
+          "sell_projects"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "acquire-leads",
+              "contentHash": "2f717517e93cd45dc8b102ff9d895603887812aac3f4ade0868088a5650ac5fa"
+            },
+            {
+              "section": "Core Activities",
+              "anchor": "qualify-customers",
+              "contentHash": "6f2760d3903f41fc2637e55ae53cb163e51ba1e5cda2c18c55c45487eacef9fe"
+            }
+          ]
+        },
+        "depends_on": []
+      },
+      {
+        "id": "site_assessment",
+        "name": "Site Assessment",
+        "purpose": "Survey customer roofs to determine suitability for solar installation.",
+        "outcomes": [
+          "sell_projects"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "survey-roofs",
+              "contentHash": "1b1beea5ae8d3785ccb36488e275de4dd67440c6a4554ad9a06c6198b4dd50a6"
+            }
+          ]
+        },
+        "depends_on": [
+          "lead_management"
+        ]
+      },
+      {
+        "id": "solution_design",
+        "name": "Solution Design",
+        "purpose": "Create technical designs tailored to customer sites.",
+        "outcomes": [
+          "sell_projects"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "create-technical-design",
+              "contentHash": "f01453e7fb6a62dfde64e3ecf91f30b0f6e48e03e25ed637faa852382bd00359"
+            }
+          ]
+        },
+        "depends_on": [
+          "site_assessment"
+        ]
+      },
+      {
+        "id": "sales_and_quoting",
+        "name": "Sales and Quoting",
+        "purpose": "Create commercial offers to convert qualified leads into sold projects.",
+        "outcomes": [
+          "sell_projects"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "create-commercial-offer",
+              "contentHash": "4e8ab242d0c974e6803207db50c254a62183576056d3ab76b61e47caf73ddff9"
+            }
+          ]
+        },
+        "depends_on": [
+          "lead_management",
+          "solution_design"
+        ]
+      },
+      {
+        "id": "procurement",
+        "name": "Procurement",
+        "purpose": "Purchase equipment needed to fulfill installation projects.",
+        "outcomes": [
+          "install_systems"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "purchase-equipment",
+              "contentHash": "df89b2181fddb32f3111b171b5d2ef41160682cc8ba2dcb9e1e5766c6dcddd4e"
+            }
+          ]
+        },
+        "depends_on": [
+          "solution_design"
+        ]
+      },
+      {
+        "id": "installation_management",
+        "name": "Installation Management",
+        "purpose": "Schedule and execute installation and commissioning of solar systems.",
+        "outcomes": [
+          "install_systems"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "schedule-installation",
+              "contentHash": "c0a251899a2a3811fe0d64b7e683b8d9cd71f24a7904f880f27085f7daad33c3"
+            },
+            {
+              "section": "Core Activities",
+              "anchor": "install",
+              "contentHash": "569ca49f4aaf7846e952c1d4aeca72febd0b79fa1c4f9db08fd3127551218572"
+            },
+            {
+              "section": "Core Activities",
+              "anchor": "commission",
+              "contentHash": "3d41e1a66a7daeb8da761812e830ca56fe19dd3ec7c8e2e6b0ca2abeef1a2010"
+            }
+          ]
+        },
+        "depends_on": [
+          "lead_management",
+          "procurement",
+          "solution_design"
+        ]
+      },
+      {
+        "id": "billing",
+        "name": "Billing",
+        "purpose": "Invoice customers for delivered projects and services.",
+        "outcomes": [
+          "sell_projects"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "invoice",
+              "contentHash": "b832002da297545ff2c6cc36303a5f9b9779a2d7e47ba81c07ef86aca92181c0"
+            }
+          ]
+        },
+        "depends_on": [
+          "installation_management",
+          "lead_management",
+          "sales_and_quoting"
+        ]
+      },
+      {
+        "id": "system_maintenance",
+        "name": "System Maintenance",
+        "purpose": "Monitor and maintain installed systems to ensure ongoing performance.",
+        "outcomes": [
+          "maintain_systems"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "monitor",
+              "contentHash": "4c2e1df4570bebd69829cce149ba6421d1589b3d7cfab3c833e921b9da0798f2"
+            },
+            {
+              "section": "Core Activities",
+              "anchor": "maintain",
+              "contentHash": "0f011be4a5ebbfffd16918dd9ab3e4cf243983933a5c3c30635434e32d67bc46"
+            }
+          ]
+        },
+        "depends_on": [
+          "installation_management"
+        ]
+      }
+    ]
+  },
+  "contexts": {
+    "version": "1.0",
+    "contexts": [
+      {
+        "id": "c_04242352",
+        "name": "Customer Acquisition",
+        "intent": "Identify and convert prospective customers into sold solar projects.",
+        "capabilities": [
+          "lead_management",
+          "sales_and_quoting"
+        ],
+        "shared_kernel": [
+          "site_assessment"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Customer relationship and deal lifecycle from lead to sale"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_0cdc2831",
+        "name": "Engineering",
+        "intent": "Assess sites and design technical solutions tailored to customer needs.",
+        "capabilities": [
+          "site_assessment",
+          "solution_design"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Technical site data and design specifications"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_11aec559",
+        "name": "Project Delivery",
+        "intent": "Procure equipment and execute installation of solar systems.",
+        "capabilities": [
+          "procurement",
+          "installation_management"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Project fulfillment workflow from purchasing to on-site execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_0c95c7ec",
+        "name": "Finance",
+        "intent": "Manage billing and revenue collection for delivered projects.",
+        "capabilities": [
+          "billing"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Financial transactions tied to completed projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_4d155c4e",
+        "name": "Customer Support & Operations",
+        "intent": "Ensure ongoing performance of installed systems for customer satisfaction.",
+        "capabilities": [
+          "system_maintenance"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Post-installation system performance data"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "domain": {
+    "version": "1.0",
+    "aggregates": [
+      {
+        "id": "lead",
+        "name": "Lead",
+        "owner": "lead_management",
+        "attributes": [
+          {
+            "name": "contact_name",
+            "type": "text"
+          },
+          {
+            "name": "contact_info",
+            "type": "text"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          },
+          {
+            "name": "source",
+            "type": "text"
+          }
+        ],
+        "references": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "lead_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer",
+        "name": "Customer",
+        "owner": "lead_management",
+        "attributes": [
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "address",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "lead"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "lead_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey",
+        "name": "Site Survey",
+        "owner": "site_assessment",
+        "attributes": [
+          {
+            "name": "survey_date",
+            "type": "date"
+          },
+          {
+            "name": "roof_type",
+            "type": "text"
+          },
+          {
+            "name": "suitability_score",
+            "type": "number"
+          }
+        ],
+        "references": [
+          "customer"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "site_assessment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design",
+        "name": "Design",
+        "owner": "solution_design",
+        "attributes": [
+          {
+            "name": "panel_count",
+            "type": "number"
+          },
+          {
+            "name": "system_capacity_kw",
+            "type": "number"
+          },
+          {
+            "name": "design_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "site_survey"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "solution_design"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer",
+        "name": "Offer",
+        "owner": "sales_and_quoting",
+        "attributes": [
+          {
+            "name": "price",
+            "type": "money"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          },
+          {
+            "name": "valid_until",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "customer",
+          "design"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "sales_and_quoting"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order",
+        "name": "Purchase Order",
+        "owner": "procurement",
+        "attributes": [
+          {
+            "name": "order_date",
+            "type": "date"
+          },
+          {
+            "name": "total_cost",
+            "type": "money"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "design"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "procurement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier",
+        "name": "Supplier",
+        "owner": "procurement",
+        "attributes": [
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "contact_info",
+            "type": "text"
+          }
+        ],
+        "references": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "procurement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order",
+        "name": "Work Order",
+        "owner": "installation_management",
+        "attributes": [
+          {
+            "name": "scheduled_date",
+            "type": "date"
+          },
+          {
+            "name": "crew",
+            "type": "text"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "design",
+          "purchase_order"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "installation_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation",
+        "name": "Installation",
+        "owner": "installation_management",
+        "attributes": [
+          {
+            "name": "completion_date",
+            "type": "date"
+          },
+          {
+            "name": "commissioned",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "work_order",
+          "customer"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "installation_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice",
+        "name": "Invoice",
+        "owner": "billing",
+        "attributes": [
+          {
+            "name": "amount",
+            "type": "money"
+          },
+          {
+            "name": "due_date",
+            "type": "date"
+          },
+          {
+            "name": "paid",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "customer",
+          "installation",
+          "offer"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "billing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket",
+        "name": "Maintenance Ticket",
+        "owner": "system_maintenance",
+        "attributes": [
+          {
+            "name": "issue_description",
+            "type": "text"
+          },
+          {
+            "name": "opened_date",
+            "type": "date"
+          },
+          {
+            "name": "resolved",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "installation"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "system_maintenance"
+            }
+          ]
+        }
+      },
+      {
+        "id": "monitoring_record",
+        "name": "Monitoring Record",
+        "owner": "system_maintenance",
+        "attributes": [
+          {
+            "name": "reading_date",
+            "type": "date"
+          },
+          {
+            "name": "performance_ratio",
+            "type": "number"
+          }
+        ],
+        "references": [
+          "installation"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "system_maintenance"
+            }
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "id": "lead_capture_lead",
+        "name": "Capture Lead",
+        "aggregate": "lead",
+        "capability": "lead_management",
+        "emits": [
+          "lead_captured"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Acquire potential customers"
+            }
+          ]
+        }
+      },
+      {
+        "id": "lead_qualify_lead",
+        "name": "Qualify Lead",
+        "aggregate": "lead",
+        "capability": "lead_management",
+        "emits": [
+          "lead_qualified",
+          "lead_disqualified"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Qualify potential customers"
+            }
+          ]
+        }
+      },
+      {
+        "id": "lead_assign_lead_to_sales",
+        "name": "Assign Lead To Sales",
+        "aggregate": "lead",
+        "capability": "lead_management",
+        "emits": [
+          "lead_assigned_to_sales"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Hand off qualified leads for quoting"
+            }
+          ]
+        }
+      },
+      {
+        "id": "lead_mark_lead_lost",
+        "name": "Mark Lead Lost",
+        "aggregate": "lead",
+        "capability": "lead_management",
+        "emits": [
+          "lead_lost"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Lead does not convert"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_capture_lead",
+        "name": "Capture Lead",
+        "aggregate": "customer",
+        "capability": "lead_management",
+        "emits": [
+          "customer_lead_captured"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Acquire potential customers"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_qualify_lead",
+        "name": "Qualify Lead",
+        "aggregate": "customer",
+        "capability": "lead_management",
+        "emits": [
+          "customer_lead_qualified",
+          "customer_lead_disqualified"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Qualify potential customers"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_update_customer_details",
+        "name": "Update Customer Details",
+        "aggregate": "customer",
+        "capability": "lead_management",
+        "emits": [
+          "customer_details_updated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Acquire and qualify potential customers"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey_schedule_site_survey",
+        "name": "Schedule Site Survey",
+        "aggregate": "site_survey",
+        "capability": "site_assessment",
+        "emits": [
+          "site_survey_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site_assessment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey_reschedule_site_survey",
+        "name": "Reschedule Site Survey",
+        "aggregate": "site_survey",
+        "capability": "site_assessment",
+        "emits": [
+          "site_survey_rescheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site_assessment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey_complete_site_survey",
+        "name": "Complete Site Survey",
+        "aggregate": "site_survey",
+        "capability": "site_assessment",
+        "emits": [
+          "site_survey_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site_assessment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey_assess_suitability",
+        "name": "Assess Suitability",
+        "aggregate": "site_survey",
+        "capability": "site_assessment",
+        "emits": [
+          "site_survey_suitability_assessed",
+          "site_survey_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site_assessment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_draft_design",
+        "name": "Draft Design",
+        "aggregate": "design",
+        "capability": "solution_design",
+        "emits": [
+          "design_drafted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site assessment completed"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_calculate_system_capacity",
+        "name": "Calculate System Capacity",
+        "aggregate": "design",
+        "capability": "solution_design",
+        "emits": [
+          "design_capacity_calculated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "technical sizing of panels and output"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_finalize_design",
+        "name": "Finalize Design",
+        "aggregate": "design",
+        "capability": "solution_design",
+        "emits": [
+          "design_finalized"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "design approved for quoting"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_revise_design",
+        "name": "Revise Design",
+        "aggregate": "design",
+        "capability": "solution_design",
+        "emits": [
+          "design_revised"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer or site changes require rework"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_reject_design",
+        "name": "Reject Design",
+        "aggregate": "design",
+        "capability": "solution_design",
+        "emits": [
+          "design_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "design fails feasibility or approval"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_draft_offer",
+        "name": "Draft Offer",
+        "aggregate": "offer",
+        "capability": "sales_and_quoting",
+        "emits": [
+          "offer_drafted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Create commercial offers to convert qualified leads into sold projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_set_offer_price",
+        "name": "Set Offer Price",
+        "aggregate": "offer",
+        "capability": "sales_and_quoting",
+        "emits": [
+          "offer_priced"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Create commercial offers to convert qualified leads into sold projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_send_offer",
+        "name": "Send Offer",
+        "aggregate": "offer",
+        "capability": "sales_and_quoting",
+        "emits": [
+          "offer_sent"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Create commercial offers to convert qualified leads into sold projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_accept_offer",
+        "name": "Accept Offer",
+        "aggregate": "offer",
+        "capability": "sales_and_quoting",
+        "emits": [
+          "offer_accepted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "convert qualified leads into sold projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_reject_offer",
+        "name": "Reject Offer",
+        "aggregate": "offer",
+        "capability": "sales_and_quoting",
+        "emits": [
+          "offer_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "convert qualified leads into sold projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_revise_offer",
+        "name": "Revise Offer",
+        "aggregate": "offer",
+        "capability": "sales_and_quoting",
+        "emits": [
+          "offer_revised"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Create commercial offers to convert qualified leads into sold projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order_create_purchase_order",
+        "name": "Create Purchase Order",
+        "aggregate": "purchase_order",
+        "capability": "procurement",
+        "emits": [
+          "purchase_order_created"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Purchase equipment needed to fulfill installation projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order_approve_purchase_order",
+        "name": "Approve Purchase Order",
+        "aggregate": "purchase_order",
+        "capability": "procurement",
+        "emits": [
+          "purchase_order_approved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Purchase equipment needed to fulfill installation projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order_send_purchase_order_to_supplier",
+        "name": "Send Purchase Order To Supplier",
+        "aggregate": "purchase_order",
+        "capability": "procurement",
+        "emits": [
+          "purchase_order_sent_to_supplier"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Purchase equipment needed to fulfill installation projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order_record_purchase_order_receipt",
+        "name": "Record Purchase Order Receipt",
+        "aggregate": "purchase_order",
+        "capability": "procurement",
+        "emits": [
+          "purchase_order_received"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Purchase equipment needed to fulfill installation projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order_cancel_purchase_order",
+        "name": "Cancel Purchase Order",
+        "aggregate": "purchase_order",
+        "capability": "procurement",
+        "emits": [
+          "purchase_order_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Purchase equipment needed to fulfill installation projects"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_register_supplier",
+        "name": "Register Supplier",
+        "aggregate": "supplier",
+        "capability": "procurement",
+        "emits": [
+          "supplier_registered"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_update_supplier_details",
+        "name": "Update Supplier Details",
+        "aggregate": "supplier",
+        "capability": "procurement",
+        "emits": [
+          "supplier_details_updated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_deactivate_supplier",
+        "name": "Deactivate Supplier",
+        "aggregate": "supplier",
+        "capability": "procurement",
+        "emits": [
+          "supplier_deactivated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_create_work_order",
+        "name": "Create Work Order",
+        "aggregate": "work_order",
+        "capability": "installation_management",
+        "emits": [
+          "work_order_created"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "schedule installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_schedule_work_order",
+        "name": "Schedule Work Order",
+        "aggregate": "work_order",
+        "capability": "installation_management",
+        "emits": [
+          "work_order_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "schedule installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_assign_crew",
+        "name": "Assign Crew",
+        "aggregate": "work_order",
+        "capability": "installation_management",
+        "emits": [
+          "work_order_crew_assigned"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "execute installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_start_installation",
+        "name": "Start Installation",
+        "aggregate": "work_order",
+        "capability": "installation_management",
+        "emits": [
+          "work_order_installation_started"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "execute installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_complete_installation",
+        "name": "Complete Installation",
+        "aggregate": "work_order",
+        "capability": "installation_management",
+        "emits": [
+          "work_order_installation_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "execute installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_complete_commissioning",
+        "name": "Complete Commissioning",
+        "aggregate": "work_order",
+        "capability": "installation_management",
+        "emits": [
+          "work_order_commissioning_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "commissioning of solar systems"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_reschedule_work_order",
+        "name": "Reschedule Work Order",
+        "aggregate": "work_order",
+        "capability": "installation_management",
+        "emits": [
+          "work_order_rescheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "schedule installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_cancel_work_order",
+        "name": "Cancel Work Order",
+        "aggregate": "work_order",
+        "capability": "installation_management",
+        "emits": [
+          "work_order_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "schedule installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_schedule_installation",
+        "name": "Schedule Installation",
+        "aggregate": "installation",
+        "capability": "installation_management",
+        "emits": [
+          "installation_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation_and_commissioning"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_reschedule_installation",
+        "name": "Reschedule Installation",
+        "aggregate": "installation",
+        "capability": "installation_management",
+        "emits": [
+          "installation_rescheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation_and_commissioning"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_start_installation",
+        "name": "Start Installation",
+        "aggregate": "installation",
+        "capability": "installation_management",
+        "emits": [
+          "installation_started"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation_and_commissioning"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_complete_installation",
+        "name": "Complete Installation",
+        "aggregate": "installation",
+        "capability": "installation_management",
+        "emits": [
+          "installation_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation_and_commissioning"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_commission_system",
+        "name": "Commission System",
+        "aggregate": "installation",
+        "capability": "installation_management",
+        "emits": [
+          "installation_system_commissioned"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation_and_commissioning"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_cancel_installation",
+        "name": "Cancel Installation",
+        "aggregate": "installation",
+        "capability": "installation_management",
+        "emits": [
+          "installation_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation_and_commissioning"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_issue_invoice",
+        "name": "Issue Invoice",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_issued"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Invoice customers for delivered projects and services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_send_invoice",
+        "name": "Send Invoice",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_sent"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Invoice customers for delivered projects and services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_record_invoice_payment",
+        "name": "Record Invoice Payment",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_payment_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Invoice customers for delivered projects and services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_cancel_invoice",
+        "name": "Cancel Invoice",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Invoice customers for delivered projects and services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_dispute_invoice",
+        "name": "Dispute Invoice",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_disputed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Invoice customers for delivered projects and services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket_open_maintenance_ticket",
+        "name": "Open Maintenance Ticket",
+        "aggregate": "maintenance_ticket",
+        "capability": "system_maintenance",
+        "emits": [
+          "maintenance_ticket_opened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "System Maintenance: Monitor and maintain installed systems to ensure ongoing performance."
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket_assign_maintenance_ticket",
+        "name": "Assign Maintenance Ticket",
+        "aggregate": "maintenance_ticket",
+        "capability": "system_maintenance",
+        "emits": [
+          "maintenance_ticket_assigned"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "System Maintenance: Monitor and maintain installed systems to ensure ongoing performance."
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket_resolve_maintenance_ticket",
+        "name": "Resolve Maintenance Ticket",
+        "aggregate": "maintenance_ticket",
+        "capability": "system_maintenance",
+        "emits": [
+          "maintenance_ticket_resolved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "System Maintenance: Monitor and maintain installed systems to ensure ongoing performance."
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket_reopen_maintenance_ticket",
+        "name": "Reopen Maintenance Ticket",
+        "aggregate": "maintenance_ticket",
+        "capability": "system_maintenance",
+        "emits": [
+          "maintenance_ticket_reopened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "System Maintenance: Monitor and maintain installed systems to ensure ongoing performance."
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket_close_maintenance_ticket",
+        "name": "Close Maintenance Ticket",
+        "aggregate": "maintenance_ticket",
+        "capability": "system_maintenance",
+        "emits": [
+          "maintenance_ticket_closed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "System Maintenance: Monitor and maintain installed systems to ensure ongoing performance."
+            }
+          ]
+        }
+      },
+      {
+        "id": "monitoring_record_record_monitoring_reading",
+        "name": "Record Monitoring Reading",
+        "aggregate": "monitoring_record",
+        "capability": "system_maintenance",
+        "emits": [
+          "monitoring_record_monitoring_reading_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ongoing performance monitoring"
+            }
+          ]
+        }
+      },
+      {
+        "id": "monitoring_record_flag_underperformance",
+        "name": "Flag Underperformance",
+        "aggregate": "monitoring_record",
+        "capability": "system_maintenance",
+        "emits": [
+          "monitoring_record_underperformance_detected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "performance ratio below threshold"
+            }
+          ]
+        }
+      },
+      {
+        "id": "monitoring_record_confirm_system_health",
+        "name": "Confirm System Health",
+        "aggregate": "monitoring_record",
+        "capability": "system_maintenance",
+        "emits": [
+          "monitoring_record_system_health_confirmed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "routine maintenance check"
+            }
+          ]
+        }
+      }
+    ],
+    "events": [
+      {
+        "id": "lead_captured",
+        "name": "Lead Captured",
+        "aggregate": "lead",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "lead"
+            }
+          ]
+        }
+      },
+      {
+        "id": "lead_qualified",
+        "name": "Lead Qualified",
+        "aggregate": "lead",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "lead"
+            }
+          ]
+        }
+      },
+      {
+        "id": "lead_disqualified",
+        "name": "Lead Disqualified",
+        "aggregate": "lead",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "lead"
+            }
+          ]
+        }
+      },
+      {
+        "id": "lead_assigned_to_sales",
+        "name": "Lead Assigned To Sales",
+        "aggregate": "lead",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "lead"
+            }
+          ]
+        }
+      },
+      {
+        "id": "lead_lost",
+        "name": "Lead Lost",
+        "aggregate": "lead",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "lead"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_lead_captured",
+        "name": "Lead Captured",
+        "aggregate": "customer",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_lead_qualified",
+        "name": "Lead Qualified",
+        "aggregate": "customer",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_lead_disqualified",
+        "name": "Lead Disqualified",
+        "aggregate": "customer",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_details_updated",
+        "name": "Customer Details Updated",
+        "aggregate": "customer",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey_scheduled",
+        "name": "Site Survey Scheduled",
+        "aggregate": "site_survey",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site_survey"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey_completed",
+        "name": "Site Survey Completed",
+        "aggregate": "site_survey",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site_survey"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey_suitability_assessed",
+        "name": "Site Survey Suitability Assessed",
+        "aggregate": "site_survey",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site_survey"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey_rejected",
+        "name": "Site Survey Rejected",
+        "aggregate": "site_survey",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site_survey"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey_rescheduled",
+        "name": "Site Survey Rescheduled",
+        "aggregate": "site_survey",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site_survey"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_drafted",
+        "name": "Design Drafted",
+        "aggregate": "design",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "design"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_capacity_calculated",
+        "name": "Design Capacity Calculated",
+        "aggregate": "design",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "design"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_finalized",
+        "name": "Design Finalized",
+        "aggregate": "design",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "design"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_revised",
+        "name": "Design Revised",
+        "aggregate": "design",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "design"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_rejected",
+        "name": "Design Rejected",
+        "aggregate": "design",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "design"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_drafted",
+        "name": "Offer Drafted",
+        "aggregate": "offer",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "offer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_priced",
+        "name": "Offer Priced",
+        "aggregate": "offer",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "offer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_sent",
+        "name": "Offer Sent",
+        "aggregate": "offer",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "offer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_accepted",
+        "name": "Offer Accepted",
+        "aggregate": "offer",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "offer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_rejected",
+        "name": "Offer Rejected",
+        "aggregate": "offer",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "offer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_expired",
+        "name": "Offer Expired",
+        "aggregate": "offer",
+        "trigger": "time",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "offer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "offer_revised",
+        "name": "Offer Revised",
+        "aggregate": "offer",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "offer"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order_created",
+        "name": "Purchase Order Created",
+        "aggregate": "purchase_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "purchase_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order_approved",
+        "name": "Purchase Order Approved",
+        "aggregate": "purchase_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "purchase_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order_sent_to_supplier",
+        "name": "Purchase Order Sent To Supplier",
+        "aggregate": "purchase_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "purchase_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order_received",
+        "name": "Purchase Order Received",
+        "aggregate": "purchase_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "purchase_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "purchase_order_cancelled",
+        "name": "Purchase Order Cancelled",
+        "aggregate": "purchase_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "purchase_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_registered",
+        "name": "Supplier Registered",
+        "aggregate": "supplier",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_details_updated",
+        "name": "Supplier Details Updated",
+        "aggregate": "supplier",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_deactivated",
+        "name": "Supplier Deactivated",
+        "aggregate": "supplier",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_created",
+        "name": "Work Order Created",
+        "aggregate": "work_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_scheduled",
+        "name": "Work Order Scheduled",
+        "aggregate": "work_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_crew_assigned",
+        "name": "Crew Assigned",
+        "aggregate": "work_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_installation_started",
+        "name": "Installation Started",
+        "aggregate": "work_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_installation_completed",
+        "name": "Installation Completed",
+        "aggregate": "work_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_commissioning_completed",
+        "name": "Commissioning Completed",
+        "aggregate": "work_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_rescheduled",
+        "name": "Work Order Rescheduled",
+        "aggregate": "work_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_order_cancelled",
+        "name": "Work Order Cancelled",
+        "aggregate": "work_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_scheduled",
+        "name": "Installation Scheduled",
+        "aggregate": "installation",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_started",
+        "name": "Installation Started",
+        "aggregate": "installation",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_completed",
+        "name": "Installation Completed",
+        "aggregate": "installation",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_system_commissioned",
+        "name": "System Commissioned",
+        "aggregate": "installation",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_rescheduled",
+        "name": "Installation Rescheduled",
+        "aggregate": "installation",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_cancelled",
+        "name": "Installation Cancelled",
+        "aggregate": "installation",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_issued",
+        "name": "Invoice Issued",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_sent",
+        "name": "Invoice Sent",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_payment_recorded",
+        "name": "Invoice Payment Recorded",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_overdue",
+        "name": "Invoice Overdue",
+        "aggregate": "invoice",
+        "trigger": "time",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_cancelled",
+        "name": "Invoice Cancelled",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_disputed",
+        "name": "Invoice Disputed",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket_opened",
+        "name": "Maintenance Ticket Opened",
+        "aggregate": "maintenance_ticket",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "maintenance_ticket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket_assigned",
+        "name": "Maintenance Ticket Assigned",
+        "aggregate": "maintenance_ticket",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "maintenance_ticket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket_resolved",
+        "name": "Maintenance Ticket Resolved",
+        "aggregate": "maintenance_ticket",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "maintenance_ticket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket_reopened",
+        "name": "Maintenance Ticket Reopened",
+        "aggregate": "maintenance_ticket",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "maintenance_ticket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_ticket_closed",
+        "name": "Maintenance Ticket Closed",
+        "aggregate": "maintenance_ticket",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "maintenance_ticket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "monitoring_record_monitoring_reading_recorded",
+        "name": "Monitoring Reading Recorded",
+        "aggregate": "monitoring_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "monitoring_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "monitoring_record_underperformance_detected",
+        "name": "Underperformance Detected",
+        "aggregate": "monitoring_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "monitoring_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "monitoring_record_system_health_confirmed",
+        "name": "System Health Confirmed",
+        "aggregate": "monitoring_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "monitoring_record"
+            }
+          ]
+        }
+      }
+    ],
+    "policies": [
+      {
+        "id": "pol_c993b9ee",
+        "name": "Sync lead capture to customer",
+        "on": "customer_lead_captured",
+        "then": "customer_capture_lead",
+        "condition": "when a new lead is captured, mirror it as a customer lead",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "lead-to-customer sync"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_90a91877",
+        "name": "Sync lead qualification to customer",
+        "on": "customer_lead_qualified",
+        "then": "customer_qualify_lead",
+        "condition": "when a lead is qualified, qualify the corresponding customer lead",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "lead-to-customer sync"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_2c81b107",
+        "name": "Start design after site survey completed",
+        "on": "site_survey_completed",
+        "then": "design_draft_design",
+        "condition": "if the site survey confirms suitability for a system design",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site survey to design handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_f34fe809",
+        "name": "Draft offer after design finalized",
+        "on": "design_finalized",
+        "then": "offer_draft_offer",
+        "condition": "once the system design is finalized",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "design to offer handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_4fe60499",
+        "name": "Create purchase order after offer accepted",
+        "on": "offer_accepted",
+        "then": "purchase_order_create_purchase_order",
+        "condition": "to procure equipment needed for the accepted offer",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "offer to procurement handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_4d08481d",
+        "name": "Schedule installation after offer accepted",
+        "on": "offer_accepted",
+        "then": "installation_schedule_installation",
+        "condition": "if the offer includes installation services",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "offer to installation handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_01496d7c",
+        "name": "Create work order after purchase order received",
+        "on": "purchase_order_received",
+        "then": "work_order_create_work_order",
+        "condition": "once ordered materials have arrived",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "procurement to work order handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_6daa73be",
+        "name": "Issue invoice after installation completed",
+        "on": "installation_completed",
+        "then": "invoice_issue_invoice",
+        "condition": "once installation work is completed",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "installation to billing handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_6e6f424e",
+        "name": "Open maintenance ticket on underperformance",
+        "on": "monitoring_record_underperformance_detected",
+        "then": "maintenance_ticket_open_maintenance_ticket",
+        "condition": "when monitoring detects underperformance requiring service",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "monitoring to maintenance handoff"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "roles": {
+    "version": "1.0",
+    "roles": [
+      {
+        "id": "sales_representative",
+        "name": "Sales Representative",
+        "capabilities": [
+          "lead_management",
+          "sales_and_quoting"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Sales team"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_surveyor",
+        "name": "Site Surveyor",
+        "capabilities": [
+          "site_assessment"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Field assessment staff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "solar_designer",
+        "name": "Solar Designer",
+        "capabilities": [
+          "solution_design"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Technical design team"
+            }
+          ]
+        }
+      },
+      {
+        "id": "procurement_specialist",
+        "name": "Procurement Specialist",
+        "capabilities": [
+          "procurement"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Purchasing department"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_manager",
+        "name": "Installation Manager",
+        "capabilities": [
+          "installation_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Installation crew leads"
+            }
+          ]
+        }
+      },
+      {
+        "id": "billing_clerk",
+        "name": "Billing Clerk",
+        "capabilities": [
+          "billing"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Finance/administration staff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_technician",
+        "name": "Maintenance Technician",
+        "capabilities": [
+          "system_maintenance"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Field service technicians"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "workflows": {
+    "version": "1.0",
+    "workflows": [
+      {
+        "id": "lead_to_sale_order_to_cash",
+        "name": "Lead to Sale (Order to Cash)",
+        "steps": [
+          "lead_capture_lead",
+          "lead_qualify_lead",
+          "lead_assign_lead_to_sales",
+          "offer_draft_offer",
+          "offer_set_offer_price",
+          "offer_send_offer",
+          "offer_accept_offer",
+          "invoice_issue_invoice",
+          "invoice_send_invoice",
+          "invoice_record_invoice_payment"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Order to Cash"
+            }
+          ]
+        }
+      },
+      {
+        "id": "site_survey_and_design",
+        "name": "Site Survey and Design",
+        "steps": [
+          "site_survey_schedule_site_survey",
+          "site_survey_complete_site_survey",
+          "site_survey_assess_suitability",
+          "design_draft_design",
+          "design_calculate_system_capacity",
+          "design_finalize_design"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Design and Engineering"
+            }
+          ]
+        }
+      },
+      {
+        "id": "procurement_to_fulfillment",
+        "name": "Procurement to Fulfillment",
+        "steps": [
+          "supplier_register_supplier",
+          "purchase_order_create_purchase_order",
+          "purchase_order_approve_purchase_order",
+          "purchase_order_send_purchase_order_to_supplier",
+          "purchase_order_record_purchase_order_receipt"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Procure to Pay"
+            }
+          ]
+        }
+      },
+      {
+        "id": "installation_and_commissioning",
+        "name": "Installation and Commissioning",
+        "steps": [
+          "work_order_create_work_order",
+          "work_order_schedule_work_order",
+          "work_order_assign_crew",
+          "work_order_start_installation",
+          "work_order_complete_installation",
+          "work_order_complete_commissioning",
+          "installation_commission_system"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Installation Delivery"
+            }
+          ]
+        }
+      },
+      {
+        "id": "post_install_support_and_monitoring",
+        "name": "Post-Install Support and Monitoring",
+        "steps": [
+          "monitoring_record_record_monitoring_reading",
+          "monitoring_record_flag_underperformance",
+          "maintenance_ticket_open_maintenance_ticket",
+          "maintenance_ticket_assign_maintenance_ticket",
+          "maintenance_ticket_resolve_maintenance_ticket",
+          "maintenance_ticket_close_maintenance_ticket"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Service and Support"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "agents": {
+    "version": "1.0",
+    "agents": [
+      {
+        "id": "sales_agent",
+        "name": "Sales Agent",
+        "goal": "Acquire and convert qualified leads into sold solar projects",
+        "capabilities": [
+          "lead_management",
+          "sales_and_quoting"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "lead_management"
+            },
+            {
+              "anchor": "sales_and_quoting"
+            }
+          ]
+        }
+      },
+      {
+        "id": "design_assessment_agent",
+        "name": "Design & Assessment Agent",
+        "goal": "Survey sites and produce tailored technical solar designs",
+        "capabilities": [
+          "site_assessment",
+          "solution_design"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "site_assessment"
+            },
+            {
+              "anchor": "solution_design"
+            }
+          ]
+        }
+      },
+      {
+        "id": "operations_agent",
+        "name": "Operations Agent",
+        "goal": "Procure equipment and manage installation and commissioning of solar systems",
+        "capabilities": [
+          "procurement",
+          "installation_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "procurement"
+            },
+            {
+              "anchor": "installation_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "finance_agent",
+        "name": "Finance Agent",
+        "goal": "Invoice customers accurately and ensure timely payment for delivered projects",
+        "capabilities": [
+          "billing"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "billing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "maintenance_agent",
+        "name": "Maintenance Agent",
+        "goal": "Monitor and maintain installed solar systems to ensure ongoing performance",
+        "capabilities": [
+          "system_maintenance"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "system_maintenance"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

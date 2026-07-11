@@ -7,6 +7,10 @@
 import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
 import type { CoachConfig } from "@vbd/skills";
 import { narrativeMd } from "./data/solar";
+// A fully-generated solar model (all layers) baked in, so the example opens populated — every
+// diagram is rich and the entity connections trace works out of the box. Regenerate with the
+// generation script; it's a curated snapshot, editable like any project.
+import solarModel from "./data/solar-model.json";
 
 export interface Project {
   id: string;
@@ -77,14 +81,20 @@ function uid(): string {
 }
 
 function seed(): ProjectState {
+  const m = solarModel as unknown as Pick<Project, "capabilities" | "contexts" | "domain" | "roles" | "workflows" | "agents">;
   const p: Project = {
     id: uid(),
     name: "Sonnenkraft Solar (example)",
     narrative: narrativeMd,
     model: "claude-sonnet-5",
     effort: "medium",
-    capabilities: null,
-    provider: null,
+    capabilities: m.capabilities,
+    contexts: m.contexts,
+    domain: m.domain,
+    roles: m.roles,
+    workflows: m.workflows,
+    agents: m.agents,
+    provider: "example (generated)",
     updatedAt: 0,
   };
   return { projects: [p], activeId: p.id };

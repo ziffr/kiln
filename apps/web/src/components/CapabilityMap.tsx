@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
   Background,
   Controls,
   useReactFlow,
-  useNodesInitialized,
   type Node,
   type Edge,
 } from "@xyflow/react";
@@ -19,20 +18,42 @@ const NODE_W = 190;
 const NODE_H = 54;
 
 type Selectable = { selectedId: string | null; onSelect: (id: string | null) => void };
+type Bounds = { x: number; y: number; width: number; height: number };
 
-/** Inner flow — refits once React Flow has measured the elk-positioned nodes. */
-function Flow({ nodes, edges, onSelect }: { nodes: Node[]; edges: Edge[]; onSelect: (id: string | null) => void }): React.JSX.Element {
+/**
+ * Inner flow — fits the elk-computed bounds deterministically. We compute the viewport transform
+ * from the bounds and the container's real pixel size (read from the DOM) rather than relying on
+ * React Flow's ResizeObserver-driven measurement, which can stay un-fired when the map is mounted
+ * on stage navigation (not initial page load), leaving the graph scrolled to a corner. When RF's
+ * own measurement is available, setViewport lands it; the DOM-transform fallback covers the rest.
+ */
+function Flow({ nodes, edges, bounds, paneRef, onSelect }: { nodes: Node[]; edges: Edge[]; bounds: Bounds; paneRef: React.RefObject<HTMLDivElement | null>; onSelect: (id: string | null) => void }): React.JSX.Element {
   const rf = useReactFlow();
-  const inited = useNodesInitialized();
   useEffect(() => {
-    if (inited && nodes.length) rf.fitView({ padding: 0.2, duration: 200 });
-  }, [inited, nodes, rf]);
+    if (!nodes.length) return;
+    const fit = () => {
+      const el = paneRef.current;
+      if (!el) return;
+      const pw = el.clientWidth, ph = el.clientHeight;
+      if (pw < 2 || ph < 2) return;
+      const pad = 0.14;
+      const zoom = Math.min(3, Math.max(0.15, Math.min((pw * (1 - pad)) / bounds.width, (ph * (1 - pad)) / bounds.height)));
+      const x = pw / 2 - (bounds.x + bounds.width / 2) * zoom;
+      const y = ph / 2 - (bounds.y + bounds.height / 2) * zoom;
+      rf.setViewport({ x, y, zoom });
+      const vp = el.querySelector<HTMLElement>(".react-flow__viewport");
+      if (vp && vp.style.transform.replace(/\s/g, "").startsWith("translate(0px,0px)")) {
+        vp.style.transform = `translate(${x}px, ${y}px) scale(${zoom})`;
+      }
+    };
+    const timers = [40, 160, 400, 900].map((ms) => setTimeout(fit, ms));
+    return () => timers.forEach(clearTimeout);
+  }, [nodes, bounds, rf, paneRef]);
 
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
-      fitView
       minZoom={0.15}
       proOptions={{ hideAttribution: true }}
       onNodeClick={(_, n) => onSelect(n.id)}
@@ -58,7 +79,8 @@ export function CapabilityMap({
   onSelect,
 }: { ir: IR; areaOf?: Map<string, AreaInfo> } & Selectable): React.JSX.Element {
   const { t } = useTranslation();
-  const [laid, setLaid] = useState<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
+  const [laid, setLaid] = useState<{ nodes: Node[]; edges: Edge[]; bounds: Bounds }>({ nodes: [], edges: [], bounds: { x: 0, y: 0, width: 1, height: 1 } });
+  const paneRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,9 +123,12 @@ export function CapabilityMap({
           labelStyle: { fill: "var(--muted)", fontSize: 10 },
           style: { stroke: "var(--edge)" },
         }));
-        setLaid({ nodes, edges });
+        const xs = nodes.map((n) => n.position.x), ys = nodes.map((n) => n.position.y);
+        const minX = Math.min(...xs), minY = Math.min(...ys);
+        const maxX = Math.max(...xs.map((x) => x + NODE_W)), maxY = Math.max(...ys.map((y) => y + NODE_H));
+        setLaid({ nodes, edges, bounds: { x: minX, y: minY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) } });
       })
-      .catch(() => setLaid({ nodes: [], edges: [] }));
+      .catch(() => setLaid({ nodes: [], edges: [], bounds: { x: 0, y: 0, width: 1, height: 1 } }));
 
     return () => {
       cancelled = true;
@@ -144,7 +169,7 @@ export function CapabilityMap({
   const flowKey = useMemo(() => laid.nodes.map((n) => n.id).join("|"), [laid.nodes]);
 
   return (
-    <div style={{ height: "100%", minHeight: 420 }}>
+    <div style={{ height: "100%", minHeight: 420 }} ref={paneRef}>
       {laid.nodes.length === 0 ? (
         <div className="map-empty">
           <span className="map-spinner" aria-hidden="true" />
@@ -152,7 +177,7 @@ export function CapabilityMap({
         </div>
       ) : (
         <ReactFlowProvider key={flowKey}>
-          <Flow nodes={nodes} edges={laid.edges} onSelect={onSelect} />
+          <Flow nodes={nodes} edges={laid.edges} bounds={laid.bounds} paneRef={paneRef} onSelect={onSelect} />
         </ReactFlowProvider>
       )}
     </div>

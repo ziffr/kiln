@@ -63,24 +63,31 @@ export function BehaviourView({ domain, t }: { domain: DomainDoc; t: T }): React
   );
 }
 
-// Automations → reaction wiring: on <event> then <command>.
+// Automations → a bipartite wiring diagram: trigger events (left) curve to the commands they run
+// (right). Reads at a glance which events drive which actions across entities.
 export function AutomationsView({ domain, t }: { domain: DomainDoc; t: T }): React.JSX.Element {
   const policies = domain.policies ?? [];
   const evName = (id: string) => (domain.events ?? []).find((e) => e.id === id)?.name || id;
   const cmdName = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.name || id;
   if (!policies.length) return <Empty msg={t("emptyAutomations")} />;
+  const events = [...new Set(policies.map((p) => p.on))];
+  const commands = [...new Set(policies.map((p) => p.then))];
+  const GAP = 54, PADY = 12, BOX_H = 34, COL_W = 190, GAP_X = 300;
+  const H = Math.max(events.length, commands.length) * GAP + PADY;
+  const cy = (i: number) => i * GAP + PADY + BOX_H / 2;
+  const evY = Object.fromEntries(events.map((e, i) => [e, cy(i)]));
+  const cmdY = Object.fromEntries(commands.map((c, i) => [c, cy(i)]));
   return (
-    <div className="automations-view">
-      {policies.map((p, i) => (
-        <div key={i} className="reaction-row">
-          <span className="muted">{p.name}</span>
-          <div className="reaction-wire">
-            <span className="storm event">{evName(p.on)}</span>
-            <span className="storm-arrow">⟶ {t("thenRun")} ⟶</span>
-            <span className="storm command">{cmdName(p.then)}</span>
-          </div>
-        </div>
-      ))}
+    <div className="wiring" style={{ height: H, minWidth: GAP_X + COL_W }}>
+      <svg className="wiring-svg" width={GAP_X + COL_W} height={H}>
+        <defs><marker id="wire-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8" /></marker></defs>
+        {policies.map((p, i) => {
+          const y1 = evY[p.on], y2 = cmdY[p.then], x1 = COL_W, x2 = GAP_X;
+          return <path key={i} d={`M ${x1} ${y1} C ${x1 + 70} ${y1}, ${x2 - 70} ${y2}, ${x2} ${y2}`} className="wire" markerEnd="url(#wire-arrow)" />;
+        })}
+      </svg>
+      {events.map((e, i) => <div key={e} className="storm event wire-box" style={{ top: i * GAP + PADY, left: 0, width: COL_W }}>{evName(e)}</div>)}
+      {commands.map((c, i) => <div key={c} className="storm command wire-box" style={{ top: i * GAP + PADY, left: GAP_X, width: COL_W }}>{cmdName(c)}</div>)}
     </div>
   );
 }
@@ -91,7 +98,7 @@ export function RolesMatrix({ roles, caps, t }: { roles: RolesDoc; caps: Capabil
   return (
     <div className="matrix-wrap">
       <table className="role-matrix">
-        <thead><tr><th /> {roles.roles.map((r) => <th key={r.id} className="rot">{r.name || r.id}</th>)}</tr></thead>
+        <thead><tr><th />{roles.roles.map((r) => <th key={r.id} className="rot">{r.name || r.id}</th>)}</tr></thead>
         <tbody>
           {caps.capabilities.map((c) => (
             <tr key={c.id}>
@@ -107,7 +114,7 @@ export function RolesMatrix({ roles, caps, t }: { roles: RolesDoc; caps: Capabil
   );
 }
 
-// Workflows → ordered step sequences (command chips).
+// Workflows → a numbered left-to-right sequence: each step is a command, connected by arrows.
 export function WorkflowsView({ workflows, domain, t }: { workflows: WorkflowsDoc; domain: DomainDoc; t: T }): React.JSX.Element {
   if (!workflows.workflows.length) return <Empty msg={t("emptyWorkflows")} />;
   const cmdName = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.name || id;
@@ -116,9 +123,13 @@ export function WorkflowsView({ workflows, domain, t }: { workflows: WorkflowsDo
       {workflows.workflows.map((w) => (
         <div key={w.id} className="workflow-card">
           <div className="workflow-name">{w.name || w.id}</div>
-          <div className="workflow-steps">
+          <div className="wf-seq">
             {(w.steps ?? []).map((s, i) => (
-              <span key={i} className="wf-step">{i > 0 && <span className="wf-sep">→</span>}<span className="wf-chip">{cmdName(s)}</span></span>
+              <div key={i} className="wf-node">
+                {i > 0 && <span className="wf-conn" aria-hidden />}
+                <span className="wf-num">{i + 1}</span>
+                <span className="wf-box">{cmdName(s)}</span>
+              </div>
             ))}
             {(w.steps ?? []).length === 0 && <span className="muted">{t("noSteps")}</span>}
           </div>

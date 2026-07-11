@@ -1,0 +1,83 @@
+// Entities as a real ER diagram: entity boxes with typed fields, connected by reference edges,
+// laid out with elk (same stack as the capability map). Clicking an entity selects its owner.
+
+import { useEffect, useMemo, useState } from "react";
+import { ReactFlow, ReactFlowProvider, Background, Controls, Handle, Position, MarkerType, useReactFlow, useNodesInitialized, type Node, type Edge, type NodeProps } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import ELK from "elkjs/lib/elk.bundled.js";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@vbd/compiler";
+
+const elk = new ELK();
+const NODE_W = 210;
+const rowH = 22;
+const headH = 34;
+const nodeH = (fields: number) => headH + Math.max(1, fields) * rowH + 8;
+
+type EntityData = { name: string; owner: string; fields: { name: string; type: string }[] };
+
+function EntityNode({ data }: NodeProps): React.JSX.Element {
+  const d = data as unknown as EntityData;
+  return (
+    <div className="er-node">
+      <Handle type="target" position={Position.Top} className="er-handle" />
+      <div className="er-node-head">{d.name}</div>
+      <ul className="er-fields">
+        {d.fields.map((f) => (<li key={f.name}><span className="er-fname">{f.name}</span><code className="er-ftype">{f.type}</code></li>))}
+        {d.fields.length === 0 && <li className="muted er-nofields">—</li>}
+      </ul>
+      <Handle type="source" position={Position.Bottom} className="er-handle" />
+    </div>
+  );
+}
+const nodeTypes = { entity: EntityNode };
+
+function Flow({ nodes, edges, onSelect }: { nodes: Node[]; edges: Edge[]; onSelect: (id: string) => void }): React.JSX.Element {
+  const rf = useReactFlow();
+  const inited = useNodesInitialized();
+  useEffect(() => { if (inited && nodes.length) rf.fitView({ padding: 0.2, duration: 200 }); }, [inited, nodes, rf]);
+  return (
+    <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView minZoom={0.15} proOptions={{ hideAttribution: true }} onNodeClick={(_, n) => onSelect((n.data as unknown as EntityData).owner)}>
+      <Background color="var(--edge)" gap={20} />
+      <Controls showInteractive={false} />
+    </ReactFlow>
+  );
+}
+
+export function EntityDiagram({ domain, caps, onSelect }: { domain: DomainDoc; caps: CapabilityDoc; onSelect: (id: string) => void }): React.JSX.Element {
+  const [laid, setLaid] = useState<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
+  const sig = useMemo(() => domain.aggregates.map((a) => `${a.id}:${(a.references ?? []).join(",")}:${attributeSpecs(a).length}`).join("|"), [domain]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const aggs = domain.aggregates;
+    const ids = new Set(aggs.map((a) => a.id));
+    const refs = aggs.flatMap((a) => (a.references ?? []).filter((r) => ids.has(r)).map((r) => ({ id: `${a.id}->${r}`, from: a.id, to: r })));
+    const graph = {
+      id: "root",
+      layoutOptions: { "elk.algorithm": "layered", "elk.direction": "DOWN", "elk.spacing.nodeNode": "36", "elk.layered.spacing.nodeNodeBetweenLayers": "60" },
+      children: aggs.map((a) => ({ id: a.id, width: NODE_W, height: nodeH(attributeSpecs(a).length) })),
+      edges: refs.map((e) => ({ id: e.id, sources: [e.from], targets: [e.to] })),
+    };
+    elk.layout(graph).then((res) => {
+      if (cancelled) return;
+      const pos = new Map((res.children ?? []).map((c) => [c.id, { x: c.x ?? 0, y: c.y ?? 0 }]));
+      const nodes: Node[] = aggs.map((a) => ({
+        id: a.id, type: "entity", position: pos.get(a.id) ?? { x: 0, y: 0 },
+        data: { name: a.name || a.id, owner: a.owner, fields: attributeSpecs(a).map((f) => ({ name: f.name, type: f.type || "text" })) },
+        width: NODE_W, height: nodeH(attributeSpecs(a).length),
+      }));
+      const edges: Edge[] = refs.map((e) => ({ id: e.id, source: e.from, target: e.to, markerEnd: { type: MarkerType.ArrowClosed, color: "var(--muted)" }, style: { stroke: "var(--muted)" }, label: "refs", labelStyle: { fill: "var(--muted)", fontSize: 10 } }));
+      setLaid({ nodes, edges });
+    }).catch(() => setLaid({ nodes: [], edges: [] }));
+    return () => { cancelled = true; };
+  }, [sig, domain, caps]);
+
+  if (!domain.aggregates.length) return <div className="stage-empty">—</div>;
+  return (
+    <div style={{ height: "100%", minHeight: 460 }}>
+      <ReactFlowProvider key={laid.nodes.map((n) => n.id).join("|")}>
+        <Flow nodes={laid.nodes} edges={laid.edges} onSelect={onSelect} />
+      </ReactFlowProvider>
+    </div>
+  );
+}

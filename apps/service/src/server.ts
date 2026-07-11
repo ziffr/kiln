@@ -293,6 +293,24 @@ const server = createServer(async (req, res) => {
       return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
     }
 
+    // Proxy to the sandboxed app verifier (env-based → local Docker or a VPS, unchanged). No model /
+    // API key involved; forwards the generated file map and returns the build-and-run verdict.
+    if (req.method === "POST" && req.url === "/api/verify") {
+      const verifyUrl = process.env.VBD_VERIFY_URL;
+      if (!verifyUrl) return send(res, 200, { configured: false, error: "verifier not configured (set VBD_VERIFY_URL)" });
+      const body = (await readBody(req)) || "{}";
+      try {
+        const r = await fetch(verifyUrl.replace(/\/$/, "") + "/verify", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-verify-secret": process.env.VBD_VERIFY_SECRET ?? "" },
+          body,
+        });
+        return send(res, r.status, await r.json());
+      } catch (e) {
+        return send(res, 502, { ok: false, error: `verifier unreachable at ${verifyUrl}: ${e instanceof Error ? e.message : String(e)}` });
+      }
+    }
+
     // The LLM designs a per-entity screen (a validated view spec — data, never JSX, so it's build-safe).
     if (req.method === "POST" && req.url === "/api/app-components") {
       if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });

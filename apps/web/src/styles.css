@@ -435,3 +435,10 @@ textarea {
 .code-review-advisory { margin: 0; padding: 6px 12px; font-size: 12px; color: #fbbf24; background: #1c1707; border-bottom: 1px solid #161e2e; line-height: 1.4; }
 .code-export.refine { margin-left: auto; margin-right: 8px; background: transparent; color: #c4b5fd; border-color: #6d28d9; }
 .code-export.refine:hover:not(:disabled) { background: #1a1033; }
+
+/* Sandbox verify verdict */
+.cr-pass { color: #34d399; }
+.cr-fail { color: #f87171; }
+.verify-checks { list-style: none; margin: 0; padding: 6px 12px 10px; }
+.verify-checks li { padding: 4px 0; font-size: 13px; border-top: 1px solid #161e2e; }
+.verify-checks code { font-size: 12px; padding: 0 4px; border-radius: 3px; margin-right: 6px; }

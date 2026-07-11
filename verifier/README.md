@@ -10,33 +10,29 @@ It runs untrusted, LLM-generated code, so it must stay sandboxed (see **Security
 - `service.mjs` — the host service: accepts a file map, writes it to an ephemeral temp dir, runs the container with hard isolation, returns the verdict.
 - `probe.mjs` — generates a real solar app and either writes `./sample-app/` or POSTs it to the service.
 
-## Prove it locally (Docker Desktop / any local Docker)
+## Prove it locally — one command (Docker Desktop running)
 ```bash
-cd verifier
-npm run build:image                 # docker build -t vbd-verifier .   (needs network once, for the base image + baked deps)
-
-# A) one-shot, no service — generate a sample app and run the sandbox directly:
-npm run sample                      # writes ./sample-app + prints the exact docker run
-docker run --rm --network none --memory 512m --cpus 1 -v "$PWD/sample-app:/work" vbd-verifier
-
-# B) via the service (how VBD will call it):
-npm run up &                        # verifier on http://localhost:8900
-npm run probe                       # generates an app, POSTs /verify, prints the verdict
+bash verifier/run.sh
 ```
-Expected verdict: `{ "ok": true, "checks": [ server:boot, server:create, server:persist, server:command, client:transform, client:build ... ] }`.
+That's it. `run.sh` is fully automated: it creates `verifier/.env` with a fresh `VERIFY_SECRET`, wires `VBD_VERIFY_URL` + `VBD_VERIFY_SECRET` into the repo-root `.env` so VBD can reach it, **builds the Docker image if it's missing**, and starts the service on `http://localhost:8900`. No manual Docker.
 
-## Move to a VPS (same image, one env change)
-1. On the VPS (Ubuntu 22.04+, Docker installed): `git clone` this repo, `cd verifier`, `npm run build:image`.
-2. Run the service behind a reverse proxy (Caddy/nginx) with TLS, bound to a subdomain:
-   ```bash
-   VERIFY_SECRET=$(openssl rand -hex 24) PORT=8900 node service.mjs
-   ```
-3. Point VBD's service/functions at `https://verify.yourdomain/verify` with the `x-verify-secret` header. Nothing else changes — the image and runner are identical to local.
+Then in the app: open **View code → 🧪 Verify app**. Or from the CLI:
+```bash
+cd verifier && npm run probe        # generates a real app, POSTs /verify, prints the verdict
+```
+Expected verdict: `{ "ok": true, "checks": [ server:boot, server:create, server:persist, server:command, client:transform, client:build ] }`.
+
+## Move to a VPS (same command, one env change)
+1. On the VPS (Ubuntu 22.04+, Docker installed): `git clone` this repo, then `bash verifier/run.sh` (behind Caddy/nginx TLS on a subdomain).
+2. In the repo-root `.env` **where VBD runs** (or the Vercel env), set `VBD_VERIFY_URL=https://verify.yourdomain` and `VBD_VERIFY_SECRET=<that box's VERIFY_SECRET>`.
+3. Nothing else changes — the image, runner and service are identical local↔remote.
 
 ## Security model (do not skip)
 The container is run `--network none` (no exfiltration/callbacks), `--memory 512m --cpus 1 --pids-limit 256` (no resource exhaustion), `--read-only` root + a `/tmp` tmpfs, `--security-opt no-new-privileges`, non-root `USER node`, `--rm` (ephemeral), and a wall-clock timeout. The host service only orchestrates Docker; it never executes app code itself, validates paths before writing, and requires a shared secret when `VERIFY_SECRET` is set.
 - For stronger isolation on a shared VPS, run under **gVisor** (`--runtime=runsc`) or Firecracker microVMs, or use a managed sandbox (Cloudflare Sandbox SDK, E2B, Fly Machines, Modal).
 - Keep the VPS firewall to HTTPS-only; never put real secrets/keys on the verifier box — it needs none.
 
-## Next: wire into VBD
-Add a `POST /api/verify` proxy in `apps/service` + a Vercel function that forwards `{files}` (from `generateApp(...)` in the browser) to this service, and a "Verify app" button in the Code panel that shows the verdict — then feed failures into the existing fix loop for a generate → build → run → fix cycle.
+## VBD integration (built)
+- `apps/service` exposes `POST /api/verify` and a Vercel `verify` function — both forward `{files}` to `VBD_VERIFY_URL/verify` with the `x-verify-secret` header (env-based; returns `{configured:false}` when unset).
+- The **View code → 🧪 Verify app** button generates the current app (incl. any AI handlers/screens), POSTs it, and shows the verdict per check.
+- All config is variable-based, so local↔VPS cut-over is only the two `VBD_VERIFY_*` values.

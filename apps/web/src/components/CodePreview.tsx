@@ -5,6 +5,13 @@ import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, Age
 import type { CodeFinding } from "@vbd/skills";
 import { downloadZip } from "../zip";
 
+export interface VerifyVerdict {
+  ok?: boolean;
+  configured?: boolean;
+  error?: string;
+  checks?: { name: string; ok: boolean; detail: string }[];
+}
+
 /**
  * Read-only "generated code" preview — the payoff of the whole model (RES-001): a deterministic
  * projection to TypeScript types, an OpenAPI operation sketch (real commands, not just CRUD), the
@@ -19,6 +26,7 @@ export function CodePreview({
   agents,
   requestAppLogic,
   requestAppComponents,
+  requestVerify,
   requestCodeReview,
   onClose,
 }: {
@@ -30,6 +38,7 @@ export function CodePreview({
   agents: AgentsDoc;
   requestAppLogic: (feedback?: string) => Promise<{ handlers: Record<string, string>; written: number; skipped: number }>;
   requestAppComponents: () => Promise<{ views: Record<string, unknown>; written: number; skipped: number }>;
+  requestVerify: (files: Record<string, string>) => Promise<VerifyVerdict>;
   requestCodeReview: (handlerCode?: Record<string, string>) => Promise<CodeFinding[]>;
   onClose: () => void;
 }): React.JSX.Element {
@@ -42,9 +51,26 @@ export function CodePreview({
   const [review, setReview] = useState<CodeFinding[] | null>(null);
   const [handlers, setHandlers] = useState<Record<string, string> | null>(null); // AI-written logic, improved by fixes
   const [views, setViews] = useState<Record<string, unknown> | null>(null); // AI-designed per-entity screen specs
+  const [verifying, setVerifying] = useState(false);
+  const [verdict, setVerdict] = useState<VerifyVerdict | null>(null);
   const autoStop = useRef(false);
   const zipName = `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`;
-  const busy = exporting || reviewing || fixing || auto;
+  const busy = exporting || reviewing || fixing || auto || verifying;
+
+  // The exact files that would be exported right now (incl. any AI handlers/screens applied).
+  const currentFiles = (): Record<string, string> => generateApp(caps, domain, contexts, roles, handlers ?? undefined, (views as never) ?? undefined);
+
+  async function verifyApp(): Promise<void> {
+    setVerifying(true);
+    setExportNote(null);
+    try {
+      setVerdict(await requestVerify(currentFiles()));
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVerifying(false);
+    }
+  }
 
   const feedbackFrom = (fs: CodeFinding[]): string =>
     fs.map((f) => `[${f.severity}/${f.lens}] ${f.file}: ${f.message}${f.suggestion ? ` → ${f.suggestion}` : ""}`).join("\n");
@@ -146,6 +172,9 @@ export function CodePreview({
           <button className="code-export ghost" onClick={() => void autoFix()} disabled={busy} title={t("codeReviewAutoHint")}>
             {auto ? t("generating") : `⚡ ${t("codeReviewAuto")}`}
           </button>
+          <button className="code-export ghost" onClick={() => void verifyApp()} disabled={busy} title={t("verifyHint")}>
+            {verifying ? t("verifyBusy") : `🧪 ${t("verifyApp")}`}
+          </button>
           <button className="code-export ghost" onClick={() => void exportApp(false)} disabled={busy} title={t("exportAppHint")}>
             ⬇ {t("exportApp")}
           </button>
@@ -155,6 +184,26 @@ export function CodePreview({
         </span>
         <button className="nd-close" onClick={onClose} aria-label="close">×</button>
       </div>
+
+      {verdict && (
+        <div className="code-review">
+          <div className="code-review-head">
+            🧪 {t("verifyTitle")}
+            {verdict.configured === false ? <span className="muted"> — {t("verifyNotConfigured")}</span>
+              : verdict.ok ? <span className="cr-pass"> — {t("verifyPass")}</span>
+                : <span className="cr-fail"> — {t("verifyFail")}</span>}
+            <button className="nd-close" onClick={() => setVerdict(null)} aria-label="close">×</button>
+          </div>
+          {verdict.error && <p className="code-review-advisory">{verdict.error}</p>}
+          {verdict.checks && (
+            <ul className="verify-checks">
+              {verdict.checks.map((c) => (
+                <li key={c.name}><code className={c.ok ? "sev-low" : "sev-high"}>{c.ok ? "✓" : "✗"}</code> <span className="cr-file">{c.name}</span> <span className="muted">{c.detail}</span></li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {review && (
         <div className="code-review">

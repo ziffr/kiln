@@ -612,7 +612,7 @@ cd web && npm install && npm run dev    # http://localhost:5173 (proxies /api to
 ## What's here
 - \`server.mjs\` \u2014 REST per entity (typed-field validation, role-gated writes), a POST endpoint per command (record + events + automations), an event log. **SQLite** persistence (\`data.db\`, via built-in \`node:sqlite\`).
 - \`handlers.mjs\` \u2014 the business logic per command (isolated so it can be refined/regenerated).
-- \`web/\` \u2014 a React admin: a role picker, a screen per entity (typed form + command buttons) grouped by business area, and a live event log.
+- \`web/\` \u2014 a React admin: a role picker, a screen per entity (typed form + command buttons) grouped by business area, and a live event log. Screens are laid out from \`web/src/views.js\` (per-entity specs the AI can design \u2014 data, never generated JSX, so they can't break the build).
 - \`ARCHITECTURE.md\` \u2014 what/why/decisions + security notes. \`model.json\` \u2014 the source model.
 - \`eslint.config.js\`, \`.prettierrc\`, \`.editorconfig\`, \`jsconfig.json\` \u2014 lint/format/editor baseline.
 

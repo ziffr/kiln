@@ -1059,6 +1059,14 @@ export default function App(): React.JSX.Element {
                 setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
                 return data as { views: Record<string, unknown>; written: number; skipped: number };
               }}
+              requestVerify={async (files) => {
+                const res = await fetch(`${SERVICE_URL}/api/verify`, {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ files }),
+                });
+                return await res.json();
+              }}
               requestCodeReview={async (handlerCode) => {
                 const res = await fetch(`${SERVICE_URL}/api/code-review`, {
                   method: "POST",

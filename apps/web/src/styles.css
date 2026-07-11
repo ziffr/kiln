@@ -675,3 +675,22 @@ textarea {
 .ag-wire { stroke: #a78bfa; }
 .ag-cap { cursor: pointer; }
 .ag-cap:hover { outline: 1px solid var(--accent); }
+
+/* Entity connections trace (detail panel) */
+.trace { display: flex; flex-direction: column; gap: 4px; }
+.trace .nd-head { display: flex; align-items: center; justify-content: space-between; }
+.trace .nd-head h3 { margin: 0; font-size: 16px; }
+.trace-owner { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; font-size: 12px; color: var(--accent); cursor: pointer; margin-bottom: 6px; }
+.trace-owner:hover { border-color: var(--accent); }
+.trace-sec { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
+.trace-sec h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.trace-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.trace-emit { display: inline-flex; align-items: center; gap: 6px; }
+.trace-row .storm { font-size: 12px; padding: 3px 8px; }
+.trace-row button.storm { border: none; cursor: pointer; }
+.trace-row button.storm.clickable:hover { outline: 1px solid var(--accent); }
+.trace-cross { font-size: 11px; color: #f59e0b; }
+.trace-refs { display: flex; flex-wrap: wrap; gap: 6px; }
+.trace-ref { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 12px; color: var(--fg); cursor: pointer; }
+.trace-ref:hover { border-color: var(--accent); }
+.trace-ref.in { color: var(--muted); }

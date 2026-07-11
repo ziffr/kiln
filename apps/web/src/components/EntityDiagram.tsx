@@ -31,7 +31,7 @@ function Flow({ nodes, edges, onSelect }: { nodes: Node[]; edges: Edge[]; onSele
   const inited = useNodesInitialized();
   useEffect(() => { if (inited && nodes.length) rf.fitView({ padding: 0.2, duration: 200 }); }, [inited, nodes, rf]);
   return (
-    <ReactFlow nodes={nodes} edges={edges} fitView minZoom={0.15} proOptions={{ hideAttribution: true }} onNodeClick={(_, n) => onSelect((n.data as { owner: string }).owner)}>
+    <ReactFlow nodes={nodes} edges={edges} fitView minZoom={0.15} proOptions={{ hideAttribution: true }} onNodeClick={(_, n) => onSelect(n.id)}>
       <Background color="var(--edge)" gap={20} />
       <Controls showInteractive={false} />
     </ReactFlow>

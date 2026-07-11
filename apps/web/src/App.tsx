@@ -29,6 +29,7 @@ import { BehaviourView, AutomationsView, RolesMatrix, WorkflowsView } from "./co
 import { EntityDiagram } from "./components/EntityDiagram";
 import { AreaDiagram } from "./components/AreaDiagram";
 import { AgentDiagram } from "./components/AgentDiagram";
+import { EntityTrace } from "./components/EntityTrace";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
 import { CodePreview } from "./components/CodePreview";
@@ -223,6 +224,8 @@ export default function App(): React.JSX.Element {
   // The selected area (when a legend chip / bctx: node is selected) and its derived term list
   // (Q3: read-only ubiquitous language from the members' produced/consumed entity names).
   const selectedArea = contextsDoc.contexts.find((c) => contextNodeId(c.id) === selected);
+  // A selected entity (aggregate id) opens the cross-layer connections trace instead of NodeDetail.
+  const selectedAggregate = selected ? domainDoc.aggregates.find((a) => a.id === selected) : undefined;
   const areaTerms = (area: ContextInput): string[] => {
     const terms = new Set<string>();
     for (const m of [...(area.capabilities ?? []), ...(area.shared_kernel ?? [])]) {
@@ -960,6 +963,8 @@ export default function App(): React.JSX.Element {
         <aside className="stage-detail">
           {selectedArea ? (
             <AreaDetail area={selectedArea} doc={activeDoc} terms={areaTerms(selectedArea)} onEdit={editArea} onRetire={retireArea} onSelectCapability={setSelected} onClose={() => setSelected(null)} />
+          ) : selectedAggregate ? (
+            <EntityTrace entity={selectedAggregate} domain={flowDoc} caps={activeDoc} roles={rolesDoc} onSelectCap={setSelected} onSelectEntity={setSelected} onClose={() => setSelected(null)} t={t} />
           ) : selected ? (
             <NodeDetail
               doc={activeDoc}

@@ -52,10 +52,11 @@ export function CodePreview({
   const [handlers, setHandlers] = useState<Record<string, string> | null>(null); // AI-written logic, improved by fixes
   const [views, setViews] = useState<Record<string, unknown> | null>(null); // AI-designed per-entity screen specs
   const [verifying, setVerifying] = useState(false);
+  const [autoVerifying, setAutoVerifying] = useState(false);
   const [verdict, setVerdict] = useState<VerifyVerdict | null>(null);
   const autoStop = useRef(false);
   const zipName = `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`;
-  const busy = exporting || reviewing || fixing || auto || verifying;
+  const busy = exporting || reviewing || fixing || auto || verifying || autoVerifying;
 
   // The exact files that would be exported right now (incl. any AI handlers/screens applied).
   const currentFiles = (): Record<string, string> => generateApp(caps, domain, contexts, roles, handlers ?? undefined, (views as never) ?? undefined);
@@ -69,6 +70,32 @@ export function CodePreview({
       setExportNote(e instanceof Error ? e.message : String(e));
     } finally {
       setVerifying(false);
+    }
+  }
+
+  // Auto fix-and-re-verify: build → run in the sandbox → if a check fails, feed it back into handler
+  // regeneration → re-verify, up to 3 rounds, stopping when the app builds and runs clean. Closes the
+  // generate → build → run → fix loop. Threads handlers locally (React state is async).
+  async function autoVerify(): Promise<void> {
+    setAutoVerifying(true);
+    setExportNote(null);
+    let hc = handlers ?? undefined;
+    try {
+      for (let round = 0; round < 3; round++) {
+        const v = await requestVerify(generateApp(caps, domain, contexts, roles, hc, (views as never) ?? undefined));
+        setVerdict(v);
+        if (v.configured === false) { setExportNote(t("verifyNotConfigured")); break; }
+        const failing = (v.checks ?? []).filter((c) => !c.ok);
+        if (v.ok || failing.length === 0) break; // clean → done
+        const feedback = `The generated app failed these runtime checks — fix the handler logic so they pass:\n${failing.map((c) => `- ${c.name}: ${c.detail}`).join("\n")}`;
+        const r = await requestAppLogic(feedback);
+        hc = { ...(hc ?? {}), ...r.handlers };
+        setHandlers(hc);
+      }
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAutoVerifying(false);
     }
   }
 
@@ -174,6 +201,9 @@ export function CodePreview({
           </button>
           <button className="code-export ghost" onClick={() => void verifyApp()} disabled={busy} title={t("verifyHint")}>
             {verifying ? t("verifyBusy") : `🧪 ${t("verifyApp")}`}
+          </button>
+          <button className="code-export ghost" onClick={() => void autoVerify()} disabled={busy} title={t("verifyAutoHint")}>
+            {autoVerifying ? t("generating") : `🔁 ${t("verifyAuto")}`}
           </button>
           <button className="code-export ghost" onClick={() => void exportApp(false)} disabled={busy} title={t("exportAppHint")}>
             ⬇ {t("exportApp")}

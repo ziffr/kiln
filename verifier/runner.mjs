@@ -54,7 +54,9 @@ async function checkServer() {
     const cmd = model.commands?.[0];
     if (cmd) {
       const cc = await fetch(`${base}/api/commands/${cmd.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-      record("server:command", cc.ok, `POST /api/commands/${cmd.id} → ${cc.status}`);
+      const j = await cc.json().catch(() => ({}));
+      const herr = j && j.record && j.record._handlerError; // handler threw at runtime (server caught it)
+      record("server:command", cc.ok && !herr, herr ? `${cmd.id} handler threw: ${herr}` : `POST /api/commands/${cmd.id} → ${cc.status}`);
     }
   } catch (e) {
     record("server:probe", false, e.message);

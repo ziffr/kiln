@@ -43,10 +43,14 @@ import { SERVICE_URL } from "./config";
 
 
 const MODELS = [
-  { id: "claude-sonnet-5", label: "Sonnet 5", supportsEffort: true },
-  { id: "claude-opus-4-8", label: "Opus 4.8", supportsEffort: true },
-  { id: "claude-haiku-4-5", label: "Haiku 4.5", supportsEffort: false },
+  { id: "claude-sonnet-5", label: "Sonnet 5", supportsEffort: true, inPerM: 2, outPerM: 10 },
+  { id: "claude-opus-4-8", label: "Opus 4.8", supportsEffort: true, inPerM: 5, outPerM: 25 },
+  { id: "claude-haiku-4-5", label: "Haiku 4.5", supportsEffort: false, inPerM: 1, outPerM: 5 },
 ];
+// Rough tokens per model call (input/output), used only for the Auto cost estimate. Deliberately a
+// ballpark — the confirm shows a ±range, and the real per-call spend is reported after each call.
+const EST_IN_TOKENS = 2000;
+const EST_OUT_TOKENS = 800;
 const EFFORTS = ["low", "medium", "high", "max"];
 // Default per-tier models when "pick model per step" is on: upgrade the hard-reasoning stages to
 // Opus, keep the rest on Sonnet (quality-first; the user can drop light stages to Haiku for cost).
@@ -563,11 +567,22 @@ export default function App(): React.JSX.Element {
     if (autoRunning) return;
     const MAX_REFINES = 2;
     // Estimate the worst case up front and get explicit consent — a full run is a burst of
-    // higher-effort calls. reviews (one per layer) + up to 2 refine+re-review per refinable layer.
-    const nRefinable = reviewLayers.filter((r) => r.kind !== "capabilities" && r.kind !== "holistic").length;
-    const maxCalls = reviewLayers.length + nRefinable * MAX_REFINES * 2;
-    const lo = (maxCalls * 0.004).toFixed(2);
-    const hi = (maxCalls * 0.015).toFixed(2);
+    // higher-effort calls. Tier-aware: each stage is priced at the model it actually runs on
+    // (Opus stages cost more than Sonnet/Haiku ones). Per layer: 1 review + up to 2 refine+re-review.
+    const perCall = (modelId: string): number => {
+      const m = MODELS.find((x) => x.id === modelId);
+      return (EST_IN_TOKENS * (m?.inPerM ?? 2) + EST_OUT_TOKENS * (m?.outPerM ?? 10)) / 1_000_000;
+    };
+    let maxCalls = 0;
+    let midCost = 0;
+    for (const row of reviewLayers) {
+      const refinable = row.kind !== "capabilities" && row.kind !== "holistic";
+      const n = 1 + (refinable ? MAX_REFINES * 2 : 0); // worst case: initial review + (refine + re-review) × 2
+      maxCalls += n;
+      midCost += n * perCall(modelFor(row.kind));
+    }
+    const lo = (midCost * 0.5).toFixed(2);
+    const hi = (midCost * 1.5).toFixed(2);
     if (!window.confirm(t("autoConfirm", { calls: maxCalls, lo, hi }))) return;
     setAutoRunning(true);
     autoStopRef.current = false;

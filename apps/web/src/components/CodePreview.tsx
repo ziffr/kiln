@@ -18,6 +18,7 @@ export function CodePreview({
   workflows,
   agents,
   requestAppLogic,
+  requestAppComponents,
   requestCodeReview,
   onClose,
 }: {
@@ -28,6 +29,7 @@ export function CodePreview({
   workflows: WorkflowsDoc;
   agents: AgentsDoc;
   requestAppLogic: (feedback?: string) => Promise<{ handlers: Record<string, string>; written: number; skipped: number }>;
+  requestAppComponents: () => Promise<{ views: Record<string, unknown>; written: number; skipped: number }>;
   requestCodeReview: (handlerCode?: Record<string, string>) => Promise<CodeFinding[]>;
   onClose: () => void;
 }): React.JSX.Element {
@@ -39,6 +41,7 @@ export function CodePreview({
   const [auto, setAuto] = useState(false);
   const [review, setReview] = useState<CodeFinding[] | null>(null);
   const [handlers, setHandlers] = useState<Record<string, string> | null>(null); // AI-written logic, improved by fixes
+  const [views, setViews] = useState<Record<string, unknown> | null>(null); // AI-designed per-entity screen specs
   const autoStop = useRef(false);
   const zipName = `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`;
   const busy = exporting || reviewing || fixing || auto;
@@ -51,8 +54,15 @@ export function CodePreview({
     setExportNote(null);
     try {
       let hc = handlers;
-      if (withAI && !hc) { const r = await requestAppLogic(); hc = r.handlers; setHandlers(hc); setExportNote(t("exportAppAiNote", { written: r.written, total: r.written + r.skipped })); }
-      downloadZip(generateApp(caps, domain, contexts, roles, withAI ? hc ?? undefined : undefined), zipName);
+      let vs = views;
+      if (withAI) {
+        // Fan out both — the AI writes the handler logic and designs each entity's screen, concurrently.
+        const [logic, comp] = await Promise.all([hc ? Promise.resolve(null) : requestAppLogic(), vs ? Promise.resolve(null) : requestAppComponents()]);
+        if (logic) { hc = logic.handlers; setHandlers(hc); }
+        if (comp) { vs = comp.views; setViews(vs); }
+        setExportNote(t("exportAppAiNote2", { handlers: Object.keys(hc ?? {}).length, screens: Object.keys(vs ?? {}).length }));
+      }
+      downloadZip(generateApp(caps, domain, contexts, roles, withAI ? hc ?? undefined : undefined, withAI ? (vs as never) ?? undefined : undefined), zipName);
     } catch (e) {
       setExportNote(e instanceof Error ? e.message : String(e));
     } finally {

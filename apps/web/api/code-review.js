@@ -410,13 +410,25 @@ export function App() {
   );
 }
 `,
-    "web/src/components/EntityScreen.jsx": `${banner("Generic entity screen \u2014 a table, a typed create form, and this entity's command buttons.", "one component renders every entity from its schema, so screens stay in sync with the model.", "react; ../schema.js; ../api.js.", "form inputs are chosen from each field's declared type; refine per entity as needed.")}import React, { useEffect, useState } from 'react';
+    "web/src/components/EntityScreen.jsx": `${banner("Entity screen \u2014 table + typed create form + command buttons, laid out per the entity's view spec.", "one robust component renders every entity; the AI tailors layout via VIEWS (data), never JSX.", "react; ../schema.js; ../api.js; ../views.js.", "reads VIEWS[entity.id] for column order + formats; falls back to a default derived from field types.")}import React, { useEffect, useState } from 'react';
 import { MODEL } from '../schema.js';
+import { VIEWS } from '../views.js';
 import { api } from '../api.js';
+
+// Format a cell value for display per the spec's column format.
+function fmt(v, format) {
+  if (v === null || v === undefined || v === '') return '';
+  if (format === 'money') return '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 });
+  if (format === 'boolean') return v ? '\u2713' : '\u2717';
+  if (format === 'longtext') { const s = String(v); return s.length > 60 ? s.slice(0, 60) + '\u2026' : s; }
+  return String(v);
+}
 
 export function EntityScreen({ entity }) {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({});
+  const typeOf = Object.fromEntries(entity.fields.map(f => [f.name, f.type]));
+  const view = VIEWS[entity.id] || { columns: entity.fields.map(f => ({ field: f.name, format: ['money','date','boolean'].includes(f.type) ? f.type : 'text' })), formFields: entity.fields.map(f => f.name) };
   const commands = MODEL.commands.filter(c => c.entity === entity.id);
   const load = () => api.list(entity.id).then(setRows);
   useEffect(() => { load(); }, [entity.id]);
@@ -425,13 +437,14 @@ export function EntityScreen({ entity }) {
   return (
     <div>
       <h2>{entity.name}</h2>
-      <table><thead><tr><th>id</th>{entity.fields.map(f => <th key={f.name}>{f.name}</th>)}<th></th></tr></thead>
-        <tbody>{rows.map(r => (<tr key={r.id}><td>{r.id}</td>{entity.fields.map(f => <td key={f.name}>{String(r[f.name] ?? '')}</td>)}<td><button onClick={async () => { await api.remove(entity.id, r.id); load(); }}>\u2715</button></td></tr>))}</tbody>
+      {view.description && <p className="muted">{view.description}</p>}
+      <table><thead><tr>{view.columns.map(c => <th key={c.field}>{c.field}</th>)}<th></th></tr></thead>
+        <tbody>{rows.map(r => (<tr key={r.id}>{view.columns.map(c => <td key={c.field}>{c.format === 'badge' && r[c.field] ? <span className="badge-cell">{String(r[c.field])}</span> : fmt(r[c.field], c.format)}</td>)}<td><button onClick={async () => { await api.remove(entity.id, r.id); load(); }}>\u2715</button></td></tr>))}</tbody>
       </table>
       <div className="form"><h3>New {entity.name}</h3>
-        {entity.fields.map(f => (<label key={f.name}>{f.name} <span className="muted">{f.type}</span>
-          <input type={ {number:'number',money:'number',date:'date',boolean:'checkbox'}[f.type] || 'text' } checked={f.type==='boolean'?!!form[f.name]:undefined} value={f.type==='boolean'?undefined:(form[f.name] ?? '')} onChange={e => set(f.name, f.type==='boolean'?e.target.checked:e.target.value)} />
-        </label>))}
+        {view.formFields.map(name => { const type = typeOf[name] || 'text'; return (<label key={name}>{name} <span className="muted">{type}</span>
+          <input type={ {number:'number',money:'number',date:'date',boolean:'checkbox'}[type] || 'text' } checked={type==='boolean'?!!form[name]:undefined} value={type==='boolean'?undefined:(form[name] ?? '')} onChange={e => set(name, type==='boolean'?e.target.checked:e.target.value)} />
+        </label>); })}
         <button className="primary" onClick={create}>Create</button>
       </div>
       {commands.length > 0 && (<div className="commands"><h3>Actions</h3>
@@ -468,10 +481,11 @@ label input[type=checkbox] { width: auto; }
 .muted { color: #9ca3af; font-size: 12px; }
 button.primary { background: #4f46e5; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
 .commands button { margin: 0 8px 8px 0; padding: 6px 12px; border: 1px solid #4f46e5; color: #4f46e5; background: #fff; border-radius: 6px; cursor: pointer; }
+.badge-cell { display: inline-block; padding: 1px 8px; border-radius: 10px; background: #eef2ff; color: #4338ca; font-size: 12px; text-transform: capitalize; }
 `
   };
 }
-function generateApp(caps, domain, contexts, roles, handlerCode) {
+function generateApp(caps, domain, contexts, roles, handlerCode, viewSpecs) {
   const m = projectAppModel(caps, domain, contexts, roles);
   const files = {
     "package.json": J({
@@ -488,6 +502,8 @@ function generateApp(caps, domain, contexts, roles, handlerCode) {
     "model.json": J(m),
     "README.md": readme(m),
     "ARCHITECTURE.md": architectureDoc(m),
+    "web/src/views.js": `${banner("Per-entity view specs \u2014 LLM-designed screen layouts (data, not code).", "lets the AI tailor each entity's screen without generating JSX, so it can never break the build.", "none \u2014 consumed by EntityScreen.jsx.", "invalid/absent specs fall back to a sensible default derived from the field types.")}export const VIEWS = ${J(viewSpecs ?? {})};
+`,
     ...qaConfigFiles(),
     ...clientFiles(m)
   };
@@ -680,6 +696,23 @@ async function reviewGeneratedCode(caps, domain, contexts, roles, handlerCode, p
   const findings = perLens.flat().filter((f) => f.message).sort((a, b) => rank[a.severity] - rank[b.severity]);
   return { findings, provider: provider.name };
 }
+
+// ../../packages/skills/src/components.ts
+var FORMATS = ["text", "money", "date", "boolean", "badge", "longtext"];
+var COMPONENTS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["columns", "formFields"],
+  properties: {
+    description: { type: "string" },
+    titleField: { type: "string" },
+    columns: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, required: ["field", "format"], properties: { field: { type: "string" }, format: { type: "string", enum: [...FORMATS] } } }
+    },
+    formFields: { type: "array", items: { type: "string" } }
+  }
+};
 
 // ../../packages/skills/src/index.ts
 function safeParseJson(raw) {

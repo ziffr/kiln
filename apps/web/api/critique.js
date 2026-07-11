@@ -260,6 +260,23 @@ async function critiqueLayer(layer, model, provider) {
   return { findings, provider: res.provider };
 }
 
+// ../../packages/skills/src/components.ts
+var FORMATS = ["text", "money", "date", "boolean", "badge", "longtext"];
+var COMPONENTS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["columns", "formFields"],
+  properties: {
+    description: { type: "string" },
+    titleField: { type: "string" },
+    columns: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, required: ["field", "format"], properties: { field: { type: "string" }, format: { type: "string", enum: [...FORMATS] } } }
+    },
+    formFields: { type: "array", items: { type: "string" } }
+  }
+};
+
 // ../../packages/skills/src/index.ts
 function safeParseJson(raw) {
   const fenced = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();

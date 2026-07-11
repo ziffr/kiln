@@ -69,6 +69,23 @@ var SHA256_K = new Uint32Array([
   3329325298
 ]);
 
+// ../../packages/skills/src/components.ts
+var FORMATS = ["text", "money", "date", "boolean", "badge", "longtext"];
+var COMPONENTS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["columns", "formFields"],
+  properties: {
+    description: { type: "string" },
+    titleField: { type: "string" },
+    columns: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, required: ["field", "format"], properties: { field: { type: "string" }, format: { type: "string", enum: [...FORMATS] } } }
+    },
+    formFields: { type: "array", items: { type: "string" } }
+  }
+};
+
 // ../../packages/skills/src/coach.ts
 var DEFAULT_COACH_CONFIG = { depth: "standard" };
 var DEPTH_GUIDANCE = {

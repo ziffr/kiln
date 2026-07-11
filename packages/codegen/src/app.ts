@@ -91,38 +91,80 @@ const COERCERS: Record<string, string> = {
   reference: "(v) => (v == null ? null : String(v))",
 };
 
-/** The zero-dependency Node API server (runs with `node server.mjs`) — validated, access-controlled, documented. */
+// SQLite column type per field type.
+const SQL_TYPE: Record<string, string> = { number: "REAL", money: "REAL", boolean: "INTEGER", date: "TEXT", text: "TEXT", reference: "TEXT" };
+
+/** The API server — SQLite-persisted, validated, access-controlled, documented. Zero npm deps (uses
+ *  Node's built-in node:sqlite; requires Node ≥ 22). Runs with `npm start`. */
 function serverFile(m: AppModel): string {
   const schema = Object.fromEntries(m.entities.map((e) => [e.id, e.fields]));
+  // Column list per entity: id + declared fields + audit/meta columns + a JSON overflow column.
+  const columns = Object.fromEntries(m.entities.map((e) => [e.id, ["id", ...e.fields.map((f) => f.name), "_command", "_at", "_reactedTo", "_extra"]]));
+  const createTables = m.entities
+    .map((e) => {
+      const cols = ["id TEXT PRIMARY KEY", ...e.fields.map((f) => `"${f.name}" ${SQL_TYPE[f.type] || "TEXT"}`), "_command TEXT", "_at INTEGER", "_reactedTo TEXT", "_extra TEXT"];
+      return `db.exec('CREATE TABLE IF NOT EXISTS "${e.id}" (${cols.join(", ")})');`;
+    })
+    .join("\n");
   return `${banner(
     `${m.domain} API — REST over the modelled entities + a command endpoint per business action.`,
     "runnable back end for the generated app; the model's automations fire here as real hand-offs.",
-    "node:http only (zero npm dependencies) — runs with `node server.mjs`.",
-    "in-memory store (swap for a DB); typed-field validation; role-gated writes via x-role header (scaffold — replace with real auth).",
+    "node:http + node:sqlite (both built in — zero npm dependencies). Requires Node >= 22.",
+    "SQLite persistence (data.db); typed-field validation; role-gated writes via x-role header (scaffold — replace with real auth).",
   )}import { createServer } from 'node:http';
+import { DatabaseSync } from 'node:sqlite';
 import { HANDLERS } from './handlers.mjs';
 
 export const MODEL = ${J({ entities: m.entities, commands: m.commands, events: m.events, policies: m.policies })};
-// Field types per entity (for validation) and write permissions per entity (from the roles layer).
+// Field types per entity (validation), writable columns per entity, and write permissions (roles layer).
 const SCHEMA = ${J(schema)};
+const COLUMNS = ${J(columns)};
 const PERMISSIONS = ${J(m.permissions)};
 const COERCE = { ${Object.entries(COERCERS).map(([k, v]) => `${k}: ${v}`).join(", ")} };
 
-// Security config — override in production.
+// Config — override in production.
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';        // set to your web origin in prod
 const AUTH = process.env.AUTH !== 'off';                    // role checks on; set AUTH=off to disable
 const PORT = process.env.PORT || 8787;
 
-const db = Object.fromEntries(MODEL.entities.map(e => [e.id, []]));
-const eventLog = [];
-let seq = 1;
-const genId = () => 'id_' + (seq++);
+const db = new DatabaseSync(process.env.DB || 'data.db');
+${createTables}
+db.exec('CREATE TABLE IF NOT EXISTS _events (id TEXT, type TEXT, entity TEXT, command TEXT, at INTEGER)');
+let seq = Date.now();
+const genId = () => 'id_' + (seq++).toString(36);
+
+// SQLite accepts only string/number/bigint/null/Uint8Array — normalise everything else.
+const norm = (v) => v === undefined || v === null ? null : typeof v === 'boolean' ? (v ? 1 : 0) : (typeof v === 'object' ? JSON.stringify(v) : v);
+
+/** Split a record into its table columns (+ a JSON _extra column for any handler-computed extras). */
+function toRow(entity, rec) {
+  const known = new Set(COLUMNS[entity]); const row = {}; const extra = {};
+  for (const [k, v] of Object.entries(rec)) (known.has(k) ? row : extra)[k] = v;
+  row._extra = Object.keys(extra).length ? JSON.stringify(extra) : null;
+  return row;
+}
+/** Re-merge the _extra JSON back onto a row read from the DB. */
+function fromRow(row) { if (!row) return row; const { _extra, ...rest } = row; return _extra ? { ...rest, ...JSON.parse(_extra) } : rest; }
+
+function dbInsert(entity, rec) {
+  const row = toRow(entity, rec); const cols = Object.keys(row);
+  db.prepare('INSERT INTO "' + entity + '" (' + cols.map(c => '"' + c + '"').join(', ') + ') VALUES (' + cols.map(() => '?').join(', ') + ')').run(...cols.map(c => norm(row[c])));
+  return rec;
+}
+const dbAll = (entity) => db.prepare('SELECT * FROM "' + entity + '"').all().map(fromRow);
+const dbGet = (entity, id) => fromRow(db.prepare('SELECT * FROM "' + entity + '" WHERE id = ?').get(id));
+const dbDelete = (entity, id) => db.prepare('DELETE FROM "' + entity + '" WHERE id = ?').run(id).changes > 0;
+function dbUpdate(entity, id, patch) {
+  const existing = dbGet(entity, id); if (!existing) return null;
+  const merged = { ...existing, ...patch, id };
+  db.prepare('DELETE FROM "' + entity + '" WHERE id = ?').run(id);
+  return dbInsert(entity, merged);
+}
 
 /** Validate + coerce an input object against an entity's declared fields. Unknown keys are dropped. */
 function validate(entityId, input) {
   const fields = SCHEMA[entityId] || [];
-  const clean = {};
-  const errors = [];
+  const clean = {}; const errors = [];
   for (const f of fields) {
     if (input[f.name] === undefined) continue;
     const coerced = (COERCE[f.type] || COERCE.text)(input[f.name]);
@@ -139,22 +181,21 @@ function mayWrite(entityId, role) {
   return !allowed || allowed.length === 0 || allowed.includes(role);
 }
 
-// Execute a modelled command: run its handler to build the record, append emitted events, and fire
-// any reactions (policies) whose trigger event matches — a real cross-entity hand-off, depth-guarded.
+// Execute a modelled command: run its handler to build the record, persist it, append emitted events,
+// and fire any reactions (policies) whose trigger event matches — a real hand-off, depth-guarded.
 export function runCommand(cmdId, input = {}, depth = 0) {
   const cmd = MODEL.commands.find(c => c.id === cmdId);
   if (!cmd) throw new Error('unknown command ' + cmdId);
   const { clean } = validate(cmd.entity, input);
-  const ctx = { genId, all: (e) => db[e] || [], find: (e, id) => (db[e] || []).find(r => r.id === id) };
+  const ctx = { genId, all: dbAll, find: dbGet };
   let built = {};
   // Handlers receive ONLY validated+coerced fields (never raw input) so validation can't be bypassed.
   try { built = HANDLERS[cmdId] ? HANDLERS[cmdId](clean, ctx) : { ...clean }; } catch (e) { built = { ...clean, _handlerError: String(e && e.message || e) }; }
-  const rec = { id: genId(), ...built, _command: cmdId, _at: Date.now() };
-  (db[cmd.entity] ||= []).push(rec);
+  const rec = dbInsert(cmd.entity, { id: genId(), ...built, _command: cmdId, _at: Date.now(), _reactedTo: input._reactedTo || null });
   const emitted = [];
   for (const evId of cmd.emits) {
-    const ev = { id: genId(), type: evId, entity: cmd.entity, command: cmdId, at: Date.now() };
-    eventLog.push(ev); emitted.push(evId);
+    db.prepare('INSERT INTO _events VALUES (?, ?, ?, ?, ?)').run(genId(), evId, cmd.entity, cmdId, Date.now());
+    emitted.push(evId);
     if (depth < 5) for (const p of MODEL.policies) if (p.on === evId) {
       try { runCommand(p.then, { _reactedTo: evId }, depth + 1); } catch { /* reaction target not runnable yet */ }
     }
@@ -181,21 +222,21 @@ createServer(async (req, res) => {
   const role = req.headers['x-role'] || '';
   try {
     if (parts[0] === 'meta') return send(res, 200, MODEL);
-    if (parts[0] === 'events') return send(res, 200, eventLog);
+    if (parts[0] === 'events') return send(res, 200, db.prepare('SELECT * FROM _events ORDER BY at').all());
     if (parts[0] === 'commands' && req.method === 'POST') {
       const cmd = MODEL.commands.find(c => c.id === parts[1]);
       if (cmd && !mayWrite(cmd.entity, role)) return send(res, 403, { error: 'role not permitted' });
       return send(res, 200, runCommand(parts[1], await readBody(req)));
     }
     const entity = parts[0];
-    if (!db[entity]) return send(res, 404, { error: 'no such entity: ' + entity });
+    if (!COLUMNS[entity]) return send(res, 404, { error: 'no such entity: ' + entity });
     const id = parts[1];
-    if (req.method === 'GET' && !id) return send(res, 200, db[entity]);
-    if (req.method === 'GET' && id) return send(res, 200, db[entity].find(r => r.id === id) || null);
+    if (req.method === 'GET' && !id) return send(res, 200, dbAll(entity));
+    if (req.method === 'GET' && id) return send(res, 200, dbGet(entity, id) || null);
     if (req.method !== 'GET' && !mayWrite(entity, role)) return send(res, 403, { error: 'role not permitted' });
-    if (req.method === 'POST') { const { clean, errors } = validate(entity, await readBody(req)); if (errors.length) return send(res, 422, { errors }); const rec = { id: genId(), ...clean }; db[entity].push(rec); return send(res, 201, rec); }
-    if (req.method === 'PUT' && id) { const i = db[entity].findIndex(r => r.id === id); if (i < 0) return send(res, 404, {}); const { clean, errors } = validate(entity, await readBody(req)); if (errors.length) return send(res, 422, { errors }); db[entity][i] = { ...db[entity][i], ...clean }; return send(res, 200, db[entity][i]); }
-    if (req.method === 'DELETE' && id) { db[entity] = db[entity].filter(r => r.id !== id); return send(res, 200, { ok: true }); }
+    if (req.method === 'POST') { const { clean, errors } = validate(entity, await readBody(req)); if (errors.length) return send(res, 422, { errors }); return send(res, 201, dbInsert(entity, { id: genId(), ...clean })); }
+    if (req.method === 'PUT' && id) { const { clean, errors } = validate(entity, await readBody(req)); if (errors.length) return send(res, 422, { errors }); const updated = dbUpdate(entity, id, clean); return updated ? send(res, 200, updated) : send(res, 404, {}); }
+    if (req.method === 'DELETE' && id) { return send(res, dbDelete(entity, id) ? 200 : 404, { ok: true }); }
     send(res, 405, { error: 'method not allowed' });
   } catch (e) { send(res, 400, { error: String(e && e.message || e) }); }
 }).listen(PORT, () => console.log('API on http://localhost:' + PORT + (AUTH ? ' (role checks on)' : '')));
@@ -238,7 +279,8 @@ export function generateApp(
       name: `${slug(m.domain)}-app`,
       private: true,
       type: "module",
-      scripts: { start: "node server.mjs", lint: "eslint . && cd web && npm run lint", format: "prettier --write ." },
+      engines: { node: ">=22" },
+      scripts: { start: "node --disable-warning=ExperimentalWarning server.mjs", lint: "eslint . && cd web && npm run lint", format: "prettier --write ." },
       devDependencies: { eslint: "^9.0.0", prettier: "^3.2.0" },
       description: `Generated ${m.domain} app — API + admin client, derived from the business model.`,
     }),
@@ -258,7 +300,7 @@ function qaConfigFiles(): Record<string, string> {
   const eslint = `// Flat ESLint config — baseline hygiene for the generated code.\nexport default [\n  { ignores: ['**/node_modules/**', 'web/dist/**'] },\n  {\n    languageOptions: { ecmaVersion: 2023, sourceType: 'module' },\n    rules: {\n      'no-unused-vars': 'warn',\n      'no-undef': 'off',\n      'prefer-const': 'warn',\n      eqeqeq: ['warn', 'smart'],\n      'no-var': 'error',\n    },\n  },\n];\n`;
   const prettier = J({ printWidth: 100, singleQuote: true, semi: true, trailingComma: "all" });
   const editorconfig = `root = true\n\n[*]\ncharset = utf-8\nindent_style = space\nindent_size = 2\nend_of_line = lf\ninsert_final_newline = true\ntrim_trailing_whitespace = true\n`;
-  const gitignore = `node_modules/\nweb/dist/\n.DS_Store\n*.log\n.env\n`;
+  const gitignore = `node_modules/\nweb/dist/\n.DS_Store\n*.log\n.env\ndata.db\ndata.db-*\n`;
   const jsconfig = J({ compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", checkJs: false, jsx: "react-jsx" }, exclude: ["node_modules", "web/dist"] });
   return {
     "eslint.config.js": eslint,
@@ -297,7 +339,7 @@ Write access is enforced in \`server.mjs\` via the \`x-role\` header against \`P
 ${list(m.areas.map((a) => `**${a.name}** — ${a.capabilities.join(", ")}`))}
 
 ## Key decisions
-- **In-memory store** for zero-setup runnability — swap the \`db\` object in \`server.mjs\` for a real database (SQLite/Postgres) when persistence is needed.
+- **SQLite via built-in \`node:sqlite\`** — real persistence (\`data.db\`) with zero npm dependencies; requires Node ≥ 22. Swap for Postgres when you need concurrency/scale.
 - **Command endpoints** (not just CRUD) so business actions and their events/automations are first-class.
 - **Typed-field validation** and **role-gated writes** are enforced server-side; the client mirrors the field types.
 - **Handlers isolated** in \`handlers.mjs\` so business logic can evolve (or be regenerated) without touching transport.
@@ -316,9 +358,9 @@ A runnable full-stack starter derived from the business model (${m.entities.leng
 
 ## Run it
 
-**API** (no install needed — zero dependencies):
+**API** (no install needed — zero dependencies; requires **Node ≥ 22** for built-in SQLite):
 \`\`\`
-node server.mjs        # http://localhost:8787
+npm start        # http://localhost:8787  (persists to data.db)
 \`\`\`
 
 **Admin client:**
@@ -327,7 +369,7 @@ cd web && npm install && npm run dev    # http://localhost:5173 (proxies /api to
 \`\`\`
 
 ## What's here
-- \`server.mjs\` — REST per entity (typed-field validation, role-gated writes), a POST endpoint per command (record + events + automations), an event log. In-memory store.
+- \`server.mjs\` — REST per entity (typed-field validation, role-gated writes), a POST endpoint per command (record + events + automations), an event log. **SQLite** persistence (\`data.db\`, via built-in \`node:sqlite\`).
 - \`handlers.mjs\` — the business logic per command (isolated so it can be refined/regenerated).
 - \`web/\` — a React admin: a role picker, a screen per entity (typed form + command buttons) grouped by business area, and a live event log.
 - \`ARCHITECTURE.md\` — what/why/decisions + security notes. \`model.json\` — the source model.

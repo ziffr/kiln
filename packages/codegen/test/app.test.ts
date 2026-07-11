@@ -43,6 +43,8 @@ test("generateApp emits QA config + docs and a hardened server", () => {
   }
   // hardening present
   assert.match(files["server.mjs"], /function validate\(/);
+  assert.match(files["server.mjs"], /node:sqlite/);
+  assert.match(files["server.mjs"], /CREATE TABLE IF NOT EXISTS/);
   assert.match(files["server.mjs"], /mayWrite\(/);
   assert.match(files["server.mjs"], /PERMISSIONS = /);
   // roles → permissions wired (Installer owns installation which owns 'job')

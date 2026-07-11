@@ -544,10 +544,17 @@ export default function App(): React.JSX.Element {
   // accumulating override so each re-review (and downstream refine) sees the freshly-refined docs.
   async function autoReview(): Promise<void> {
     if (autoRunning) return;
+    const MAX_REFINES = 2;
+    // Estimate the worst case up front and get explicit consent — a full run is a burst of
+    // higher-effort calls. reviews (one per layer) + up to 2 refine+re-review per refinable layer.
+    const nRefinable = reviewLayers.filter((r) => r.kind !== "capabilities" && r.kind !== "holistic").length;
+    const maxCalls = reviewLayers.length + nRefinable * MAX_REFINES * 2;
+    const lo = (maxCalls * 0.004).toFixed(2);
+    const hi = (maxCalls * 0.015).toFixed(2);
+    if (!window.confirm(t("autoConfirm", { calls: maxCalls, lo, hi }))) return;
     setAutoRunning(true);
     autoStopRef.current = false;
     setError(null);
-    const MAX_REFINES = 2;
     try {
       let acc: ModelOverride = {};
       for (const row of reviewLayers) {
@@ -952,7 +959,7 @@ export default function App(): React.JSX.Element {
             busy={reviewBusy}
             refinable={(k) => k !== "capabilities" && k !== "holistic"}
             onReview={(k) => void reviewLayer(k)}
-            onRefine={(k) => void refineLayer(k)}
+            onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
             onSelect={selectFinding}
             autoRunning={autoRunning}
             autoLayer={autoLayer}

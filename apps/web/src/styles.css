@@ -374,3 +374,17 @@ textarea {
 .review-btn.stop { border-color: #b91c1c; color: #fca5a5; }
 .review-btn.stop:hover { background: #2a1010; }
 .review-row.auto-active { background: #12172a; border-radius: 6px; }
+
+/* Per-proposal accept / amend + applied banner */
+.review-findings li.deselected { opacity: 0.45; }
+.finding-top { display: flex; align-items: flex-start; gap: 7px; }
+.finding-check { margin-top: 3px; flex: none; accent-color: #7c3aed; }
+.finding-msg { flex: 1; }
+.finding-msg.clickable { cursor: pointer; }
+.finding-msg.clickable:hover { color: #fff; }
+.finding-fix { padding: 2px 0 0 22px; display: flex; align-items: flex-start; gap: 6px; }
+.finding-amend { flex: none; background: transparent; border: none; color: #7c3aed; cursor: pointer; font-size: 12px; padding: 0 2px; }
+.finding-amend:hover { color: #a78bfa; }
+.finding-edit { width: 100%; min-height: 46px; font: inherit; font-size: 13px; color: #e5e7eb; background: #0b0f1a; border: 1px solid #6d28d9; border-radius: 5px; padding: 4px 6px; resize: vertical; }
+.review-applied { display: flex; align-items: center; gap: 10px; padding: 8px 0 2px; border-top: 1px solid #161e2e; margin-top: 4px; }
+.review-applied .review-actions { margin-left: auto; }

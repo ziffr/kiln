@@ -285,7 +285,7 @@ const server = createServer(async (req, res) => {
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
-      const result = await generateAppLogic(body.capabilities, body.domain as never, body.contexts as never, provider);
+      const result = await generateAppLogic(body.capabilities, body.domain as never, body.contexts as never, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);

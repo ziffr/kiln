@@ -6,23 +6,20 @@ import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
 const caps: CapabilityDoc = { version: "0.2", domain: "solar", capabilities: [{ id: "sales", name: "Sales" }] };
 const domain: DomainDoc = { version: "0.1", aggregates: [{ id: "offer", name: "Offer", owner: "sales", attributes: [{ name: "amount", type: "money" }] }], commands: [{ id: "make_offer", name: "Make Offer", aggregate: "offer", capability: "sales", emits: [] }], events: [], policies: [] } as any;
 
-test("reviewGeneratedCode coerces findings, ranks by severity, stamps ids", async () => {
+test("reviewGeneratedCode fans out per lens; tags each finding with its lens; ranks by severity", async () => {
+  const seenLenses: string[] = [];
   const provider = { name: "t", complete: async (req: any) => {
-    // the reviewer must be shown the real generated code
-    assert.match(req.user, /server\.mjs/);
-    assert.match(req.user, /HANDLERS/);
-    return { provider: "t", raw: "", json: { findings: [
-      { lens: "maintainability", severity: "low", file: "handlers.mjs", message: "thin", suggestion: "add docs" },
-      { lens: "security", severity: "high", file: "server.mjs", message: "no rate limit" },
-      { lens: "bogus", severity: "weird", file: "x", message: "coerced" },
-    ] } };
+    assert.match(req.user, /server\.mjs/); // the reviewer is shown the real code
+    const lens = /SECURITY/.test(req.system) ? "security" : /CORRECTNESS/.test(req.system) ? "correctness" : "maintainability";
+    seenLenses.push(lens);
+    const sev = lens === "security" ? "high" : lens === "maintainability" ? "low" : "medium";
+    return { provider: "t", raw: "", json: { findings: [{ severity: sev, file: "server.mjs", message: lens + " issue" }] } };
   } } as any;
   const res = await reviewGeneratedCode(caps, domain, undefined, undefined, undefined, provider);
+  assert.deepEqual(seenLenses.sort(), ["correctness", "maintainability", "security"]); // one call per lens
   assert.equal(res.findings.length, 3);
-  assert.equal(res.findings[0].severity, "high"); // ranked first
+  assert.equal(res.findings[0].severity, "high");       // ranked first
   assert.equal(res.findings[0].lens, "security");
-  assert.equal(res.findings[1].lens, "correctness"); // bad lens coerced; medium sorts to the middle
-  assert.equal(res.findings[1].severity, "medium");  // bad severity coerced
-  assert.equal(res.findings[2].severity, "low"); // low ranks last
+  assert.equal(res.findings[2].severity, "low");
   assert.ok(res.findings.every((f) => f.id));
 });

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { generateAll, generateApp } from "@vbd/codegen";
 import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
@@ -27,7 +27,7 @@ export function CodePreview({
   roles: RolesDoc;
   workflows: WorkflowsDoc;
   agents: AgentsDoc;
-  requestAppLogic: () => Promise<{ handlers: Record<string, string>; written: number; skipped: number }>;
+  requestAppLogic: (feedback?: string) => Promise<{ handlers: Record<string, string>; written: number; skipped: number }>;
   requestCodeReview: (handlerCode?: Record<string, string>) => Promise<CodeFinding[]>;
   onClose: () => void;
 }): React.JSX.Element {
@@ -35,16 +35,24 @@ export function CodePreview({
   const [exporting, setExporting] = useState(false);
   const [exportNote, setExportNote] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const [auto, setAuto] = useState(false);
   const [review, setReview] = useState<CodeFinding[] | null>(null);
+  const [handlers, setHandlers] = useState<Record<string, string> | null>(null); // AI-written logic, improved by fixes
+  const autoStop = useRef(false);
   const zipName = `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`;
+  const busy = exporting || reviewing || fixing || auto;
+
+  const feedbackFrom = (fs: CodeFinding[]): string =>
+    fs.map((f) => `[${f.severity}/${f.lens}] ${f.file}: ${f.message}${f.suggestion ? ` → ${f.suggestion}` : ""}`).join("\n");
 
   async function exportApp(withAI: boolean): Promise<void> {
     setExporting(true);
     setExportNote(null);
     try {
-      const handlers = withAI ? (await requestAppLogic()) : null;
-      downloadZip(generateApp(caps, domain, contexts, roles, handlers?.handlers), zipName);
-      if (handlers) setExportNote(t("exportAppAiNote", { written: handlers.written, total: handlers.written + handlers.skipped }));
+      let hc = handlers;
+      if (withAI && !hc) { const r = await requestAppLogic(); hc = r.handlers; setHandlers(hc); setExportNote(t("exportAppAiNote", { written: r.written, total: r.written + r.skipped })); }
+      downloadZip(generateApp(caps, domain, contexts, roles, withAI ? hc ?? undefined : undefined), zipName);
     } catch (e) {
       setExportNote(e instanceof Error ? e.message : String(e));
     } finally {
@@ -56,11 +64,51 @@ export function CodePreview({
     setReviewing(true);
     setExportNote(null);
     try {
-      setReview(await requestCodeReview());
+      setReview(await requestCodeReview(handlers ?? undefined));
     } catch (e) {
       setExportNote(e instanceof Error ? e.message : String(e));
     } finally {
       setReviewing(false);
+    }
+  }
+
+  // Fix loop: regenerate the handler logic addressing the current findings, then re-review to confirm.
+  async function applyFixes(): Promise<void> {
+    if (!review || review.length === 0) return;
+    setFixing(true);
+    setExportNote(null);
+    try {
+      const r = await requestAppLogic(feedbackFrom(review));
+      const hc = { ...(handlers ?? {}), ...r.handlers };
+      setHandlers(hc);
+      setReview(await requestCodeReview(hc));
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFixing(false);
+    }
+  }
+
+  // Auto: review → fix → re-review, up to 2 rounds, stopping when clean. Threads handlers locally
+  // (React state is async) so each re-review sees the just-applied fixes.
+  async function autoFix(): Promise<void> {
+    setAuto(true);
+    autoStop.current = false;
+    setExportNote(null);
+    try {
+      let hc = handlers ?? undefined;
+      for (let round = 0; round < 2; round++) {
+        const findings = await requestCodeReview(hc);
+        setReview(findings);
+        if (findings.length === 0 || autoStop.current) break;
+        const r = await requestAppLogic(feedbackFrom(findings));
+        hc = { ...(hc ?? {}), ...r.handlers };
+        setHandlers(hc);
+      }
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAuto(false);
     }
   }
   const report = useMemo(() => generateAll(caps, domain, contexts, roles, workflows, agents), [caps, domain, contexts, roles, workflows, agents]);
@@ -82,13 +130,16 @@ export function CodePreview({
         </div>
         <span className="code-export-group">
           {exportNote && <span className="code-export-note muted">{exportNote}</span>}
-          <button className="code-export ghost" onClick={() => void reviewCode()} disabled={reviewing || exporting} title={t("codeReviewHint")}>
+          <button className="code-export ghost" onClick={() => void reviewCode()} disabled={busy} title={t("codeReviewHint")}>
             {reviewing ? t("generating") : `🔍 ${t("codeReview")}`}
           </button>
-          <button className="code-export ghost" onClick={() => void exportApp(false)} disabled={exporting} title={t("exportAppHint")}>
+          <button className="code-export ghost" onClick={() => void autoFix()} disabled={busy} title={t("codeReviewAutoHint")}>
+            {auto ? t("generating") : `⚡ ${t("codeReviewAuto")}`}
+          </button>
+          <button className="code-export ghost" onClick={() => void exportApp(false)} disabled={busy} title={t("exportAppHint")}>
             ⬇ {t("exportApp")}
           </button>
-          <button className="code-export" onClick={() => void exportApp(true)} disabled={exporting} title={t("exportAppAiHint")}>
+          <button className="code-export" onClick={() => void exportApp(true)} disabled={busy} title={t("exportAppAiHint")}>
             {exporting ? t("generating") : `✨ ${t("exportAppAi")}`}
           </button>
         </span>
@@ -100,8 +151,14 @@ export function CodePreview({
           <div className="code-review-head">
             🔍 {t("codeReviewTitle")}
             {review.length === 0 && <span className="muted"> — {t("codeReviewClean")}</span>}
+            {review.length > 0 && (
+              <button className="code-export refine" onClick={() => void applyFixes()} disabled={busy}>
+                {fixing ? t("generating") : `🔧 ${t("codeReviewFix", { count: review.length })}`}
+              </button>
+            )}
             <button className="nd-close" onClick={() => setReview(null)} aria-label="close">×</button>
           </div>
+          <p className="code-review-advisory">⚠ {t("codeReviewAdvisory")}</p>
           <ul className="code-review-findings">
             {review.map((f) => (
               <li key={f.id}>

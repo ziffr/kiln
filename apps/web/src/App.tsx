@@ -1037,11 +1037,11 @@ export default function App(): React.JSX.Element {
               roles={rolesDoc}
               workflows={workflowsDoc}
               agents={agentsDoc}
-              requestAppLogic={async () => {
+              requestAppLogic={async (feedback?: string) => {
                 const res = await fetch(`${SERVICE_URL}/api/app-logic`, {
                   method: "POST",
                   headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, model: modelFor("behaviour"), effort: active.effort }),
+                  body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, feedback, model: modelFor("behaviour"), effort: active.effort }),
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);

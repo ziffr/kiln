@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { generateAll } from "@vbd/codegen";
+import { generateAll, generateApp } from "@vbd/codegen";
 import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
+import { downloadZip } from "../zip";
 
 /**
  * Read-only "generated code" preview — the payoff of the whole model (RES-001): a deterministic
@@ -43,6 +44,13 @@ export function CodePreview({
             <button key={k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>{t(`code_${k}`)}</button>
           ))}
         </div>
+        <button
+          className="code-export"
+          onClick={() => downloadZip(generateApp(caps, domain, contexts, roles), `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`)}
+          title={t("exportAppHint")}
+        >
+          ⬇ {t("exportApp")}
+        </button>
         <button className="nd-close" onClick={onClose} aria-label="close">×</button>
       </div>
 

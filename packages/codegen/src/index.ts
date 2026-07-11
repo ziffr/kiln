@@ -379,3 +379,5 @@ export function generateAll(caps: CapabilityDoc, domain: DomainDoc, contexts?: C
     gaps: detectGaps(caps, domain),
   };
 }
+
+export { generateApp, projectAppModel, type AppModel } from "./app.ts";

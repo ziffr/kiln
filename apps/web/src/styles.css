@@ -405,3 +405,7 @@ textarea {
 .settings-h { font-size: 13px; margin: 16px 0 4px; color: #cbd5e1; }
 .settings-h:first-child { margin-top: 2px; }
 .settings-tier-tag { margin-left: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #7c8aa0; border: 1px solid #2a3448; border-radius: 3px; padding: 0 4px; }
+
+/* Export runnable app */
+.code-export { margin-left: auto; margin-right: 8px; font-size: 13px; padding: 3px 12px; border: 1px solid #4f46e5; background: #4f46e5; color: #fff; border-radius: 6px; cursor: pointer; }
+.code-export:hover { background: #4338ca; }

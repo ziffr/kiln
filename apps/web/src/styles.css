@@ -694,3 +694,9 @@ textarea {
 .trace-ref { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 12px; color: var(--fg); cursor: pointer; }
 .trace-ref:hover { border-color: var(--accent); }
 .trace-ref.in { color: var(--muted); }
+
+/* Trace navigation-pad: section headers jump to that layer's diagram */
+.trace-jump { background: none; border: none; padding: 0; margin: 0; font: inherit; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-size: 11px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.trace-jump:hover { color: var(--accent); }
+.trace-jump-arrow { color: var(--accent); opacity: .6; }
+.trace-jump:hover .trace-jump-arrow { opacity: 1; }

@@ -964,7 +964,7 @@ export default function App(): React.JSX.Element {
           {selectedArea ? (
             <AreaDetail area={selectedArea} doc={activeDoc} terms={areaTerms(selectedArea)} onEdit={editArea} onRetire={retireArea} onSelectCapability={setSelected} onClose={() => setSelected(null)} />
           ) : selectedAggregate ? (
-            <EntityTrace entity={selectedAggregate} domain={flowDoc} caps={activeDoc} roles={rolesDoc} onSelectCap={setSelected} onSelectEntity={setSelected} onClose={() => setSelected(null)} t={t} />
+            <EntityTrace entity={selectedAggregate} domain={flowDoc} caps={activeDoc} roles={rolesDoc} onSelectCap={(id) => { setSelected(id); setStage("capabilities"); }} onSelectEntity={(id) => { setSelected(id); setStage("entities"); }} onGo={(s) => setStage(s)} onClose={() => setSelected(null)} t={t} />
           ) : selected ? (
             <NodeDetail
               doc={activeDoc}

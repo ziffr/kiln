@@ -6,11 +6,16 @@
 import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type AggregateInput } from "@vbd/compiler";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
+type Stage = "capabilities" | "areas" | "entities" | "behaviour" | "automations" | "roles" | "workflows" | "agents";
 
-export function EntityTrace({ entity, domain, caps, roles, onSelectCap, onSelectEntity, onClose, t }: {
+export function EntityTrace({ entity, domain, caps, roles, onSelectCap, onSelectEntity, onGo, onClose, t }: {
   entity: AggregateInput; domain: DomainDoc; caps: CapabilityDoc; roles: RolesDoc;
-  onSelectCap: (id: string) => void; onSelectEntity: (id: string) => void; onClose: () => void; t: T;
+  onSelectCap: (id: string) => void; onSelectEntity: (id: string) => void; onGo: (stage: Stage) => void; onClose: () => void; t: T;
 }): React.JSX.Element {
+  // A section header that also jumps to that layer's full diagram — the trace as a navigation pad.
+  const SecHead = ({ label, stage }: { label: string; stage: Stage }): React.JSX.Element => (
+    <h4><button className="trace-jump" onClick={() => onGo(stage)}>{label} <span className="trace-jump-arrow">↗</span></button></h4>
+  );
   const capName = (id: string) => caps.capabilities.find((c) => c.id === id)?.name || id;
   const evName = (id: string) => (domain.events ?? []).find((e) => e.id === id)?.name || id;
   const cmdName = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.name || id;
@@ -36,7 +41,7 @@ export function EntityTrace({ entity, domain, caps, roles, onSelectCap, onSelect
       </button>
 
       <section className="trace-sec">
-        <h4>{t("traceStateChanges")}</h4>
+        <SecHead label={t("traceStateChanges")} stage="behaviour" />
         {commands.length === 0 && <p className="muted">{t("traceNoBehaviour")}</p>}
         {commands.map((c) => (
           <div key={c.id} className="trace-row">
@@ -48,7 +53,7 @@ export function EntityTrace({ entity, domain, caps, roles, onSelectCap, onSelect
 
       {reactions.length > 0 && (
         <section className="trace-sec">
-          <h4>{t("traceReacts")}</h4>
+          <SecHead label={t("traceReacts")} stage="automations" />
           {reactions.map((p, i) => (
             <div key={i} className="trace-row">
               <span className="storm event">{evName(p.on)}</span><span className="storm-arrow">⟶</span>
@@ -61,14 +66,14 @@ export function EntityTrace({ entity, domain, caps, roles, onSelectCap, onSelect
 
       {triggeredBy.length > 0 && (
         <section className="trace-sec">
-          <h4>{t("traceTriggeredBy")}</h4>
+          <SecHead label={t("traceTriggeredBy")} stage="automations" />
           {triggeredBy.map((p, i) => <div key={i} className="trace-row"><span className="storm event">{evName(p.on)}</span><span className="storm-arrow">⟶</span><span className="storm command">{cmdName(p.then)}</span></div>)}
         </section>
       )}
 
       {opRoles.length > 0 && (
         <section className="trace-sec">
-          <h4>{t("traceRoles")}</h4>
+          <SecHead label={t("traceRoles")} stage="roles" />
           <div className="agent-caps">{opRoles.map((r) => <span key={r.id} className="wf-chip">{r.name || r.id}</span>)}</div>
         </section>
       )}

@@ -70,3 +70,21 @@ test("the mock domain validates cleanly except a DM5 warning for the aggregate-l
   const dm5 = findings.filter((f) => f.code === "DM5.uncovered");
   assert.ok(dm5.length === 1 && dm5[0].subjects.includes("orchestration") && dm5[0].severity === "minor");
 });
+
+test("generateDomain augments references along the capability dependency graph", async () => {
+  const { generateDomain } = await import("../src/index.ts");
+  const caps = { version: "0.2", domain: "solar", capabilities: [
+    { id: "sales", name: "Sales" },
+    { id: "delivery", name: "Delivery", depends_on: ["sales"] },
+  ] } as any;
+  // LLM returns entities with NO references; the augmenter must connect delivery→sales.
+  const provider = { name: "t", complete: async () => ({ provider: "t", raw: "", json: { version: "0.1", aggregates: [
+    { id: "offer", name: "Offer", owner: "sales", attributes: [] },
+    { id: "job", name: "Job", owner: "delivery", attributes: [] },
+  ] } }) } as any;
+  const res = await generateDomain(caps, provider);
+  const job = res.doc.aggregates.find((a) => a.id === "job");
+  assert.deepEqual(job.references, ["offer"], "job (delivery) should reference offer (sales, its dependency)");
+  const offer = res.doc.aggregates.find((a) => a.id === "offer");
+  assert.deepEqual(offer.references ?? [], [], "offer (sales, no deps) stays unreferenced");
+});

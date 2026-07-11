@@ -139,6 +139,30 @@ function normalizeDomainIds(doc: DomainDoc): DomainDoc {
   };
 }
 
+/**
+ * Deterministically connect the model along the capability dependency graph: if an entity's owning
+ * capability depends on another capability, and the entity doesn't already reference one of that
+ * upstream capability's entities, link it to the upstream capability's primary entity. Guarantees a
+ * connected ER even when the LLM under-emits references — never removes references it did emit.
+ */
+function augmentReferences(doc: DomainDoc, caps: CapabilityDoc): DomainDoc {
+  const capById = new Map(caps.capabilities.map((c) => [c.id, c]));
+  const byOwner = new Map<string, DomainDoc["aggregates"]>();
+  for (const a of doc.aggregates) (byOwner.get(a.owner) ?? byOwner.set(a.owner, []).get(a.owner)!).push(a);
+  const aggIds = new Set(doc.aggregates.map((a) => a.id));
+  return {
+    ...doc,
+    aggregates: doc.aggregates.map((a) => {
+      const refs = new Set((a.references ?? []).filter((r) => aggIds.has(r) && r !== a.id));
+      for (const upCapId of capById.get(a.owner)?.depends_on ?? []) {
+        const upAggs = byOwner.get(upCapId) ?? [];
+        if (upAggs.length && !upAggs.some((u) => refs.has(u.id))) refs.add(upAggs[0].id);
+      }
+      return { ...a, references: [...refs] };
+    }),
+  };
+}
+
 /** Provenance for a domain element targets its OWNING capability (REV-009/REV-010). */
 function groundDomainProvenance(doc: DomainDoc): DomainDoc {
   return {
@@ -165,7 +189,7 @@ export async function generateDomain(caps: CapabilityDoc, provider: LlmProvider,
 
   let result = await provider.complete(req);
   let doc = coerceDomainDoc(result.json);
-  if (doc) doc = groundDomainProvenance(normalizeDomainIds(doc));
+  if (doc) doc = groundDomainProvenance(augmentReferences(normalizeDomainIds(doc), caps));
   let findings = doc ? validateDomain(doc, capIds) : [];
   let repaired = false;
 
@@ -174,7 +198,7 @@ export async function generateDomain(caps: CapabilityDoc, provider: LlmProvider,
     const retry = { ...req, user: `${req.user}\n\nThe previous output was invalid or had blocking issues. Return corrected JSON only.` };
     result = await provider.complete(retry);
     doc = coerceDomainDoc(result.json);
-    if (doc) doc = groundDomainProvenance(normalizeDomainIds(doc));
+    if (doc) doc = groundDomainProvenance(augmentReferences(normalizeDomainIds(doc), caps));
     findings = doc ? validateDomain(doc, capIds) : [];
   }
 

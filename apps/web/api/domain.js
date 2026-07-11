@@ -243,6 +243,23 @@ function normalizeDomainIds(doc) {
     }))
   };
 }
+function augmentReferences(doc, caps) {
+  const capById = new Map(caps.capabilities.map((c) => [c.id, c]));
+  const byOwner = /* @__PURE__ */ new Map();
+  for (const a of doc.aggregates) (byOwner.get(a.owner) ?? byOwner.set(a.owner, []).get(a.owner)).push(a);
+  const aggIds = new Set(doc.aggregates.map((a) => a.id));
+  return {
+    ...doc,
+    aggregates: doc.aggregates.map((a) => {
+      const refs = new Set((a.references ?? []).filter((r) => aggIds.has(r) && r !== a.id));
+      for (const upCapId of capById.get(a.owner)?.depends_on ?? []) {
+        const upAggs = byOwner.get(upCapId) ?? [];
+        if (upAggs.length && !upAggs.some((u) => refs.has(u.id))) refs.add(upAggs[0].id);
+      }
+      return { ...a, references: [...refs] };
+    })
+  };
+}
 function groundDomainProvenance(doc) {
   return {
     ...doc,
@@ -260,7 +277,7 @@ async function generateDomain(caps, provider, feedback) {
 ${feedback}`;
   let result = await provider.complete(req);
   let doc = coerceDomainDoc(result.json);
-  if (doc) doc = groundDomainProvenance(normalizeDomainIds(doc));
+  if (doc) doc = groundDomainProvenance(augmentReferences(normalizeDomainIds(doc), caps));
   let findings = doc ? validateDomain(doc, capIds) : [];
   let repaired = false;
   if (!doc || findings.some((f) => f.severity === "blocker")) {
@@ -270,7 +287,7 @@ ${feedback}`;
 The previous output was invalid or had blocking issues. Return corrected JSON only.` };
     result = await provider.complete(retry);
     doc = coerceDomainDoc(result.json);
-    if (doc) doc = groundDomainProvenance(normalizeDomainIds(doc));
+    if (doc) doc = groundDomainProvenance(augmentReferences(normalizeDomainIds(doc), caps));
     findings = doc ? validateDomain(doc, capIds) : [];
   }
   return { doc: doc ?? { version: "0.1", aggregates: [] }, findings, provider: result.provider, repaired };

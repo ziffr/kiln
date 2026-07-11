@@ -622,3 +622,31 @@ textarea {
 /* React Flow diagrams need a resolved height in the stage layout */
 .diagram-wrap, .stage-body .map-wrap { height: 72vh; min-height: 460px; width: 100%; }
 .stage-body { display: flex; flex-direction: column; }
+
+/* ============ Polish: narrative stage + capability map ============ */
+/* Narrative / interview surfaces → one token system */
+.narrative-stage { max-width: 860px; }
+.narrative-input textarea, .chat-input textarea, .narrative-input textarea.md {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.coach-config select, .coach-config input { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+.tabs button.active { border-bottom-color: var(--accent); }
+.bubble { line-height: 1.55; }
+.bubble.assistant { background: var(--panel-2); border: 1px solid var(--border); }
+.bubble.user { background: var(--accent); color: #06283d; }
+.chat { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; background: #0b1120; }
+.chat-actions .send { background: var(--accent); color: #06283d; border-radius: 8px; }
+.chat-actions .gen { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+/* Narrative summary lists (outcomes/activities/customers) */
+.narrative-summary { gap: 14px; }
+.narrative-summary > div { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+.narrative-summary h3 { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; margin: 0 0 6px; }
+.narrative-summary ul { margin: 0; padding-left: 16px; font-size: 13px; line-height: 1.5; }
+
+/* Capability map — controls + surface consistency */
+.react-flow__controls { border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.react-flow__controls-button { background: var(--panel-2); border-bottom: 1px solid var(--border); color: var(--fg); }
+.react-flow__controls-button:hover { background: #17202f; }
+.react-flow__controls-button svg { fill: var(--fg); }
+.react-flow__edge-path { stroke-width: 1.5; }
+.react-flow__node-default { color: var(--fg); }

@@ -388,3 +388,15 @@ textarea {
 .finding-edit { width: 100%; min-height: 46px; font: inherit; font-size: 13px; color: #e5e7eb; background: #0b0f1a; border: 1px solid #6d28d9; border-radius: 5px; padding: 4px 6px; resize: vertical; }
 .review-applied { display: flex; align-items: center; gap: 10px; padding: 8px 0 2px; border-top: 1px solid #161e2e; margin-top: 4px; }
 .review-applied .review-actions { margin-left: auto; }
+
+/* Settings modal + effort transparency */
+.review-effort { font-size: 11px; border: 1px solid #2a3448; border-radius: 4px; padding: 0 5px; color: #9aa4b2; }
+.settings-modal { max-width: 560px; }
+.settings-toggle { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0; cursor: pointer; }
+.settings-toggle input { margin-top: 3px; accent-color: #7c3aed; }
+.settings-table { width: 100%; border-collapse: collapse; margin: 6px 0 14px; }
+.settings-table th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 500; padding: 4px 6px; border-bottom: 1px solid #1f2937; }
+.settings-table td { padding: 5px 6px; border-bottom: 1px solid #141b28; }
+.settings-table select { min-width: 90px; }
+.settings-badge { margin-left: 8px; font-size: 11px; color: #c4b5fd; }
+.settings-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }

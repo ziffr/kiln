@@ -250,12 +250,13 @@ const server = createServer(async (req, res) => {
         workflows?: unknown;
         agents?: unknown;
         model?: string;
+        effort?: string;
       };
       if (!body.layer || !body.capabilities?.capabilities?.length) return send(res, 400, { error: "layer and capabilities are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
-      // Adaptive effort per layer (clamped to what the catalog allows); Haiku ignores effort.
-      const wantEffort = CRITIQUE_EFFORT[body.layer] ?? "high";
-      const effort = model.supportsEffort ? ((EFFORTS as readonly string[]).includes(wantEffort) ? wantEffort : "high") : DEFAULT_EFFORT;
+      // Effort: honour the client's per-layer choice; fall back to the built-in preset. Haiku ignores it.
+      const wantEffort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : CRITIQUE_EFFORT[body.layer] ?? "high";
+      const effort = model.supportsEffort ? wantEffort : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
       const review: ReviewModel = {

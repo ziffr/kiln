@@ -17,6 +17,7 @@ interface Props {
   critique: Partial<Record<LayerKind, CritiqueFinding[]>>;
   busy: LayerKind | null;
   refinable: (k: LayerKind) => boolean;
+  effortFor: (k: LayerKind) => string;
   onReview: (k: LayerKind) => void;
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
   onSelect: (f: CritiqueFinding) => void;
@@ -24,10 +25,11 @@ interface Props {
   autoLayer: LayerKind | null;
   onAuto: () => void;
   onStop: () => void;
+  onSettings: () => void;
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-export function ReviewPanel({ layers, critique, busy, refinable, onReview, onApply, onSelect, autoRunning, autoLayer, onAuto, onStop, t }: Props): React.JSX.Element {
+export function ReviewPanel({ layers, critique, busy, refinable, effortFor, onReview, onApply, onSelect, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
   const autoLabel = autoLayer ? layers.find((l) => l.kind === autoLayer)?.label ?? autoLayer : "";
   return (
     <div className="review-panel">
@@ -40,7 +42,10 @@ export function ReviewPanel({ layers, critique, busy, refinable, onReview, onApp
               <button className="review-btn stop" onClick={onStop}>{t("aiStop")}</button>
             </>
           ) : (
-            <button className="review-btn auto" onClick={onAuto} title={t("aiAutoHint")}>⚡ {t("aiAuto")}</button>
+            <>
+              <button className="review-btn auto" onClick={onAuto} title={t("aiAutoHint")}>⚡ {t("aiAuto")}</button>
+              <button className="review-btn" onClick={onSettings} title={t("settingsOpen")} aria-label={t("settingsOpen")}>⚙︎</button>
+            </>
           )}
         </span>
       </div>
@@ -53,6 +58,7 @@ export function ReviewPanel({ layers, critique, busy, refinable, onReview, onApp
           isBusy={busy === row.kind}
           active={autoLayer === row.kind}
           canApply={refinable(row.kind)}
+          effort={effortFor(row.kind)}
           autoRunning={autoRunning}
           onReview={onReview}
           onApply={onApply}
@@ -70,6 +76,7 @@ interface RowProps {
   isBusy: boolean;
   active: boolean;
   canApply: boolean;
+  effort: string;
   autoRunning: boolean;
   onReview: (k: LayerKind) => void;
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
@@ -77,7 +84,7 @@ interface RowProps {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function LayerReviewRow({ row, findings, isBusy, active, canApply, autoRunning, onReview, onApply, onSelect, t }: RowProps): React.JSX.Element {
+function LayerReviewRow({ row, findings, isBusy, active, canApply, effort, autoRunning, onReview, onApply, onSelect, t }: RowProps): React.JSX.Element {
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -131,6 +138,7 @@ function LayerReviewRow({ row, findings, isBusy, active, canApply, autoRunning, 
           {clean || showApplied ? "✓" : open ? "⚠" : "○"}
         </span>
         <span className="review-label">{row.label}</span>
+        <span className="review-effort muted" title={t("settingsEffort")}>{effort}</span>
         <span className="review-status muted">{statusText}</span>
         <span className="review-actions">
           <button className="review-btn" onClick={() => onReview(row.kind)} disabled={isBusy || applying || autoRunning}>

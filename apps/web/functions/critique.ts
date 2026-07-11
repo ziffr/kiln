@@ -16,12 +16,13 @@ export default async function handler(req: Req, res: Res): Promise<void> {
     workflows?: unknown;
     agents?: unknown;
     model?: string;
+    effort?: string;
   }>(req);
   if (!body.layer || !body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "layer and capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
-  // Adaptive effort per layer (clamped to the catalog); Haiku ignores effort.
-  const wantEffort = CRITIQUE_EFFORT[body.layer] ?? "high";
-  const effort = model.supportsEffort ? ((EFFORTS as readonly string[]).includes(wantEffort) ? wantEffort : "high") : DEFAULT_EFFORT;
+  // Effort: honour the client's per-layer choice; fall back to the built-in preset. Haiku ignores it.
+  const wantEffort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : CRITIQUE_EFFORT[body.layer] ?? "high";
+  const effort = model.supportsEffort ? wantEffort : DEFAULT_EFFORT;
   const usage = newUsage();
   const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
   const review: ReviewModel = {

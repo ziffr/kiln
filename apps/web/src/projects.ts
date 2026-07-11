@@ -26,6 +26,10 @@ export interface Project {
   /** last workflows (SPEC-007) + agents (SPEC-008); null → live mock. */
   workflows?: WorkflowsDoc | null;
   agents?: AgentsDoc | null;
+  /** AI-review effort tuning. adaptiveEffort (default true) = the app picks effort per layer;
+   *  false = use the global `effort` for every review. effortByLayer overrides the built-in preset. */
+  adaptiveEffort?: boolean;
+  effortByLayer?: Record<string, string>;
   /** per-project interview override (tone/depth/domain); empty → global default. */
   coachConfig?: CoachConfig;
   /** persisted interview transcript (excludes the localized greeting). */

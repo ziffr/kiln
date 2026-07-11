@@ -21,7 +21,8 @@ import {
   type AgentsDoc,
 } from "@vbd/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@vbd/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, critiqueToFeedback, resolveTarget, type LayerKind, type CritiqueFinding } from "@vbd/skills";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, critiqueToFeedback, resolveTarget, CRITIQUE_EFFORT, type LayerKind, type CritiqueFinding } from "@vbd/skills";
+import { SettingsModal } from "./components/SettingsModal";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
@@ -183,6 +184,7 @@ export default function App(): React.JSX.Element {
   const [agentsBusy, setAgentsBusy] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   // The map IR carries every layer: domain + contexts + behaviour/policies + roles + workflows + agents.
   const ir = useMemo(
     () => compileCapabilities(activeDoc, flowDoc, contextsDoc, rolesDoc, workflowsDoc, agentsDoc),
@@ -464,6 +466,11 @@ export default function App(): React.JSX.Element {
   // ---- Semantic critic: the Review → Refine → Re-review → Clean loop, any layer (advisory) ----
   // A model override lets the auto loop feed a just-refined doc straight into the next review,
   // bypassing React's async state (the render-time docs would otherwise be stale mid-loop).
+  // The effort a given review step runs at: the app's per-layer preset when adaptive is on
+  // (the user can override individual layers), otherwise the one global effort.
+  const critiqueEffortFor = (layer: LayerKind): string =>
+    active.adaptiveEffort === false ? active.effort : active.effortByLayer?.[layer] ?? CRITIQUE_EFFORT[layer] ?? "high";
+
   const reviewBody = (layer: LayerKind, ov: ModelOverride) => ({
     layer,
     capabilities: activeDoc,
@@ -473,7 +480,7 @@ export default function App(): React.JSX.Element {
     workflows: ov.workflows ?? workflowsDoc,
     agents: ov.agents ?? agentsDoc,
     model: active.model,
-    effort: active.effort,
+    effort: critiqueEffortFor(layer),
   });
 
   // Review: ask the LLM (higher effort, server-side) to critique one layer. Returns the findings.
@@ -688,6 +695,23 @@ export default function App(): React.JSX.Element {
   return (
     <div className="app">
       {showGuide && <Guide onClose={() => setShowGuide(false)} />}
+      {showSettings && (
+        <SettingsModal
+          layers={reviewLayers.map((r) => ({ kind: r.kind, label: r.label }))}
+          adaptiveEffort={active.adaptiveEffort !== false}
+          effortByLayer={active.effortByLayer ?? {}}
+          defaults={CRITIQUE_EFFORT}
+          globalEffort={active.effort}
+          modelLabel={MODELS.find((m) => m.id === active.model)?.label ?? active.model}
+          supportsEffort={supportsEffort}
+          efforts={EFFORTS}
+          onToggleAdaptive={(v) => patchActive({ adaptiveEffort: v })}
+          onSetLayerEffort={(kind, effort) => patchActive({ effortByLayer: { ...(active.effortByLayer ?? {}), [kind]: effort } })}
+          onReset={() => patchActive({ adaptiveEffort: true, effortByLayer: {} })}
+          onClose={() => setShowSettings(false)}
+          t={t}
+        />
+      )}
       <header className="topbar">
         <div className="brand">
           <h1>{t("appTitle")}</h1>
@@ -695,6 +719,7 @@ export default function App(): React.JSX.Element {
         </div>
 
         <button className="guide-open" onClick={() => setShowGuide(true)}>{t("guideOpen")}</button>
+        <button className="guide-open" onClick={() => setShowSettings(true)}>⚙︎ {t("settingsOpen")}</button>
 
         <div className="projectbar">
           <span className="muted">{t("project")}:</span>
@@ -958,9 +983,11 @@ export default function App(): React.JSX.Element {
             critique={critique}
             busy={reviewBusy}
             refinable={(k) => k !== "capabilities" && k !== "holistic"}
+            effortFor={(k) => (supportsEffort ? critiqueEffortFor(k) : "—")}
             onReview={(k) => void reviewLayer(k)}
             onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
             onSelect={selectFinding}
+            onSettings={() => setShowSettings(true)}
             autoRunning={autoRunning}
             autoLayer={autoLayer}
             onAuto={() => void autoReview()}

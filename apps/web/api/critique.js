@@ -343,8 +343,8 @@ async function handler(req, res) {
   const body = readBody(req);
   if (!body.layer || !body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "layer and capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
-  const wantEffort = CRITIQUE_EFFORT[body.layer] ?? "high";
-  const effort = model.supportsEffort ? EFFORTS.includes(wantEffort) ? wantEffort : "high" : DEFAULT_EFFORT;
+  const wantEffort = EFFORTS.includes(body.effort ?? "") ? body.effort : CRITIQUE_EFFORT[body.layer] ?? "high";
+  const effort = model.supportsEffort ? wantEffort : DEFAULT_EFFORT;
   const usage = newUsage();
   const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
   const review = {

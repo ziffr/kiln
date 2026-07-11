@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { generateAll, generateApp } from "@vbd/codegen";
 import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
+import type { CodeFinding } from "@vbd/skills";
 import { downloadZip } from "../zip";
 
 /**
@@ -17,6 +18,7 @@ export function CodePreview({
   workflows,
   agents,
   requestAppLogic,
+  requestCodeReview,
   onClose,
 }: {
   caps: CapabilityDoc;
@@ -26,11 +28,14 @@ export function CodePreview({
   workflows: WorkflowsDoc;
   agents: AgentsDoc;
   requestAppLogic: () => Promise<{ handlers: Record<string, string>; written: number; skipped: number }>;
+  requestCodeReview: (handlerCode?: Record<string, string>) => Promise<CodeFinding[]>;
   onClose: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
   const [exporting, setExporting] = useState(false);
   const [exportNote, setExportNote] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [review, setReview] = useState<CodeFinding[] | null>(null);
   const zipName = `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`;
 
   async function exportApp(withAI: boolean): Promise<void> {
@@ -44,6 +49,18 @@ export function CodePreview({
       setExportNote(e instanceof Error ? e.message : String(e));
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function reviewCode(): Promise<void> {
+    setReviewing(true);
+    setExportNote(null);
+    try {
+      setReview(await requestCodeReview());
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReviewing(false);
     }
   }
   const report = useMemo(() => generateAll(caps, domain, contexts, roles, workflows, agents), [caps, domain, contexts, roles, workflows, agents]);
@@ -65,6 +82,9 @@ export function CodePreview({
         </div>
         <span className="code-export-group">
           {exportNote && <span className="code-export-note muted">{exportNote}</span>}
+          <button className="code-export ghost" onClick={() => void reviewCode()} disabled={reviewing || exporting} title={t("codeReviewHint")}>
+            {reviewing ? t("generating") : `🔍 ${t("codeReview")}`}
+          </button>
           <button className="code-export ghost" onClick={() => void exportApp(false)} disabled={exporting} title={t("exportAppHint")}>
             ⬇ {t("exportApp")}
           </button>
@@ -74,6 +94,26 @@ export function CodePreview({
         </span>
         <button className="nd-close" onClick={onClose} aria-label="close">×</button>
       </div>
+
+      {review && (
+        <div className="code-review">
+          <div className="code-review-head">
+            🔍 {t("codeReviewTitle")}
+            {review.length === 0 && <span className="muted"> — {t("codeReviewClean")}</span>}
+            <button className="nd-close" onClick={() => setReview(null)} aria-label="close">×</button>
+          </div>
+          <ul className="code-review-findings">
+            {review.map((f) => (
+              <li key={f.id}>
+                <code className={`sev-${f.severity}`}>{f.severity}</code>
+                <code className="lens">{t(`lens_${f.lens}`)}</code>
+                <span className="cr-file">{f.file}</span>
+                <div className="cr-msg">{f.message}{f.suggestion && <span className="review-fix"> → {f.suggestion}</span>}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="code-body">
         {tab === "types" && <pre className="code-block">{report.types}</pre>}

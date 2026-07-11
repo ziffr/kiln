@@ -416,3 +416,17 @@ textarea {
 .code-export.ghost { background: transparent; color: #4f46e5; }
 .code-export.ghost:hover { background: #eef2ff; }
 .code-export:disabled { opacity: 0.6; cursor: default; }
+
+/* AI code review panel */
+.code-review { border-bottom: 1px solid #1f2937; background: #0d1220; max-height: 320px; overflow-y: auto; }
+.code-review-head { position: sticky; top: 0; background: #0d1220; padding: 8px 12px; font-weight: 600; color: #c4b5fd; display: flex; align-items: center; gap: 6px; }
+.code-review-head .nd-close { margin-left: auto; }
+.code-review-findings { list-style: none; margin: 0; padding: 0 12px 10px; }
+.code-review-findings li { padding: 7px 0; border-top: 1px solid #161e2e; font-size: 13px; }
+.code-review-findings code { font-size: 11px; padding: 1px 5px; border-radius: 3px; margin-right: 5px; }
+.code-review-findings code.sev-high { background: #7f1d1d; color: #fecaca; }
+.code-review-findings code.sev-medium { background: #78350f; color: #fde68a; }
+.code-review-findings code.sev-low { background: #1e3a5f; color: #bfdbfe; }
+.code-review-findings code.lens { background: #1f2937; color: #9ca3af; }
+.cr-file { color: #94a3b8; font-family: ui-monospace, monospace; font-size: 12px; }
+.cr-msg { margin-top: 3px; color: #e5e7eb; line-height: 1.4; }

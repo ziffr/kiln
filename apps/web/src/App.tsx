@@ -1048,6 +1048,17 @@ export default function App(): React.JSX.Element {
                 setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
                 return data as { handlers: Record<string, string>; written: number; skipped: number };
               }}
+              requestCodeReview={async (handlerCode) => {
+                const res = await fetch(`${SERVICE_URL}/api/code-review`, {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, handlerCode, model: modelFor("behaviour") }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+                setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                return data.findings ?? [];
+              }}
               onClose={() => setShowCode(false)}
             />
           )}

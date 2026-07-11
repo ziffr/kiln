@@ -147,7 +147,8 @@ export function runCommand(cmdId, input = {}, depth = 0) {
   const { clean } = validate(cmd.entity, input);
   const ctx = { genId, all: (e) => db[e] || [], find: (e, id) => (db[e] || []).find(r => r.id === id) };
   let built = {};
-  try { built = HANDLERS[cmdId] ? HANDLERS[cmdId]({ ...input, ...clean }, ctx) : { ...clean }; } catch (e) { built = { ...clean, _handlerError: String(e && e.message || e) }; }
+  // Handlers receive ONLY validated+coerced fields (never raw input) so validation can't be bypassed.
+  try { built = HANDLERS[cmdId] ? HANDLERS[cmdId](clean, ctx) : { ...clean }; } catch (e) { built = { ...clean, _handlerError: String(e && e.message || e) }; }
   const rec = { id: genId(), ...built, _command: cmdId, _at: Date.now() };
   (db[cmd.entity] ||= []).push(rec);
   const emitted = [];
@@ -171,7 +172,7 @@ const HEADERS = {
 };
 const send = (res, code, body) => { res.writeHead(code, HEADERS); res.end(JSON.stringify(body)); };
 // Cap the body size (1 MB) so a huge payload can't exhaust memory, and reject invalid JSON.
-const readBody = (req) => new Promise((resolve, reject) => { let d = ''; req.on('data', c => { d += c; if (d.length > 1e6) reject(new Error('payload too large')); }); req.on('end', () => { try { resolve(d ? JSON.parse(d) : {}); } catch { reject(new Error('invalid JSON')); } }); });
+const readBody = (req) => new Promise((resolve, reject) => { let d = ''; req.on('data', c => { d += c; if (d.length > 1e6) { req.destroy(); reject(new Error('payload too large')); } }); req.on('end', () => { try { resolve(d ? JSON.parse(d) : {}); } catch { reject(new Error('invalid JSON')); } }); });
 
 createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return send(res, 204, {});

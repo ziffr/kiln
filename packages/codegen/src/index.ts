@@ -381,3 +381,26 @@ export function generateAll(caps: CapabilityDoc, domain: DomainDoc, contexts?: C
 }
 
 export { generateApp, projectAppModel, type AppModel } from "./app.ts";
+export {
+  projectTargets,
+  resolveBinding,
+  validateBinding,
+  deriveSeams,
+  postgresAdapter,
+  n8nAdapter,
+  ENGINES,
+  POSTGRES,
+  N8N,
+  NODE_SPINE,
+  DEFAULT_BINDING,
+  TECH_CAPABILITIES,
+  type TechCapability,
+  type Fidelity,
+  type Engine,
+  type Binding,
+  type ResolvedElement,
+  type BindingFinding,
+  type Seam,
+  type N8nWorkflow,
+  type TargetsReport,
+} from "./targets.ts";

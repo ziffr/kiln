@@ -94,6 +94,17 @@ export {
   type AgentGenerationResult,
 } from "./agents.ts";
 export {
+  mockOrchestration,
+  applyOrchestration,
+  generateOrchestration,
+  coerceOrchestration,
+  ORCHESTRATION_SCHEMA,
+  ORCHESTRATION_SYSTEM_PROMPT,
+  type OrchestrationDoc,
+  type OrchestrationDecision,
+  type OrchestrationResult,
+} from "./orchestration.ts";
+export {
   critiqueLayer,
   buildCritiqueRequest,
   critiqueToFeedback,

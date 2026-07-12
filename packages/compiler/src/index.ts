@@ -135,10 +135,17 @@ export interface RolesDoc {
 }
 
 /** SPEC-007 workflow: a named multi-step process (an ordered sequence of commands). */
+export type ProcessMode = "workflow" | "agent";
 export interface WorkflowInput {
   id: string;
   name: string;
   steps: string[]; // ordered command ids
+  /**
+   * SPEC-009 orchestration decision (authored, source of truth): should this process run as a fixed,
+   * deterministic **workflow** (n8n sequence) or be handled by an **agent** (judgment over the same
+   * commands)? Absent → treated as "workflow" (a workflow doc's default). Drives conditional codegen.
+   */
+  mode?: ProcessMode;
   meta?: Record<string, unknown>;
 }
 export interface WorkflowsDoc {

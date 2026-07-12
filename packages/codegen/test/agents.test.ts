@@ -57,3 +57,28 @@ test("agentsAdapter emits a runnable runtime + a definition per agent with wired
 test("no agents → nothing emitted", () => {
   assert.equal(Object.keys(agentsAdapter(caps, domain, { agents: [] } as unknown as AgentsDoc)).length, 0);
 });
+
+test("agent-mode processes fold into the covering agent's behaviour (SPEC-009)", () => {
+  const domainWithCap = {
+    ...domain,
+    commands: [
+      { id: "qualify_lead", name: "Qualify Lead", aggregate: "lead", capability: "leads", emits: ["lead_qualified"] },
+      { id: "capture_lead", name: "Capture Lead", aggregate: "lead", capability: "leads", emits: ["lead_captured"] },
+    ],
+  } as unknown as import("@vbd/compiler").DomainDoc;
+  const workflows = {
+    version: "0.1",
+    workflows: [
+      { id: "triage_lead", name: "Triage Lead", steps: ["capture_lead", "qualify_lead"], mode: "agent" },
+      { id: "fixed_flow", name: "Fixed Flow", steps: ["capture_lead"], mode: "workflow" },
+    ],
+  } as unknown as import("@vbd/compiler").WorkflowsDoc;
+  const files = agentsAdapter(caps, domainWithCap, agents, comms, workflows);
+  const behaviour = files["agents/behaviours/lead_agent.md"];
+  assert.match(behaviour, /## Processes you own/);
+  assert.match(behaviour, /Triage Lead/);
+  assert.doesNotMatch(behaviour, /Fixed Flow/); // workflow-mode does NOT fold into the agent
+  // the routed process is also recorded on the definition (structure)
+  const def = JSON.parse(files["agents/definitions/lead_agent.json"]);
+  assert.ok(def.processes.some((p: { id: string }) => p.id === "triage_lead"));
+});

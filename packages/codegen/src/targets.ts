@@ -317,7 +317,9 @@ export function n8nAdapter(resolved: ResolvedElement[], domain: DomainDoc, workf
   }
 
   const boundWf = new Set(resolved.filter((r) => r.kind === "workflow" && r.engineId === "n8n").map((r) => r.id));
-  for (const w of (workflows?.workflows ?? []).filter((w) => boundWf.has(w.id))) {
+  // mode-driven (SPEC-009): agent-mode processes do NOT become a fixed n8n workflow — they fold into the
+  // covering agent's behaviour playbook (see agentsAdapter). Only workflow-mode processes generate here.
+  for (const w of (workflows?.workflows ?? []).filter((w) => boundWf.has(w.id) && w.mode !== "agent")) {
     const steps = w.steps ?? [];
     const trigger = { parameters: {}, name: "Start", type: "n8n-nodes-base.manualTrigger", typeVersion: 1, position: [240, 300] };
     const nodes: Array<Record<string, unknown>> = [trigger];
@@ -577,7 +579,7 @@ export function projectTargets(
     spine: spineHosted ? spineAdapter(caps, domain, handlers) : {},
     comms: communicationsAdapter(commsDoc),
     integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain),
-    agents: agentsAdapter(caps, domain, agents, commsDoc),
+    agents: agentsAdapter(caps, domain, agents, commsDoc, workflows),
     triggers: (() => {
       const doc = triggers ?? mockTriggers(caps, domain, workflows, agents);
       return { doc, n8n: triggersAdapter(doc, domain) };

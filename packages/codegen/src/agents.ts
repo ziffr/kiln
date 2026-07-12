@@ -10,7 +10,7 @@
  */
 
 import { slug } from "@vbd/ir";
-import { attributeSpecs, type CapabilityDoc, type DomainDoc, type AgentsDoc } from "@vbd/compiler";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc, type AgentsDoc, type WorkflowsDoc } from "@vbd/compiler";
 import type { CommunicationsDoc } from "./comms.ts";
 
 const CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
@@ -34,6 +34,8 @@ export interface AgentDef {
   effort?: "low" | "medium" | "high" | "max";
   capabilities: string[];
   tools: AgentTool[];
+  /** agent-mode processes routed to this agent (SPEC-009) — run by judgement, not a fixed workflow. */
+  processes?: Array<{ id: string; name: string; steps: string[] }>;
 }
 
 function commandTool(c: { id: string; name?: string; aggregate: string; emits?: string[] }, fields: string[], evName: Map<string, string>): AgentTool {
@@ -87,6 +89,26 @@ function defaultPlaybook(d: AgentDef): string {
   ].join("\n");
 }
 
+/**
+ * The agent-mode PROCESSES routed to this agent (SPEC-009 orchestration). These are multi-step processes
+ * the router decided need judgement rather than a fixed workflow — so instead of an n8n pipeline, they
+ * land here, in the agent's HOW. The agent already has the steps' commands as tools; this tells it which
+ * end-to-end jobs it owns and the usual order, to adapt per case.
+ */
+function processesSection(d: AgentDef): string {
+  if (!d.processes?.length) return "";
+  return [
+    "",
+    "## Processes you own",
+    "These end-to-end processes were routed to **you** (they need judgement, not a fixed workflow). Run",
+    "each toward its outcome with your command tools — the arrow order is the usual path; adapt it to the",
+    "specific case, and escalate the exceptions.",
+    "",
+    ...d.processes.map((p) => `- **${p.name}**: ${p.steps.join(" → ") || "(no steps)"}`),
+    "",
+  ].join("\n");
+}
+
 // ── the runnable runtime (generic + data-driven; loads a definition and runs the agent loop) ──
 
 // The tool-argument JSON schema (shared by both providers). All string params — the spine coerces.
@@ -112,6 +134,7 @@ export interface AgentDef {
   effort?: "low" | "medium" | "high" | "max"; // per-agent thinking level (Anthropic)
   capabilities: string[];
   tools: AgentTool[];
+  processes?: { id: string; name: string; steps: string[] }[]; // agent-mode processes routed here (SPEC-009)
 }
 `,
   "src/tools.ts": `import type { AgentTool } from "./def";
@@ -319,11 +342,28 @@ OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
 };
 
 /** Resolve each agent's toolset and emit a runnable, provider-flexible runtime (definitions + loop). */
-export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc): Record<string, string> {
+export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc): Record<string, string> {
   if (!agents?.agents?.length) return {};
   const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
+  const cmdName = new Map((domain.commands ?? []).map((c) => [c.id, c.name || c.id]));
+  const cmdCap = new Map((domain.commands ?? []).map((c) => [c.id, c.capability]));
   const capName = new Map(caps.capabilities.map((c) => [c.id, c.name || c.id]));
   const defs: AgentDef[] = [];
+
+  // SPEC-009 mode-driven fold: assign each agent-mode process to the agent whose capabilities cover the
+  // most of the process's command-capabilities (ties → first). It becomes part of that agent's HOW, not
+  // an n8n workflow. A process with no covering agent stays unassigned (a modelling gap, surfaced below).
+  const procByAgent = new Map<string, Array<{ id: string; name: string; steps: string[] }>>();
+  for (const w of (workflows?.workflows ?? []).filter((w) => w.mode === "agent")) {
+    const wfCaps = new Set((w.steps ?? []).map((s) => cmdCap.get(s)).filter((c): c is string => !!c));
+    let best: string | undefined;
+    let bestOverlap = 0;
+    for (const a of agents.agents) {
+      const overlap = [...wfCaps].filter((c) => (a.capabilities ?? []).includes(c)).length;
+      if (overlap > bestOverlap) { bestOverlap = overlap; best = a.id; }
+    }
+    if (best) (procByAgent.get(best) ?? procByAgent.set(best, []).get(best)!).push({ id: w.id, name: w.name || w.id, steps: (w.steps ?? []).map((s) => cmdName.get(s) ?? s) });
+  }
 
   for (const a of agents.agents) {
     const agentCaps = new Set(a.capabilities ?? []);
@@ -339,7 +379,7 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
       if (!ownedEntities.has(cm.entity) || cm.channel === "pdf") continue;
       tools.push({ name: slug(cm.id), kind: cm.channel, description: `${cm.name} → ${cm.recipient}`, invoke: { channel: cm.channel, on: cm.on, template: `templates/${cm.id}.md` } });
     }
-    defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools });
+    defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools, processes: procByAgent.get(a.id) ?? [] });
   }
 
   const files: Record<string, string> = {};
@@ -347,7 +387,7 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
   for (const d of defs) {
     // definition = structure + config; behaviour = the editable markdown playbook (the "HOW").
     files[`agents/definitions/${d.id}.json`] = JSON.stringify({ ...d, instructions: undefined }, null, 2);
-    files[`agents/behaviours/${d.id}.md`] = d.instructions?.trim() ? d.instructions.trim() + "\n" : defaultPlaybook(d);
+    files[`agents/behaviours/${d.id}.md`] = (d.instructions?.trim() ? d.instructions.trim() + "\n" : defaultPlaybook(d)) + processesSection(d);
   }
   files["agents/README.md"] = `# Agents — a runnable, provider-flexible agent runtime
 

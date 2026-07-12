@@ -142,17 +142,18 @@ import type { AgentDef, AgentTool } from "../def";
 ${SCHEMA_HELPER}
 
 // The native Anthropic tool-use loop — best Claude fidelity (caching, tool semantics, thinking).
-export async function runAnthropic(def: AgentDef, task: string, system: string): Promise<void> {
+export async function runAnthropic(def: AgentDef, task: string, system: string): Promise<string> {
   const client = new Anthropic(); // reads ANTHROPIC_API_KEY
   const model = def.model || process.env.ANTHROPIC_MODEL || "claude-sonnet-5"; // per-agent override
   const tools: Anthropic.Tool[] = def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: toolParams(t) as Anthropic.Tool.InputSchema }));
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: task }];
   // per-agent thinking level: adaptive thinking + effort (low|medium|high|max) when set.
   const effort = def.effort ? { thinking: { type: "adaptive" as const }, output_config: { effort: def.effort } } : {};
+  let finalText = "";
   for (let step = 0; step < 12; step++) {
     const res = await client.messages.create({ model, max_tokens: 2048, system, tools, messages, ...effort });
     const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
-    if (text) console.log("\\n[" + def.name + "] " + text);
+    if (text) { finalText = text; console.log("\\n[" + def.name + "] " + text); }
     messages.push({ role: "assistant", content: res.content });
     if (res.stop_reason === "end_turn") break;
     const toolUses = res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
@@ -166,6 +167,7 @@ export async function runAnthropic(def: AgentDef, task: string, system: string):
     }
     messages.push({ role: "user", content: results });
   }
+  return finalText;
 }
 `,
   "src/providers/openrouter.ts": `import OpenAI from "openai";
@@ -175,7 +177,7 @@ import type { AgentDef, AgentTool } from "../def";
 ${SCHEMA_HELPER}
 
 // OpenAI-compatible loop via OpenRouter — any model (Claude, GPT, Gemini, Llama, self-hosted, …).
-export async function runOpenRouter(def: AgentDef, task: string, system: string): Promise<void> {
+export async function runOpenRouter(def: AgentDef, task: string, system: string): Promise<string> {
   const client = new OpenAI({ apiKey: process.env.OPENROUTER_API_KEY, baseURL: "https://openrouter.ai/api/v1" });
   const model = def.model || process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5"; // per-agent override
   const tools = def.tools.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: toolParams(t) } }));
@@ -183,12 +185,13 @@ export async function runOpenRouter(def: AgentDef, task: string, system: string)
     { role: "system", content: system },
     { role: "user", content: task },
   ];
+  let finalText = "";
   for (let step = 0; step < 12; step++) {
     const res = await client.chat.completions.create({ model, max_tokens: 1024, tools, messages });
     const msg = res.choices[0]?.message;
     if (!msg) break;
     messages.push(msg);
-    if (msg.content) console.log("\\n[" + def.name + "] " + msg.content);
+    if (msg.content) { finalText = msg.content; console.log("\\n[" + def.name + "] " + msg.content); }
     const calls = msg.tool_calls ?? [];
     if (!calls.length) break;
     for (const call of calls) {
@@ -201,9 +204,10 @@ export async function runOpenRouter(def: AgentDef, task: string, system: string)
       messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(out) });
     }
   }
+  return finalText;
 }
 `,
-  "src/runner.ts": `import { readFileSync, existsSync } from "node:fs";
+  "src/run.ts": `import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { runAnthropic } from "./providers/anthropic";
@@ -211,20 +215,64 @@ import { runOpenRouter } from "./providers/openrouter";
 import type { AgentDef } from "./def";
 
 const here = dirname(fileURLToPath(import.meta.url));
+
+export function definitionPath(id: string): string { return join(here, "..", "definitions", id + ".json"); }
+export function agentExists(id: string): boolean { return existsSync(definitionPath(id)); }
+
+export interface AgentRunResult { agent: string; task: string; result: string; }
+
+/**
+ * Load an agent's definition + its behaviour playbook (the "HOW"), pick the provider, run the loop,
+ * return the final text. Shared by the CLI (runner.ts) and the HTTP server (server.ts) so a webhook /
+ * trigger can WAKE an agent the same way a human does from the shell.
+ */
+export async function runAgent(id: string, task: string): Promise<AgentRunResult> {
+  const def: AgentDef = JSON.parse(readFileSync(definitionPath(id), "utf8"));
+  const t = (task ?? "").trim() || "Work toward your goal using the available tools and records.";
+  // behaviour = the agent's system prompt; edit behaviours/<id>.md to change how it works.
+  const behaviourPath = join(here, "..", "behaviours", id + ".md");
+  const system = existsSync(behaviourPath) ? readFileSync(behaviourPath, "utf8") : "You are " + def.name + ". Goal: " + def.goal;
+  // Provider: Anthropic native by default (best Claude fidelity); OpenRouter for any model.
+  const provider = process.env.PROVIDER || (process.env.OPENROUTER_API_KEY ? "openrouter" : "anthropic");
+  const run = provider === "openrouter" ? runOpenRouter : runAnthropic;
+  const result = await run(def, t, system);
+  return { agent: id, task: t, result };
+}
+`,
+  "src/runner.ts": `import { runAgent } from "./run";
+
+// CLI entry: \`pnpm start <agent-id> [task…]\`. For the HTTP entry (webhooks wake an agent) see server.ts.
 const id = process.argv[2];
 if (!id) { console.error("usage: pnpm start <agent-id> [task…]  (agent ids: see definitions/)"); process.exit(1); }
-const def: AgentDef = JSON.parse(readFileSync(join(here, "..", "definitions", id + ".json"), "utf8"));
-const task = process.argv.slice(3).join(" ") || "Work toward your goal using the available tools and records.";
+const task = process.argv.slice(3).join(" ");
+runAgent(id, task)
+  .then((r) => console.log("\\n— done —\\n" + r.result))
+  .catch((e: unknown) => { console.error(e); process.exit(1); });
+`,
+  "src/server.ts": `import express from "express";
+import { runAgent, agentExists } from "./run";
 
-// The agent's BEHAVIOUR (its "HOW") is the markdown playbook — the system prompt. Edit it to change how
-// the agent works. This is the authored surface; the definition JSON is just structure + config.
-const behaviourPath = join(here, "..", "behaviours", id + ".md");
-const system = existsSync(behaviourPath) ? readFileSync(behaviourPath, "utf8") : "You are " + def.name + ". Goal: " + def.goal;
+// HTTP mode: a tiny server so a webhook / trigger (see ../n8n trigger_* workflows) can WAKE an agent.
+// POST /run { "agent": "<id>", "task": "<what to do>" } → runs the loop, returns the agent's summary.
+const app = express();
+app.use(express.json());
 
-// Provider: Anthropic native by default (best Claude fidelity); OpenRouter for any model.
-const provider = process.env.PROVIDER || (process.env.OPENROUTER_API_KEY ? "openrouter" : "anthropic");
-const run = provider === "openrouter" ? runOpenRouter : runAnthropic;
-run(def, task, system).catch((e: unknown) => { console.error(e); process.exit(1); });
+app.get("/health", (_req, res) => { res.json({ ok: true }); });
+
+app.post("/run", async (req, res) => {
+  const body = (req.body ?? {}) as { agent?: string; task?: string };
+  const agent = String(body.agent ?? "");
+  if (!agent) { res.status(400).json({ error: "agent required" }); return; }
+  if (!agentExists(agent)) { res.status(404).json({ error: "unknown agent " + agent }); return; }
+  try {
+    res.json(await runAgent(agent, String(body.task ?? "")));
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+const port = Number(process.env.AGENT_PORT || 3100);
+app.listen(port, () => { console.log("agent runner on :" + port + "  (POST /run { agent, task })"); });
 `,
   "package.json": JSON.stringify(
     {
@@ -233,9 +281,9 @@ run(def, task, system).catch((e: unknown) => { console.error(e); process.exit(1)
       type: "module",
       packageManager: "pnpm@9.12.0",
       engines: { node: ">=20" },
-      scripts: { start: "tsx src/runner.ts", typecheck: "tsc --noEmit", lint: "eslint src" },
-      dependencies: { "@anthropic-ai/sdk": "^0.110.0", openai: "^4.67.0" },
-      devDependencies: { tsx: "^4.19.0", typescript: "^5.6.2", "@types/node": "^20.16.5", eslint: "^9.11.0", "@eslint/js": "^9.11.0", "typescript-eslint": "^8.6.0", globals: "^15.9.0" },
+      scripts: { start: "tsx src/runner.ts", serve: "tsx src/server.ts", typecheck: "tsc --noEmit", lint: "eslint src" },
+      dependencies: { "@anthropic-ai/sdk": "^0.110.0", openai: "^4.67.0", express: "^4.21.0" },
+      devDependencies: { tsx: "^4.19.0", typescript: "^5.6.2", "@types/node": "^20.16.5", "@types/express": "^4.17.21", eslint: "^9.11.0", "@eslint/js": "^9.11.0", "typescript-eslint": "^8.6.0", globals: "^15.9.0" },
     },
     null,
     2,
@@ -309,9 +357,18 @@ loop router; comm actions = pre-built messages).
 
 \`\`\`bash
 pnpm install
-# start the spine first (see ../spine), then:
+# start the spine first (see ../spine), then either:
+# 1) CLI — run one agent once:
 SPINE_URL=http://localhost:3000 ANTHROPIC_API_KEY=sk-ant-... pnpm start ${defs[0]?.id ?? "<agent-id>"} "qualify the newest lead"
+# 2) HTTP — leave it running so webhooks/triggers can wake an agent:
+SPINE_URL=http://localhost:3000 ANTHROPIC_API_KEY=sk-ant-... pnpm serve   # POST /run { agent, task } on :3100
+curl -sX POST localhost:3100/run -H 'content-type: application/json' -d '{"agent":"${defs[0]?.id ?? "<agent-id>"}","task":"qualify the newest lead"}'
 \`\`\`
+
+**Two ways to run** — the CLI (\`pnpm start\`) fires one agent for one task and exits; the HTTP server
+(\`pnpm serve\`) stays up so an external signal can wake an agent. The generated **Triggers** (see the
+\`../n8n\` \`trigger_*\` workflows) POST \`/run\` here, so a webhook or a schedule can start an agent — the
+same way a workflow or a command can be triggered.
 
 ## The two files per agent
 - \`definitions/<id>.json\` — **structure + config**: goal, tools (derived from the agent's capabilities),

@@ -235,6 +235,80 @@ var CHILD_LINES = [
   { match: /offer|quote|proposal/, suffix: "line", fields: A([["description", "text"], ["quantity", "number"], ["unit_price", "money"], ["line_total", "money"]]) }
 ];
 var ENRICH_SYSTEM_PROMPT = PROMPTS["enrich"];
+function renderEnrichUserPrompt(caps, domain, depth) {
+  const lines = [`# Business: ${caps.domain}`, `# Enrichment depth: ${depth}`, "", "## Current entities (id \u2014 existing attributes)", ""];
+  for (const a of domain.aggregates) {
+    const attrs = attributeSpecs(a).map((s) => `${s.name}:${s.type ?? "text"}`).join(", ") || "(none)";
+    lines.push(`- ${a.id} (owner ${a.owner}) \u2014 ${attrs}`);
+  }
+  lines.push("", "Propose realistic ADDITIONAL attributes for each entity and any CHILD entities (one-to-many). Do not repeat existing attributes. Output ONLY the enrichment JSON.");
+  return lines.join("\n");
+}
+var ENRICH_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["additions", "newEntities"],
+  properties: {
+    additions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["entity", "attributes"],
+        properties: {
+          entity: { type: "string" },
+          attributes: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["name", "type"],
+              properties: { name: { type: "string" }, type: { type: "string", enum: ["text", "number", "boolean", "date", "money", "reference"] } }
+            }
+          }
+        }
+      }
+    },
+    newEntities: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "name", "owner", "attributes", "references"],
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          owner: { type: "string" },
+          references: { type: "array", items: { type: "string" } },
+          attributes: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["name", "type"],
+              properties: { name: { type: "string" }, type: { type: "string", enum: ["text", "number", "boolean", "date", "money", "reference"] } }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+function buildEnrichRequest(caps, domain, depth) {
+  return { system: ENRICH_SYSTEM_PROMPT, user: renderEnrichUserPrompt(caps, domain, depth), schema: ENRICH_SCHEMA, context: { caps, domain } };
+}
+function coerceEnrichment(json, domain, provider) {
+  const obj = json ?? {};
+  const validEntity = new Set(domain.aggregates.map((a) => a.id));
+  const owners = new Map(domain.aggregates.map((a) => [a.id, a.owner]));
+  const additions = (Array.isArray(obj.additions) ? obj.additions : []).map((x) => x).filter((x) => x && validEntity.has(slug(x.entity))).map((x) => ({ entity: slug(x.entity), attributes: (x.attributes ?? []).filter((s) => s?.name) }));
+  const newEntities = (Array.isArray(obj.newEntities) ? obj.newEntities : []).map((x) => x).filter((x) => x && x.id && x.owner).map((x) => ({ ...x, id: slug(x.id), references: (x.references ?? []).map((r) => slug(r)), owner: owners.has(slug(x.references?.[0] ?? "")) ? owners.get(slug(x.references[0])) : x.owner, meta: { ...x.meta ?? {}, origin: "llm", derivedFrom: [{ capability: x.owner }] } }));
+  return { additions, newEntities, provider };
+}
+async function enrichDomain(caps, domain, provider, depth = "standard") {
+  const result = await provider.complete(buildEnrichRequest(caps, domain, depth));
+  return coerceEnrichment(result.json, domain, result.provider);
+}
 
 // ../../packages/skills/src/contexts.ts
 var CONTEXT_SYSTEM_PROMPT = PROMPTS["contexts"];
@@ -255,92 +329,8 @@ var WORKFLOW_SYSTEM_PROMPT = PROMPTS["workflows"];
 // ../../packages/skills/src/agents.ts
 var AGENT_SYSTEM_PROMPT = PROMPTS["agents"];
 
-// ../../packages/codegen/src/app.ts
-function projectAppModel(caps, domain, contexts, rolesDoc) {
-  const areaOfCap = /* @__PURE__ */ new Map();
-  for (const c of contexts?.contexts ?? []) for (const m of [...c.capabilities ?? [], ...c.shared_kernel ?? []]) areaOfCap.set(m, c.name || c.id);
-  const roles = (rolesDoc?.roles ?? []).map((r) => ({ name: r.name || r.id, capabilities: r.capabilities ?? [] }));
-  const entities = domain.aggregates.map((a) => ({
-    id: slug(a.id),
-    name: a.name || a.id,
-    owner: a.owner,
-    area: areaOfCap.get(a.owner) ?? "General",
-    fields: attributeSpecs(a).map((s) => ({ name: s.name, type: s.type || "text" })),
-    references: (a.references ?? []).map((r) => slug(r))
-  }));
-  const permissions = {};
-  for (const e of entities) {
-    const allowed = roles.filter((r) => r.capabilities.includes(e.owner)).map((r) => r.name);
-    if (allowed.length) permissions[e.id] = allowed;
-  }
-  return {
-    domain: caps.domain || "business",
-    entities,
-    commands: (domain.commands ?? []).map((c) => ({ id: slug(c.id), name: c.name, entity: slug(c.aggregate), emits: (c.emits ?? []).map((e) => slug(e)) })),
-    events: (domain.events ?? []).map((e) => ({ id: slug(e.id), name: e.name, entity: slug(e.aggregate), trigger: e.trigger || "command" })),
-    policies: (domain.policies ?? []).map((p) => ({ name: p.name, on: slug(p.on), then: slug(p.then) })),
-    areas: (contexts?.contexts ?? []).map((c) => ({ name: c.name || c.id, capabilities: (c.capabilities ?? []).map((m) => slug(m)) })),
-    roles,
-    permissions
-  };
-}
-
 // ../../packages/skills/src/applogic.ts
-var APP_LOGIC_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["code"],
-  properties: { code: { type: "string", description: "a JS arrow function: (input, ctx) => ({ ...record })" } }
-};
 var APP_LOGIC_SYSTEM_PROMPT = PROMPTS["app-logic"];
-function renderOne(m, c, feedback) {
-  const ent = m.entities.find((e) => e.id === c.entity);
-  const fields = (ent?.fields ?? []).map((f) => `${f.name}:${f.type}`).join(", ") || "(no typed fields)";
-  const others = m.entities.filter((e) => e.id !== c.entity).map((e) => `${e.id} { ${e.fields.map((f) => f.name).join(", ")} }`).join("; ") || "(none)";
-  const lines = [
-    `# Write the handler for command "${c.name}" (id: ${c.id})`,
-    `Acts on entity: ${c.entity} { ${fields} }${c.emits.length ? ` \u2014 emits ${c.emits.join(", ")}` : ""}`,
-    `Other entities (for ctx.all/ctx.find lookups): ${others}`
-  ];
-  if (feedback) lines.push("", `A reviewer flagged issues to fix in this handler \u2014 address them:`, feedback);
-  return lines.join("\n");
-}
-var BLOCKED = /\b(require|import|eval|Function|process|globalThis|global|module|fetch|XMLHttpRequest|WebSocket|child_process|__proto__|constructor|prototype)\b/;
-function validateHandler(code) {
-  const c = code.trim();
-  if (!c || c.length > 2e3) return null;
-  if (!/^\(?[\w\s,{}[\].=]*\)?\s*=>/.test(c)) return null;
-  if (BLOCKED.test(c)) return null;
-  let bal = 0;
-  for (const ch of c) {
-    if (ch === "(" || ch === "{" || ch === "[") bal++;
-    else if (ch === ")" || ch === "}" || ch === "]") bal--;
-    if (bal < 0) return null;
-  }
-  return bal === 0 ? c : null;
-}
-async function generateAppLogic(caps, domain, contexts, provider, feedback) {
-  const m = projectAppModel(caps, domain, contexts);
-  const results = await Promise.all(
-    m.commands.map(async (c) => {
-      try {
-        const res = await provider.complete({ system: APP_LOGIC_SYSTEM_PROMPT, user: renderOne(m, c, feedback), schema: APP_LOGIC_SCHEMA, context: m });
-        const obj = res.json && typeof res.json === "object" ? res.json : {};
-        const code = typeof obj.code === "string" ? validateHandler(obj.code) : null;
-        return { id: c.id, code, provider: res.provider };
-      } catch {
-        return { id: c.id, code: null, provider: provider.name };
-      }
-    })
-  );
-  const handlers = {};
-  let skipped = 0;
-  for (const r of results) {
-    if (r.code) handlers[r.id] = r.code;
-    else skipped += 1;
-  }
-  return { handlers, provider: results[0]?.provider ?? provider.name, written: Object.keys(handlers).length, skipped };
-}
 
 // ../../packages/skills/src/components.ts
 var FORMATS = ["text", "money", "date", "boolean", "badge", "longtext"];
@@ -437,16 +427,17 @@ function requireClient(req, res) {
   return client;
 }
 
-// functions/app-logic.ts
+// functions/enrich.ts
 async function handler(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
-  if (!body.capabilities?.capabilities?.length || !body.domain) return void res.status(400).json({ error: "capabilities and domain are required" });
+  if (!body.capabilities?.capabilities?.length || !body.domain?.aggregates?.length) return void res.status(400).json({ error: "capabilities and a domain model are required" });
+  const depth = ["conservative", "standard", "exhaustive"].includes(body.depth) ? body.depth : "standard";
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
   const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
-  const result = await generateAppLogic(body.capabilities, body.domain, body.contexts, provider, body.feedback);
+  const result = await enrichDomain(body.capabilities, body.domain, provider, depth);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
 }

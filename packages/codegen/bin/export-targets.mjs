@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { projectTargets, DEFAULT_BINDING } from "../src/index.ts";
+import { mockEnrichDomain, applyEnrichment } from "@vbd/skills";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../../..");
@@ -30,6 +31,16 @@ const bindingPath = arg("binding", null);
 
 const m = JSON.parse(readFileSync(modelPath, "utf8"));
 const binding = bindingPath ? JSON.parse(readFileSync(resolve(bindingPath), "utf8")) : DEFAULT_BINDING;
+
+// --enrich [depth]: thicken the model (mock, offline) before projecting, so artifacts get the realistic
+// attribute set + child entities. The real (LLM) enrichment runs in-app via /api/enrich with review.
+const enrichIdx = process.argv.indexOf("--enrich");
+if (enrichIdx >= 0) {
+  const depth = ["conservative", "standard", "exhaustive"].includes(process.argv[enrichIdx + 1]) ? process.argv[enrichIdx + 1] : "standard";
+  const before = m.domain.aggregates.length;
+  m.domain = applyEnrichment(m.domain, mockEnrichDomain(m.capabilities, m.domain, depth));
+  console.log(`enriched (${depth}): entities ${before} -> ${m.domain.aggregates.length}`);
+}
 
 const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows);
 

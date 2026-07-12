@@ -24,6 +24,17 @@ export {
   type DomainGenerationResult,
 } from "./domain.ts";
 export {
+  mockEnrichDomain,
+  enrichDomain,
+  applyEnrichment,
+  buildEnrichRequest,
+  ENRICH_SCHEMA,
+  ENRICH_SYSTEM_PROMPT,
+  type EnrichmentResult,
+  type AttributeAddition,
+  type EnrichDepth,
+} from "./enrich.ts";
+export {
   mockGroupContexts,
   generateContexts,
   critiqueContexts,

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@vbd/compiler": "*",
-    "@vbd/ir": "*"
+    "@vbd/ir": "*",
+    "@vbd/skills": "*"
   }
 }

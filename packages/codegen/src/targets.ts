@@ -231,7 +231,7 @@ export function validateBinding(resolved: ResolvedElement[], workflows?: Workflo
 // 5. Adapters — per engine, project its bound elements into that engine's artifacts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PG_TYPE: Record<AttrType, string> = {
+export const PG_TYPE: Record<AttrType, string> = {
   text: "text",
   number: "numeric",
   boolean: "boolean",

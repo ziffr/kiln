@@ -415,3 +415,4 @@ export { hoppscotchCollection } from "./hoppscotch.ts";
 export { agentsAdapter, type AgentDef, type AgentTool } from "./agents.ts";
 export { mockTriggers, triggersAdapter, type TriggersDoc, type TriggerInput, type TriggerSource, type TriggerTarget, type TriggerTargetKind } from "./triggers.ts";
 export { mockExternalServices, externalServicesAdapter, type ExternalServicesDoc, type ExternalServiceInput, type ServiceKind, type ServiceInvocation, type ServiceResultTarget } from "./services.ts";
+export { migratePostgres, type MigrationResult, type BreakingChange } from "./migrate.ts";

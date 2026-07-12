@@ -414,3 +414,4 @@ export { mockIntegrations, integrationsAdapter, type IntegrationsDoc, type Integ
 export { hoppscotchCollection } from "./hoppscotch.ts";
 export { agentsAdapter, type AgentDef, type AgentTool } from "./agents.ts";
 export { mockTriggers, triggersAdapter, type TriggersDoc, type TriggerInput, type TriggerSource, type TriggerTarget, type TriggerTargetKind } from "./triggers.ts";
+export { mockExternalServices, externalServicesAdapter, type ExternalServicesDoc, type ExternalServiceInput, type ServiceKind, type ServiceInvocation, type ServiceResultTarget } from "./services.ts";

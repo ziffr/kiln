@@ -12,10 +12,11 @@
 import { slug } from "@vbd/ir";
 import { attributeSpecs, type CapabilityDoc, type DomainDoc, type AgentsDoc, type WorkflowsDoc } from "@vbd/compiler";
 import type { CommunicationsDoc } from "./comms.ts";
+import type { ExternalServicesDoc } from "./services.ts";
 
 const CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 
-export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf";
+export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf" | "external";
 export interface AgentTool {
   name: string;
   kind: AgentToolKind;
@@ -113,8 +114,8 @@ function processesSection(d: AgentDef): string {
 
 // The tool-argument JSON schema (shared by both providers). All string params — the spine coerces.
 const SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown> {
-  if (t.kind === "command") {
-    const properties: Record<string, { type: string }> = { id: { type: "string" } };
+  if (t.kind === "command" || t.kind === "external") {
+    const properties: Record<string, { type: string }> = t.kind === "command" ? { id: { type: "string" } } : {};
     for (const f of t.input ?? []) properties[f] = { type: "string" };
     return { type: "object", properties };
   }
@@ -123,7 +124,7 @@ const SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown
 }`;
 
 const RUNTIME: Record<string, string> = {
-  "src/def.ts": `export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf";
+  "src/def.ts": `export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf" | "external";
 export interface AgentTool { name: string; kind: AgentToolKind; description: string; invoke: Record<string, unknown>; input?: string[]; }
 export interface AgentDef {
   id: string;
@@ -153,6 +154,15 @@ export async function executeTool(tool: AgentTool, input: Record<string, unknown
     // TODO: wire to your email/Slack integration (or the n8n comm webhooks). Logged so the loop proceeds.
     console.log("[notify]", JSON.stringify(input));
     return { sent: true, ...input };
+  }
+  if (tool.kind === "external") {
+    // Delegate to an EXTERNAL service (a bought qualifier/reviewer). POST the vendor endpoint. For a sync
+    // service the response IS the result; for async, the vendor calls back later (see the n8n callback
+    // workflow) — here we just kick it off. TODO: add the vendor's auth + map fields per the descriptor.
+    const url = String(tool.invoke.url ?? "");
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    const body = await res.json().catch(() => ({}));
+    return { status: res.status, invocation: tool.invoke.invocation, body };
   }
   console.log("[" + tool.kind + "] " + tool.name, JSON.stringify(input));
   return { triggered: tool.name };
@@ -342,7 +352,7 @@ OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
 };
 
 /** Resolve each agent's toolset and emit a runnable, provider-flexible runtime (definitions + loop). */
-export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc): Record<string, string> {
+export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc): Record<string, string> {
   if (!agents?.agents?.length) return {};
   const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
   const cmdName = new Map((domain.commands ?? []).map((c) => [c.id, c.name || c.id]));
@@ -379,6 +389,11 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
       // documents (pdf/spreadsheet) are rendered artifacts, not agent messaging tools — only email/slack.
       if (!ownedEntities.has(cm.entity) || (cm.channel !== "email" && cm.channel !== "slack")) continue;
       tools.push({ name: slug(cm.id), kind: cm.channel, description: `${cm.name} → ${cm.recipient}`, invoke: { channel: cm.channel, on: cm.on, template: `templates/${cm.id}.md` } });
+    }
+    // External services the agent can DELEGATE to (a bought qualifier/reviewer) — for the entities it owns.
+    for (const s of services?.services ?? []) {
+      if (!s.entity || !ownedEntities.has(s.entity)) continue;
+      tools.push({ name: slug(s.id), kind: "external", description: `Delegate to ${s.name} (${s.invocation}) — ${s.rationale ?? "external service"}`, invoke: { url: s.endpoint, invocation: s.invocation, service: s.id }, input: Object.keys(s.requestMapping ?? {}) });
     }
     defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools, processes: procByAgent.get(a.id) ?? [] });
   }

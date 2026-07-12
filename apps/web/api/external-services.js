@@ -238,11 +238,6 @@ var CAPABILITY_SYSTEM_PROMPT = PROMPTS["capability"];
 // ../../packages/skills/src/domain.ts
 var DOMAIN_SYSTEM_PROMPT = PROMPTS["domain"];
 
-// ../../packages/compiler/src/index.ts
-function attributeSpecs(agg) {
-  return (agg.attributes ?? []).map((a) => typeof a === "string" ? { name: a } : a);
-}
-
 // ../../packages/skills/src/enrich.ts
 var A = (specs) => specs.map(([name, type]) => ({ name, type }));
 var KIND_FIELDS = [
@@ -277,6 +272,65 @@ var INTEGRATIONS_SYSTEM_PROMPT = PROMPTS["integrations"];
 
 // ../../packages/skills/src/services.ts
 var EXTERNAL_SERVICES_SYSTEM_PROMPT = PROMPTS["external-services"];
+function renderServicesUserPrompt(caps, domain) {
+  const lines = ["# Entities", ""];
+  for (const a of domain.aggregates) lines.push(`- ${a.id} \u2014 ${a.name}`);
+  lines.push("", "# Commands (result can record via one of these)", "");
+  for (const c of domain.commands ?? []) lines.push(`- ${c.id} \u2014 ${c.name}`);
+  lines.push("", "Propose the external services this business would delegate to. Output ONLY the JSON.");
+  return lines.join("\n");
+}
+var EXTERNAL_SERVICES_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["services"],
+  properties: {
+    services: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "name", "kind", "invocation", "entity", "endpoint", "requestMapping", "responseMapping"],
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          kind: { type: "string", enum: ["workflow", "agent"] },
+          invocation: { type: "string", enum: ["sync", "async"] },
+          entity: { type: "string" },
+          endpoint: { type: "string" },
+          requestMapping: { type: "object", additionalProperties: { type: "string" } },
+          responseMapping: { type: "object", additionalProperties: { type: "string" } },
+          resultTarget: { type: "object", additionalProperties: false, properties: { kind: { type: "string", enum: ["command", "agent"] }, ref: { type: "string" } } },
+          rationale: { type: "string" }
+        }
+      }
+    }
+  }
+};
+function coerceExternalServices(json, domain, agentIds = []) {
+  const aggIds = new Set(domain.aggregates.map((a) => a.id));
+  const cmdIds = new Set((domain.commands ?? []).map((c) => c.id));
+  const agents = new Set(agentIds);
+  const raw = (json && typeof json === "object" ? json.services : void 0) ?? [];
+  const services = (Array.isArray(raw) ? raw : []).map((s) => s).filter((s) => s && aggIds.has(s.entity ?? "")).map((s) => {
+    const rt = s.resultTarget;
+    const okTarget = rt && (rt.kind === "command" && cmdIds.has(rt.ref) || rt.kind === "agent" && agents.has(slug(rt.ref)));
+    return {
+      ...s,
+      id: slug(s.id || `svc_${slug(s.name || s.entity || "service")}`),
+      invocation: s.invocation === "async" ? "async" : "sync",
+      kind: s.kind === "workflow" ? "workflow" : "agent",
+      requestMapping: s.requestMapping ?? {},
+      responseMapping: s.responseMapping ?? {},
+      resultTarget: okTarget ? { kind: rt.kind, ref: rt.kind === "agent" ? slug(rt.ref) : rt.ref } : void 0
+    };
+  });
+  return { version: "0.1", services };
+}
+async function generateExternalServices(caps, domain, provider, agentIds = []) {
+  const res = await provider.complete({ system: EXTERNAL_SERVICES_SYSTEM_PROMPT, user: renderServicesUserPrompt(caps, domain), schema: EXTERNAL_SERVICES_SCHEMA, context: { caps, domain } });
+  return coerceExternalServices(res.json, domain, agentIds);
+}
 
 // ../../packages/skills/src/contexts.ts
 var CONTEXT_SYSTEM_PROMPT = PROMPTS["contexts"];
@@ -299,36 +353,6 @@ var AGENT_SYSTEM_PROMPT = PROMPTS["agents"];
 
 // ../../packages/skills/src/orchestration.ts
 var ORCHESTRATION_SYSTEM_PROMPT = PROMPTS["orchestration"];
-
-// ../../packages/codegen/src/app.ts
-function projectAppModel(caps, domain, contexts, rolesDoc) {
-  const areaOfCap = /* @__PURE__ */ new Map();
-  for (const c of contexts?.contexts ?? []) for (const m of [...c.capabilities ?? [], ...c.shared_kernel ?? []]) areaOfCap.set(m, c.name || c.id);
-  const roles = (rolesDoc?.roles ?? []).map((r) => ({ name: r.name || r.id, capabilities: r.capabilities ?? [] }));
-  const entities = domain.aggregates.map((a) => ({
-    id: slug(a.id),
-    name: a.name || a.id,
-    owner: a.owner,
-    area: areaOfCap.get(a.owner) ?? "General",
-    fields: attributeSpecs(a).map((s) => ({ name: s.name, type: s.type || "text" })),
-    references: (a.references ?? []).map((r) => slug(r))
-  }));
-  const permissions = {};
-  for (const e of entities) {
-    const allowed = roles.filter((r) => r.capabilities.includes(e.owner)).map((r) => r.name);
-    if (allowed.length) permissions[e.id] = allowed;
-  }
-  return {
-    domain: caps.domain || "business",
-    entities,
-    commands: (domain.commands ?? []).map((c) => ({ id: slug(c.id), name: c.name, entity: slug(c.aggregate), emits: (c.emits ?? []).map((e) => slug(e)) })),
-    events: (domain.events ?? []).map((e) => ({ id: slug(e.id), name: e.name, entity: slug(e.aggregate), trigger: e.trigger || "command" })),
-    policies: (domain.policies ?? []).map((p) => ({ name: p.name, on: slug(p.on), then: slug(p.then) })),
-    areas: (contexts?.contexts ?? []).map((c) => ({ name: c.name || c.id, capabilities: (c.capabilities ?? []).map((m) => slug(m)) })),
-    roles,
-    permissions
-  };
-}
 
 // ../../packages/codegen/src/ui-scaffold.ts
 var UI_SCAFFOLD = {
@@ -801,62 +825,7 @@ OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
 };
 
 // ../../packages/skills/src/applogic.ts
-var APP_LOGIC_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["code"],
-  properties: { code: { type: "string", description: "a block-bodied JS arrow function `(input, ctx) => { /* heavily commented */ return { ...record }; }` \u2014 inline // comments must explain every decision and why" } }
-};
 var APP_LOGIC_SYSTEM_PROMPT = PROMPTS["app-logic"];
-function renderOne(m, c, feedback) {
-  const ent = m.entities.find((e) => e.id === c.entity);
-  const fields = (ent?.fields ?? []).map((f) => `${f.name}:${f.type}`).join(", ") || "(no typed fields)";
-  const others = m.entities.filter((e) => e.id !== c.entity).map((e) => `${e.id} { ${e.fields.map((f) => f.name).join(", ")} }`).join("; ") || "(none)";
-  const lines = [
-    `# Write the handler for command "${c.name}" (id: ${c.id})`,
-    `Acts on entity: ${c.entity} { ${fields} }${c.emits.length ? ` \u2014 emits ${c.emits.join(", ")}` : ""}`,
-    `Other entities (for ctx.all/ctx.find lookups): ${others}`
-  ];
-  if (feedback) lines.push("", `A reviewer flagged issues to fix in this handler \u2014 address them:`, feedback);
-  return lines.join("\n");
-}
-var BLOCKED = /\b(require|import|eval|Function|process|globalThis|global|module|fetch|XMLHttpRequest|WebSocket|child_process|__proto__|constructor|prototype)\b/;
-function validateHandler(code) {
-  const c = code.trim();
-  if (!c || c.length > 8e3) return null;
-  if (!/^\(?[\w\s,{}[\].=]*\)?\s*=>/.test(c)) return null;
-  const stripped = c.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-  if (BLOCKED.test(stripped)) return null;
-  let bal = 0;
-  for (const ch of stripped) {
-    if (ch === "(" || ch === "{" || ch === "[") bal++;
-    else if (ch === ")" || ch === "}" || ch === "]") bal--;
-    if (bal < 0) return null;
-  }
-  return bal === 0 ? c : null;
-}
-async function generateAppLogic(caps, domain, contexts, provider, feedback) {
-  const m = projectAppModel(caps, domain, contexts);
-  const results = await Promise.all(
-    m.commands.map(async (c) => {
-      try {
-        const res = await provider.complete({ system: APP_LOGIC_SYSTEM_PROMPT, user: renderOne(m, c, feedback), schema: APP_LOGIC_SCHEMA, context: m });
-        const obj = res.json && typeof res.json === "object" ? res.json : {};
-        const code = typeof obj.code === "string" ? validateHandler(obj.code) : null;
-        return { id: c.id, code, provider: res.provider };
-      } catch {
-        return { id: c.id, code: null, provider: provider.name };
-      }
-    })
-  );
-  const handlers = {};
-  let skipped = 0;
-  for (const r of results) {
-    if (r.code) handlers[r.id] = r.code;
-    else skipped += 1;
-  }
-  return { handlers, provider: results[0]?.provider ?? provider.name, written: Object.keys(handlers).length, skipped };
-}
 
 // ../../packages/skills/src/components.ts
 var FORMATS = ["text", "money", "date", "boolean", "badge", "longtext"];
@@ -953,18 +922,18 @@ function requireClient(req, res) {
   return client;
 }
 
-// functions/app-logic.ts
+// functions/external-services.ts
 async function handler(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
-  if (!body.capabilities?.capabilities?.length || !body.domain) return void res.status(400).json({ error: "capabilities and domain are required" });
+  if (!body.domain?.aggregates?.length) return void res.status(400).json({ error: "domain with aggregates is required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
   const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
-  const result = await generateAppLogic(body.capabilities, body.domain, body.contexts, provider, body.feedback);
+  const doc = await generateExternalServices(body.capabilities ?? { capabilities: [] }, body.domain, provider, body.agentIds ?? []);
   const estCostUsd = estCost(usage, model);
-  res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
+  res.status(200).json({ doc, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
 }
 var config = { maxDuration: 60 };
 export {

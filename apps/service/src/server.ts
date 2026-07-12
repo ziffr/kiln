@@ -33,6 +33,7 @@ import {
   generateWorkflows,
   generateAgents,
   generateOrchestration,
+  generateExternalServices,
   safeParseJson,
   buildCoachSystemPrompt,
   COACH_SCHEMA,
@@ -496,6 +497,22 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
+    // External services (delegation): which existing external workflows/agents to delegate to.
+    if (req.method === "POST" && req.url === "/api/external-services") {
+      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: { aggregates?: unknown[] }; agentIds?: string[]; model?: string; effort?: string };
+      if (!body.domain?.aggregates?.length) return send(res, 400, { error: "domain with aggregates is required" });
+      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const doc = await generateExternalServices((body.capabilities ?? { capabilities: [] }) as never, body.domain as never, provider, body.agentIds ?? []);
+      const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
+      const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+      return send(res, 200, { doc, model: model.id, usage, estCostUsd, sessionSpendUsd });
     }
 
     // SPEC-008: model the autonomous agents that operate the capabilities, server-side.

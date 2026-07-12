@@ -14,7 +14,7 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { projectTargets, DEFAULT_BINDING, generateOpenApi } from "../src/index.ts";
+import { projectTargets, DEFAULT_BINDING, generateOpenApi, hoppscotchCollection } from "../src/index.ts";
 import { mockEnrichDomain, applyEnrichment } from "@vbd/skills";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -210,6 +210,8 @@ make db            # apply the schema
 make ui            # run the front-end (pnpm)
 \`\`\`
 
+- **API testing:** import \`hoppscotch/collection.json\` + \`hoppscotch/environment.json\` into
+  [Hoppscotch](https://hoppscotch.io) — a request per command with example bodies. Or import \`openapi.json\`.
 - **Deploy:** [DEPLOY.md](./DEPLOY.md) — per-component (UI static host, managed Postgres, n8n, Odoo).
 - **CI:** \`.github/workflows/ci.yml\` builds the UI, applies the schema, and validates the workflows.
 - **Coding agents:** see [CLAUDE.md](./CLAUDE.md). To change structure, edit \`model.json\` and regenerate.
@@ -408,6 +410,10 @@ written.push(write("TODO.md", todo.join("\n") + "\n"));
 
 // --- Professional-repo hardening: OpenAPI, tooling config, security, pre-commit, license. ---
 written.push(write("openapi.json", JSON.stringify(generateOpenApi(m.capabilities, m.domain, m.contexts), null, 2)));
+// Hoppscotch: a ready-to-poke API collection for the spine (import both files in Hoppscotch).
+const hopp = hoppscotchCollection(m.capabilities, m.domain, m.contexts);
+written.push(write("hoppscotch/collection.json", JSON.stringify(hopp.collection, null, 2)));
+written.push(write("hoppscotch/environment.json", JSON.stringify(hopp.environment, null, 2)));
 written.push(write(".nvmrc", "20\n"));
 written.push(write(".editorconfig", "root = true\n\n[*]\nindent_style = space\nindent_size = 2\nend_of_line = lf\ncharset = utf-8\ntrim_trailing_whitespace = true\ninsert_final_newline = true\n"));
 written.push(write(".prettierrc", JSON.stringify({ printWidth: 120, semi: true, singleQuote: false, trailingComma: "all" }, null, 2)));

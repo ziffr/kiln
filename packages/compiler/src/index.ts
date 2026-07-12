@@ -148,7 +148,13 @@ export interface WorkflowInput {
    * router only distinguishes workflow vs agent — it can't know what you've bought).
    */
   mode?: ProcessMode;
-  service?: string; // external service id when mode === "external"
+  service?: string; // external service id when mode === "external" (the whole process is delegated)
+  /**
+   * Per-step delegation: a step keeps its command id (its intent — "Qualify Lead"), but is FULFILLED by
+   * an external service. Maps step command id → external service id. Lets a workflow-mode process run
+   * internally while individual steps are delegated (mixed routing), instead of all-or-nothing.
+   */
+  stepBindings?: Record<string, string>;
   meta?: Record<string, unknown>;
 }
 export interface WorkflowsDoc {

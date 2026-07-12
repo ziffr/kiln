@@ -1,6 +1,7 @@
 // A distinct visualization per layer — each business concept gets the shape that fits it, instead of
 // forcing everything through one graph. Compact by design; the map stays for capabilities/areas.
 
+import { useState } from "react";
 import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type WorkflowsDoc, type AgentsDoc, type ContextsDoc } from "@vbd/compiler";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
@@ -134,6 +135,7 @@ export function WorkflowsView({
   t,
   onSetMode,
   onSetService,
+  onBindStep,
   onClassify,
   classifyBusy,
   rationales,
@@ -144,13 +146,16 @@ export function WorkflowsView({
   t: T;
   onSetMode?: (id: string, mode: ProcessMode) => void;
   onSetService?: (id: string, serviceId: string) => void;
+  onBindStep?: (workflowId: string, step: string, serviceId: string) => void;
   onClassify?: () => void;
   classifyBusy?: boolean;
   rationales?: Record<string, string>;
   services?: Array<{ id: string; name: string; invocation: string }>;
 }): React.JSX.Element {
+  const [openDelegate, setOpenDelegate] = useState<string | null>(null);
   if (!workflows.workflows.length) return <Empty msg={t("emptyWorkflows")} />;
   const cmdName = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.name || id;
+  const svcName = (id?: string) => services?.find((s) => s.id === id)?.name;
   return (
     <div className="workflows-view">
       <div className="wf-orch-head">
@@ -184,16 +189,45 @@ export function WorkflowsView({
             </div>
             {rationale && <p className="wf-rationale muted">{rationale}</p>}
             <div className="wf-seq">
-              {(w.steps ?? []).map((s, i) => (
-                <div key={i} className="wf-node">
-                  {i > 0 && <span className="wf-conn" aria-hidden />}
-                  <span className="wf-num">{i + 1}</span>
-                  <span className="wf-box">{cmdName(s)}</span>
-                </div>
-              ))}
+              {(w.steps ?? []).map((s, i) => {
+                const boundTo = w.stepBindings?.[s];
+                return (
+                  <div key={i} className="wf-node">
+                    {i > 0 && <span className="wf-conn" aria-hidden />}
+                    <span className="wf-num">{i + 1}</span>
+                    <span className={`wf-box${boundTo ? " wf-box-ext" : ""}`} title={boundTo ? `→ ${svcName(boundTo) ?? boundTo}` : undefined}>
+                      {boundTo && "🌐 "}
+                      {cmdName(s)}
+                    </span>
+                  </div>
+                );
+              })}
               {(w.steps ?? []).length === 0 && <span className="muted">{t("noSteps")}</span>}
             </div>
             {mode === "agent" && <p className="wf-mode-note">{t("agentFold")}</p>}
+            {mode === "workflow" && onBindStep && services?.length ? (
+              <div className="wf-delegate">
+                <button className="wf-delegate-toggle" onClick={() => setOpenDelegate(openDelegate === w.id ? null : w.id)}>
+                  {openDelegate === w.id ? "▾ " : "▸ "}
+                  {t("delegateSteps")}
+                </button>
+                {openDelegate === w.id && (
+                  <div className="wf-delegate-panel">
+                    {(w.steps ?? []).map((s, i) => (
+                      <div key={i} className="wf-delegate-row">
+                        <span className="wf-delegate-step">{i + 1}. {cmdName(s)}</span>
+                        <select value={w.stepBindings?.[s] ?? ""} onChange={(e) => onBindStep(w.id, s, e.target.value)}>
+                          <option value="">{t("stepInternal")}</option>
+                          {services.map((sv) => (
+                            <option key={sv.id} value={sv.id}>🌐 {sv.name} ({sv.invocation})</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
             {mode === "external" && (
               <div className="wf-mode-note wf-ext-pick">
                 <span>{t("externalDelegate")}</span>

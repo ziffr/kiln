@@ -337,7 +337,12 @@ export function n8nAdapter(resolved: ResolvedElement[], domain: DomainDoc, workf
     const connections: Record<string, unknown> = {};
     let prev = trigger.name as string;
     steps.forEach((s, idx) => {
-      const node = httpNode(cmdById.get(s)?.name || s, s, 480 + idx * 240, 300);
+      // per-step delegation (SPEC-009): a step bound to an external service calls the vendor instead of
+      // the internal command — the rest of the pipeline stays internal. Mixed routing within one process.
+      const svc = w.stepBindings?.[s] ? svcById.get(w.stepBindings[s]) : undefined;
+      const node = svc
+        ? { parameters: { method: "POST", url: svc.endpoint, sendBody: true, note: `step "${cmdById.get(s)?.name || s}" delegated to ${svc.name} — see services/${svc.id}.json` }, name: `Delegate: ${cmdById.get(s)?.name || s}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [480 + idx * 240, 300] }
+        : httpNode(cmdById.get(s)?.name || s, s, 480 + idx * 240, 300);
       nodes.push(node);
       connections[prev] = { main: [[{ node: node.name, type: "main", index: 0 }]] };
       prev = node.name as string;

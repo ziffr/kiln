@@ -653,6 +653,21 @@ export default function App(): React.JSX.Element {
   function setWorkflowService(id: string, service: string): void {
     patchActive({ workflows: { ...workflowsDoc, workflows: workflowsDoc.workflows.map((w) => (w.id === id ? { ...w, service } : w)) } });
   }
+  // per-step delegation: bind a single step to an external service (serviceId "" = keep it internal).
+  function setWorkflowStepBinding(id: string, step: string, serviceId: string): void {
+    patchActive({
+      workflows: {
+        ...workflowsDoc,
+        workflows: workflowsDoc.workflows.map((w) => {
+          if (w.id !== id) return w;
+          const bindings = { ...(w.stepBindings ?? {}) };
+          if (serviceId) bindings[step] = serviceId;
+          else delete bindings[step];
+          return { ...w, stepBindings: bindings };
+        }),
+      },
+    });
+  }
   async function classifyOrchestration(): Promise<void> {
     setOrchestrationBusy(true); setError(null);
     try {
@@ -919,7 +934,7 @@ export default function App(): React.JSX.Element {
             {stage === "behaviour" && <BehaviourView domain={behaviourDoc} highlight={selectedAggregate?.id} t={t} />}
             {stage === "automations" && <AutomationsView domain={flowDoc} highlight={selectedAggregate?.id} t={t} />}
             {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} highlightCap={selectedAggregate?.owner ?? selected} t={t} />}
-            {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} onSetMode={setWorkflowMode} onSetService={setWorkflowService} onClassify={classifyOrchestration} classifyBusy={orchestrationBusy} rationales={orchestrationRationales} services={serviceOptions} />}
+            {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} onSetMode={setWorkflowMode} onSetService={setWorkflowService} onBindStep={setWorkflowStepBinding} onClassify={classifyOrchestration} classifyBusy={orchestrationBusy} rationales={orchestrationRationales} services={serviceOptions} />}
             {stage === "agents" && <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={setSelected} t={t} />}
             {stage === "code" && (
               <CodePreview

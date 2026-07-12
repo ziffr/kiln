@@ -544,7 +544,13 @@ textarea {
 .workflow-card.wf-mode-agent { border-left: 3px solid var(--accent-2); }
 .workflow-card.wf-mode-external { border-left: 3px solid #0ea5e9; }
 .wf-ext-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-left-color: #0ea5e9; }
-.wf-ext-pick select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; }
+.wf-ext-pick select, .wf-delegate-row select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; }
+.wf-box-ext { border-color: #0ea5e9 !important; }
+.wf-delegate { margin-top: 8px; }
+.wf-delegate-toggle { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; padding: 2px 0; }
+.wf-delegate-panel { margin-top: 6px; display: grid; gap: 4px; }
+.wf-delegate-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
+.wf-delegate-step { color: var(--muted); }
 
 .review-overlay { max-width: 640px; }
 

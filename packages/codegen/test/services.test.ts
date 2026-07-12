@@ -55,6 +55,19 @@ test("mode=external process → a delegate connector (not the internal pipeline)
   assert.ok(!rep.artifacts.n8n.some((w) => w.name === "Process: Screen Lead"));
 });
 
+test("per-step delegation: a bound step calls the vendor; the rest of the pipeline stays internal", () => {
+  const workflows = { version: "0.1", workflows: [{ id: "l2s", name: "Lead to Sale", steps: ["capture_lead", "qualify_lead", "draft_offer"], mode: "workflow" as const, stepBindings: { qualify_lead: "svc_lead_qualifier" } }] };
+  const services = { version: "0.1", services: [{ id: "svc_lead_qualifier", name: "Lead Qualifier", kind: "agent" as const, invocation: "sync" as const, entity: "lead", endpoint: "https://api.q.example.com/score", requestMapping: {}, responseMapping: {} }] };
+  const rep = projectTargets(DEFAULT_BINDING, caps, domain, undefined, undefined, workflows as never, undefined, {}, undefined, undefined, agents, undefined, services as never);
+  const proc = rep.artifacts.n8n.find((w) => w.name === "Process: Lead to Sale")!;
+  const delegate = proc.nodes.find((n) => String(n.name).startsWith("Delegate:"));
+  assert.ok(delegate, "the bound step is a delegate node");
+  assert.equal((delegate!.parameters as { url: string }).url, "https://api.q.example.com/score");
+  // the other two steps remain internal spine-command calls
+  const internal = proc.nodes.filter((n) => (n.parameters as { url?: string }).url?.includes("spine.local"));
+  assert.equal(internal.length, 2);
+});
+
 test("agents get external services they own as delegable tools (kind: external)", () => {
   const doc = mockExternalServices(caps, domain, undefined, agents);
   const files = agentsAdapter(caps, domain, agents, undefined, undefined, doc);

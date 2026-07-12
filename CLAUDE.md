@@ -107,6 +107,12 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   n8n pipeline emits a delegate node for that step; UI "Delegate individual steps" panel + 🌐 step marker).
   Routing is composable — process-level AND step-level. Solar: Excel lead import + offer-register export;
   sync Lead Qualifier + async Offer Reviewer. 252 tests.
+- **sidebar-16 skin BUILT (both apps)** — generated app: `shadcnAdapter` shell upgraded to shadcn's
+  "sidebar-16" inset dashboard (team header + model-derived grouped nav + AppHeader breadcrumb/search +
+  inset content card), reproduced dependency-light (React+Tailwind, no shadcn `sidebar` component). VBD
+  designer: **full shell swap** — topbar+stage-rail → sidebar (team header + project switcher + labeled
+  StageRail nav + footer) + inset content card with breadcrumb topbar + collapse toggle (kept in VBD's own
+  CSS, dark palette). Verified in-browser; 255 tests.
 - **Generated-app in-app HELP system BUILT** — `helpModel` projects the model into end-user docs (screen
   "what" = capability purpose/area intent; action "does" = command→emitted events; processes = workflows;
   roles; automations = policies; field hints from types). `shadcnAdapter` emits `src/help.ts` + a `/help`

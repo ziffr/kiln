@@ -790,6 +790,11 @@ export default function App(): React.JSX.Element {
     const e = mockEnrichDomain(activeDoc, flowDoc, "standard"); // offline, deterministic — the fast source
     setEnrichProps(flattenEnrichment(e, flowDoc, "grounded"));
   }
+  // Auto mode: run enrichment and apply every proposal without the review step (opt-in "just do it").
+  function autoEnrich(): void {
+    const props = flattenEnrichment(mockEnrichDomain(activeDoc, flowDoc, "standard"), flowDoc, "grounded");
+    if (props.length) patchActive({ domain: applyEnrichment(flowDoc, rebuildEnrichment(props)) });
+  }
   function toggleEnrich(id: string): void {
     setEnrichProps((ps) => (ps ? ps.map((p) => (p.id === id ? { ...p, accepted: !p.accepted } : p)) : ps));
   }
@@ -996,6 +1001,7 @@ export default function App(): React.JSX.Element {
               {stage === "capabilities" && <button className="addcap" onClick={addCapability}>{t("addCap")}</button>}
               {stage === "areas" && <button className="addcap" onClick={addArea}>{t("addArea")}</button>}
               {stage === "entities" && <button className="addcap" onClick={runEnrichGrounded}>✨ {t("enrich")}</button>}
+              {stage === "entities" && <button className="addcap" onClick={autoEnrich} title={t("enrichAutoHint")}>⚡ {t("enrichAuto")}</button>}
               {REVIEW_KIND[stage] && (
                 <button className="addcap" onClick={() => void reviewLayer(REVIEW_KIND[stage]!)} disabled={reviewBusy === REVIEW_KIND[stage]}>
                   {reviewBusy === REVIEW_KIND[stage] ? t("generating") : `✨ ${t("aiReviewGo")}`}

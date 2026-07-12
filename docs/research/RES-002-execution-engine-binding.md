@@ -3,7 +3,7 @@ id: RES-002
 title: Execution-engine binding — model → multi-backend deployment-target compiler
 type: research
 status: Draft
-version: 0.2.0
+version: 0.3.0
 author: Claude (Opus 4.8)
 created: 2026-07-12
 updated: 2026-07-12
@@ -122,6 +122,22 @@ inside the methods is hand-owned** (ADR-002), and the module has **not yet been 
 Odoo** (that is Probe 2). "Describe a business → Odoo is scaffolded" is real; "→ Odoo runs the business
 untouched" is not, and shouldn't be claimed.
 
+## 4b. Probe 2 — live round-trip (partial): the artifacts RUN
+
+An **exporter** (`npm run targets:export`, `packages/codegen/bin/export-targets.mjs`) writes the
+artifacts to `out/targets/` — `postgres/schema.sql`, `n8n/*.json`, `odoo/<module>/…`, `_run.json`.
+Two of three engines are now proven against **live** software (Docker):
+
+- **Postgres — RUNS.** `schema.sql` applied to a real Postgres 16 with `ON_ERROR_STOP=1` (aborts on any
+  error): **12 tables, 15 foreign keys, 12 RLS policies** created — exactly the model's shape.
+- **n8n — RUNS, after a fix the live test forced.** First import failed: `NOT NULL constraint failed:
+  workflow_entity.id` — the adapter emitted `{name, nodes, connections}` but n8n's `import:workflow`
+  requires `id` (+ `active`, `settings`). Added them; **all 14 workflows then imported successfully**
+  and list clean in n8n. This is the exact value of a live round-trip: "structurally faithful" hid a
+  real gap that only a running importer surfaced.
+- **Odoo — not yet.** Heavy image (~2 GB) + needs its own Postgres + a module-install step
+  (`odoo -i <module> --stop-after-init`). A dedicated pass.
+
 ## 5. Findings / gaps (what a full multi-backend projection cannot yet do faithfully)
 
 1. **The spine is still large** (119/152 elements): `operate` + `emit` have no native external home in
@@ -132,15 +148,16 @@ untouched" is not, and shouldn't be claimed.
    but not the *row predicate* (no subject/tenant model). Faithful authz needs a modelling addition.
 3. **`partial` fidelity is unmodelled semantics.** "Postgres emit" = `LISTEN/NOTIFY`, not a durable bus;
    the model doesn't yet express delivery guarantees, so the binding can't choose correctly.
-4. **n8n artifacts are unverified against a live n8n.** They are structurally faithful but have not been
-   round-tripped through a real n8n import.
+4. ~~n8n artifacts are unverified against a live n8n.~~ **RESOLVED (Probe 2, §4b)** — they import into a
+   live n8n after adding the `id`/`active`/`settings` fields the importer requires. Postgres DDL also
+   verified live. Odoo remains to be installed into a live instance.
 
 ## 6. What this justifies next (recommended sequencing)
 
-- **Probe 2 (highest value): round-trip through live engines using the existing Docker verifier.** Stand
-  up Postgres + n8n in the sandbox, apply the generated DDL, import a generated n8n workflow, fire the
-  webhook, assert the command endpoint is hit. This converts "structurally faithful" into "runs." Reuses
-  the sandboxing work already built.
+- **Probe 2: round-trip through live engines — PARTIALLY DONE (§4b).** Postgres DDL applies and n8n
+  workflows import against live containers. Remaining: (a) **Odoo** — install the generated module into a
+  live Odoo (`odoo -i`), the heavy leg; (b) **end-to-end** — fire a webhook and assert the command
+  endpoint is hit across the seam (needs the spine running too).
 - **Probe 3: Odoo — DONE (§4a).** The interface survived a store, an orchestrator, and a full business
   platform. Adding an engine is now confirmed to be *descriptor + adapter (+ coherence rule)* only.
 - **Then** promote to a SPEC: the authored **Binding** layer in the IR + UI (a per-Area engine picker),

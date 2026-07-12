@@ -104,6 +104,10 @@ test("n8nAdapter emits a reaction workflow (event webhook → HTTP call to the c
   const wfs = n8nAdapter(r, domain, workflows);
   const react = wfs.find((w) => w.name.startsWith("Reaction"));
   assert.ok(react, "expected a reaction workflow");
+  // fields n8n's `import:workflow` requires (verified against a live n8n — id is NOT NULL).
+  assert.ok(react!.id && react!.id.length > 0, "workflow needs an id");
+  assert.equal(react!.active, false);
+  assert.ok(react!.settings && typeof react!.settings === "object");
   assert.equal(react!.nodes[0].type, "n8n-nodes-base.webhook");
   const http = react!.nodes.find((n) => n.type === "n8n-nodes-base.httpRequest")!;
   // "issue_invoice" is a CREATE verb → the create endpoint (mirrors generateOpenApi).

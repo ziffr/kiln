@@ -259,9 +259,13 @@ function commandEndpoint(cmd: { id: string; name?: string; aggregate: string }):
 }
 
 export interface N8nWorkflow {
+  /** required by n8n's `import:workflow` (NOT NULL on workflow_entity.id) — a stable, deterministic id. */
+  id: string;
   name: string;
   nodes: Array<Record<string, unknown>>;
   connections: Record<string, unknown>;
+  active: boolean;
+  settings: Record<string, unknown>;
 }
 
 /**
@@ -286,9 +290,12 @@ export function n8nAdapter(resolved: ResolvedElement[], domain: DomainDoc, workf
     const trigger = { parameters: { httpMethod: "POST", path: `on/${slug(p.on)}` }, name: `On ${evName.get(p.on) ?? p.on}`, type: "n8n-nodes-base.webhook", typeVersion: 2, position: [240, 300] };
     const action = httpNode(cmdById.get(p.then)?.name || p.then, p.then, 520, 300);
     out.push({
+      id: `vbd_reaction_${slug(pid)}`,
       name: `Reaction: ${p.name || `on ${evName.get(p.on) ?? p.on}`}`,
       nodes: [trigger, action],
       connections: { [trigger.name as string]: { main: [[{ node: action.name, type: "main", index: 0 }]] } },
+      active: false,
+      settings: { executionOrder: "v1" },
     });
   }
 
@@ -305,7 +312,7 @@ export function n8nAdapter(resolved: ResolvedElement[], domain: DomainDoc, workf
       connections[prev] = { main: [[{ node: node.name, type: "main", index: 0 }]] };
       prev = node.name as string;
     });
-    out.push({ name: `Process: ${w.name || w.id}`, nodes, connections });
+    out.push({ id: `vbd_process_${slug(w.id)}`, name: `Process: ${w.name || w.id}`, nodes, connections, active: false, settings: { executionOrder: "v1" } });
   }
   return out;
 }

@@ -11,6 +11,7 @@ export const UI_SCAFFOLD: Record<string, string> = {
       name: "generated-ui",
       private: true,
       type: "module",
+      packageManager: "pnpm@9.12.0",
       scripts: { dev: "vite", build: "vite build", preview: "vite preview" },
       dependencies: {
         react: "^18.3.1",
@@ -158,8 +159,8 @@ SelectTrigger.displayName = "SelectTrigger";
 Structure derived from the business model; skin from the Theme in \`src/index.css\`.
 
 \`\`\`bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 \`\`\`
 
 Screens: one list + detail per entity, navigation grouped by Business Area, master-detail child grids

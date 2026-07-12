@@ -413,3 +413,4 @@ export { mockCommunications, communicationsAdapter, type CommunicationsDoc, type
 export { mockIntegrations, integrationsAdapter, type IntegrationsDoc, type IntegrationAction, type IntegrationDirection } from "./integrations.ts";
 export { hoppscotchCollection } from "./hoppscotch.ts";
 export { agentsAdapter, type AgentDef, type AgentTool } from "./agents.ts";
+export { mockTriggers, triggersAdapter, type TriggersDoc, type TriggerInput, type TriggerSource, type TriggerTarget, type TriggerTargetKind } from "./triggers.ts";

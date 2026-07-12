@@ -21,6 +21,7 @@ import { spineAdapter } from "./spine.ts";
 import { mockCommunications, communicationsAdapter, type CommunicationsDoc } from "./comms.ts";
 import { mockIntegrations, integrationsAdapter, type IntegrationsDoc } from "./integrations.ts";
 import { agentsAdapter } from "./agents.ts";
+import { mockTriggers, triggersAdapter, type TriggersDoc } from "./triggers.ts";
 import type { AgentsDoc } from "@vbd/compiler";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -267,7 +268,7 @@ export function postgresAdapter(resolved: ResolvedElement[], domain: DomainDoc, 
 
 /** The REST path a command maps to (mirrors generateOpenApi so the seam points at real endpoints). */
 const CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
-function commandEndpoint(cmd: { id: string; name?: string; aggregate: string }): { method: string; path: string } {
+export function commandEndpoint(cmd: { id: string; name?: string; aggregate: string }): { method: string; path: string } {
   const res = `${slug(cmd.aggregate)}s`;
   const action = slug(cmd.name || cmd.id);
   if (CREATE_VERB.test(`${action}_`)) return { method: "POST", path: `/${res}` };
@@ -527,7 +528,7 @@ export interface TargetsReport {
   binding: Binding;
   resolved: ResolvedElement[];
   validation: BindingFinding[];
-  artifacts: { postgres: string; n8n: N8nWorkflow[]; odoo: Record<string, string>; ui: Record<string, string>; spine: Record<string, string>; comms: { templates: Record<string, string>; n8n: N8nWorkflow[] }; integrations: { mappings: Record<string, string>; n8n: N8nWorkflow[] }; agents: Record<string, string> };
+  artifacts: { postgres: string; n8n: N8nWorkflow[]; odoo: Record<string, string>; ui: Record<string, string>; spine: Record<string, string>; comms: { templates: Record<string, string>; n8n: N8nWorkflow[] }; integrations: { mappings: Record<string, string>; n8n: N8nWorkflow[] }; agents: Record<string, string>; triggers: { doc: TriggersDoc; n8n: N8nWorkflow[] } };
   /** which engine serves the UI (serve-ui binding), and whether we generated it or it's engine-native. */
   ui: { engineId: string; generated: boolean; note: string };
   seams: Seam[];
@@ -549,6 +550,7 @@ export function projectTargets(
   comms?: CommunicationsDoc,
   integrations?: IntegrationsDoc,
   agents?: AgentsDoc,
+  triggers?: TriggersDoc,
 ): TargetsReport {
   const resolved = resolveBinding(binding, caps, domain, contexts, roles, workflows);
   const validation = validateBinding(resolved, workflows, domain);
@@ -576,6 +578,10 @@ export function projectTargets(
     comms: communicationsAdapter(commsDoc),
     integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain),
     agents: agentsAdapter(caps, domain, agents, commsDoc),
+    triggers: (() => {
+      const doc = triggers ?? mockTriggers(caps, domain, workflows, agents);
+      return { doc, n8n: triggersAdapter(doc, domain) };
+    })(),
   };
   const seams = deriveSeams(resolved, domain, workflows);
 

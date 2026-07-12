@@ -16,6 +16,8 @@ import {
   generateDomain,
   enrichDomain,
   type EnrichDepth,
+  generateCommunications,
+  generateIntegrations,
   generateContexts,
   critiqueContexts,
   critiqueLayer,
@@ -225,6 +227,28 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
 
+      return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
+    // Communications / integrations — the LLM refines the "external effects" layer for this business.
+    if (req.method === "POST" && (req.url === "/api/communications" || req.url === "/api/integrations")) {
+      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: DomainDoc; model?: string; effort?: string };
+      if (!body.capabilities?.capabilities?.length || !body.domain?.aggregates?.length) {
+        return send(res, 400, { error: "capabilities and a domain model are required" });
+      }
+      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const result =
+        req.url === "/api/communications"
+          ? await generateCommunications(body.capabilities, body.domain, provider)
+          : await generateIntegrations(body.capabilities, body.domain, provider);
+
+      const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
+      const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
     }
 

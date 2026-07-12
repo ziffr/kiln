@@ -34,6 +34,8 @@ export {
   type AttributeAddition,
   type EnrichDepth,
 } from "./enrich.ts";
+export { generateCommunications, coerceCommunications, COMMS_SCHEMA, COMMS_SYSTEM_PROMPT } from "./comms.ts";
+export { generateIntegrations, coerceIntegrations, INTEGRATIONS_SCHEMA, INTEGRATIONS_SYSTEM_PROMPT } from "./integrations.ts";
 export {
   mockGroupContexts,
   generateContexts,

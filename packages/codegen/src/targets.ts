@@ -18,8 +18,8 @@ import { slug } from "@vbd/ir";
 import { attributeSpecs, type AttrType, type CapabilityDoc, type DomainDoc, type ContextsDoc, type RolesDoc, type WorkflowsDoc } from "@vbd/compiler";
 import { shadcnAdapter, DEFAULT_THEME, type Theme } from "./ui.ts";
 import { spineAdapter } from "./spine.ts";
-import { mockCommunications, communicationsAdapter } from "./comms.ts";
-import { mockIntegrations, integrationsAdapter } from "./integrations.ts";
+import { mockCommunications, communicationsAdapter, type CommunicationsDoc } from "./comms.ts";
+import { mockIntegrations, integrationsAdapter, type IntegrationsDoc } from "./integrations.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. The technical-capability taxonomy — the pivot table between model and engines.
@@ -544,6 +544,8 @@ export function projectTargets(
   workflows?: WorkflowsDoc,
   theme: Theme = DEFAULT_THEME,
   handlers: Record<string, string> = {},
+  comms?: CommunicationsDoc,
+  integrations?: IntegrationsDoc,
 ): TargetsReport {
   const resolved = resolveBinding(binding, caps, domain, contexts, roles, workflows);
   const validation = validateBinding(resolved, workflows, domain);
@@ -567,8 +569,8 @@ export function projectTargets(
     odoo: odooAdapter(resolved, caps, domain, roles),
     ui: uiGenerated ? shadcnAdapter(caps, domain, contexts, theme) : {},
     spine: spineHosted ? spineAdapter(caps, domain, handlers) : {},
-    comms: communicationsAdapter(mockCommunications(caps, domain)),
-    integrations: integrationsAdapter(mockIntegrations(caps, domain), domain),
+    comms: communicationsAdapter(comms ?? mockCommunications(caps, domain)),
+    integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain),
   };
   const seams = deriveSeams(resolved, domain, workflows);
 

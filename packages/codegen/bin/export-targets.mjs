@@ -52,7 +52,21 @@ if (handlersIdx >= 0 && process.argv[handlersIdx + 1]) {
   console.log(`spine: spliced ${Object.keys(handlers).length} LLM-drafted command bodies`);
 }
 
-const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, undefined, handlers);
+// --comms/--integrations <file>: splice LLM-refined docs (from /api/communications, /api/integrations).
+// Without them, the deterministic heuristic defaults are used (still sensible, human-refinable).
+const readArg = (flag) => {
+  const i = process.argv.indexOf(flag);
+  if (i >= 0 && process.argv[i + 1]) {
+    const d = JSON.parse(readFileSync(resolve(process.argv[i + 1]), "utf8"));
+    console.log(`${flag}: spliced ${(d.actions ?? []).length} refined actions`);
+    return { actions: d.actions ?? [] };
+  }
+  return undefined;
+};
+const comms = readArg("--comms");
+const integrations = readArg("--integrations");
+
+const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, undefined, handlers, comms, integrations);
 
 // fresh output dir
 rmSync(outDir, { recursive: true, force: true });

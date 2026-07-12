@@ -95,6 +95,15 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   **Workflows stage is the review/override screen** (per-process "Run as" toggle + Auto-classify).
   Mode-DRIVES codegen: workflow-mode → n8n `process_*`; agent-mode → folded into the covering agent's
   `behaviours/<id>.md` ("Processes you own"). Exporter emits `ORCHESTRATION.md`. Solar: 4 workflow, 1 agent.
+- **Excel + External-services (delegation) + 3-way orchestration BUILT** — Excel = an integration
+  `transport` (xlsx|gsheet → n8n Sheets/Excel nodes) + a comms `spreadsheet` channel (rendered .xlsx,
+  like pdf). External services (`@vbd/codegen` services.ts): delegate to EXISTING workflows/agents —
+  `sync` (call & record via a command) or `async` (fire + a CALLBACK webhook = a trigger → command / wake
+  agent); agents get them as `external` tools; `--external-services`/`/api/external-services`;
+  EXTERNAL-SERVICES.md. `ProcessMode` is now `workflow|agent|external` — the Workflows review screen's
+  "Run as" toggle is 3-way (External → pick a bound service); external-mode → a thin delegate connector,
+  not the internal pipeline. Solar: Excel lead import + offer-register export; sync Lead Qualifier + async
+  Offer Reviewer. 251 tests.
 - **Triggers layer + agent HTTP mode BUILT** — `@vbd/codegen` triggers.ts: external signals in
   (webhook|schedule → command|workflow|agent|notify), grounded in the model's external/time events, →
   importable n8n `trigger_*` workflows + `TRIGGERS.md`. The generated agents runtime gained an HTTP mode

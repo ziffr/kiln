@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { migratePostgres } from "../src/index.ts";
+import { migratePostgres, migrate } from "../src/index.ts";
 import type { DomainDoc } from "@vbd/compiler";
 
 const dom = (aggregates: unknown[]): DomainDoc => ({ version: "1", aggregates } as unknown as DomainDoc);
@@ -41,4 +41,15 @@ test("no changes → hasChanges false", () => {
   const m = migratePostgres(d, d);
   assert.equal(m.hasChanges, false);
   assert.match(m.sql, /No schema changes/);
+});
+
+test("sqlite dialect: additive uses SQLite types; type-change notes a table rebuild", () => {
+  const oldD = dom([lead([{ name: "email", type: "text" }])]);
+  const newD = dom([lead([{ name: "email", type: "boolean" }, { name: "score", type: "number" }])]);
+  const m = migrate(oldD, newD, "sqlite");
+  assert.ok(m.up.includes("ALTER TABLE lead ADD COLUMN score REAL;")); // SQLite affinity
+  assert.match(m.sql, /PRAGMA foreign_keys = ON;/);
+  // email text→boolean is breaking; SQLite can't ALTER TYPE → the comment says rebuild
+  assert.ok(m.breaking.some((b) => b.kind === "change_type"));
+  assert.match(m.sql, /SQLite can't ALTER COLUMN TYPE — rebuild lead/);
 });

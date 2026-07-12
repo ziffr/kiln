@@ -52,9 +52,10 @@ function routesFor(domain: DomainDoc): Route[] {
  * Spine adapter. `handlers` maps a command id → an LLM-drafted `(input, ctx) => record` arrow source
  * (from generateAppLogic, already security-validated). Missing → a pass-through default.
  */
-export function spineAdapter(_caps: CapabilityDoc, domain: DomainDoc, handlers: Record<string, string> = {}): Record<string, string> {
+export function spineAdapter(_caps: CapabilityDoc, domain: DomainDoc, handlers: Record<string, string> = {}, dialect: "postgres" | "sqlite" = "postgres"): Record<string, string> {
   const commands = domain.commands ?? [];
   if (!commands.length) return {};
+  const sqlite = dialect === "sqlite";
   const routes = routesFor(domain);
   const columns: Record<string, string[]> = {};
   for (const a of domain.aggregates) columns[slug(a.id)] = ["id", ...attributeSpecs(a).map((f) => slug(f.name)), ...(a.references ?? []).map((r) => `${slug(r)}_id`)];
@@ -100,8 +101,8 @@ export function spineAdapter(_caps: CapabilityDoc, domain: DomainDoc, handlers: 
         packageManager: "pnpm@9.12.0",
         engines: { node: ">=20" },
         scripts: { start: "tsx src/server.ts", dev: "tsx watch src/server.ts", typecheck: "tsc --noEmit", lint: "eslint src", test: "node --import tsx --test test/*.test.ts" },
-        dependencies: { express: "^4.21.0", pg: "^8.13.0" },
-        devDependencies: { tsx: "^4.19.0", typescript: "^5.6.2", "@types/express": "^4.17.21", "@types/pg": "^8.11.10", "@types/node": "^20.16.5", eslint: "^9.11.0", "@eslint/js": "^9.11.0", "typescript-eslint": "^8.6.0", globals: "^15.9.0" },
+        dependencies: sqlite ? { express: "^4.21.0", "better-sqlite3": "^11.3.0" } : { express: "^4.21.0", pg: "^8.13.0" },
+        devDependencies: { tsx: "^4.19.0", typescript: "^5.6.2", "@types/express": "^4.17.21", ...(sqlite ? { "@types/better-sqlite3": "^7.6.11" } : { "@types/pg": "^8.11.10" }), "@types/node": "^20.16.5", eslint: "^9.11.0", "@eslint/js": "^9.11.0", "typescript-eslint": "^8.6.0", globals: "^15.9.0" },
       },
       null,
       2,
@@ -123,7 +124,9 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
   },
 });
 `,
-    ".env.example": "# Copy to .env\nPORT=3000\nDATABASE_URL=postgres://app:app@localhost:5432/app\n# optional: POST emitted events to n8n webhooks (on/<event>)\nN8N_BASE_URL=http://localhost:5678/webhook\n",
+    ".env.example": sqlite
+      ? "# Copy to .env\nPORT=3000\nDB_FILE=data/app.db\n# optional: POST emitted events to n8n webhooks (on/<event>)\nN8N_BASE_URL=http://localhost:5678/webhook\n"
+      : "# Copy to .env\nPORT=3000\nDATABASE_URL=postgres://app:app@localhost:5432/app\n# optional: POST emitted events to n8n webhooks (on/<event>)\nN8N_BASE_URL=http://localhost:5678/webhook\n",
     "README.md": `# Generated spine (command API)
 
 The \`operate\` engine: one HTTP route per command, backed by Postgres, emitting events (and POSTing them
@@ -150,7 +153,38 @@ export type Handler = (input: Record<string, unknown>, ctx: Ctx) => Record<strin
 // Wrap a drafted handler so \`input\` reads the entity's typed fields, while the boundary stays a Handler.
 export const h = <E>(fn: (input: Partial<E> & Record<string, unknown>, ctx: Ctx) => Record<string, unknown> | Promise<Record<string, unknown>>): Handler => fn as Handler;
 `,
-    "src/db.ts": `import pg from "pg";
+    "src/db.ts": sqlite
+      ? `import Database from "better-sqlite3";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+// Embedded, file-based store — one file, no separate db service. better-sqlite3 is synchronous; we keep the
+// same async interface as the Postgres driver so the rest of the spine is identical. Apply schema.sql once.
+const file = process.env.DB_FILE || "data/app.db";
+mkdirSync(dirname(file), { recursive: true });
+const db = new Database(file);
+db.pragma("journal_mode = WAL");
+db.pragma("foreign_keys = ON");
+// SQLite params must be primitives — coerce booleans (0/1) and objects (JSON).
+const norm = (v: unknown): unknown => (typeof v === "boolean" ? (v ? 1 : 0) : v !== null && typeof v === "object" ? JSON.stringify(v) : v);
+export function genId(): string { return "r_" + Math.random().toString(36).slice(2, 10); }
+export async function insert(table: string, cols: string[], record: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const r: Record<string, unknown> = { ...record };
+  if (!r.id) r.id = genId();
+  const keys = cols.filter((c) => c in r);
+  const ph = keys.map(() => "?").join(", ");
+  const upd = keys.filter((c) => c !== "id").map((c) => c + "=excluded." + c).join(", ") || "id=excluded.id";
+  db.prepare("INSERT INTO " + table + " (" + keys.join(", ") + ") VALUES (" + ph + ") ON CONFLICT(id) DO UPDATE SET " + upd).run(...keys.map((k) => norm(r[k])));
+  return r;
+}
+export async function update(table: string, id: string, cols: string[], record: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const keys = cols.filter((c) => c in record && c !== "id");
+  if (keys.length) db.prepare("UPDATE " + table + " SET " + keys.map((c) => c + "=?").join(", ") + " WHERE id=?").run(...keys.map((k) => norm(record[k])), id);
+  return { id, ...record };
+}
+export const all = async (table: string): Promise<Record<string, unknown>[]> => db.prepare("SELECT * FROM " + table).all() as Record<string, unknown>[];
+export const find = async (table: string, id: string): Promise<Record<string, unknown> | undefined> => db.prepare("SELECT * FROM " + table + " WHERE id=?").get(id) as Record<string, unknown> | undefined;
+`
+      : `import pg from "pg";
 export const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL || "postgres://app:app@localhost:5432/app" });
 export function genId(): string { return "r_" + Math.random().toString(36).slice(2, 10); }
 export async function insert(table: string, cols: string[], record: Record<string, unknown>): Promise<Record<string, unknown>> {

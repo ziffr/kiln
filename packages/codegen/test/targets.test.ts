@@ -169,11 +169,12 @@ test("a whole Area bound to Odoo is coherent (no TB5) and produces the module", 
   assert.ok(Object.keys(rep.artifacts.odoo).length > 0);
 });
 
-test("connector registry: engines are declared descriptors (postgres, n8n, node, odoo, shadcn)", () => {
-  assert.equal(Object.keys(ENGINES).length, 5);
+test("connector registry: engines are declared descriptors (postgres, sqlite, n8n, node, odoo, shadcn)", () => {
+  assert.equal(Object.keys(ENGINES).length, 6);
   assert.equal(ENGINES.odoo.couplesStore, true);
   assert.equal(ENGINES.shadcn.provides["serve-ui"], "native");
   assert.equal(ENGINES.postgres.provides["serve-ui"], "none");
+  assert.equal(ENGINES.sqlite.provides.store, "native"); // the embedded store engine
 });
 
 test("projectTargets returns a coherent report with coverage and gaps", () => {
@@ -182,4 +183,15 @@ test("projectTargets returns a coherent report with coverage and gaps", () => {
   assert.ok(rep.coverage.some((c) => c.engineId === "n8n"));
   assert.ok(rep.gaps.length > 0);
   assert.equal(rep.validation.filter((f) => f.level === "error").length, 0);
+});
+
+test("sqliteAdapter emits SQLite DDL (affinities, FK pragma, IF NOT EXISTS, no RLS)", () => {
+  const caps = { domain: "Solar", capabilities: [{ id: "sales", name: "Sales", purpose: "", outcomes: [] }] } as never;
+  const domain = { aggregates: [{ id: "lead", name: "Lead", owner: "sales", attributes: [{ name: "email", type: "text" }, { name: "won", type: "boolean" }], references: [] }] } as never;
+  const rep = projectTargets({ ...DEFAULT_BINDING, defaults: { ...DEFAULT_BINDING.defaults, store: "sqlite" } }, caps, domain);
+  assert.equal(rep.artifacts.postgres, ""); // store is sqlite → no postgres schema
+  assert.match(rep.artifacts.sqlite, /PRAGMA foreign_keys = ON;/);
+  assert.match(rep.artifacts.sqlite, /CREATE TABLE IF NOT EXISTS lead \(/);
+  assert.match(rep.artifacts.sqlite, /won INTEGER/); // boolean → INTEGER
+  assert.doesNotMatch(rep.artifacts.sqlite, /ROW LEVEL SECURITY/);
 });

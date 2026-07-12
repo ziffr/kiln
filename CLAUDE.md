@@ -128,6 +128,13 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   transcript/notes/brief or upload a .txt/.md; `@vbd/skills structureNarrative` (prompt `structure.md` +
   `/api/structure`) projects it into the heading-anchored Business Narrative → the existing derive pipeline.
   (Fixed NarrativeInput to use the config `SERVICE_URL` — was hardcoded localhost.) 256 tests.
+- **Postgres model-diff migration generator BUILT** — incremental update story (grow a LIVE db, don't drop
+  it). `@vbd/codegen/migrate.ts` `migratePostgres(oldDomain,newDomain)`: additive-by-default (new attr → ADD
+  COLUMN, new entity → CREATE TABLE, new ref → ADD COLUMN…REFERENCES = live SQL); drops/type-changes = BREAKING
+  → emitted COMMENTED with the reason (human decides on data). Mirrors postgresAdapter naming/types. Exporter
+  `--since <deployed model.json>` → `postgres/migrations/<version>.sql` + logs additive/breaking counts;
+  generated CLAUDE.md says "update a live app via the migration, not schema.sql." n8n already upserts by stable
+  id; still no migration for Odoo/other stateful engines. Verified end-to-end. 260 tests.
 - **Complete model.json store BUILT** — the whole business is ONE versionable document (all layers). The
   web `Project` now holds every execution-layer decision (services/triggers/comms/integrations/binding/theme/
   i18n), previously mock-only/export-flag splices. `apps/web/src/model.ts` `assembleModel` materializes the

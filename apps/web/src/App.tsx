@@ -806,7 +806,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/enrich-web`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, model: modelFor("entities"), effort: active.effort }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      const webProps = flattenEnrichment(data.enrichment, flowDoc, "web", data.citations ?? {});
+      const webProps = flattenEnrichment(data.enrichment, flowDoc, "web", {}, (data.sources ?? [])[0]);
       setEnrichProps((ps) => {
         const have = new Set((ps ?? []).map((p) => p.id));
         return [...(ps ?? []), ...webProps.filter((p) => !have.has(p.id))];

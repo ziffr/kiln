@@ -26,7 +26,7 @@ export interface EnrichProposal {
 const entityName = (domain: DomainDoc, id: string): string => domain.aggregates.find((a) => a.id === id)?.name || id;
 
 /** Flatten an enrichment result into individually-acceptable proposals (dedup against what already exists). */
-export function flattenEnrichment(e: EnrichmentResult, domain: DomainDoc, source: EnrichSource, citations: Record<string, string> = {}): EnrichProposal[] {
+export function flattenEnrichment(e: EnrichmentResult, domain: DomainDoc, source: EnrichSource, citations: Record<string, string> = {}, defaultCitation?: string): EnrichProposal[] {
   const props: EnrichProposal[] = [];
   const existingAttr = new Map(domain.aggregates.map((a) => [a.id, new Set(attributeSpecs(a).map((s) => slug(s.name)))]));
   const existingEntity = new Set(domain.aggregates.map((a) => a.id));
@@ -34,13 +34,13 @@ export function flattenEnrichment(e: EnrichmentResult, domain: DomainDoc, source
     const have = existingAttr.get(add.entity);
     for (const a of add.attributes) {
       if (have?.has(slug(a.name))) continue; // already there
-      props.push({ id: `attr:${add.entity}:${slug(a.name)}`, kind: "attr", entity: add.entity, label: `${entityName(domain, add.entity)} · ${a.name}`, detail: a.type ?? "text", source, citation: citations[`attr:${add.entity}:${slug(a.name)}`], accepted: true, attr: a });
+      props.push({ id: `attr:${add.entity}:${slug(a.name)}`, kind: "attr", entity: add.entity, label: `${entityName(domain, add.entity)} · ${a.name}`, detail: a.type ?? "text", source, citation: citations[`attr:${add.entity}:${slug(a.name)}`] ?? defaultCitation, accepted: true, attr: a });
     }
   }
   for (const ne of e.newEntities) {
     if (existingEntity.has(ne.id)) continue;
     const refs = (ne.references ?? []).length ? ` · refs ${(ne.references ?? []).join(", ")}` : "";
-    props.push({ id: `entity:${ne.id}`, kind: "entity", entity: ne.id, label: ne.name || ne.id, detail: `owner ${ne.owner}${refs} · ${attributeSpecs(ne).length} attrs`, source, citation: citations[`entity:${ne.id}`], accepted: true, newEntity: ne });
+    props.push({ id: `entity:${ne.id}`, kind: "entity", entity: ne.id, label: ne.name || ne.id, detail: `owner ${ne.owner}${refs} · ${attributeSpecs(ne).length} attrs`, source, citation: citations[`entity:${ne.id}`] ?? defaultCitation, accepted: true, newEntity: ne });
   }
   return props;
 }

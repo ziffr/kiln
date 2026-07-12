@@ -60,3 +60,15 @@ test("applyEnrichment merges additions + children into a valid DomainDoc without
   assert.ok(merged.aggregates.some((a) => a.id === "invoice_line"), "child entity added");
   assert.ok(merged.aggregates.length > domain.aggregates.length);
 });
+
+test("extractJsonObject: pulls the JSON out of a prose-wrapped web-search response", async () => {
+  const { extractJsonObject, coerceEnrichment } = await import("../src/index.ts");
+  const raw = 'I researched solar installers. Here is what I found:\n\n{ "additions": [{ "entity": "invoice", "attributes": [{ "name": "tax_rate", "type": "number" }] }], "newEntities": [], "sources": ["https://example.com/solar"] }\n\nThose are the standard fields.';
+  const parsed = extractJsonObject(raw) as { sources?: string[] };
+  assert.deepEqual(parsed.sources, ["https://example.com/solar"]);
+  // and it coerces into a valid enrichment (dropping additions to unknown entities)
+  const domain = { aggregates: [{ id: "invoice", name: "Invoice", owner: "billing", attributes: [], references: [] }] } as unknown as DomainDoc;
+  const e = coerceEnrichment(parsed, domain, "web");
+  assert.ok(e.additions.some((a) => a.entity === "invoice" && a.attributes.some((x) => x.name === "tax_rate")));
+  assert.equal(extractJsonObject("no json here").constructor, Object); // graceful empty
+});

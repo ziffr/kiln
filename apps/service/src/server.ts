@@ -36,6 +36,10 @@ import {
   generateExternalServices,
   translateMessages,
   structureNarrative,
+  ENRICH_WEB_SYSTEM_PROMPT,
+  renderEnrichWebUserPrompt,
+  coerceEnrichment,
+  extractJsonObject,
   safeParseJson,
   buildCoachSystemPrompt,
   COACH_SCHEMA,
@@ -499,6 +503,30 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
+    // Enrich from industry web research: the model searches the web for standard records/fields this
+    // vertical has that the model lacks, and returns cited additions (reviewed accept/decline in-app).
+    if (req.method === "POST" && req.url === "/api/enrich-web") {
+      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: { aggregates?: unknown[] }; model?: string; effort?: string };
+      if (!body.domain?.aggregates?.length) return send(res, 400, { error: "domain with aggregates is required" });
+      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const resp = await client.messages.create({
+        model: model.id,
+        max_tokens: 4096,
+        system: ENRICH_WEB_SYSTEM_PROMPT,
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 4 }],
+        messages: [{ role: "user", content: renderEnrichWebUserPrompt(body.capabilities ?? ({ domain: "", capabilities: [] } as never), body.domain as never) }],
+      } as unknown as Anthropic.MessageCreateParamsNonStreaming);
+      const text = resp.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("\n");
+      const parsed = extractJsonObject(text) as { sources?: unknown };
+      const enrichment = coerceEnrichment(parsed, body.domain as never, model.id);
+      const sources = Array.isArray(parsed.sources) ? (parsed.sources as unknown[]).filter((s): s is string => typeof s === "string") : [];
+      const inputUnits = (resp.usage.input_tokens ?? 0) + (resp.usage.cache_read_input_tokens ?? 0) * 0.1;
+      const estCostUsd = round((inputUnits * model.inPerM + (resp.usage.output_tokens ?? 0) * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+      return send(res, 200, { enrichment, sources, model: model.id, usage: { input: resp.usage.input_tokens ?? 0, output: resp.usage.output_tokens ?? 0 }, estCostUsd, sessionSpendUsd });
     }
 
     // Ingest: turn a RAW business description (transcript, notes) into the structured Business Narrative.

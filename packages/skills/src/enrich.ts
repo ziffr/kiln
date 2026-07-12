@@ -186,7 +186,32 @@ export function buildEnrichRequest(caps: CapabilityDoc, domain: DomainDoc, depth
   return { system: ENRICH_SYSTEM_PROMPT, user: renderEnrichUserPrompt(caps, domain, depth), schema: ENRICH_SCHEMA, context: { caps, domain } };
 }
 
-function coerceEnrichment(json: unknown, domain: DomainDoc, provider: string): EnrichmentResult {
+// ── Web-research enrichment: same shape, sourced from the industry (the SDK/web_search call runs in the
+//    service — this side is SDK-free: the prompt, the user-render, the JSON extraction, and the coerce). ──
+export const ENRICH_WEB_SYSTEM_PROMPT = PROMPTS["enrich-web"];
+
+export function renderEnrichWebUserPrompt(caps: CapabilityDoc, domain: DomainDoc): string {
+  const lines = [`# Business: ${caps.domain}`, "", "## Current entities (id — existing attributes)", ""];
+  for (const a of domain.aggregates) lines.push(`- ${a.id} (owner ${a.owner}) — ${attributeSpecs(a).map((s) => `${s.name}:${s.type ?? "text"}`).join(", ") || "(none)"}`);
+  lines.push("", `Research how businesses in the "${caps.domain}" industry operate and propose the standard records/fields this model is MISSING. Output ONLY the JSON.`);
+  return lines.join("\n");
+}
+
+/** Extract the first balanced JSON object from a (possibly prose-wrapped) web-search response. */
+export function extractJsonObject(text: string): unknown {
+  const start = text.indexOf("{");
+  if (start < 0) return {};
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}" && --depth === 0) {
+      try { return JSON.parse(text.slice(start, i + 1)); } catch { return {}; }
+    }
+  }
+  return {};
+}
+
+export function coerceEnrichment(json: unknown, domain: DomainDoc, provider: string): EnrichmentResult {
   const obj = (json ?? {}) as Record<string, unknown>;
   const validEntity = new Set(domain.aggregates.map((a) => a.id));
   const owners = new Map(domain.aggregates.map((a) => [a.id, a.owner]));

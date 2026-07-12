@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import vm from "node:vm";
 import { spineAdapter } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
 
@@ -42,11 +43,24 @@ test("routes: create verbs POST /table, others POST /table/{id}/action; columns 
   assert.ok(cols.invoice.includes("id") && cols.invoice.includes("amount") && cols.invoice.includes("lead_id"));
 });
 
-test("LLM-drafted handlers are spliced in; missing commands get a pass-through default", () => {
+test("LLM-drafted handlers are spliced in (note above); missing commands get a pass-through default", () => {
   const drafted = { send_invoice: "(input, ctx) => ({ ...input, status: 'sent' })" };
   const f = spineAdapter(caps, domain, drafted);
-  assert.match(f["src/handlers.js"], /"send_invoice": \(input, ctx\) => \(\{ \.\.\.input, status: 'sent' \}\), \/\/ LLM-drafted/);
-  assert.match(f["src/handlers.js"], /"capture_lead": \(input\) => \(\{ \.\.\.input \}\), \/\/ TODO: pass-through/);
+  assert.match(f["src/handlers.js"], /\/\/ Send Invoice — LLM-drafted/);
+  assert.match(f["src/handlers.js"], /"send_invoice": \(input, ctx\) => \(\{ \.\.\.input, status: 'sent' \}\),/);
+  assert.match(f["src/handlers.js"], /\/\/ Capture Lead — pass-through default/);
+  assert.match(f["src/handlers.js"], /"capture_lead": \(input\) => \(\{ \.\.\.input \}\),/);
+});
+
+test("a multi-line, heavily-commented block body embeds into valid JS (comma not swallowed)", () => {
+  const body = ["(input, ctx) => {", "  // Send the invoice — flips status to 'sent'.", "  // ASSUMPTION: no send-side effects modelled yet; a human wires email here.", "  return { ...input, status: 'sent' };", "}"].join("\n");
+  const f = spineAdapter(caps, domain, { send_invoice: body });
+  const js = f["src/handlers.js"];
+  assert.match(js, /ASSUMPTION: no send-side effects/); // the comment survives
+  // the generated module must be syntactically valid (the trailing comma after `}` is intact).
+  // vm.Script COMPILES the source (throwing on a syntax error) without EXECUTING it — a safe parse check.
+  const asScript = js.replace(/^export /m, "");
+  assert.doesNotThrow(() => new vm.Script(asScript));
 });
 
 test("no commands → no spine", () => {

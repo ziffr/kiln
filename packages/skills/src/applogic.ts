@@ -15,7 +15,7 @@ export const APP_LOGIC_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["code"],
-  properties: { code: { type: "string", description: "a JS arrow function: (input, ctx) => ({ ...record })" } },
+  properties: { code: { type: "string", description: "a block-bodied JS arrow function `(input, ctx) => { /* heavily commented */ return { ...record }; }` — inline // comments must explain every decision and why" } },
 } as const;
 
 export const APP_LOGIC_SYSTEM_PROMPT = PROMPTS["app-logic"];
@@ -44,11 +44,15 @@ const BLOCKED = /\b(require|import|eval|Function|process|globalThis|global|modul
  */
 function validateHandler(code: string): string | null {
   const c = code.trim();
-  if (!c || c.length > 2000) return null;
+  if (!c || c.length > 8000) return null; // room for heavily-commented, block-bodied handlers
   if (!/^\(?[\w\s,{}[\].=]*\)?\s*=>/.test(c)) return null; // must start like `(input, ctx) =>`
-  if (BLOCKED.test(c)) return null;
+  // Run the safety checks on the code with COMMENTS STRIPPED — a prose comment ("// don't fetch here",
+  // "// see note (a") must not trip the blocked-token or bracket-balance guards. We return the ORIGINAL
+  // (commented) source; only the checks see the stripped version.
+  const stripped = c.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  if (BLOCKED.test(stripped)) return null;
   let bal = 0;
-  for (const ch of c) {
+  for (const ch of stripped) {
     if (ch === "(" || ch === "{" || ch === "[") bal++;
     else if (ch === ")" || ch === "}" || ch === "]") bal--;
     if (bal < 0) return null;

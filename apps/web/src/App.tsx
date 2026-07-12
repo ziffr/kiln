@@ -21,7 +21,9 @@ import {
   type AgentsDoc,
 } from "@vbd/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@vbd/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, critiqueToFeedback, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding } from "@vbd/skills";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding } from "@vbd/skills";
+import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
+import { EnrichPanel } from "./components/EnrichPanel";
 import { mockExternalServices } from "@vbd/codegen";
 import { SettingsModal } from "./components/SettingsModal";
 import { CapabilityMap } from "./components/CapabilityMap";
@@ -781,6 +783,42 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  // ---- Enrichment (accept/decline/adjust): propose what a typical business is missing ----
+  const [enrichProps, setEnrichProps] = useState<EnrichProposal[] | null>(null);
+  const [enrichWebBusy, setEnrichWebBusy] = useState(false);
+  function runEnrichGrounded(): void {
+    const e = mockEnrichDomain(activeDoc, flowDoc, "standard"); // offline, deterministic — the fast source
+    setEnrichProps(flattenEnrichment(e, flowDoc, "grounded"));
+  }
+  function toggleEnrich(id: string): void {
+    setEnrichProps((ps) => (ps ? ps.map((p) => (p.id === id ? { ...p, accepted: !p.accepted } : p)) : ps));
+  }
+  function applyEnrich(): void {
+    const accepted = (enrichProps ?? []).filter((p) => p.accepted);
+    if (accepted.length) patchActive({ domain: applyEnrichment(flowDoc, rebuildEnrichment(accepted)) });
+    setEnrichProps(null);
+  }
+  // Web/industry research source — proposes cited, missing aspects; merged into the same review.
+  async function enrichWeb(): Promise<void> {
+    setEnrichWebBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/enrich-web`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, model: modelFor("entities"), effort: active.effort }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      const webProps = flattenEnrichment(data.enrichment, flowDoc, "web", data.citations ?? {});
+      setEnrichProps((ps) => {
+        const have = new Set((ps ?? []).map((p) => p.id));
+        return [...(ps ?? []), ...webProps.filter((p) => !have.has(p.id))];
+      });
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEnrichWebBusy(false);
+    }
+  }
+
   const supportsEffort = MODELS.find((m) => m.id === active.model)?.supportsEffort ?? true;
 
   // ---- Stage pipeline (progressive disclosure) ----
@@ -841,6 +879,17 @@ export default function App(): React.JSX.Element {
           onSetTierModel={(tier, modelId) => patchActive({ tierModels: { ...tierModels, [tier]: modelId } })}
           onReset={() => patchActive({ adaptiveEffort: true, effortByLayer: {}, adaptiveModel: false, tierModels: DEFAULT_TIER_MODELS })}
           onClose={() => setShowSettings(false)}
+          t={t}
+        />
+      )}
+      {enrichProps !== null && (
+        <EnrichPanel
+          proposals={enrichProps}
+          onToggle={toggleEnrich}
+          onApply={applyEnrich}
+          onClose={() => setEnrichProps(null)}
+          onWeb={serverUp ? enrichWeb : undefined}
+          webBusy={enrichWebBusy}
           t={t}
         />
       )}
@@ -946,6 +995,7 @@ export default function App(): React.JSX.Element {
               )}
               {stage === "capabilities" && <button className="addcap" onClick={addCapability}>{t("addCap")}</button>}
               {stage === "areas" && <button className="addcap" onClick={addArea}>{t("addArea")}</button>}
+              {stage === "entities" && <button className="addcap" onClick={runEnrichGrounded}>✨ {t("enrich")}</button>}
               {REVIEW_KIND[stage] && (
                 <button className="addcap" onClick={() => void reviewLayer(REVIEW_KIND[stage]!)} disabled={reviewBusy === REVIEW_KIND[stage]}>
                   {reviewBusy === REVIEW_KIND[stage] ? t("generating") : `✨ ${t("aiReviewGo")}`}

@@ -780,3 +780,16 @@ textarea {
 .ingest { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .ingest-actions { display: flex; gap: 6px; margin: 6px 0 8px; }
 .ingest textarea.md { flex: 1; min-height: 300px; }
+
+/* Enrichment review: accept/decline/adjust proposed additions before they merge. */
+.enrich-group { margin-bottom: 12px; }
+.enrich-group-head { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 6px 0 4px; }
+.enrich-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.enrich-row:hover { background: var(--panel-2); }
+.enrich-row.off { opacity: .5; }
+.enrich-row input { accent-color: var(--accent); }
+.enrich-label { font-weight: 500; }
+.enrich-detail { font-size: 12px; }
+.enrich-src { margin-left: auto; font-size: 12px; }
+.enrich-cite { font-size: 11px; color: var(--accent); text-decoration: underline; }
+.enrich-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0 2px; border-top: 1px solid var(--border); margin-top: 8px; }

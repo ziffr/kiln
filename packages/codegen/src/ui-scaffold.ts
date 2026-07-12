@@ -12,7 +12,8 @@ export const UI_SCAFFOLD: Record<string, string> = {
       private: true,
       type: "module",
       packageManager: "pnpm@9.12.0",
-      scripts: { dev: "vite", build: "vite build", preview: "vite preview", typecheck: "tsc --noEmit", lint: "eslint src" },
+      engines: { node: ">=20" },
+      scripts: { dev: "vite", build: "vite build", preview: "vite preview", typecheck: "tsc --noEmit", lint: "eslint src", test: "vitest run" },
       dependencies: {
         react: "^18.3.1",
         "react-dom": "^18.3.1",
@@ -40,11 +41,36 @@ export const UI_SCAFFOLD: Record<string, string> = {
         "@eslint/js": "^9.11.0",
         "typescript-eslint": "^8.6.0",
         globals: "^15.9.0",
+        vitest: "^2.1.1",
+        jsdom: "^25.0.1",
+        "@testing-library/react": "^16.0.1",
+        "@testing-library/dom": "^10.4.0",
       },
     },
     null,
     2,
   ),
+  "vitest.config.ts": `import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url";
+export default defineConfig({
+  plugins: [react()],
+  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
+  test: { environment: "jsdom", globals: true },
+});
+`,
+  Dockerfile: `FROM node:20-alpine AS build
+WORKDIR /app
+RUN corepack enable
+COPY package.json ./
+RUN pnpm install --no-frozen-lockfile
+COPY . .
+RUN pnpm build
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
+`,
+  ".dockerignore": "node_modules\ndist\n.env\n",
   "vite.config.ts": `import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";

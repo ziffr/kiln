@@ -14,7 +14,7 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { projectTargets, DEFAULT_BINDING } from "../src/index.ts";
+import { projectTargets, DEFAULT_BINDING, generateOpenApi } from "../src/index.ts";
 import { mockEnrichDomain, applyEnrichment } from "@vbd/skills";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -265,6 +265,8 @@ jobs:
         working-directory: ui
       - run: pnpm lint
         working-directory: ui
+      - run: pnpm test
+        working-directory: ui
       - run: pnpm build
         working-directory: ui
   spine:
@@ -281,6 +283,22 @@ jobs:
         working-directory: spine
       - run: pnpm lint
         working-directory: spine
+      - run: pnpm test
+        working-directory: spine
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: pnpm install --no-frozen-lockfile && pnpm audit --audit-level=high
+        working-directory: ui
+        continue-on-error: true
+      - run: pnpm install --no-frozen-lockfile && pnpm audit --audit-level=high
+        working-directory: spine
+        continue-on-error: true
   schema:
     runs-on: ubuntu-latest
     services:
@@ -361,6 +379,64 @@ todo.push(`- [ ] Wire list views to the APIs (each \`*List.tsx\` has \`rows: [] 
 todo.push(`- [ ] Wire master-detail child grids (each \`*Detail.tsx\` grid has \`// TODO: rows where child.parent == this record\`).`);
 todo.push(`- [ ] Populate reference dropdowns (a reference field's options = the target entity's records).`);
 written.push(write("TODO.md", todo.join("\n") + "\n"));
+
+// --- Professional-repo hardening: OpenAPI, tooling config, security, pre-commit, license. ---
+written.push(write("openapi.json", JSON.stringify(generateOpenApi(m.capabilities, m.domain, m.contexts), null, 2)));
+written.push(write(".nvmrc", "20\n"));
+written.push(write(".editorconfig", "root = true\n\n[*]\nindent_style = space\nindent_size = 2\nend_of_line = lf\ncharset = utf-8\ntrim_trailing_whitespace = true\ninsert_final_newline = true\n"));
+written.push(write(".prettierrc", JSON.stringify({ printWidth: 120, semi: true, singleQuote: false, trailingComma: "all" }, null, 2)));
+written.push(write(".prettierignore", "dist\nnode_modules\n*.sql\n"));
+written.push(write("LICENSE", `MIT License\n\nCopyright (c) ${domainName}\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and\nassociated documentation files (the "Software"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the\nfollowing conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial\nportions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.\n`));
+written.push(write("CONTRIBUTING.md", `# Contributing\n\nThis system is generated from \`model.json\` by VerticalBusinessDesigner. **Change structure in the model\nand regenerate**; add logic only at the marked \`TODO\` points (see [CLAUDE.md](./CLAUDE.md)).\n\nBefore committing: pre-commit runs Prettier on staged files. CI runs typecheck + lint + tests + a\nsecurity audit for both \`ui/\` and \`spine/\` — keep it green. Run locally: \`pnpm -C ui test\`,\n\`pnpm -C spine test\`, \`pnpm -C ui typecheck\`, \`pnpm -C ui lint\`.\n`));
+
+// Root package.json — a place for repo-wide tooling (pre-commit) that spans ui/ + spine/.
+written.push(write("package.json", JSON.stringify(
+  {
+    name: `${mod}-system`,
+    private: true,
+    scripts: {
+      prepare: "husky",
+      format: "prettier --write .",
+      "format:check": "prettier --check .",
+      test: "pnpm -C ui test && pnpm -C spine test",
+      check: "pnpm -C ui typecheck && pnpm -C ui lint && pnpm -C spine typecheck && pnpm -C spine lint",
+    },
+    devDependencies: { husky: "^9.1.6", "lint-staged": "^15.2.10", prettier: "^3.3.3" },
+    "lint-staged": { "*.{ts,tsx,js,jsx,json,css,md}": "prettier --write" },
+  },
+  null,
+  2,
+)));
+written.push(write(".husky/pre-commit", "pnpm exec lint-staged\n"));
+
+// Security: dependency updates + CodeQL SAST.
+written.push(write(".github/dependabot.yml", `version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /ui
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /spine
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+`));
+written.push(write(".github/workflows/codeql.yml", `name: CodeQL
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+  schedule: [{ cron: "0 6 * * 1" }]
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions: { security-events: write, actions: read, contents: read }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with: { languages: javascript-typescript }
+      - uses: github/codeql-action/analyze@v3
+`));
 
 console.log(`\nExported ${written.length} files → ${outDir}\n`);
 for (const f of written) console.log("  " + f);

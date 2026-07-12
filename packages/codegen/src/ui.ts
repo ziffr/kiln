@@ -339,5 +339,21 @@ export function shadcnAdapter(caps: CapabilityDoc, domain: DomainDoc, contexts?:
     files[`src/pages/${pascal(s.title)}List.tsx`] = listPage(s);
     files[`src/pages/${pascal(s.title)}Detail.tsx`] = detailPage(s);
   }
+  // A render smoke test (vitest + jsdom) — proves a generated page mounts and shows its heading.
+  const first = struct.screens[0];
+  if (first) {
+    files["test/smoke.test.tsx"] = [
+      `import { test, expect } from "vitest";`,
+      `import { render } from "@testing-library/react";`,
+      `import { MemoryRouter } from "react-router-dom";`,
+      `import ${pascal(first.title)}List from "../src/pages/${pascal(first.title)}List";`,
+      "",
+      `test(${JSON.stringify(`${first.title} list renders its heading`)}, () => {`,
+      `  const { getByText } = render(<MemoryRouter><${pascal(first.title)}List /></MemoryRouter>);`,
+      `  expect(getByText(${JSON.stringify(first.title)})).toBeTruthy();`,
+      `});`,
+      "",
+    ].join("\n");
+  }
   return files;
 }

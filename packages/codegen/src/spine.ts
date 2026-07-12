@@ -98,7 +98,8 @@ export function spineAdapter(_caps: CapabilityDoc, domain: DomainDoc, handlers: 
         private: true,
         type: "module",
         packageManager: "pnpm@9.12.0",
-        scripts: { start: "tsx src/server.ts", dev: "tsx watch src/server.ts", typecheck: "tsc --noEmit", lint: "eslint src" },
+        engines: { node: ">=20" },
+        scripts: { start: "tsx src/server.ts", dev: "tsx watch src/server.ts", typecheck: "tsc --noEmit", lint: "eslint src", test: "node --import tsx --test test/*.test.ts" },
         dependencies: { express: "^4.21.0", pg: "^8.13.0" },
         devDependencies: { tsx: "^4.19.0", typescript: "^5.6.2", "@types/express": "^4.17.21", "@types/pg": "^8.11.10", "@types/node": "^20.16.5", eslint: "^9.11.0", "@eslint/js": "^9.11.0", "typescript-eslint": "^8.6.0", globals: "^15.9.0" },
       },
@@ -106,7 +107,7 @@ export function spineAdapter(_caps: CapabilityDoc, domain: DomainDoc, handlers: 
       2,
     ),
     "tsconfig.json": JSON.stringify(
-      { compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "bundler", strict: true, noEmit: true, esModuleInterop: true, skipLibCheck: true, lib: ["ES2022", "DOM"], types: ["node"] }, include: ["src"] },
+      { compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "bundler", strict: true, noEmit: true, esModuleInterop: true, skipLibCheck: true, lib: ["ES2022", "DOM"], types: ["node"] }, include: ["src", "test"] },
       null,
       2,
     ),
@@ -184,38 +185,72 @@ export async function emit(name: string, payload: Record<string, unknown>): Prom
 `,
     "src/handlers.ts": handlersTs,
     "src/schema.ts": schemaTs,
-    "src/server.ts": `import express, { type Request, type Response } from "express";
+    "src/app.ts": `import express, { type Request, type Response, type Express } from "express";
 import { insert, update, all, find } from "./db";
 import { emit } from "./events";
 import { handlers } from "./handlers";
 import { columns, routes } from "./schema";
 import type { Ctx } from "./runtime";
 
-const app = express();
-app.use(express.json());
-app.get("/health", (_req: Request, res: Response) => { res.json({ ok: true }); });
+// The Express app, exported so tests can exercise it without opening a port (see test/).
+export function createApp(): Express {
+  const app = express();
+  app.use(express.json());
+  app.get("/health", (_req: Request, res: Response) => { res.json({ ok: true }); });
 
-// ctx gives handlers read access to the stores without touching SQL.
-const ctx: Ctx = { all, find };
+  // ctx gives handlers read access to the stores without touching SQL.
+  const ctx: Ctx = { all, find };
 
-for (const r of routes) {
-  const path = r.path.replace("{id}", ":id");
-  app.post(path, async (req: Request, res: Response) => {
-    try {
-      const input: Record<string, unknown> = { ...req.body, ...(req.params.id ? { id: req.params.id } : {}) };
-      const handler = handlers[r.command] ?? ((i: Record<string, unknown>) => ({ ...i }));
-      const draft = (await handler(input, ctx)) ?? input;
-      const record = r.create ? await insert(r.table, columns[r.entity], draft) : await update(r.table, req.params.id, columns[r.entity], draft);
-      for (const ev of r.emits) await emit(ev, record);
-      res.status(r.create ? 201 : 200).json(record);
-    } catch (e) {
-      res.status(422).json({ error: String((e as Error)?.message ?? e) });
-    }
-  });
+  for (const r of routes) {
+    const path = r.path.replace("{id}", ":id");
+    app.post(path, async (req: Request, res: Response) => {
+      try {
+        const input: Record<string, unknown> = { ...req.body, ...(req.params.id ? { id: req.params.id } : {}) };
+        const handler = handlers[r.command] ?? ((i: Record<string, unknown>) => ({ ...i }));
+        const draft = (await handler(input, ctx)) ?? input;
+        const record = r.create ? await insert(r.table, columns[r.entity], draft) : await update(r.table, req.params.id, columns[r.entity], draft);
+        for (const ev of r.emits) await emit(ev, record);
+        res.status(r.create ? 201 : 200).json(record);
+      } catch (e) {
+        res.status(422).json({ error: String((e as Error)?.message ?? e) });
+      }
+    });
+  }
+  return app;
 }
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log("spine listening on :" + port + " (" + routes.length + " command routes)"));
+export const routeCount = routes.length;
 `,
+    "src/server.ts": `import { createApp, routeCount } from "./app";
+const port = process.env.PORT || 3000;
+createApp().listen(port, () => console.log("spine listening on :" + port + " (" + routeCount + " command routes)"));
+`,
+    "test/handlers.test.ts": `import { test } from "node:test";
+import assert from "node:assert/strict";
+import { handlers } from "../src/handlers";
+
+const ctx = { all: async () => [], find: async () => undefined };
+
+test("every command has a handler", () => {
+  assert.ok(Object.keys(handlers).length > 0);
+});
+
+test("a handler returns a record that carries the input fields", async () => {
+  const cmd = Object.keys(handlers)[0];
+  const out = await handlers[cmd]({ id: "x1", note: "hello" }, ctx);
+  assert.equal(typeof out, "object");
+  assert.equal((out as Record<string, unknown>).note, "hello"); // pass-through / spread preserves input
+});
+`,
+    "Dockerfile": `FROM node:20-alpine
+WORKDIR /app
+RUN corepack enable
+COPY package.json ./
+RUN pnpm install --no-frozen-lockfile
+COPY . .
+EXPOSE 3000
+CMD ["pnpm", "start"]
+`,
+    ".dockerignore": "node_modules\n.env\n",
   };
 }

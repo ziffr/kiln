@@ -14,3 +14,6 @@ workspaces/*/.vbd/
 # Local env / secrets
 .env
 .env.*
+
+# Generated execution-engine artifacts (RES-002 export) — not source
+/out/

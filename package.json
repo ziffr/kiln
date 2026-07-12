@@ -13,7 +13,8 @@
   },
   "scripts": {
     "test": "node --test packages/*/test/*.test.ts",
-    "typecheck": "tsc -p tsconfig.base.json --noEmit"
+    "typecheck": "tsc -p tsconfig.base.json --noEmit",
+    "targets:export": "node packages/codegen/bin/export-targets.mjs"
   },
   "comment:devDependencies": "Run `npm i -D typescript @types/node` to enable `npm run typecheck`. Tests need no registry deps — `npm install` only links workspaces; `npm test` runs on Node's native TypeScript.",
   "devDependencies": {}

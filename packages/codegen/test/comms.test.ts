@@ -49,3 +49,12 @@ test("communicationsAdapter emits templates + n8n notify workflows wired to the 
   // pdf actions produce a template but no n8n flow (rendering runs elsewhere)
   assert.ok(!out.n8n.some((w) => w.name.toLowerCase().includes("pdf")));
 });
+
+test("spreadsheet output (Excel) is a rendered document: template emitted, no n8n messaging flow", () => {
+  const c = mockCommunications(caps, domain);
+  const xlsx = c.actions.find((a) => a.channel === "spreadsheet");
+  assert.ok(xlsx, "an Excel register export is seeded off the document entity");
+  const out = communicationsAdapter(c);
+  assert.ok(Object.keys(out.templates).some((p) => p.includes(xlsx!.id)), "template emitted");
+  assert.ok(!out.n8n.some((w) => w.id === `vbd_comm_${xlsx!.id}`), "no n8n flow — rendered like a pdf");
+});

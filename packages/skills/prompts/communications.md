@@ -24,6 +24,9 @@ Guidance:
   customer AND a pdf render.
 - Internal lifecycle facts (lead captured, ticket opened, survey scheduled) → a Slack alert to the
   owning team's channel.
+- **spreadsheet** channel: a rendered Excel/`.xlsx` document (a register/export — e.g. an invoice
+  register, a lead list) — like `pdf`, an attachment/report rather than a message. Use it where a
+  business would keep or hand off a spreadsheet.
 - Don't over-notify: propose what a real business would actually send. Quality over quantity — a human
   reviews and trims.
 

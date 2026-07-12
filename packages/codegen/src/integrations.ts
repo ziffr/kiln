@@ -16,15 +16,18 @@ import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@vbd/compile
 import type { N8nWorkflow } from "./targets.ts";
 
 export type IntegrationDirection = "inbound" | "outbound";
+/** How the records move: a JSON API (default) or a spreadsheet — Excel is one of the most common. */
+export type IntegrationTransport = "api" | "xlsx" | "gsheet";
 
 export interface IntegrationAction {
   id: string;
   name: string;
   direction: IntegrationDirection;
-  system: string; // "CRM", "Accounting", "ERP", …
+  system: string; // "CRM", "Accounting", "ERP", "Excel", …
   entity: string; // model entity id
   trigger: string; // inbound: the create-command id to invoke; outbound: the event id
-  mapping: Record<string, string>; // model field → external field (seeded 1:1)
+  mapping: Record<string, string>; // model field → external field / column (seeded 1:1)
+  transport?: IntegrationTransport; // default "api"; xlsx/gsheet route through n8n's spreadsheet nodes
 }
 
 export interface IntegrationsDoc {
@@ -67,7 +70,13 @@ export function mockIntegrations(caps: CapabilityDoc, domain: DomainDoc): Integr
     const sys = systemFor(e.aggregate);
     actions.push({ id: `out_${slug(e.aggregate)}_${sys.toLowerCase()}`, name: `Sync ${agg.name || agg.id} to ${sys}`, direction: "outbound", system: sys, entity: e.aggregate, trigger: e.id, mapping: identityMapping(attributeSpecs(agg).map((f) => slug(f.name))) });
   }
-  return { actions: actions.slice(0, 12) };
+
+  const capped = actions.slice(0, 12);
+  // Excel is one of the most common business tools — seed one spreadsheet import so it's first-class.
+  // The first importable inbound action gets an Excel twin (same mapping; rows → the create command).
+  const firstIn = capped.find((a) => a.direction === "inbound");
+  if (firstIn) capped.push({ ...firstIn, id: `in_${slug(firstIn.entity)}_excel`, name: `Import ${firstIn.entity} from Excel`, system: "Excel", transport: "xlsx" });
+  return { actions: capped };
 }
 
 /** The spine endpoint a create command maps to (mirrors the spine/OpenAPI convention). */
@@ -76,23 +85,49 @@ function createEndpoint(domain: DomainDoc, commandId: string): string {
   return `/${slug(c?.aggregate ?? "records")}s`;
 }
 
-/** Emit field-mapping files + n8n workflows (inbound: → spine command; outbound: event → external API). */
+// A spreadsheet source/sink node (Excel 365 or Google Sheets) — n8n's native connectors are exactly why
+// n8n is the seam. Params kept minimal (credentials + workbook/range are hand-owned); structurally faithful.
+function sheetNode(transport: IntegrationTransport, mode: "read" | "append", entity: string, x: number, y: number): Record<string, unknown> {
+  const gsheet = transport === "gsheet";
+  const type = gsheet ? "n8n-nodes-base.googleSheets" : "n8n-nodes-base.microsoftExcel";
+  const name = `${mode === "read" ? "Read" : "Append"} ${gsheet ? "Google Sheet" : "Excel"} (${entity})`;
+  const operation = mode === "read" ? (gsheet ? "read" : "getItems") : gsheet ? "append" : "append";
+  return { parameters: { operation, note: `TODO: set ${gsheet ? "documentId + sheetName" : "workbook + worksheet"} + credentials; columns follow the mapping` }, name, type, typeVersion: gsheet ? 4 : 2, position: [x, y] };
+}
+
+/** Emit field-mapping files + n8n workflows (inbound: → spine command; outbound: event → external API/sheet). */
 export function integrationsAdapter(integrations: IntegrationsDoc, domain: DomainDoc, spineUrl = "http://spine.local"): { mappings: Record<string, string>; n8n: N8nWorkflow[] } {
   const mappings: Record<string, string> = {};
   const n8n: N8nWorkflow[] = [];
   for (const a of integrations.actions) {
-    mappings[`integrations/${a.id}.mapping.json`] = JSON.stringify({ id: a.id, direction: a.direction, system: a.system, entity: a.entity, trigger: a.trigger, mapping: a.mapping }, null, 2);
+    const transport = a.transport ?? "api";
+    mappings[`integrations/${a.id}.mapping.json`] = JSON.stringify({ id: a.id, direction: a.direction, system: a.system, entity: a.entity, trigger: a.trigger, transport, mapping: a.mapping }, null, 2);
 
     if (a.direction === "inbound") {
-      // external system → webhook → map → POST the create command on the spine.
-      const trigger = { parameters: { httpMethod: "POST", path: `ingest/${slug(a.entity)}` }, name: `From ${a.system}`, type: "n8n-nodes-base.webhook", typeVersion: 2, position: [240, 300] };
-      const call = { parameters: { method: "POST", url: `${spineUrl}${createEndpoint(domain, a.trigger)}`, sendBody: true }, name: `Create ${a.entity}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [520, 300] };
-      n8n.push({ id: `vbd_${a.id}`, name: `Integration (in): ${a.name}`, nodes: [trigger, call], connections: { [trigger.name]: { main: [[{ node: call.name, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
+      const call = { parameters: { method: "POST", url: `${spineUrl}${createEndpoint(domain, a.trigger)}`, sendBody: true }, name: `Create ${a.entity}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [800, 300] };
+      let nodes: Array<Record<string, unknown>>;
+      let connections: Record<string, unknown>;
+      if (transport === "api") {
+        // external system → webhook → map → POST the create command on the spine.
+        const trigger = { parameters: { httpMethod: "POST", path: `ingest/${slug(a.entity)}` }, name: `From ${a.system}`, type: "n8n-nodes-base.webhook", typeVersion: 2, position: [240, 300] };
+        nodes = [trigger, { ...call, position: [520, 300] }];
+        connections = { [trigger.name]: { main: [[{ node: call.name, type: "main", index: 0 }]] } };
+      } else {
+        // spreadsheet → poll on a schedule → read rows → map → POST the create command per row.
+        const trigger = { parameters: { rule: { interval: [{ field: "hours" }] } }, name: `Poll ${a.system}`, type: "n8n-nodes-base.scheduleTrigger", typeVersion: 1, position: [240, 300] };
+        const read = sheetNode(transport, "read", a.entity, 520, 300);
+        nodes = [trigger, read, call];
+        connections = { [trigger.name]: { main: [[{ node: read.name as string, type: "main", index: 0 }]] }, [read.name as string]: { main: [[{ node: call.name, type: "main", index: 0 }]] } };
+      }
+      n8n.push({ id: `vbd_${a.id}`, name: `Integration (in): ${a.name}`, nodes, connections, active: false, settings: { executionOrder: "v1" } });
     } else {
-      // model event → webhook → map → external system's API.
+      // model event → webhook → map → external system's API or spreadsheet append.
       const trigger = { parameters: { httpMethod: "POST", path: `on/${slug(a.trigger)}` }, name: `On ${a.trigger}`, type: "n8n-nodes-base.webhook", typeVersion: 2, position: [240, 300] };
-      const call = { parameters: { method: "POST", url: `https://${a.system.toLowerCase()}.example.com/api/${slug(a.entity)}`, sendBody: true, note: "TODO: real endpoint + auth + apply mapping" }, name: `Push to ${a.system}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [520, 300] };
-      n8n.push({ id: `vbd_${a.id}`, name: `Integration (out): ${a.name}`, nodes: [trigger, call], connections: { [trigger.name]: { main: [[{ node: call.name, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
+      const action =
+        transport === "api"
+          ? { parameters: { method: "POST", url: `https://${a.system.toLowerCase()}.example.com/api/${slug(a.entity)}`, sendBody: true, note: "TODO: real endpoint + auth + apply mapping" }, name: `Push to ${a.system}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [520, 300] }
+          : sheetNode(transport, "append", a.entity, 520, 300);
+      n8n.push({ id: `vbd_${a.id}`, name: `Integration (out): ${a.name}`, nodes: [trigger, action], connections: { [trigger.name]: { main: [[{ node: action.name as string, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
     }
   }
   return { mappings, n8n };

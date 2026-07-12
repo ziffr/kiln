@@ -43,6 +43,7 @@ export const INTEGRATIONS_SCHEMA = {
           system: { type: "string" },
           entity: { type: "string" },
           trigger: { type: "string", description: "inbound: a create-command id; outbound: an event id" },
+          transport: { type: "string", enum: ["api", "xlsx", "gsheet"], description: "how records move: a JSON API (default), an Excel workbook, or a Google Sheet" },
           mapping: { type: "object", additionalProperties: { type: "string" } },
         },
       },

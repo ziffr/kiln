@@ -40,7 +40,7 @@ export const COMMS_SCHEMA = {
         properties: {
           id: { type: "string" },
           name: { type: "string" },
-          channel: { type: "string", enum: ["email", "slack", "pdf"] },
+          channel: { type: "string", enum: ["email", "slack", "pdf", "spreadsheet"] },
           on: { type: "string", description: "an event id" },
           entity: { type: "string", description: "the event's aggregate id" },
           recipient: { type: "string" },
@@ -59,7 +59,7 @@ export function coerceCommunications(json: unknown, domain: DomainDoc): Communic
   const raw = (json && typeof json === "object" ? (json as { actions?: unknown }).actions : undefined) ?? [];
   const actions = (Array.isArray(raw) ? raw : [])
     .map((a) => a as CommAction)
-    .filter((a) => a && eventIds.has(a.on) && aggIds.has(a.entity) && ["email", "slack", "pdf"].includes(a.channel))
+    .filter((a) => a && eventIds.has(a.on) && aggIds.has(a.entity) && ["email", "slack", "pdf", "spreadsheet"].includes(a.channel))
     .map((a) => ({ ...a, id: slug(a.id || `${a.channel}_${a.on}`) }));
   return { actions };
 }

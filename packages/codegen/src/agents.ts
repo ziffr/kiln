@@ -376,7 +376,8 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
     }
     tools.push({ name: "notify", kind: "notify", description: "Send an email or Slack message to a person or channel — e.g. route to a human for a decision, then continue when they respond.", invoke: { channels: ["email", "slack"], via: "n8n" } });
     for (const cm of comms?.actions ?? []) {
-      if (!ownedEntities.has(cm.entity) || cm.channel === "pdf") continue;
+      // documents (pdf/spreadsheet) are rendered artifacts, not agent messaging tools — only email/slack.
+      if (!ownedEntities.has(cm.entity) || (cm.channel !== "email" && cm.channel !== "slack")) continue;
       tools.push({ name: slug(cm.id), kind: cm.channel, description: `${cm.name} → ${cm.recipient}`, invoke: { channel: cm.channel, on: cm.on, template: `templates/${cm.id}.md` } });
     }
     defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools, processes: procByAgent.get(a.id) ?? [] });

@@ -17,7 +17,7 @@ import { slug } from "@vbd/ir";
 import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@vbd/compiler";
 import type { N8nWorkflow } from "./targets.ts";
 
-export type CommChannel = "email" | "slack" | "pdf";
+export type CommChannel = "email" | "slack" | "pdf" | "spreadsheet";
 
 export interface CommAction {
   id: string;
@@ -69,8 +69,12 @@ export function mockCommunications(caps: CapabilityDoc, domain: DomainDoc): Comm
       actions.push({ id: `slack_${slug(e.id)}`, name: `Slack alert on ${e.name || e.id}`, channel: "slack", on: e.id, entity: e.aggregate, recipient: `#${slug(capName.get(agg.owner) ?? agg.owner)}`, subject: `${entityName} ${verb}`, template: `*${entityName} ${verb}* — {{id}}\n${fields.slice(0, 4).map((f) => `${f}: {{${f}}}`).join(" · ")}` });
     }
   }
+  // Excel/spreadsheet output is as common as PDF — seed one register export off the first document entity.
   // cap to keep the default sensible; the LLM pass can add/trim per the business.
-  return { actions: actions.slice(0, 14) };
+  const capped = actions.slice(0, 14);
+  const firstDoc = capped.find((a) => a.channel === "pdf");
+  if (firstDoc) capped.push({ ...firstDoc, id: `xlsx_${slug(firstDoc.entity)}`, name: `Export ${firstDoc.entity} register (Excel)`, channel: "spreadsheet", recipient: "attachment", subject: `${firstDoc.entity} register` });
+  return { actions: capped };
 }
 
 /** Emit templates + n8n notify workflows (wired to the event webhooks the spine already POSTs to). */
@@ -79,7 +83,7 @@ export function communicationsAdapter(comms: CommunicationsDoc, baseUrl = "http:
   const n8n: N8nWorkflow[] = [];
   for (const a of comms.actions) {
     templates[`templates/${a.id}.md`] = `Subject: ${a.subject}\nTo: ${a.recipient}\nChannel: ${a.channel}\n---\n${a.template}\n`;
-    if (a.channel === "pdf") continue; // rendering runs in the spine/a render service; no n8n flow
+    if (a.channel === "pdf" || a.channel === "spreadsheet") continue; // rendered docs (a render/xlsx service); no n8n flow
 
     const trigger = { parameters: { httpMethod: "POST", path: `on/${slug(a.on)}` }, name: `On ${a.on}`, type: "n8n-nodes-base.webhook", typeVersion: 2, position: [240, 300] };
     const action =

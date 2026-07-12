@@ -43,3 +43,17 @@ test("integrationsAdapter emits mapping files + n8n connectors (inbound → spin
   assert.ok(outWf, "outbound workflow");
   assert.equal((outWf!.nodes[0].parameters as { path: string }).path.startsWith("on/"), true); // triggered by the event
 });
+
+test("Excel is first-class: an xlsx import routes rows through a spreadsheet node → the create command", () => {
+  const i = mockIntegrations(caps, domain);
+  const excel = i.actions.find((a) => a.transport === "xlsx");
+  assert.ok(excel && excel.system === "Excel" && excel.direction === "inbound", "an Excel import is seeded");
+  const wf = integrationsAdapter(i, domain).n8n.find((w) => w.id === `vbd_${excel!.id}`)!;
+  const types = wf.nodes.map((n) => n.type);
+  // poll on a schedule → read the Excel workbook → POST the create command
+  assert.deepEqual(types, ["n8n-nodes-base.scheduleTrigger", "n8n-nodes-base.microsoftExcel", "n8n-nodes-base.httpRequest"]);
+  assert.match(String((wf.nodes[2].parameters as { url: string }).url), /\/leads$/);
+  // the mapping file records the transport
+  const map = JSON.parse(integrationsAdapter(i, domain).mappings[`integrations/${excel!.id}.mapping.json`]);
+  assert.equal(map.transport, "xlsx");
+});

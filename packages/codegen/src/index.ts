@@ -408,3 +408,4 @@ export {
   type TargetsReport,
 } from "./targets.ts";
 export { shadcnAdapter, uiStructure, DEFAULT_THEME, type Theme, type UiStructure, type UiScreen } from "./ui.ts";
+export { spineAdapter } from "./spine.ts";

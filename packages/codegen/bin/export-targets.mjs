@@ -166,8 +166,11 @@ there (see TODO.md), and let the runtime handle persistence + event emission.
 
 ## Tooling, CI & deploy
 - Package manager for the UI is **pnpm** (\`pnpm install\`, \`pnpm build\`); backends run via Docker.
-- **CI** (\`.github/workflows/ci.yml\`) builds the UI, applies the schema to a throwaway Postgres, and
-  parses every n8n workflow on each push — a broken regeneration fails fast. Keep it green.
+- **Type-safe + linted:** the UI and spine are strict TypeScript — \`pnpm typecheck\` (tsc) and
+  \`pnpm lint\` (eslint) must pass. Entity types live in \`src/types.ts\` (generated from the model).
+- **CI** (\`.github/workflows/ci.yml\`) typechecks + lints + builds the UI, typechecks + lints the spine,
+  applies the schema to a throwaway Postgres, and parses every n8n workflow — a broken regeneration or a
+  type error fails fast. Keep it green.
 - **Deployment** is per-component — see \`DEPLOY.md\` (UI → static host; Postgres → managed; n8n/Odoo →
   cloud or self-host; the spine → implement + deploy).
 
@@ -225,7 +228,7 @@ services:
     image: node:20-alpine
     depends_on: [postgres]
     working_dir: /app
-    command: sh -c "corepack enable && pnpm install && node src/server.js"
+    command: sh -c "corepack enable && pnpm install && pnpm start"
     environment: { DATABASE_URL: "postgres://app:app@postgres:5432/app", N8N_BASE_URL: "http://n8n:5678/webhook", PORT: "3000" }
     ports: ["3000:3000"]
     volumes: ["./spine:/app"]
@@ -258,8 +261,26 @@ jobs:
         with: { node-version: 20 }
       - run: pnpm install --no-frozen-lockfile
         working-directory: ui
+      - run: pnpm typecheck
+        working-directory: ui
+      - run: pnpm lint
+        working-directory: ui
       - run: pnpm build
         working-directory: ui
+  spine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: pnpm install --no-frozen-lockfile
+        working-directory: spine
+      - run: pnpm typecheck
+        working-directory: spine
+      - run: pnpm lint
+        working-directory: spine
   schema:
     runs-on: ubuntu-latest
     services:

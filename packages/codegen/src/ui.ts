@@ -16,6 +16,7 @@
 import { slug } from "@vbd/ir";
 import { attributeSpecs, type AttrType, type CapabilityDoc, type DomainDoc, type ContextsDoc } from "@vbd/compiler";
 import { UI_SCAFFOLD } from "./ui-scaffold.ts";
+import { entityTypesTs } from "./model-types.ts";
 
 // ── The SKIN: a Theme is the shadcn design-token set (light + dark) + radius. Authored/chosen. ──
 
@@ -72,6 +73,7 @@ const CONTROL: Record<AttrType, { comp: string; import: string; extra?: string }
 export interface UiScreen {
   entity: string;
   title: string;
+  typeName: string; // the entity's TS interface name (src/types.ts)
   route: string;
   area: string;
   fields: Array<{ name: string; type: AttrType | ""; control: string }>;
@@ -101,6 +103,7 @@ export function uiStructure(caps: CapabilityDoc, domain: DomainDoc, contexts?: C
     return {
       entity: a.id,
       title: a.name || a.id,
+      typeName: pascal(a.name || a.id),
       route: `/${slug(a.id)}`,
       area: areaName.get(areaId) ?? caps.domain ?? "App",
       fields: attributeSpecs(a).map((f) => ({ name: f.name, type: (f.type ?? "") as AttrType | "", control: (f.type ? CONTROL[f.type] : CONTROL.text).comp })),
@@ -167,9 +170,10 @@ function listPage(s: UiScreen): string {
     `import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";`,
     `import { Button } from "@/components/ui/button";`,
     `import { Link } from "react-router-dom";`,
+    `import type { ${s.typeName} } from "@/types";`,
     "",
     `export default function ${T}List() {`,
-    `  const rows: Record<string, unknown>[] = []; // TODO: fetch from the bound backend`,
+    `  const rows: ${s.typeName}[] = []; // TODO: fetch from the bound backend`,
     `  return (`,
     `    <div className="p-6 space-y-4">`,
     `      <div className="flex items-center justify-between">`,
@@ -225,7 +229,7 @@ function detailPage(s: UiScreen): string {
     `import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";`,
     `import { Button } from "@/components/ui/button";`,
     `import { Label } from "@/components/ui/label";`,
-    needsTable ? `import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";` : "",
+    needsTable ? `import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";` : "",
     needsLink ? `import { Link } from "react-router-dom";` : "",
     importLines,
     "",
@@ -320,6 +324,7 @@ export function shadcnAdapter(caps: CapabilityDoc, domain: DomainDoc, contexts?:
   const struct = uiStructure(caps, domain, contexts);
   const files: Record<string, string> = {
     ...UI_SCAFFOLD, // package.json, vite/tailwind/tsconfig, shadcn components — a runnable project
+    "src/types.ts": entityTypesTs(domain), // entity interfaces from the model (shared shape with the spine)
     "src/index.css": themeCss(theme),
     "src/App.tsx": appTsx(struct),
     "src/components/AppSidebar.tsx": sidebar(struct),

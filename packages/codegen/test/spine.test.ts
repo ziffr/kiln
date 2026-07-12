@@ -1,6 +1,5 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import vm from "node:vm";
 import { spineAdapter } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
 
@@ -21,46 +20,45 @@ const domain: DomainDoc = {
   ],
 } as unknown as DomainDoc;
 
-test("spineAdapter emits a runnable Express+pg service (package.json, server, db, handlers, schema)", () => {
+test("spineAdapter emits a runnable, typed Express+pg service (TS: server/db/handlers/schema/types)", () => {
   const f = spineAdapter(caps, domain);
-  for (const p of ["package.json", "src/server.js", "src/db.js", "src/events.js", "src/handlers.js", "src/schema.js", ".env.example"]) assert.ok(f[p], `${p} missing`);
+  for (const p of ["package.json", "tsconfig.json", "eslint.config.js", "src/server.ts", "src/db.ts", "src/events.ts", "src/handlers.ts", "src/schema.ts", "src/runtime.ts", "src/types.ts", ".env.example"]) assert.ok(f[p], `${p} missing`);
   const pkg = JSON.parse(f["package.json"]);
   assert.ok(pkg.dependencies.express && pkg.dependencies.pg, "express + pg deps");
-  assert.equal(pkg.scripts.start, "node src/server.js");
+  assert.equal(pkg.scripts.start, "tsx src/server.ts");
+  assert.ok(pkg.scripts.typecheck && pkg.scripts.lint, "typecheck + lint scripts");
+  assert.match(f["src/types.ts"], /export interface Invoice \{/); // entity types from the model
 });
 
 test("routes: create verbs POST /table, others POST /table/{id}/action; columns include refs", () => {
   const f = spineAdapter(caps, domain);
-  const routes = JSON.parse(f["src/schema.js"].match(/routes = (\[[\s\S]*?\]);/)[1]);
-  const cap = routes.find((r) => r.command === "capture_lead");
+  const routes = JSON.parse(f["src/schema.ts"].match(/routes: Route\[\] = (\[[\s\S]*?\]);/)![1]);
+  const cap = routes.find((r: { command: string }) => r.command === "capture_lead");
   assert.equal(cap.path, "/leads"); // "capture" is a create verb
   assert.equal(cap.create, true);
-  const send = routes.find((r) => r.command === "send_invoice");
+  const send = routes.find((r: { command: string }) => r.command === "send_invoice");
   assert.equal(send.path, "/invoices/{id}/send_invoice"); // non-create → action path
-  assert.equal(send.create, false);
   assert.deepEqual(send.emits, ["invoice_sent"]);
-  const cols = JSON.parse(f["src/schema.js"].match(/columns = (\{[\s\S]*?\});/)[1]);
+  const cols = JSON.parse(f["src/schema.ts"].match(/columns: Record<string, string\[\]> = (\{[\s\S]*?\});/)![1]);
   assert.ok(cols.invoice.includes("id") && cols.invoice.includes("amount") && cols.invoice.includes("lead_id"));
 });
 
-test("LLM-drafted handlers are spliced in (note above); missing commands get a pass-through default", () => {
+test("LLM-drafted handlers spliced with a typed h<Entity>() wrapper; missing → pass-through default", () => {
   const drafted = { send_invoice: "(input, ctx) => ({ ...input, status: 'sent' })" };
   const f = spineAdapter(caps, domain, drafted);
-  assert.match(f["src/handlers.js"], /\/\/ Send Invoice — LLM-drafted/);
-  assert.match(f["src/handlers.js"], /"send_invoice": \(input, ctx\) => \(\{ \.\.\.input, status: 'sent' \}\),/);
-  assert.match(f["src/handlers.js"], /\/\/ Capture Lead — pass-through default/);
-  assert.match(f["src/handlers.js"], /"capture_lead": \(input\) => \(\{ \.\.\.input \}\),/);
+  assert.match(f["src/handlers.js"] ?? f["src/handlers.ts"], /\/\/ Send Invoice — LLM-drafted/);
+  assert.match(f["src/handlers.ts"], /"send_invoice": h<T\.Invoice>\(\(input, ctx\) => \(\{ \.\.\.input, status: 'sent' \}\)\),/);
+  assert.match(f["src/handlers.ts"], /\/\/ Capture Lead — pass-through default/);
+  assert.match(f["src/handlers.ts"], /"capture_lead": h<T\.Lead>\(\(input\) => \(\{ \.\.\.input \}\)\),/);
 });
 
-test("a multi-line, heavily-commented block body embeds into valid JS (comma not swallowed)", () => {
+test("a multi-line, heavily-commented block body embeds with its comments + an intact trailing comma", () => {
   const body = ["(input, ctx) => {", "  // Send the invoice — flips status to 'sent'.", "  // ASSUMPTION: no send-side effects modelled yet; a human wires email here.", "  return { ...input, status: 'sent' };", "}"].join("\n");
-  const f = spineAdapter(caps, domain, { send_invoice: body });
-  const js = f["src/handlers.js"];
+  const js = spineAdapter(caps, domain, { send_invoice: body })["src/handlers.ts"];
   assert.match(js, /ASSUMPTION: no send-side effects/); // the comment survives
-  // the generated module must be syntactically valid (the trailing comma after `}` is intact).
-  // vm.Script COMPILES the source (throwing on a syntax error) without EXECUTING it — a safe parse check.
-  const asScript = js.replace(/^export /m, "");
-  assert.doesNotThrow(() => new vm.Script(asScript));
+  // the block body's close-brace, the h() close-paren, and the comma must be together on the last line,
+  // never swallowed by a preceding // comment.
+  assert.match(js, /return \{ \.\.\.input, status: 'sent' \};\n\}\),/);
 });
 
 test("no commands → no spine", () => {

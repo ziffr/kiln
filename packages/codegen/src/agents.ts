@@ -1,11 +1,12 @@
 /**
- * @vbd/codegen/agents — wire agents to concrete TOOLS and emit a RUNNABLE agent runtime.
+ * @vbd/codegen/agents — wire agents to concrete TOOLS and emit a RUNNABLE, provider-flexible runtime.
  *
  * An agent (SPEC-008) is a goal + the capabilities it operates. This resolves, per agent, the tools it
- * can use — commands (the spine endpoints), a `notify` tool (the human-in-the-loop router), and the
- * pre-built comm actions — and emits a small TypeScript runtime that runs the agent loop against them
- * with the official @anthropic-ai/sdk. Commands are the universal action surface — the UI clicks them,
- * workflows sequence them, agents choose them. Pure and isomorphic (emits code as strings).
+ * can use — commands (the spine endpoints), a `notify` tool (human-in-the-loop router), the pre-built
+ * comm actions — and emits a small TypeScript runtime that runs the agent loop over them. Two providers:
+ * **Anthropic native** (default, best Claude fidelity) and **OpenRouter** (any model: Claude/GPT/Gemini/
+ * Llama/self-hosted — one OpenAI-compatible integration). Commands are the universal action surface —
+ * the UI clicks them, workflows sequence them, agents choose them. Pure and isomorphic.
  */
 
 import { slug } from "@vbd/ir";
@@ -46,6 +47,17 @@ function commandTool(c: { id: string; name?: string; aggregate: string; emits?: 
 
 // ── the runnable runtime (generic + data-driven; loads a definition and runs the agent loop) ──
 
+// The tool-argument JSON schema (shared by both providers). All string params — the spine coerces.
+const SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown> {
+  if (t.kind === "command") {
+    const properties: Record<string, { type: string }> = { id: { type: "string" } };
+    for (const f of t.input ?? []) properties[f] = { type: "string" };
+    return { type: "object", properties };
+  }
+  if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
+  return { type: "object", properties: {} };
+}`;
+
 const RUNTIME: Record<string, string> = {
   "src/def.ts": `export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf";
 export interface AgentTool { name: string; kind: AgentToolKind; description: string; invoke: Record<string, unknown>; input?: string[]; }
@@ -72,34 +84,17 @@ export async function executeTool(tool: AgentTool, input: Record<string, unknown
   return { triggered: tool.name };
 }
 `,
-  "src/runner.ts": `import Anthropic from "@anthropic-ai/sdk";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-import { executeTool } from "./tools";
-import type { AgentDef, AgentTool } from "./def";
+  "src/providers/anthropic.ts": `import Anthropic from "@anthropic-ai/sdk";
+import { executeTool } from "../tools";
+import type { AgentDef, AgentTool } from "../def";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const id = process.argv[2];
-if (!id) { console.error("usage: pnpm start <agent-id> [task…]  (agent ids: see definitions/)"); process.exit(1); }
-const def: AgentDef = JSON.parse(readFileSync(join(here, "..", "definitions", id + ".json"), "utf8"));
-const task = process.argv.slice(3).join(" ") || "Work toward your goal using the available tools and records.";
+${SCHEMA_HELPER}
 
-const client = new Anthropic(); // reads ANTHROPIC_API_KEY
-const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5"; // configurable
-
-function inputSchema(t: AgentTool): Anthropic.Tool.InputSchema {
-  if (t.kind === "command") {
-    const properties: Record<string, { type: string }> = { id: { type: "string" } };
-    for (const f of t.input ?? []) properties[f] = { type: "string" };
-    return { type: "object", properties };
-  }
-  if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
-  return { type: "object", properties: {} };
-}
-
-async function main(): Promise<void> {
-  const tools: Anthropic.Tool[] = def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: inputSchema(t) }));
+// The native Anthropic tool-use loop — best Claude fidelity (caching, tool semantics).
+export async function runAnthropic(def: AgentDef, task: string): Promise<void> {
+  const client = new Anthropic(); // reads ANTHROPIC_API_KEY
+  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+  const tools: Anthropic.Tool[] = def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: toolParams(t) as Anthropic.Tool.InputSchema }));
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: task }];
   const system = "You are " + def.name + ". Goal: " + def.goal + "\\nUse the tools to accomplish the task; call one at a time and stop when done. Then summarize what you did.";
   for (let step = 0; step < 12; step++) {
@@ -120,8 +115,59 @@ async function main(): Promise<void> {
     messages.push({ role: "user", content: results });
   }
 }
+`,
+  "src/providers/openrouter.ts": `import OpenAI from "openai";
+import { executeTool } from "../tools";
+import type { AgentDef, AgentTool } from "../def";
 
-main().catch((e: unknown) => { console.error(e); process.exit(1); });
+${SCHEMA_HELPER}
+
+// OpenAI-compatible loop via OpenRouter — any model (Claude, GPT, Gemini, Llama, self-hosted, …).
+export async function runOpenRouter(def: AgentDef, task: string): Promise<void> {
+  const client = new OpenAI({ apiKey: process.env.OPENROUTER_API_KEY, baseURL: "https://openrouter.ai/api/v1" });
+  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5";
+  const tools = def.tools.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: toolParams(t) } }));
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    { role: "system", content: "You are " + def.name + ". Goal: " + def.goal + ". Use the tools to accomplish the task; stop when done." },
+    { role: "user", content: task },
+  ];
+  for (let step = 0; step < 12; step++) {
+    const res = await client.chat.completions.create({ model, max_tokens: 1024, tools, messages });
+    const msg = res.choices[0]?.message;
+    if (!msg) break;
+    messages.push(msg);
+    if (msg.content) console.log("\\n[" + def.name + "] " + msg.content);
+    const calls = msg.tool_calls ?? [];
+    if (!calls.length) break;
+    for (const call of calls) {
+      const fn = call.type === "function" ? call.function : null;
+      if (!fn) continue;
+      console.log("  → " + fn.name + " " + fn.arguments);
+      const input = JSON.parse(fn.arguments || "{}") as Record<string, unknown>;
+      const tool = def.tools.find((t) => t.name === fn.name);
+      const out = tool ? await executeTool(tool, input) : { error: "unknown tool " + fn.name };
+      messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(out) });
+    }
+  }
+}
+`,
+  "src/runner.ts": `import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import { runAnthropic } from "./providers/anthropic";
+import { runOpenRouter } from "./providers/openrouter";
+import type { AgentDef } from "./def";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const id = process.argv[2];
+if (!id) { console.error("usage: pnpm start <agent-id> [task…]  (agent ids: see definitions/)"); process.exit(1); }
+const def: AgentDef = JSON.parse(readFileSync(join(here, "..", "definitions", id + ".json"), "utf8"));
+const task = process.argv.slice(3).join(" ") || "Work toward your goal using the available tools and records.";
+
+// Provider: Anthropic native by default (best Claude fidelity); OpenRouter for any model.
+const provider = process.env.PROVIDER || (process.env.OPENROUTER_API_KEY ? "openrouter" : "anthropic");
+const run = provider === "openrouter" ? runOpenRouter : runAnthropic;
+run(def, task).catch((e: unknown) => { console.error(e); process.exit(1); });
 `,
   "package.json": JSON.stringify(
     {
@@ -131,7 +177,7 @@ main().catch((e: unknown) => { console.error(e); process.exit(1); });
       packageManager: "pnpm@9.12.0",
       engines: { node: ">=20" },
       scripts: { start: "tsx src/runner.ts", typecheck: "tsc --noEmit", lint: "eslint src" },
-      dependencies: { "@anthropic-ai/sdk": "^0.110.0" },
+      dependencies: { "@anthropic-ai/sdk": "^0.110.0", openai: "^4.67.0" },
       devDependencies: { tsx: "^4.19.0", typescript: "^5.6.2", "@types/node": "^20.16.5", eslint: "^9.11.0", "@eslint/js": "^9.11.0", "typescript-eslint": "^8.6.0", globals: "^15.9.0" },
     },
     null,
@@ -150,11 +196,24 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
   rules: { "@typescript-eslint/no-explicit-any": "warn", "@typescript-eslint/no-unused-vars": ["error", { args: "none", varsIgnorePattern: "^_" }] },
 });
 `,
-  ".env.example": "# Copy to .env\nANTHROPIC_API_KEY=sk-ant-...\nSPINE_URL=http://localhost:3000\nANTHROPIC_MODEL=claude-sonnet-5\n",
+  ".env.example": `# Copy to .env. Pick a provider.
+PROVIDER=anthropic                         # or: openrouter
+SPINE_URL=http://localhost:3000
+
+# Anthropic native (default — best Claude fidelity):
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-sonnet-5
+
+# OpenRouter — one integration, ANY model (Claude / GPT / Gemini / Llama / self-hosted). Cheapest route
+# to a low/flat cost is a small open model here; note: consumer plans (Claude Max, ChatGPT Pro, Gemini
+# Advanced) are NOT usable programmatically — their ToS forbid it and there is no official API.
+OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
+`,
   ".gitignore": "node_modules\n.env\n",
 };
 
-/** Resolve each agent's toolset and emit a runnable runtime (definitions + loop). */
+/** Resolve each agent's toolset and emit a runnable, provider-flexible runtime (definitions + loop). */
 export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc): Record<string, string> {
   if (!agents?.agents?.length) return {};
   const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
@@ -181,7 +240,7 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
   const files: Record<string, string> = {};
   for (const [rel, content] of Object.entries(RUNTIME)) files[`agents/${rel}`] = content;
   for (const d of defs) files[`agents/definitions/${d.id}.json`] = JSON.stringify(d, null, 2);
-  files["agents/README.md"] = `# Agents — a runnable agent runtime
+  files["agents/README.md"] = `# Agents — a runnable, provider-flexible agent runtime
 
 Goal-driven operators. Each \`definitions/<id>.json\` is a definition the runtime loads: a **goal** and
 its **tools** (commands = the spine endpoints the UI/workflows also call; \`notify\` = the human-in-the-
@@ -193,10 +252,21 @@ pnpm install
 SPINE_URL=http://localhost:3000 ANTHROPIC_API_KEY=sk-ant-... pnpm start ${defs[0]?.id ?? "<agent-id>"} "qualify the newest lead"
 \`\`\`
 
-The loop (\`src/runner.ts\`, official @anthropic-ai/sdk) gives the LLM the goal + tools and executes each
-tool call (\`src/tools.ts\`): command tools POST the spine (which persists + emits events); \`notify\`/comm
-tools call your integration (logged by default — wire them up). Agent-vs-workflow: an **agent** when the
-path is open-ended/judgement-heavy; a **workflow** when the steps are fixed.
+## Choosing a model / provider (\`.env\`)
+- **Anthropic native** (default): set \`ANTHROPIC_API_KEY\` + \`ANTHROPIC_MODEL\`. Best Claude fidelity.
+- **OpenRouter** (any model): set \`PROVIDER=openrouter\` + \`OPENROUTER_API_KEY\` + \`OPENROUTER_MODEL\`
+  (e.g. \`openai/gpt-4o\`, \`google/gemini-2.0-flash\`, \`meta-llama/llama-3.3-70b\`, or a self-hosted model).
+  One OpenAI-compatible integration for every provider — the cheapest/most-predictable route is a small
+  open model.
+
+**On flat-fee plans:** consumer subscriptions (Claude Max, ChatGPT Plus/Pro, Gemini Advanced) can NOT
+power an app's agents — their terms forbid programmatic use and there's no official API. For predictable
+cost use the API (prepaid credits / committed use) or self-host an open model via OpenRouter.
+
+The loop (\`src/providers/*\`) gives the LLM the goal + tools and executes each tool call (\`src/tools.ts\`):
+command tools POST the spine (which persists + emits events); \`notify\`/comm tools call your integration
+(logged by default — wire them up). Agent-vs-workflow: an **agent** when the path is open-ended /
+judgement-heavy; a **workflow** when the steps are fixed.
 `;
   return files;
 }

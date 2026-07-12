@@ -18,10 +18,13 @@ const comms: CommunicationsDoc = { actions: [{ id: "slack_lead_qualified", name:
 
 test("agentsAdapter emits a runnable runtime + a definition per agent with wired tools", () => {
   const files = agentsAdapter(caps, domain, agents, comms);
-  // the runtime
-  for (const p of ["agents/package.json", "agents/src/runner.ts", "agents/src/tools.ts", "agents/src/def.ts", "agents/tsconfig.json", "agents/README.md"]) assert.ok(files[p], `${p} missing`);
+  // the runtime — provider-flexible (Anthropic native + OpenRouter)
+  for (const p of ["agents/package.json", "agents/src/runner.ts", "agents/src/tools.ts", "agents/src/def.ts", "agents/src/providers/anthropic.ts", "agents/src/providers/openrouter.ts", "agents/tsconfig.json", "agents/README.md"]) assert.ok(files[p], `${p} missing`);
   assert.match(files["agents/package.json"], /@anthropic-ai\/sdk/);
-  assert.match(files["agents/src/runner.ts"], /client\.messages\.create/);
+  assert.match(files["agents/package.json"], /"openai"/);
+  assert.match(files["agents/src/providers/anthropic.ts"], /client\.messages\.create/);
+  assert.match(files["agents/src/providers/openrouter.ts"], /chat\.completions\.create/);
+  assert.match(files["agents/src/runner.ts"], /openrouter|anthropic/);
   // the definition
   assert.ok(files["agents/definitions/lead_agent.json"]);
   const def = JSON.parse(files["agents/definitions/lead_agent.json"]);

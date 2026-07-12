@@ -142,6 +142,9 @@ test("odooAdapter emits an installable module: models, typed fields, Many2one, c
   assert.match(models, /fields\.Many2one\("test\.lead"\)/); // invoice → lead reference
   assert.match(models, /def qualify_lead\(self\)/); // command → model method
   assert.match(files["security/ir.model.access.csv"], /group_rep/); // role → group ACL
+  // policy p1 (on lead_qualified) → a base.automation, so the manifest must depend on base_automation.
+  assert.ok(files["data/automations.xml"], "automations emitted");
+  assert.match(files["__manifest__.py"], /'base_automation'/);
 });
 
 test("odooAdapter returns nothing when no aggregate is bound to odoo", () => {

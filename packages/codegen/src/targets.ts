@@ -425,11 +425,13 @@ export function odooAdapter(resolved: ResolvedElement[], caps: CapabilityDoc, do
   // only reference data files that actually have content — an installable module has no hollow files.
   const dataFiles = ["security/groups.xml", "security/ir.model.access.csv"];
   if (autoRecords.length) dataFiles.push("data/automations.xml");
+  // base.automation records live in the `base_automation` module — depend on it only when we emit them.
+  const depends = autoRecords.length ? ["base", "base_automation"] : ["base"];
   const manifest = [
     "{",
     `    'name': ${JSON.stringify(`${caps.domain || "VBD"} (generated)`)},`,
     "    'version': '0.1.0',",
-    "    'depends': ['base'],",
+    `    'depends': [${depends.map((d) => `'${d}'`).join(", ")}],`,
     `    'data': [${dataFiles.map((f) => JSON.stringify(f)).join(", ")}],`,
     "    'license': 'LGPL-3',",
     "}",

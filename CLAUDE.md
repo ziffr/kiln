@@ -120,7 +120,10 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   `mockEnrichDomain`; **web-research source** = Anthropic `web_search_20260209` (`/api/enrich-web`, prompt
   `enrich-web.md`, SDK-only-in-service; `extractJsonObject`+`coerceEnrichment` SDK-free) returns cited
   additions. **⚡ Auto** = accept-all one-click. Verified in-browser (decline honored; auto 12→16 entities).
-  Next: generalize enrichment beyond entities to every stage. 257 tests.
+  **Rolled out to Capabilities, Roles, Agents** (generic `layerEnrich.ts` flatten/apply + light offline
+  grounded + `/api/enrich-layer` web research + `enrich-layer.md`; `EnrichPanel` buckets by `group`). Verified
+  in-browser (entities 12→16; roles 7→10, one declined excluded). Remaining stages (behaviour/automations/
+  workflows/areas) are cross-ref-heavy → still generate+AI-review. 257 tests.
 - **Ingest raw text/transcript BUILT** — the Narrative stage has a "From text/transcript" tab: paste a
   transcript/notes/brief or upload a .txt/.md; `@vbd/skills structureNarrative` (prompt `structure.md` +
   `/api/structure`) projects it into the heading-anchored Business Narrative → the existing derive pipeline.

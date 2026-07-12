@@ -159,8 +159,14 @@ Vite+React+react-router+shadcn scaffold: `src/index.css` (the skin, as shadcn CS
 per entity, plus `components.json`/`THEME.md`. On solar: **29 files**, nav grouped into the real Areas,
 `InvoiceDetail` carrying number/date/Switch inputs and all 5 Invoice commands as buttons. Tests prove
 **swapping the `Theme` changes the skin, not the structure** (same file set, different tokens). Covered
-by `packages/codegen/test/ui.test.ts`. Not yet run live (needs `npm i` + `npx shadcn add …` — the UI
-equivalent of the Odoo-install leg).
+by `packages/codegen/test/ui.test.ts`.
+
+**RAN LIVE.** Scaffolded a Vite+React+Tailwind+shadcn harness, dropped the generated files in, and ran
+it: the app renders — sidebar nav grouped into the real Business Areas, the Invoice detail form with a
+number input (amount), date picker (due_date), a Switch (paid), and all 5 Invoice commands as buttons.
+Then, swapping only the `Theme` (indigo primary, warm surface, larger radius) and letting HMR reload
+`index.css`, the **entire app restyled with zero change to any page or route** — the structure/skin split
+demonstrated live, not just asserted.
 
 ## 5. Findings / gaps (what a full multi-backend projection cannot yet do faithfully)
 

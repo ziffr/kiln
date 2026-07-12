@@ -128,6 +128,14 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   transcript/notes/brief or upload a .txt/.md; `@vbd/skills structureNarrative` (prompt `structure.md` +
   `/api/structure`) projects it into the heading-anchored Business Narrative → the existing derive pipeline.
   (Fixed NarrativeInput to use the config `SERVICE_URL` — was hardcoded localhost.) 256 tests.
+- **SQLite store engine + dialect-aware migrations BUILT** — SQLite = an embedded, file-based store → a
+  single-container generated app (no db service). `SQLITE` engine + `sqliteAdapter` (SQLite affinities,
+  `PRAGMA foreign_keys`, `CREATE TABLE IF NOT EXISTS`, no RLS); `spineAdapter(dialect)` emits a
+  `better-sqlite3` db.ts (same async interface as pg; booleans→0/1, objects→JSON; `DB_FILE`); `migrate(old,
+  new, dialect)` is now postgres|sqlite (SQLite type-change note = "rebuild the table"). Exporter `--sqlite`
+  (or `binding.defaults.store=sqlite`) → `sqlite/schema.sql` + `sqlite/migrations/` + a single-container
+  docker-compose (node:20-slim spine + a data volume, NO postgres service) + dialect-aware Makefile. Verified
+  both modes export; sqlite spine db.ts esbuild-parses; --sqlite --since = SQLite migration. 262 tests.
 - **Postgres model-diff migration generator BUILT** — incremental update story (grow a LIVE db, don't drop
   it). `@vbd/codegen/migrate.ts` `migratePostgres(oldDomain,newDomain)`: additive-by-default (new attr → ADD
   COLUMN, new entity → CREATE TABLE, new ref → ADD COLUMN…REFERENCES = live SQL); drops/type-changes = BREAKING

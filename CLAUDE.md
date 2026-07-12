@@ -113,6 +113,14 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   designer: **full shell swap** — topbar+stage-rail → sidebar (team header + project switcher + labeled
   StageRail nav + footer) + inset content card with breadcrumb topbar + collapse toggle (kept in VBD's own
   CSS, dark palette). Verified in-browser; 255 tests.
+- **Enrichment system BUILT (review + web research + auto)** — enrichment surfaced in-app as a human-gated
+  accept/decline/adjust diff (`EnrichPanel` + `enrichReview.ts` flatten/rebuild) on the Entities stage:
+  "✨ Enrich" proposes missing attributes/child-entities (each individually kept/dropped, ◇ grounded / 🔎
+  web + source link), Apply merges only accepted → domain (persisted). **Grounded source** = offline
+  `mockEnrichDomain`; **web-research source** = Anthropic `web_search_20260209` (`/api/enrich-web`, prompt
+  `enrich-web.md`, SDK-only-in-service; `extractJsonObject`+`coerceEnrichment` SDK-free) returns cited
+  additions. **⚡ Auto** = accept-all one-click. Verified in-browser (decline honored; auto 12→16 entities).
+  Next: generalize enrichment beyond entities to every stage. 257 tests.
 - **Ingest raw text/transcript BUILT** — the Narrative stage has a "From text/transcript" tab: paste a
   transcript/notes/brief or upload a .txt/.md; `@vbd/skills structureNarrative` (prompt `structure.md` +
   `/api/structure`) projects it into the heading-anchored Business Narrative → the existing derive pipeline.

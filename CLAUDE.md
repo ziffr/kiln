@@ -102,8 +102,11 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   agent); agents get them as `external` tools; `--external-services`/`/api/external-services`;
   EXTERNAL-SERVICES.md. `ProcessMode` is now `workflow|agent|external` — the Workflows review screen's
   "Run as" toggle is 3-way (External → pick a bound service); external-mode → a thin delegate connector,
-  not the internal pipeline. Solar: Excel lead import + offer-register export; sync Lead Qualifier + async
-  Offer Reviewer. 251 tests.
+  not the internal pipeline. **Per-step delegation** (`WorkflowInput.stepBindings`: step cmd id → service
+  id): a workflow-mode process runs internally but any single step can be delegated to a service (the
+  n8n pipeline emits a delegate node for that step; UI "Delegate individual steps" panel + 🌐 step marker).
+  Routing is composable — process-level AND step-level. Solar: Excel lead import + offer-register export;
+  sync Lead Qualifier + async Offer Reviewer. 252 tests.
 - **Triggers layer + agent HTTP mode BUILT** — `@vbd/codegen` triggers.ts: external signals in
   (webhook|schedule → command|workflow|agent|notify), grounded in the model's external/time events, →
   importable n8n `trigger_*` workflows + `TRIGGERS.md`. The generated agents runtime gained an HTTP mode

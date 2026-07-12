@@ -17,8 +17,7 @@ export function EnrichPanel({ proposals, busy, onToggle, onApply, onClose, onWeb
   t: T;
 }): React.JSX.Element {
   const accepted = proposals.filter((p) => p.accepted).length;
-  const entities = proposals.filter((p) => p.kind === "entity");
-  const attrs = proposals.filter((p) => p.kind === "attr");
+  const groups = [...new Set(proposals.map((p) => p.group))]; // buckets, in first-seen order
   return (
     <div className="guide-overlay" onClick={onClose}>
       <div className="guide review-overlay" onClick={(e) => e.stopPropagation()}>
@@ -36,20 +35,15 @@ export function EnrichPanel({ proposals, busy, onToggle, onApply, onClose, onWeb
           {proposals.length === 0 ? (
             <p className="muted">{t("enrichNone")}</p>
           ) : (
-            <>
-              {entities.length > 0 && (
-                <div className="enrich-group">
-                  <div className="enrich-group-head">{t("enrichNewEntities")} ({entities.length})</div>
-                  {entities.map((p) => <EnrichRow key={p.id} p={p} onToggle={onToggle} t={t} />)}
+            groups.map((g) => {
+              const rows = proposals.filter((p) => p.group === g);
+              return (
+                <div key={g} className="enrich-group">
+                  <div className="enrich-group-head">{t(`enrichGroup_${g}`, { defaultValue: g })} ({rows.length})</div>
+                  {rows.map((p) => <EnrichRow key={p.id} p={p} onToggle={onToggle} t={t} />)}
                 </div>
-              )}
-              {attrs.length > 0 && (
-                <div className="enrich-group">
-                  <div className="enrich-group-head">{t("enrichNewAttrs")} ({attrs.length})</div>
-                  {attrs.map((p) => <EnrichRow key={p.id} p={p} onToggle={onToggle} t={t} />)}
-                </div>
-              )}
-            </>
+              );
+            })
           )}
         </div>
         <div className="enrich-foot">

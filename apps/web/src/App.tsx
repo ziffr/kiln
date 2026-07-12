@@ -23,6 +23,7 @@ import {
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@vbd/validation";
 import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding } from "@vbd/skills";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
+import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
 import { EnrichPanel } from "./components/EnrichPanel";
 import { mockExternalServices } from "@vbd/codegen";
 import { SettingsModal } from "./components/SettingsModal";
@@ -783,39 +784,65 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  // ---- Enrichment (accept/decline/adjust): propose what a typical business is missing ----
+  // ---- Enrichment (accept/decline/adjust): propose what a typical business is missing, per layer ----
   const [enrichProps, setEnrichProps] = useState<EnrichProposal[] | null>(null);
+  const [enrichLayer, setEnrichLayer] = useState<"entities" | EnrichLayer>("entities");
   const [enrichWebBusy, setEnrichWebBusy] = useState(false);
+  const capNameOf = (id: string): string => activeDoc.capabilities.find((c) => c.id === id)?.name ?? id;
+  const validCaps = (): Set<string> => new Set(activeDoc.capabilities.map((c) => c.id));
+  const existingIds = (layer: EnrichLayer): Set<string> =>
+    new Set(layer === "capabilities" ? activeDoc.capabilities.map((c) => c.id) : layer === "roles" ? rolesDoc.roles.map((r) => r.id) : agentsDoc.agents.map((a) => a.id));
+  const mergeProps = (extra: EnrichProposal[]): void =>
+    setEnrichProps((ps) => { const have = new Set((ps ?? []).map((p) => p.id)); return [...(ps ?? []), ...extra.filter((p) => !have.has(p.id))]; });
+
   function runEnrichGrounded(): void {
-    const e = mockEnrichDomain(activeDoc, flowDoc, "standard"); // offline, deterministic — the fast source
-    setEnrichProps(flattenEnrichment(e, flowDoc, "grounded"));
+    setEnrichLayer("entities");
+    setEnrichProps(flattenEnrichment(mockEnrichDomain(activeDoc, flowDoc, "standard"), flowDoc, "grounded"));
   }
-  // Auto mode: run enrichment and apply every proposal without the review step (opt-in "just do it").
-  function autoEnrich(): void {
-    const props = flattenEnrichment(mockEnrichDomain(activeDoc, flowDoc, "standard"), flowDoc, "grounded");
-    if (props.length) patchActive({ domain: applyEnrichment(flowDoc, rebuildEnrichment(props)) });
+  function runLayerEnrich(layer: EnrichLayer): void {
+    setEnrichLayer(layer);
+    setEnrichProps(flattenLayerItems(layer, groundedLayerItems(layer, existingIds(layer)), existingIds(layer), validCaps(), capNameOf, "grounded"));
+  }
+  // Auto mode: run the grounded enrichment for this stage's layer and apply every proposal (no review).
+  function autoEnrich(layer: "entities" | EnrichLayer): void {
+    if (layer === "entities") {
+      const props = flattenEnrichment(mockEnrichDomain(activeDoc, flowDoc, "standard"), flowDoc, "grounded");
+      if (props.length) patchActive({ domain: applyEnrichment(flowDoc, rebuildEnrichment(props)) });
+    } else {
+      const props = flattenLayerItems(layer, groundedLayerItems(layer, existingIds(layer)), existingIds(layer), validCaps(), capNameOf, "grounded");
+      if (props.length) patchActive(applyLayerItems(layer, activeDoc, rolesDoc, agentsDoc, props));
+    }
   }
   function toggleEnrich(id: string): void {
     setEnrichProps((ps) => (ps ? ps.map((p) => (p.id === id ? { ...p, accepted: !p.accepted } : p)) : ps));
   }
   function applyEnrich(): void {
     const accepted = (enrichProps ?? []).filter((p) => p.accepted);
-    if (accepted.length) patchActive({ domain: applyEnrichment(flowDoc, rebuildEnrichment(accepted)) });
+    if (accepted.length) {
+      if (enrichLayer === "entities") patchActive({ domain: applyEnrichment(flowDoc, rebuildEnrichment(accepted)) });
+      else patchActive(applyLayerItems(enrichLayer, activeDoc, rolesDoc, agentsDoc, accepted));
+    }
     setEnrichProps(null);
   }
-  // Web/industry research source — proposes cited, missing aspects; merged into the same review.
+  // Web/industry research source — proposes cited, missing aspects for the active layer; merged into the review.
   async function enrichWeb(): Promise<void> {
     setEnrichWebBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/enrich-web`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, model: modelFor("entities"), effort: active.effort }) });
+      const common = { model: modelFor(enrichLayer === "entities" ? "entities" : "capabilities"), effort: active.effort };
+      const url = enrichLayer === "entities" ? "/api/enrich-web" : "/api/enrich-layer";
+      const body = enrichLayer === "entities"
+        ? { capabilities: activeDoc, domain: flowDoc, ...common }
+        : { layer: enrichLayer, capabilities: activeDoc, roles: rolesDoc, agents: agentsDoc, domain: flowDoc, ...common };
+      const res = await fetch(`${SERVICE_URL}${url}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      const webProps = flattenEnrichment(data.enrichment, flowDoc, "web", {}, (data.sources ?? [])[0]);
-      setEnrichProps((ps) => {
-        const have = new Set((ps ?? []).map((p) => p.id));
-        return [...(ps ?? []), ...webProps.filter((p) => !have.has(p.id))];
-      });
+      const cite = (data.sources ?? [])[0];
+      mergeProps(
+        enrichLayer === "entities"
+          ? flattenEnrichment(data.enrichment, flowDoc, "web", {}, cite)
+          : flattenLayerItems(enrichLayer, data.items ?? [], existingIds(enrichLayer), validCaps(), capNameOf, "web", cite),
+      );
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -1000,8 +1027,12 @@ export default function App(): React.JSX.Element {
               )}
               {stage === "capabilities" && <button className="addcap" onClick={addCapability}>{t("addCap")}</button>}
               {stage === "areas" && <button className="addcap" onClick={addArea}>{t("addArea")}</button>}
-              {stage === "entities" && <button className="addcap" onClick={runEnrichGrounded}>✨ {t("enrich")}</button>}
-              {stage === "entities" && <button className="addcap" onClick={autoEnrich} title={t("enrichAutoHint")}>⚡ {t("enrichAuto")}</button>}
+              {(["entities", "capabilities", "roles", "agents"] as const).includes(stage as never) && (
+                <>
+                  <button className="addcap" onClick={() => (stage === "entities" ? runEnrichGrounded() : runLayerEnrich(stage as EnrichLayer))}>✨ {t("enrich")}</button>
+                  <button className="addcap" onClick={() => autoEnrich(stage === "entities" ? "entities" : (stage as EnrichLayer))} title={t("enrichAutoHint")}>⚡ {t("enrichAuto")}</button>
+                </>
+              )}
               {REVIEW_KIND[stage] && (
                 <button className="addcap" onClick={() => void reviewLayer(REVIEW_KIND[stage]!)} disabled={reviewBusy === REVIEW_KIND[stage]}>
                   {reviewBusy === REVIEW_KIND[stage] ? t("generating") : `✨ ${t("aiReviewGo")}`}

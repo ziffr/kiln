@@ -37,7 +37,9 @@ import {
   translateMessages,
   structureNarrative,
   ENRICH_WEB_SYSTEM_PROMPT,
+  ENRICH_LAYER_SYSTEM_PROMPT,
   renderEnrichWebUserPrompt,
+  renderEnrichLayerUserPrompt,
   coerceEnrichment,
   extractJsonObject,
   safeParseJson,
@@ -527,6 +529,29 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + (resp.usage.output_tokens ?? 0) * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       return send(res, 200, { enrichment, sources, model: model.id, usage: { input: resp.usage.input_tokens ?? 0, output: resp.usage.output_tokens ?? 0 }, estCostUsd, sessionSpendUsd });
+    }
+
+    // Enrich a named-item layer (capabilities|roles|agents) from industry web research → cited items.
+    if (req.method === "POST" && req.url === "/api/enrich-layer") {
+      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      const body = JSON.parse((await readBody(req)) || "{}") as { layer?: string; capabilities?: CapabilityDoc; roles?: unknown; agents?: unknown; model?: string };
+      const layer = body.layer === "roles" || body.layer === "agents" ? body.layer : "capabilities";
+      if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
+      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const resp = await client.messages.create({
+        model: model.id,
+        max_tokens: 4096,
+        system: ENRICH_LAYER_SYSTEM_PROMPT,
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 4 }],
+        messages: [{ role: "user", content: renderEnrichLayerUserPrompt(layer, body.capabilities, body.roles as never, body.agents as never) }],
+      } as unknown as Anthropic.MessageCreateParamsNonStreaming);
+      const text = resp.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("\n");
+      const parsed = extractJsonObject(text) as { items?: unknown; sources?: unknown };
+      const items = Array.isArray(parsed.items) ? parsed.items : [];
+      const sources = Array.isArray(parsed.sources) ? (parsed.sources as unknown[]).filter((s): s is string => typeof s === "string") : [];
+      const estCostUsd = round(((resp.usage.input_tokens ?? 0) * model.inPerM + (resp.usage.output_tokens ?? 0) * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+      return send(res, 200, { items, sources, model: model.id, usage: { input: resp.usage.input_tokens ?? 0, output: resp.usage.output_tokens ?? 0 }, estCostUsd, sessionSpendUsd });
     }
 
     // Ingest: turn a RAW business description (transcript, notes) into the structured Business Narrative.

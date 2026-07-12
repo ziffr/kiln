@@ -1,3 +1,6 @@
+// functions/enrich-layer.ts
+import "@anthropic-ai/sdk";
+
 // ../../packages/ir/src/index.ts
 var SHA256_K = new Uint32Array([
   1116352408,
@@ -65,9 +68,6 @@ var SHA256_K = new Uint32Array([
   3204031479,
   3329325298
 ]);
-function slug(s) {
-  return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-}
 
 // ../../packages/skills/src/prompts.generated.ts
 var PROMPTS = {
@@ -268,7 +268,36 @@ var CHILD_LINES = [
 ];
 var ENRICH_SYSTEM_PROMPT = PROMPTS["enrich"];
 var ENRICH_WEB_SYSTEM_PROMPT = PROMPTS["enrich-web"];
+function extractJsonObject(text) {
+  const start = text.indexOf("{");
+  if (start < 0) return {};
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}" && --depth === 0) {
+      try {
+        return JSON.parse(text.slice(start, i + 1));
+      } catch {
+        return {};
+      }
+    }
+  }
+  return {};
+}
 var ENRICH_LAYER_SYSTEM_PROMPT = PROMPTS["enrich-layer"];
+var LAYER_SHAPE = {
+  capabilities: '{ "id": "<snake_id>", "name": "<Name>", "purpose": "<one sentence>" }',
+  roles: '{ "id": "<snake_id>", "name": "<Name>", "capabilities": ["<existing capability id>"] }',
+  agents: '{ "id": "<snake_id>", "name": "<Name>", "goal": "<one line>", "capabilities": ["<existing capability id>"] }'
+};
+function renderEnrichLayerUserPrompt(layer, caps, roles, agents) {
+  const existing = layer === "capabilities" ? caps.capabilities.map((c) => `${c.id} \u2014 ${c.name}`) : layer === "roles" ? (roles?.roles ?? []).map((r) => `${r.id} \u2014 ${r.name}`) : (agents?.agents ?? []).map((a) => `${a.id} \u2014 ${a.name}`);
+  const lines = [`# Business: ${caps.domain}`, `# Layer to enrich: ${layer}`, "", "## Existing capability ids (for references)"];
+  for (const c of caps.capabilities) lines.push(`- ${c.id} \u2014 ${c.name}`);
+  lines.push("", `## Existing ${layer} (do NOT repeat)`, ...existing.length ? existing.map((x) => `- ${x}`) : ["(none)"]);
+  lines.push("", "## Output item shape", LAYER_SHAPE[layer], "", `Research the "${caps.domain}" industry and propose the ${layer} this business is MISSING. Output ONLY { "items": [...], "sources": [...] }.`);
+  return lines.join("\n");
+}
 
 // ../../packages/skills/src/comms.ts
 var COMMS_SYSTEM_PROMPT = PROMPTS["communications"];
@@ -305,76 +334,7 @@ var WORKFLOW_SYSTEM_PROMPT = PROMPTS["workflows"];
 var AGENT_SYSTEM_PROMPT = PROMPTS["agents"];
 
 // ../../packages/skills/src/orchestration.ts
-function applyOrchestration(workflows, doc) {
-  const byId = new Map(doc.decisions.map((d) => [d.id, d.mode]));
-  return { version: workflows.version, workflows: (workflows.workflows ?? []).map((w) => ({ ...w, mode: w.mode === "external" ? "external" : byId.get(w.id) ?? w.mode ?? "workflow" })) };
-}
 var ORCHESTRATION_SYSTEM_PROMPT = PROMPTS["orchestration"];
-function renderOrchestrationUserPrompt(workflows, domain) {
-  const cmdName = new Map((domain?.commands ?? []).map((c) => [c.id, c.name || c.id]));
-  const lines = ["# Processes (decide workflow vs agent for each)", ""];
-  for (const w of workflows.workflows ?? []) {
-    const steps = (w.steps ?? []).map((s) => cmdName.get(s) ?? s).join(" \u2192 ");
-    lines.push(`- ${w.name || w.id}: ${steps || "(no steps)"}`);
-  }
-  lines.push("", "For each process, decide: fixed workflow, or agent (judgement)? Return the JSON.");
-  return lines.join("\n");
-}
-var ORCHESTRATION_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["version", "decisions"],
-  properties: {
-    version: { type: "string" },
-    decisions: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["name", "mode"],
-        properties: {
-          name: { type: "string" },
-          mode: { type: "string", enum: ["workflow", "agent"] },
-          rationale: { type: "string" },
-          confidence: { type: "number" }
-        }
-      }
-    }
-  }
-};
-function buildOrchestrationRequest(workflows, domain) {
-  return { system: ORCHESTRATION_SYSTEM_PROMPT, user: renderOrchestrationUserPrompt(workflows, domain), schema: ORCHESTRATION_SCHEMA, context: workflows };
-}
-function coerceOrchestration(json, workflows) {
-  const byKey = /* @__PURE__ */ new Map();
-  for (const w of workflows.workflows ?? []) {
-    byKey.set(slug(w.id), w.id);
-    byKey.set(slug(w.name), w.id);
-  }
-  const obj = json && typeof json === "object" ? json : {};
-  const raw = Array.isArray(obj.decisions) ? obj.decisions : [];
-  const seen = /* @__PURE__ */ new Set();
-  const decisions = [];
-  for (const r of raw) {
-    const o = r;
-    const name = typeof o.name === "string" ? o.name : "";
-    const id = byKey.get(slug(name)) ?? slug(name);
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    const mode = o.mode === "agent" ? "agent" : "workflow";
-    const confidence = typeof o.confidence === "number" ? Math.max(0, Math.min(1, o.confidence)) : 0.7;
-    decisions.push({ id, name: name || id, mode, rationale: typeof o.rationale === "string" ? o.rationale : "", confidence });
-  }
-  for (const w of workflows.workflows ?? []) {
-    if (!seen.has(w.id)) decisions.push({ id: w.id, name: w.name || w.id, mode: "workflow", rationale: "No decision returned \u2014 defaulted to workflow.", confidence: 0.5 });
-  }
-  return { version: typeof obj.version === "string" ? obj.version : "0.1", decisions };
-}
-async function generateOrchestration(workflows, provider, domain) {
-  const res = await provider.complete(buildOrchestrationRequest(workflows, domain));
-  const doc = coerceOrchestration(res.json, workflows);
-  return { doc, workflows: applyOrchestration(workflows, doc), provider: res.provider };
-}
 
 // ../../packages/codegen/src/ui-scaffold.ts
 var UI_SCAFFOLD = {
@@ -869,19 +829,6 @@ var COMPONENTS_SCHEMA = {
 };
 var COMPONENTS_SYSTEM_PROMPT = PROMPTS["components"];
 
-// ../../packages/skills/src/index.ts
-function safeParseJson(raw) {
-  const fenced = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-  const start = fenced.indexOf("{");
-  const end = fenced.lastIndexOf("}");
-  const candidate = start >= 0 && end > start ? fenced.slice(start, end + 1) : fenced;
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    return null;
-  }
-}
-
 // functions/_lib.ts
 import Anthropic from "@anthropic-ai/sdk";
 var MODELS = [
@@ -889,12 +836,8 @@ var MODELS = [
   { id: "claude-opus-4-8", label: "Opus 4.8", supportsEffort: true, inPerM: 5, outPerM: 25 },
   { id: "claude-haiku-4-5", label: "Haiku 4.5", supportsEffort: false, inPerM: 1, outPerM: 5 }
 ];
-var EFFORTS = ["low", "medium", "high", "max"];
 var DEFAULT_MODEL = "claude-sonnet-5";
-var DEFAULT_EFFORT = "medium";
 var modelById = (id) => MODELS.find((m) => m.id === id);
-var pickEffort = (e) => EFFORTS.includes(e ?? "") ? e : DEFAULT_EFFORT;
-var newUsage = () => ({ input: 0, output: 0, cacheRead: 0, cacheCreate: 0 });
 var round = (n, dp = 6) => Math.round(n * 10 ** dp) / 10 ** dp;
 function estCost(usage, model) {
   const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
@@ -903,31 +846,6 @@ function estCost(usage, model) {
 function anthropicClient() {
   const key = process.env.VBD_ANTHROPIC_API_KEY;
   return key ? new Anthropic({ apiKey: key }) : null;
-}
-function anthropicProvider(client, model, effort, supportsEffort, usage) {
-  return {
-    name: `anthropic:${model}`,
-    async complete(req) {
-      const outputConfig = {};
-      if (req.schema) outputConfig.format = { type: "json_schema", schema: req.schema };
-      if (supportsEffort && effort) outputConfig.effort = effort;
-      const resp = await client.messages.create({
-        model,
-        max_tokens: 16e3,
-        // Cache the stable system prompt so re-review/refine reuse it from cache (prompt-caching).
-        system: [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: req.user }],
-        output_config: outputConfig
-      });
-      const u = resp.usage;
-      usage.input += u.input_tokens ?? 0;
-      usage.output += u.output_tokens ?? 0;
-      usage.cacheRead += u.cache_read_input_tokens ?? 0;
-      usage.cacheCreate += u.cache_creation_input_tokens ?? 0;
-      const text = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-      return { json: safeParseJson(text), raw: text, provider: `anthropic:${model}` };
-    }
-  };
 }
 function readBody(req) {
   if (!req.body) return {};
@@ -946,20 +864,29 @@ function requireClient(req, res) {
   return client;
 }
 
-// functions/orchestration.ts
+// functions/enrich-layer.ts
 async function handler(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
-  if (!body.workflows?.workflows?.length) return void res.status(400).json({ error: "workflows are required" });
+  const layer = body.layer === "roles" || body.layer === "agents" ? body.layer : "capabilities";
+  if (!body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
-  const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
-  const result = await generateOrchestration(body.workflows, provider, body.domain);
-  const estCostUsd = estCost(usage, model);
-  res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
+  const resp = await client.messages.create({
+    model: model.id,
+    max_tokens: 4096,
+    system: ENRICH_LAYER_SYSTEM_PROMPT,
+    tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 4 }],
+    messages: [{ role: "user", content: renderEnrichLayerUserPrompt(layer, body.capabilities, body.roles, body.agents) }]
+  });
+  const text = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  const parsed = extractJsonObject(text);
+  const items = Array.isArray(parsed.items) ? parsed.items : [];
+  const sources = Array.isArray(parsed.sources) ? parsed.sources.filter((s) => typeof s === "string") : [];
+  const estCostUsd = estCost({ input: resp.usage.input_tokens ?? 0, output: resp.usage.output_tokens ?? 0, cacheRead: 0, cacheCreate: 0 }, model);
+  res.status(200).json({ items, sources, model: model.id, usage: { input: resp.usage.input_tokens ?? 0, output: resp.usage.output_tokens ?? 0 }, estCostUsd, sessionSpendUsd: estCostUsd });
 }
-var config = { maxDuration: 60 };
+var config = { maxDuration: 120 };
 export {
   config,
   handler as default

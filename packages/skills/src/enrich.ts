@@ -12,7 +12,7 @@ import { PROMPTS } from "./prompts.generated.ts";
  */
 
 import { slug } from "@vbd/ir";
-import { attributeSpecs, type AttributeSpec, type AggregateInput, type CapabilityDoc, type DomainDoc } from "@vbd/compiler";
+import { attributeSpecs, type AttributeSpec, type AggregateInput, type CapabilityDoc, type DomainDoc, type RolesDoc, type AgentsDoc } from "@vbd/compiler";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 export type EnrichDepth = "conservative" | "standard" | "exhaustive";
@@ -209,6 +209,26 @@ export function extractJsonObject(text: string): unknown {
     }
   }
   return {};
+}
+
+// ── Generic layer enrichment (capabilities | roles | agents): propose whole items via web research.
+//    Same SDK-free split — prompt + user-render here; the web_search call + parse run in the service. ──
+export type EnrichLayerName = "capabilities" | "roles" | "agents";
+export const ENRICH_LAYER_SYSTEM_PROMPT = PROMPTS["enrich-layer"];
+
+const LAYER_SHAPE: Record<EnrichLayerName, string> = {
+  capabilities: '{ "id": "<snake_id>", "name": "<Name>", "purpose": "<one sentence>" }',
+  roles: '{ "id": "<snake_id>", "name": "<Name>", "capabilities": ["<existing capability id>"] }',
+  agents: '{ "id": "<snake_id>", "name": "<Name>", "goal": "<one line>", "capabilities": ["<existing capability id>"] }',
+};
+
+export function renderEnrichLayerUserPrompt(layer: EnrichLayerName, caps: CapabilityDoc, roles?: RolesDoc, agents?: AgentsDoc): string {
+  const existing = layer === "capabilities" ? caps.capabilities.map((c) => `${c.id} — ${c.name}`) : layer === "roles" ? (roles?.roles ?? []).map((r) => `${r.id} — ${r.name}`) : (agents?.agents ?? []).map((a) => `${a.id} — ${a.name}`);
+  const lines = [`# Business: ${caps.domain}`, `# Layer to enrich: ${layer}`, "", "## Existing capability ids (for references)"];
+  for (const c of caps.capabilities) lines.push(`- ${c.id} — ${c.name}`);
+  lines.push("", `## Existing ${layer} (do NOT repeat)`, ...(existing.length ? existing.map((x) => `- ${x}`) : ["(none)"]));
+  lines.push("", "## Output item shape", LAYER_SHAPE[layer], "", `Research the "${caps.domain}" industry and propose the ${layer} this business is MISSING. Output ONLY { "items": [...], "sources": [...] }.`);
+  return lines.join("\n");
 }
 
 export function coerceEnrichment(json: unknown, domain: DomainDoc, provider: string): EnrichmentResult {

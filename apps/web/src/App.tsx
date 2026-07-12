@@ -198,6 +198,7 @@ export default function App(): React.JSX.Element {
   const agentFindings = useMemo(() => validateAgents(agentsDoc, activeDoc.capabilities.map((c) => c.id)), [agentsDoc, activeDoc]);
   const [agentsBusy, setAgentsBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [stage, setStage] = useState<StageId>("capabilities");
@@ -788,7 +789,7 @@ export default function App(): React.JSX.Element {
   const activeStage = stages.find((s) => s.id === stage) ?? stages[1];
 
   return (
-    <div className="app">
+    <div className={`app shell${sidebarOpen ? "" : " sidebar-collapsed"}`}>
       {showGuide && <Guide onClose={() => setShowGuide(false)} />}
       {showSettings && (
         <SettingsModal
@@ -841,18 +842,16 @@ export default function App(): React.JSX.Element {
           </div>
         </div>
       )}
-      <header className="topbar">
-        <div className="brand">
-          <h1>{t("appTitle")}</h1>
-          <p className="tagline">{t("tagline")}</p>
+      <aside className="side">
+        <div className="side-team">
+          <div className="side-mark">⌘</div>
+          <div className="side-team-name">
+            <div className="side-title">{t("appTitle")}</div>
+            <div className="side-sub muted">{active.name}</div>
+          </div>
         </div>
 
-        <button className="guide-open" onClick={() => setShowReview(true)}>✨ {t("aiReviewTitle")}</button>
-        <button className="guide-open" onClick={() => setShowGuide(true)}>{t("guideOpen")}</button>
-        <button className="guide-open" onClick={() => setShowSettings(true)}>⚙︎ {t("settingsOpen")}</button>
-
         <div className="projectbar">
-          <span className="muted">{t("project")}:</span>
           <select
             value={active.id}
             onChange={(e) => {
@@ -864,24 +863,43 @@ export default function App(): React.JSX.Element {
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          <button onClick={addProject}>+ {t("newProject")}</button>
-          <button onClick={renameProject}>{t("rename")}</button>
-          <button onClick={deleteProject} disabled={state.projects.length <= 1}>{t("del")}</button>
+          <button onClick={addProject} title={t("newProject")}>+</button>
+          <button onClick={renameProject} title={t("rename")}>✎</button>
+          <button onClick={deleteProject} disabled={state.projects.length <= 1} title={t("del")}>🗑</button>
         </div>
 
-        <div className="lang">
-          <span>{t("language")}:</span>
-          {(["de", "en"] as const).map((lng) => (
-            <button key={lng} className={i18n.language === lng ? "active" : ""} onClick={() => void i18n.changeLanguage(lng)}>
-              {lng.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      </header>
-
-      <div className="workspace">
         <StageRail stages={stages} active={stage} onSelect={(s) => { setStage(s); setSelected(null); }} t={t} />
 
+        <div className="side-foot">
+          <button className="side-foot-btn" onClick={() => setShowGuide(true)}>{t("guideOpen")}</button>
+          <button className="side-foot-btn" onClick={() => setShowSettings(true)}>⚙︎ {t("settingsOpen")}</button>
+          <div className="lang">
+            <span>{t("language")}:</span>
+            {(["de", "en"] as const).map((lng) => (
+              <button key={lng} className={i18n.language === lng ? "active" : ""} onClick={() => void i18n.changeLanguage(lng)}>
+                {lng.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <div className="side-user">
+            <div className="side-ava" />
+            <div className="leading"><div className="side-user-name">Local</div><div className="side-sub muted">workspace</div></div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="inset">
+        <header className="inset-top">
+          <button className="side-toggle" onClick={() => setSidebarOpen((v) => !v)} aria-label={t("stages")}>☰</button>
+          <nav className="crumbs">
+            <span className="muted">{t("appTitle")}</span>
+            <span className="crumb-sep">/</span>
+            <span className="crumb-cur">{activeStage.label}</span>
+          </nav>
+          <button className="ai-review-top" onClick={() => setShowReview(true)}>✨ {t("aiReviewTitle")}</button>
+        </header>
+
+        <div className="inset-body">
         <main className="stage-main">
           <div className="stage-head">
             <div className="stage-title">
@@ -1030,6 +1048,7 @@ export default function App(): React.JSX.Element {
             <div className="detail-hint muted">{t("ndHint")}</div>
           )}
         </aside>
+        </div>
       </div>
     </div>
   );

@@ -729,3 +729,49 @@ textarea {
 .trace-jump:hover { color: var(--accent); }
 .trace-jump-arrow { color: var(--accent); opacity: .6; }
 .trace-jump:hover .trace-jump-arrow { opacity: 1; }
+
+/* ── sidebar-16 shell (full shell swap): sidebar + inset content card + breadcrumb topbar ── */
+.app.shell { flex-direction: row; height: 100%; overflow: hidden; }
+
+.side { width: 250px; flex: none; display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--panel-2); border-right: 1px solid var(--border); overflow: hidden; }
+.sidebar-collapsed .side { display: none; }
+.side-team { display: flex; align-items: center; gap: 8px; padding: 6px; }
+.side-mark { width: 32px; height: 32px; flex: none; border-radius: 8px; background: var(--accent); color: #06283d; display: grid; place-items: center; font-size: 16px; font-weight: 700; }
+.side-team-name { min-width: 0; }
+.side-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-sub { font-size: 11px; }
+.side .projectbar { flex-wrap: wrap; padding: 0 6px 4px; }
+.side .projectbar select { flex: 1; min-width: 0; }
+.side .stage-rail { flex: 1; min-height: 0; border-right: none; background: transparent; padding: 4px; }
+.side-foot { border-top: 1px solid var(--border); padding-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.side-foot-btn { text-align: left; background: transparent; border: none; color: var(--muted); font-size: 13px; padding: 5px 8px; border-radius: 6px; cursor: pointer; }
+.side-foot-btn:hover { background: var(--panel); color: var(--fg); }
+.side .lang { padding: 4px 8px; }
+.side-user { display: flex; align-items: center; gap: 8px; padding: 6px; margin-top: 2px; border-top: 1px solid var(--border); }
+.side-ava { width: 28px; height: 28px; flex: none; border-radius: 50%; background: var(--panel); }
+.side-user-name { font-size: 13px; font-weight: 500; }
+
+.inset { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 8px; }
+.inset-top { display: flex; align-items: center; gap: 12px; height: 48px; flex: none; padding: 0 12px; border: 1px solid var(--border); border-bottom: none; border-radius: 12px 12px 0 0; background: var(--panel); }
+.side-toggle { background: transparent; border: none; color: var(--muted); font-size: 17px; cursor: pointer; padding: 4px 8px; border-radius: 6px; line-height: 1; }
+.side-toggle:hover { background: var(--panel-2); color: var(--fg); }
+.crumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.crumb-sep { color: var(--muted); }
+.crumb-cur { font-weight: 600; color: var(--fg); }
+.ai-review-top { margin-left: auto; background: var(--accent); color: #06283d; border: none; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.ai-review-top:hover { filter: brightness(1.06); }
+.inset-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 320px; border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; min-height: 0; background: var(--panel); }
+
+@media (max-width: 920px) {
+  .inset-body { grid-template-columns: 1fr; }
+  .inset-body .stage-detail { display: none; }
+}
+
+/* The sidebar is a fixed 250px pane, not the old collapsing rail — always show stage labels there
+   (the ≤900px rule that hid them was for the rail; the sidebar collapses via the ☰ toggle instead). */
+.side .stage-label { display: block; flex: 1; }
+.side .stage-item { padding: 8px 10px; }
+.inset-top { overflow: hidden; }
+.crumbs { min-width: 0; }
+.crumb-cur { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ai-review-top { flex: none; white-space: nowrap; }

@@ -412,3 +412,4 @@ export { spineAdapter } from "./spine.ts";
 export { mockCommunications, communicationsAdapter, type CommunicationsDoc, type CommAction, type CommChannel } from "./comms.ts";
 export { mockIntegrations, integrationsAdapter, type IntegrationsDoc, type IntegrationAction, type IntegrationDirection } from "./integrations.ts";
 export { hoppscotchCollection } from "./hoppscotch.ts";
+export { agentsAdapter, type AgentDef, type AgentTool } from "./agents.ts";

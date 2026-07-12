@@ -20,6 +20,8 @@ import { shadcnAdapter, DEFAULT_THEME, type Theme } from "./ui.ts";
 import { spineAdapter } from "./spine.ts";
 import { mockCommunications, communicationsAdapter, type CommunicationsDoc } from "./comms.ts";
 import { mockIntegrations, integrationsAdapter, type IntegrationsDoc } from "./integrations.ts";
+import { agentsAdapter } from "./agents.ts";
+import type { AgentsDoc } from "@vbd/compiler";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. The technical-capability taxonomy — the pivot table between model and engines.
@@ -525,7 +527,7 @@ export interface TargetsReport {
   binding: Binding;
   resolved: ResolvedElement[];
   validation: BindingFinding[];
-  artifacts: { postgres: string; n8n: N8nWorkflow[]; odoo: Record<string, string>; ui: Record<string, string>; spine: Record<string, string>; comms: { templates: Record<string, string>; n8n: N8nWorkflow[] }; integrations: { mappings: Record<string, string>; n8n: N8nWorkflow[] } };
+  artifacts: { postgres: string; n8n: N8nWorkflow[]; odoo: Record<string, string>; ui: Record<string, string>; spine: Record<string, string>; comms: { templates: Record<string, string>; n8n: N8nWorkflow[] }; integrations: { mappings: Record<string, string>; n8n: N8nWorkflow[] }; agents: Record<string, string> };
   /** which engine serves the UI (serve-ui binding), and whether we generated it or it's engine-native. */
   ui: { engineId: string; generated: boolean; note: string };
   seams: Seam[];
@@ -546,6 +548,7 @@ export function projectTargets(
   handlers: Record<string, string> = {},
   comms?: CommunicationsDoc,
   integrations?: IntegrationsDoc,
+  agents?: AgentsDoc,
 ): TargetsReport {
   const resolved = resolveBinding(binding, caps, domain, contexts, roles, workflows);
   const validation = validateBinding(resolved, workflows, domain);
@@ -563,14 +566,16 @@ export function projectTargets(
   };
   // the spine hosts commands bound to the node engine (the `operate` hub the others call).
   const spineHosted = resolved.some((r) => r.kind === "command" && r.engineId === "node");
+  const commsDoc = comms ?? mockCommunications(caps, domain); // shared by the comms adapter + agent tools
   const artifacts = {
     postgres: postgresAdapter(resolved, domain, roles),
     n8n: n8nAdapter(resolved, domain, workflows),
     odoo: odooAdapter(resolved, caps, domain, roles),
     ui: uiGenerated ? shadcnAdapter(caps, domain, contexts, theme) : {},
     spine: spineHosted ? spineAdapter(caps, domain, handlers) : {},
-    comms: communicationsAdapter(comms ?? mockCommunications(caps, domain)),
+    comms: communicationsAdapter(commsDoc),
     integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain),
+    agents: agentsAdapter(caps, domain, agents, commsDoc),
   };
   const seams = deriveSeams(resolved, domain, workflows);
 

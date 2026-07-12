@@ -66,7 +66,7 @@ const readArg = (flag) => {
 const comms = readArg("--comms");
 const integrations = readArg("--integrations");
 
-const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, undefined, handlers, comms, integrations);
+const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, undefined, handlers, comms, integrations, m.agents);
 
 // fresh output dir
 rmSync(outDir, { recursive: true, force: true });
@@ -97,6 +97,9 @@ for (const [rel, content] of Object.entries(rep.artifacts.ui)) written.push(writ
 
 // Spine → the runnable command API (Express + pg); LLM-drafted handlers, pass-through defaults.
 for (const [rel, content] of Object.entries(rep.artifacts.spine)) written.push(write(`spine/${rel}`, content));
+
+// Agents → goal + concrete tools (commands + notify + comm actions) an agent runtime loads.
+for (const [rel, content] of Object.entries(rep.artifacts.agents)) written.push(write(rel, content));
 
 // Communication layer → editable templates + n8n notify workflows (email/Slack), wired to the event
 // webhooks the spine POSTs to. Render (pdf) actions emit a template for a render service to consume.

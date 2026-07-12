@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { shadcnAdapter, uiStructure, DEFAULT_THEME, type Theme } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
+import { shadcnAdapter, uiStructure, helpModel, DEFAULT_THEME, type Theme } from "../src/index.ts";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, WorkflowsDoc, RolesDoc } from "@vbd/compiler";
 
 const caps: CapabilityDoc = {
   domain: "Test",
@@ -98,4 +98,35 @@ test("swapping the Theme changes the skin, not the structure", () => {
 
 test("no aggregates → no UI", () => {
   assert.equal(Object.keys(shadcnAdapter(caps, { aggregates: [] } as unknown as DomainDoc, contexts)).length, 0);
+});
+
+test("helpModel projects end-user help from the model (what/fields/actions, processes, roles)", () => {
+  const capsWithPurpose = { ...caps, capabilities: [{ id: "leads", name: "Leads", purpose: "Turn enquiries into qualified prospects.", outcomes: [] }, { id: "billing", name: "Billing", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
+  const domainWithEmits = { ...domain, events: [{ id: "lead_qualified", name: "Lead Qualified", aggregate: "lead", trigger: "command" }], commands: [{ id: "qualify_lead", name: "Qualify Lead", aggregate: "lead", emits: ["lead_qualified"] }, { id: "void_invoice", name: "Void Invoice", aggregate: "invoice", emits: [] }], policies: [{ id: "p1", name: "", on: "lead_qualified", then: "void_invoice" }] } as unknown as DomainDoc;
+  const workflows: WorkflowsDoc = { version: "0.1", workflows: [{ id: "o2c", name: "Order to Cash", steps: ["qualify_lead", "void_invoice"] }] } as unknown as WorkflowsDoc;
+  const roles: RolesDoc = { version: "0.1", roles: [{ id: "rep", name: "Sales Rep", capabilities: ["leads"] }] } as unknown as RolesDoc;
+  const h = helpModel(capsWithPurpose, domainWithEmits, contexts, workflows, roles);
+  const lead = h.entities.find((e) => e.entity === "lead")!;
+  assert.equal(lead.what, "Turn enquiries into qualified prospects."); // "what" = owning capability purpose
+  assert.ok(lead.fields.some((f) => f.name === "qualified" && f.hint === "yes / no")); // field hint from type
+  const qualify = lead.actions.find((a) => a.name === "Qualify Lead")!;
+  assert.match(qualify.does, /Lead Qualified/); // "what happens" = the command's emitted events
+  assert.ok(h.processes.some((p) => p.name === "Order to Cash" && p.steps.includes("Qualify Lead")));
+  assert.ok(h.roles.some((r) => r.name === "Sales Rep" && r.does.includes("Leads")));
+  assert.ok(h.automations.some((a) => a.when === "Lead Qualified"));
+});
+
+test("shadcnAdapter emits an in-app help system (data + page + drawer + route + nav)", () => {
+  const files = shadcnAdapter(caps, domain, contexts);
+  assert.ok(files["src/help.ts"], "help data module");
+  assert.match(files["src/help.ts"], /export const HELP/);
+  assert.ok(files["src/pages/Help.tsx"], "help page");
+  assert.ok(files["src/components/HelpButton.tsx"], "contextual help drawer");
+  // route + nav wired
+  assert.match(files["src/App.tsx"], /path="\/help"/);
+  assert.match(files["src/components/AppSidebar.tsx"], /to="\/help"/);
+  // each list screen carries a contextual help button bound to its entity
+  assert.match(files["src/pages/LeadList.tsx"], /<HelpButton entity="lead" \/>/);
+  // the drawer + page are dependency-light (no new shadcn component needed)
+  assert.doesNotMatch(files["src/components/HelpButton.tsx"], /@\/components\/ui\/dialog/);
 });

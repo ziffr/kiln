@@ -593,7 +593,7 @@ export function projectTargets(
     postgres: postgresAdapter(resolved, domain, roles),
     n8n: n8nAdapter(resolved, domain, workflows, undefined, servicesDoc),
     odoo: odooAdapter(resolved, caps, domain, roles),
-    ui: uiGenerated ? shadcnAdapter(caps, domain, contexts, theme) : {},
+    ui: uiGenerated ? shadcnAdapter(caps, domain, contexts, theme, workflows, roles) : {},
     spine: spineHosted ? spineAdapter(caps, domain, handlers) : {},
     comms: communicationsAdapter(commsDoc),
     integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain),

@@ -66,6 +66,19 @@ test("shadcnAdapter emits a themeable scaffold: theme css, router, sidebar, page
   assert.match(files["src/components/AppSidebar.tsx"], /area: "Sales"/);
 });
 
+test("master-detail: an entity's detail shows a grid for entities that reference it (reverse refs)", () => {
+  // invoice references lead → Lead's detail should show an Invoice child grid.
+  const s = uiStructure(caps, domain, contexts);
+  const lead = s.screens.find((x) => x.entity === "lead")!;
+  assert.ok(lead.related.some((r) => r.entity === "invoice"), "Lead should list its Invoices");
+  const files = shadcnAdapter(caps, domain, contexts);
+  assert.match(files["src/pages/LeadDetail.tsx"], /master-detail/);
+  assert.match(files["src/pages/LeadDetail.tsx"], /<CardTitle className="text-base">Invoice<\/CardTitle>/);
+  assert.match(files["src/pages/LeadDetail.tsx"], /Add Invoice/);
+  // an entity with nothing referencing it stays a plain form (no table import)
+  assert.doesNotMatch(files["src/pages/InvoiceDetail.tsx"], /master-detail/);
+});
+
 test("swapping the Theme changes the skin, not the structure", () => {
   const brand: Theme = { ...DEFAULT_THEME, name: "brand", radius: "1rem", light: { ...DEFAULT_THEME.light, primary: "220 90% 56%" } };
   const a = shadcnAdapter(caps, domain, contexts, DEFAULT_THEME);

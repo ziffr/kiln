@@ -65,94 +65,6 @@ var SHA256_K = new Uint32Array([
   3204031479,
   3329325298
 ]);
-function sha256(input) {
-  const rotr = (x, n) => x >>> n | x << 32 - n;
-  const msg = new TextEncoder().encode(input);
-  const bitLen = msg.length * 8;
-  const withOne = msg.length + 1;
-  const pad = (56 - withOne % 64 + 64) % 64;
-  const total = withOne + pad + 8;
-  const buf = new Uint8Array(total);
-  buf.set(msg, 0);
-  buf[msg.length] = 128;
-  const dv = new DataView(buf.buffer);
-  dv.setUint32(total - 8, Math.floor(bitLen / 4294967296), false);
-  dv.setUint32(total - 4, bitLen >>> 0, false);
-  let h0 = 1779033703, h1 = 3144134277, h2 = 1013904242, h3 = 2773480762;
-  let h4 = 1359893119, h5 = 2600822924, h6 = 528734635, h7 = 1541459225;
-  const w = new Uint32Array(64);
-  for (let off = 0; off < total; off += 64) {
-    for (let i = 0; i < 16; i++) w[i] = dv.getUint32(off + i * 4, false);
-    for (let i = 16; i < 64; i++) {
-      const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ w[i - 15] >>> 3;
-      const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ w[i - 2] >>> 10;
-      w[i] = w[i - 16] + s0 + w[i - 7] + s1 | 0;
-    }
-    let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
-    for (let i = 0; i < 64; i++) {
-      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
-      const ch = e & f ^ ~e & g;
-      const t1 = h + S1 + ch + SHA256_K[i] + w[i] | 0;
-      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
-      const maj = a & b ^ a & c ^ b & c;
-      const t2 = S0 + maj | 0;
-      h = g;
-      g = f;
-      f = e;
-      e = d + t1 | 0;
-      d = c;
-      c = b;
-      b = a;
-      a = t1 + t2 | 0;
-    }
-    h0 = h0 + a | 0;
-    h1 = h1 + b | 0;
-    h2 = h2 + c | 0;
-    h3 = h3 + d | 0;
-    h4 = h4 + e | 0;
-    h5 = h5 + f | 0;
-    h6 = h6 + g | 0;
-    h7 = h7 + h | 0;
-  }
-  const hex = (x) => (x >>> 0).toString(16).padStart(8, "0");
-  return hex(h0) + hex(h1) + hex(h2) + hex(h3) + hex(h4) + hex(h5) + hex(h6) + hex(h7);
-}
-function slug(s) {
-  return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-}
-
-// ../../packages/validation/src/index.ts
-var isGroundedAnchor = (meta) => {
-  const derived = meta?.derivedFrom ?? [];
-  return derived.some((d) => typeof d?.anchor === "string" && d.anchor.trim());
-};
-var ID_RE = /^[a-z][a-z0-9_]*$/;
-function findingId(code, subjects) {
-  return sha256(`${code}|${[...subjects].sort().join(",")}`).slice(0, 16);
-}
-function finding(code, severity, message, subjects) {
-  return { id: findingId(code, subjects), code, severity, message, subjects };
-}
-var mk = finding;
-function validateAgents(agents, capabilityIds) {
-  const findings = [];
-  const capIds = new Set(capabilityIds);
-  const counts = /* @__PURE__ */ new Map();
-  for (const a of agents.agents) {
-    const subj = a.id || a.name || "<agent>";
-    if (!a.id || !a.id.trim()) findings.push(mk("AG1.required", "blocker", "agent is missing an id", [subj]));
-    else {
-      counts.set(a.id, (counts.get(a.id) ?? 0) + 1);
-      if (!ID_RE.test(a.id)) findings.push(mk("AG3.slug", "major", `agent id '${a.id}' is not a stable slug`, [a.id]));
-    }
-    if (!a.name || !a.name.trim()) findings.push(mk("AG1.required", "major", `agent '${subj}' is missing a name`, [subj]));
-    for (const c of a.capabilities ?? []) if (!capIds.has(c)) findings.push(mk("AG2.capability", "major", `agent '${subj}' operates unknown capability '${c}'`, [subj, c]));
-    if ((a.capabilities ?? []).length === 0) findings.push(mk("AG5.empty", "minor", `agent '${subj}' operates no capabilities`, [subj]));
-    if (a.meta?.origin === "llm" && !isGroundedAnchor(a.meta)) findings.push(mk("AG4.provenance", "major", `agent '${subj}' lacks grounded evidence`, [subj]));
-  }
-  for (const [id, n] of counts) if (n > 1) findings.push(mk("AG3.unique", "blocker", `duplicate agent id '${id}' (${n}\xD7)`, [id]));
-  return findings;
-}
 
 // ../../packages/skills/src/prompts.generated.ts
 var PROMPTS = {
@@ -361,6 +273,26 @@ var EXTERNAL_SERVICES_SYSTEM_PROMPT = PROMPTS["external-services"];
 
 // ../../packages/skills/src/translate.ts
 var TRANSLATE_SYSTEM_PROMPT = PROMPTS["translate"];
+var TRANSLATE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["messages"],
+  properties: { messages: { type: "object", additionalProperties: { type: "string" } } }
+};
+async function translateMessages(bundle, targetLang, provider) {
+  const user = `Target language: ${targetLang}
+
+Translate the values of this JSON object:
+${JSON.stringify(bundle, null, 2)}`;
+  const res = await provider.complete({ system: TRANSLATE_SYSTEM_PROMPT, user, schema: TRANSLATE_SCHEMA, context: bundle });
+  const out = (res.json && typeof res.json === "object" ? res.json.messages : void 0) ?? {};
+  const result = {};
+  for (const k of Object.keys(bundle)) {
+    const v = out[k];
+    result[k] = typeof v === "string" && v.trim() ? v : bundle[k];
+  }
+  return result;
+}
 
 // ../../packages/skills/src/contexts.ts
 var CONTEXT_SYSTEM_PROMPT = PROMPTS["contexts"];
@@ -380,85 +312,6 @@ var WORKFLOW_SYSTEM_PROMPT = PROMPTS["workflows"];
 
 // ../../packages/skills/src/agents.ts
 var AGENT_SYSTEM_PROMPT = PROMPTS["agents"];
-function renderAgentUserPrompt(caps) {
-  const lines = ["# Capabilities (ids for an agent to operate)", ""];
-  for (const c of caps.capabilities) lines.push(`- ${c.id} \u2014 ${c.name}: ${c.purpose ?? ""}`);
-  lines.push("", "Return the autonomous agents that could run this business, each with a goal.");
-  return lines.join("\n");
-}
-var AGENT_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["version", "agents"],
-  properties: {
-    version: { type: "string" },
-    agents: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["name", "capabilities"],
-        properties: {
-          name: { type: "string" },
-          goal: { type: "string" },
-          instructions: { type: "string", description: "the agent's operating instructions / system prompt \u2014 how it should behave, when to act vs escalate" },
-          capabilities: { type: "array", items: { type: "string" } },
-          derivedFrom: { type: "array", items: { type: "object", additionalProperties: false, properties: { anchor: { type: "string" } } } }
-        }
-      }
-    }
-  }
-};
-function buildAgentRequest(caps) {
-  return { system: AGENT_SYSTEM_PROMPT, user: renderAgentUserPrompt(caps), schema: AGENT_SCHEMA, context: caps };
-}
-function coerceAgents(json, caps) {
-  const bySlug = /* @__PURE__ */ new Map();
-  for (const c of caps.capabilities) {
-    bySlug.set(slug(c.id), c.id);
-    bySlug.set(slug(c.name), c.id);
-  }
-  const obj = json && typeof json === "object" ? json : {};
-  const raw = Array.isArray(obj.agents) ? obj.agents : [];
-  const withAnchor = (df, f) => {
-    const arr = Array.isArray(df) ? df : [];
-    return arr.some((d) => typeof d?.anchor === "string" && d.anchor.trim()) ? arr : [{ anchor: f }];
-  };
-  const seen = /* @__PURE__ */ new Set();
-  const agents = [];
-  for (const r of raw) {
-    const o = r;
-    const name = typeof o.name === "string" ? o.name : "";
-    let id = slug(name) || `agent_${agents.length + 1}`;
-    while (seen.has(id)) id = `${id}_${agents.length + 1}`;
-    seen.add(id);
-    const capabilities = (Array.isArray(o.capabilities) ? o.capabilities : []).map((c) => bySlug.get(slug(c)) ?? c);
-    agents.push({ id, name, goal: typeof o.goal === "string" ? o.goal : "", instructions: typeof o.instructions === "string" ? o.instructions : void 0, capabilities, meta: { origin: "llm", derivedFrom: withAnchor(o.derivedFrom, name || id) } });
-  }
-  return { version: typeof obj.version === "string" ? obj.version : "0.1", agents };
-}
-async function generateAgents(caps, provider, feedback) {
-  const capIds = caps.capabilities.map((c) => c.id);
-  const isRepairable = (f) => f.severity === "blocker" || f.code.startsWith("AG2.");
-  const req = buildAgentRequest(caps);
-  if (feedback) req.user += `
-
-${feedback}`;
-  let res = await provider.complete(req);
-  let doc = coerceAgents(res.json, caps);
-  let findings = validateAgents(doc, capIds);
-  let repaired = false;
-  if (findings.some(isRepairable)) {
-    repaired = true;
-    const bad = findings.filter(isRepairable).map((f) => f.subjects.join("/")).join(", ");
-    res = await provider.complete({ ...req, user: `${req.user}
-
-The previous output referenced unknown capabilities (${bad}). Use only the listed capability ids. Return corrected JSON only.` });
-    doc = coerceAgents(res.json, caps);
-    findings = validateAgents(doc, capIds);
-  }
-  return { doc, findings, provider: res.provider, repaired };
-}
 
 // ../../packages/skills/src/orchestration.ts
 var ORCHESTRATION_SYSTEM_PROMPT = PROMPTS["orchestration"];
@@ -1033,18 +886,18 @@ function requireClient(req, res) {
   return client;
 }
 
-// functions/agents.ts
+// functions/translate.ts
 async function handler(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
-  if (!body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "capabilities are required" });
+  if (!body.bundle || !Object.keys(body.bundle).length || !body.targetLang) return void res.status(400).json({ error: "bundle and targetLang are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
   const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
-  const result = await generateAgents(body.capabilities, provider, body.feedback);
+  const translations = await translateMessages(body.bundle, body.targetLang, provider);
   const estCostUsd = estCost(usage, model);
-  res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
+  res.status(200).json({ translations, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
 }
 var config = { maxDuration: 60 };
 export {

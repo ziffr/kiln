@@ -124,11 +124,13 @@ export default tseslint.config(
   plugins: [require("tailwindcss-animate")],
 };
 `,
-  "index.html": `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Generated UI</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>\n`,
+  // The inline script applies the saved/system theme before paint (no flash of the wrong theme).
+  "index.html": `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Generated UI</title><script>try{var t=localStorage.getItem("theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");if(t==="dark")document.documentElement.classList.add("dark");}catch(e){}</script></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>\n`,
   "src/main.tsx": `import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
+import { I18nProvider } from "./i18n";
+createRoot(document.getElementById("root")!).render(<React.StrictMode><I18nProvider><App /></I18nProvider></React.StrictMode>);
 `,
   "src/lib/utils.ts": `import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";

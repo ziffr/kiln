@@ -570,6 +570,7 @@ export function projectTargets(
   agents?: AgentsDoc,
   triggers?: TriggersDoc,
   services?: ExternalServicesDoc,
+  i18n?: { sourceLang?: string; translations?: Record<string, Record<string, string>> },
 ): TargetsReport {
   const resolved = resolveBinding(binding, caps, domain, contexts, roles, workflows);
   const validation = validateBinding(resolved, workflows, domain);
@@ -593,7 +594,7 @@ export function projectTargets(
     postgres: postgresAdapter(resolved, domain, roles),
     n8n: n8nAdapter(resolved, domain, workflows, undefined, servicesDoc),
     odoo: odooAdapter(resolved, caps, domain, roles),
-    ui: uiGenerated ? shadcnAdapter(caps, domain, contexts, theme, workflows, roles) : {},
+    ui: uiGenerated ? shadcnAdapter(caps, domain, contexts, theme, workflows, roles, i18n) : {},
     spine: spineHosted ? spineAdapter(caps, domain, handlers) : {},
     comms: communicationsAdapter(commsDoc),
     integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain),

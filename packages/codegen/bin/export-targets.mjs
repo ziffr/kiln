@@ -93,7 +93,19 @@ if (m.workflows?.workflows?.length) {
   console.log(`orchestration: ${m.workflows.workflows.length - agentN} workflow-mode, ${agentN} agent-mode process(es)`);
 }
 
-const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, undefined, handlers, comms, integrations, m.agents, triggers);
+// --lang <code>: the source language of the model (the language the business was described in). --translations
+// <file>: an LLM-produced { "<locale>": { "<key>": "<text>" } } (from /api/translate) to bake into the app.
+const sourceLang = (() => { const i = process.argv.indexOf("--lang"); return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : "en"; })();
+let translations;
+{
+  const i = process.argv.indexOf("--translations");
+  if (i >= 0 && process.argv[i + 1]) {
+    translations = JSON.parse(readFileSync(resolve(process.argv[i + 1]), "utf8"));
+    console.log(`--translations: ${Object.keys(translations).join(", ")} (${sourceLang} base)`);
+  }
+}
+
+const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, undefined, handlers, comms, integrations, m.agents, triggers, undefined, { sourceLang, translations });
 
 // fresh output dir
 rmSync(outDir, { recursive: true, force: true });

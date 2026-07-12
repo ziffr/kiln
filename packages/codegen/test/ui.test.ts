@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { shadcnAdapter, uiStructure, helpModel, DEFAULT_THEME, type Theme } from "../src/index.ts";
+import { shadcnAdapter, uiStructure, helpModel, appMessages, DEFAULT_THEME, type Theme } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc, ContextsDoc, WorkflowsDoc, RolesDoc } from "@vbd/compiler";
 
 const caps: CapabilityDoc = {
@@ -77,8 +77,8 @@ test("master-detail: an entity's detail shows a grid for entities that reference
   assert.ok(lead.related.some((r) => r.entity === "invoice"), "Lead should list its Invoices");
   const files = shadcnAdapter(caps, domain, contexts);
   assert.match(files["src/pages/LeadDetail.tsx"], /master-detail/);
-  assert.match(files["src/pages/LeadDetail.tsx"], /<CardTitle className="text-base">Invoice<\/CardTitle>/);
-  assert.match(files["src/pages/LeadDetail.tsx"], /Add Invoice/);
+  assert.match(files["src/pages/LeadDetail.tsx"], /"nav\.\/invoice", "Invoice"/); // keyed child-grid title
+  assert.match(files["src/pages/LeadDetail.tsx"], /t\("ui\.add", "Add"\)/);
   // an entity with nothing referencing it stays a plain form (no table import)
   assert.doesNotMatch(files["src/pages/InvoiceDetail.tsx"], /master-detail/);
 });
@@ -113,6 +113,29 @@ test("shadcnAdapter emits the sidebar-16 shell: sidebar + header + inset, model-
   // nav still model-derived: areas are groups, and a breadcrumb title map is emitted
   assert.match(files["src/components/AppSidebar.tsx"], /area: "Sales"/);
   assert.match(files["src/components/AppSidebar.tsx"], /routeTitles/);
+});
+
+test("i18n + theme: keyed messages, a base locale, LLM translations, and a light/dark toggle", () => {
+  const files = shadcnAdapter(caps, domain, contexts, DEFAULT_THEME, undefined, undefined, { sourceLang: "en", translations: { de: { "nav./lead": "Interessent", "ui.new": "Neu" } } });
+  // the i18n runtime + message bundle + theme toggle are emitted
+  assert.ok(files["src/i18n.tsx"] && files["src/messages.ts"] && files["src/components/ThemeToggle.tsx"]);
+  assert.match(files["src/messages.ts"], /baseLocale = "en"/);
+  assert.match(files["src/messages.ts"], /"nav\.\/lead": "Lead"/); // base bundle = source strings
+  assert.match(files["src/messages.ts"], /"nav\.\/lead": "Interessent"/); // the German translation baked in
+  assert.match(files["src/messages.ts"], /locales = \["en","de"\]/);
+  // visible strings are keyed via t(); the switcher + toggle live in the header
+  assert.match(files["src/pages/LeadList.tsx"], /useI18n/);
+  assert.match(files["src/pages/LeadList.tsx"], /t\("nav\.\/lead", "Lead"\)/);
+  assert.match(files["src/components/AppHeader.tsx"], /ThemeToggle/);
+  assert.match(files["src/components/AppHeader.tsx"], /setLocale/);
+  // the no-flash theme init runs before paint
+  assert.match(files["index.html"], /classList\.add\("dark"\)/);
+  // the base message bundle covers nav, fields, actions, chrome
+  const msgs = appMessages(caps, domain, contexts, helpModel(caps, domain, contexts));
+  assert.equal(msgs["nav./lead"], "Lead");
+  assert.equal(msgs["action.qualify_lead"], "Qualify Lead");
+  assert.equal(msgs["field.lead.email"], "email");
+  assert.ok(msgs["ui.new"] && msgs["ui.search"]);
 });
 
 test("helpModel projects end-user help from the model (what/fields/actions, processes, roles)", () => {

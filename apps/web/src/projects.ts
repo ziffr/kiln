@@ -5,6 +5,7 @@
  */
 
 import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
+import type { CommunicationsDoc, IntegrationsDoc, ExternalServicesDoc, TriggersDoc, Binding, Theme } from "@vbd/codegen";
 import type { CoachConfig } from "@vbd/skills";
 import { narrativeMd } from "./data/solar";
 // A fully-generated solar model (all layers) baked in, so the example opens populated — every
@@ -30,6 +31,15 @@ export interface Project {
   /** last workflows (SPEC-007) + agents (SPEC-008); null → live mock. */
   workflows?: WorkflowsDoc | null;
   agents?: AgentsDoc | null;
+  /** Execution-layer decisions — folded into the model so the whole thing round-trips + is versionable.
+   *  Absent → codegen fills the deterministic mock default. Authoring these makes them the source of truth. */
+  services?: ExternalServicesDoc | null;
+  triggers?: TriggersDoc | null;
+  comms?: CommunicationsDoc | null;
+  integrations?: IntegrationsDoc | null;
+  binding?: Binding | null;
+  theme?: Theme | null;
+  i18n?: { sourceLang: string; translations?: Record<string, Record<string, string>> } | null;
   /** AI-review effort tuning. adaptiveEffort (default true) = the app picks effort per layer;
    *  false = use the global `effort` for every review. effortByLayer overrides the built-in preset. */
   adaptiveEffort?: boolean;

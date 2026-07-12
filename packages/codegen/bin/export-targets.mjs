@@ -30,7 +30,9 @@ const outDir = resolve(arg("out", join(repo, "out/targets")));
 const bindingPath = arg("binding", null);
 
 const m = JSON.parse(readFileSync(modelPath, "utf8"));
-const binding = bindingPath ? JSON.parse(readFileSync(resolve(bindingPath), "utf8")) : DEFAULT_BINDING;
+// The complete model.json is the source of truth: prefer authored execution-layer decisions from the
+// model itself (services/triggers/comms/integrations/binding/theme/i18n), falling back to flags/defaults.
+const binding = bindingPath ? JSON.parse(readFileSync(resolve(bindingPath), "utf8")) : (m.binding ?? DEFAULT_BINDING);
 
 // --enrich [depth]: thicken the model (mock, offline) before projecting, so artifacts get the realistic
 // attribute set + child entities. The real (LLM) enrichment runs in-app via /api/enrich with review.
@@ -63,8 +65,8 @@ const readArg = (flag) => {
   }
   return undefined;
 };
-const comms = readArg("--comms");
-const integrations = readArg("--integrations");
+const comms = readArg("--comms") ?? m.comms;
+const integrations = readArg("--integrations") ?? m.integrations;
 
 // --triggers <file>: splice an LLM-refined/authored Triggers doc ({ triggers: [...] }, from /api/triggers).
 // Without it, deterministic defaults (grounded in external/time events + one agent-wake webhook) are used.
@@ -77,6 +79,7 @@ let triggers;
     console.log(`--triggers: spliced ${triggers.triggers.length} triggers`);
   }
 }
+triggers = triggers ?? m.triggers; // else the authored triggers from the model (or codegen's default)
 
 // SPEC-009 orchestration: route each process → a fixed WORKFLOW (n8n pipeline) or an AGENT (judgement
 // over the same commands). Deterministic default here; the authoritative router + an LLM pass live in
@@ -105,7 +108,8 @@ let translations;
   }
 }
 
-const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, undefined, handlers, comms, integrations, m.agents, triggers, undefined, { sourceLang, translations });
+const i18nOpt = m.i18n ? { sourceLang: m.i18n.sourceLang ?? sourceLang, translations: m.i18n.translations ?? translations } : { sourceLang, translations };
+const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, m.theme, handlers, comms, integrations, m.agents, triggers, m.services, i18nOpt);
 
 // fresh output dir
 rmSync(outDir, { recursive: true, force: true });
@@ -261,7 +265,32 @@ written.push(write("_run.json", JSON.stringify(runInfo, null, 2)));
 
 // --- Make the output LLM-ready: the source model + an orientation doc + an actionable TODO manifest,
 // so a coding agent can take out/targets/ and drive it to production without this session's context. ---
-written.push(write("model.json", JSON.stringify({ capabilities: m.capabilities, contexts: m.contexts, domain: m.domain, roles: m.roles, workflows: m.workflows, agents: m.agents }, null, 2)));
+// The COMPLETE model.json (every layer) — the single source of truth, round-trips with the app's export.
+written.push(
+  write(
+    "model.json",
+    JSON.stringify(
+      {
+        version: m.version ?? "1.0",
+        capabilities: m.capabilities,
+        contexts: m.contexts,
+        domain: m.domain,
+        roles: m.roles,
+        workflows: m.workflows,
+        agents: m.agents,
+        services: rep.artifacts.services.doc,
+        triggers: rep.artifacts.triggers.doc,
+        comms: comms ?? undefined,
+        integrations: integrations ?? undefined,
+        binding,
+        theme: m.theme ?? undefined,
+        i18n: i18nOpt,
+      },
+      null,
+      2,
+    ),
+  ),
+);
 
 const eng = (id) => ({ postgres: "PostgreSQL", n8n: "n8n", node: "the generated spine", odoo: "Odoo", shadcn: "shadcn/ui" }[id] || id);
 const coverageLines = rep.coverage.map((c) => `- **${eng(c.engineId)}** — ${c.elements} elements ${JSON.stringify(c.byKind)}`).join("\n");

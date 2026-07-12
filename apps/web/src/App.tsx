@@ -45,6 +45,7 @@ import {
   type ProjectState,
 } from "./projects";
 import { serverListProjects, serverSaveProject, serverDeleteProject } from "./projectStore";
+import { assembleModel, parseModel } from "./model";
 import { SERVICE_URL } from "./config";
 
 
@@ -752,6 +753,34 @@ export default function App(): React.JSX.Element {
     if (serverUp) void serverDeleteProject(removedId);
   }
 
+  // ---- The complete model document (recall + iterate + version) ----
+  // Export the WHOLE model (every layer, execution decisions materialized) as one git-versionable
+  // model.json; import one back as a new project. This is the single source of truth for the business.
+  const modelFileRef = useRef<HTMLInputElement>(null);
+  function exportModel(): void {
+    const model = assembleModel(
+      { name: active.name, narrative: text, capabilities: activeDoc, contexts: contextsDoc, domain: flowDoc, roles: rolesDoc, workflows: workflowsDoc, agents: agentsDoc },
+      active,
+    );
+    const blob = new Blob([JSON.stringify(model, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(active.name || "model").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.model.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  async function importModel(file: File): Promise<void> {
+    try {
+      const fields = parseModel(JSON.parse(await file.text()));
+      const p: Project = { ...newProject(fields.name ?? "Imported model"), ...fields };
+      setState((s) => ({ projects: [...s.projects, p], activeId: p.id }));
+      setSelected(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   const supportsEffort = MODELS.find((m) => m.id === active.model)?.supportsEffort ?? true;
 
   // ---- Stage pipeline (progressive disclosure) ----
@@ -871,6 +900,9 @@ export default function App(): React.JSX.Element {
         <StageRail stages={stages} active={stage} onSelect={(s) => { setStage(s); setSelected(null); }} t={t} />
 
         <div className="side-foot">
+          <button className="side-foot-btn" onClick={exportModel} title={t("exportModelHint")}>⬇ {t("exportModel")}</button>
+          <button className="side-foot-btn" onClick={() => modelFileRef.current?.click()} title={t("importModelHint")}>⬆ {t("importModel")}</button>
+          <input ref={modelFileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importModel(f); e.target.value = ""; }} />
           <button className="side-foot-btn" onClick={() => setShowGuide(true)}>{t("guideOpen")}</button>
           <button className="side-foot-btn" onClick={() => setShowSettings(true)}>⚙︎ {t("settingsOpen")}</button>
           <div className="lang">

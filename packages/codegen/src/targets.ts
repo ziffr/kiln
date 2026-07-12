@@ -18,6 +18,7 @@ import { slug } from "@vbd/ir";
 import { attributeSpecs, type AttrType, type CapabilityDoc, type DomainDoc, type ContextsDoc, type RolesDoc, type WorkflowsDoc } from "@vbd/compiler";
 import { shadcnAdapter, DEFAULT_THEME, type Theme } from "./ui.ts";
 import { spineAdapter } from "./spine.ts";
+import { mockCommunications, communicationsAdapter } from "./comms.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. The technical-capability taxonomy — the pivot table between model and engines.
@@ -523,7 +524,7 @@ export interface TargetsReport {
   binding: Binding;
   resolved: ResolvedElement[];
   validation: BindingFinding[];
-  artifacts: { postgres: string; n8n: N8nWorkflow[]; odoo: Record<string, string>; ui: Record<string, string>; spine: Record<string, string> };
+  artifacts: { postgres: string; n8n: N8nWorkflow[]; odoo: Record<string, string>; ui: Record<string, string>; spine: Record<string, string>; comms: { templates: Record<string, string>; n8n: N8nWorkflow[] } };
   /** which engine serves the UI (serve-ui binding), and whether we generated it or it's engine-native. */
   ui: { engineId: string; generated: boolean; note: string };
   seams: Seam[];
@@ -565,6 +566,7 @@ export function projectTargets(
     odoo: odooAdapter(resolved, caps, domain, roles),
     ui: uiGenerated ? shadcnAdapter(caps, domain, contexts, theme) : {},
     spine: spineHosted ? spineAdapter(caps, domain, handlers) : {},
+    comms: communicationsAdapter(mockCommunications(caps, domain)),
   };
   const seams = deriveSeams(resolved, domain, workflows);
 

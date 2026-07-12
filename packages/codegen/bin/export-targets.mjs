@@ -84,6 +84,14 @@ for (const [rel, content] of Object.entries(rep.artifacts.ui)) written.push(writ
 // Spine → the runnable command API (Express + pg); LLM-drafted handlers, pass-through defaults.
 for (const [rel, content] of Object.entries(rep.artifacts.spine)) written.push(write(`spine/${rel}`, content));
 
+// Communication layer → editable templates + n8n notify workflows (email/Slack), wired to the event
+// webhooks the spine POSTs to. Render (pdf) actions emit a template for a render service to consume.
+for (const [rel, content] of Object.entries(rep.artifacts.comms.templates)) written.push(write(rel, content));
+for (const wf of rep.artifacts.comms.n8n) {
+  const safe = wf.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+  written.push(write(`n8n/${safe}.json`, JSON.stringify(wf, null, 2)));
+}
+
 // a manifest of the run: binding, coverage, seams, validation, gaps
 const runInfo = {
   model: modelPath,
@@ -378,6 +386,12 @@ todo.push(`\n## ${rep.validation.some((v) => v.level === "error") ? 4 : 3}. UI d
 todo.push(`- [ ] Wire list views to the APIs (each \`*List.tsx\` has \`rows: [] // TODO: fetch\`).`);
 todo.push(`- [ ] Wire master-detail child grids (each \`*Detail.tsx\` grid has \`// TODO: rows where child.parent == this record\`).`);
 todo.push(`- [ ] Populate reference dropdowns (a reference field's options = the target entity's records).`);
+if (rep.artifacts.comms.n8n.length || Object.keys(rep.artifacts.comms.templates).length) {
+  todo.push(`\n## ${rep.validation.some((v) => v.level === "error") ? 5 : 4}. Communications`);
+  todo.push(`- [ ] Refine the templates in \`templates/\` (subject/body/recipient bindings).`);
+  todo.push(`- [ ] Add email/Slack credentials in n8n for the \`comm_*\` workflows and activate them.`);
+  todo.push(`- [ ] Wire pdf/render actions to a document service (the \`pdf_*.md\` templates are the source).`);
+}
 written.push(write("TODO.md", todo.join("\n") + "\n"));
 
 // --- Professional-repo hardening: OpenAPI, tooling config, security, pre-commit, license. ---

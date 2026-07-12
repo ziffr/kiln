@@ -409,3 +409,4 @@ export {
 } from "./targets.ts";
 export { shadcnAdapter, uiStructure, DEFAULT_THEME, type Theme, type UiStructure, type UiScreen } from "./ui.ts";
 export { spineAdapter } from "./spine.ts";
+export { mockCommunications, communicationsAdapter, type CommunicationsDoc, type CommAction, type CommChannel } from "./comms.ts";

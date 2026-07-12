@@ -16,10 +16,15 @@ const domain: DomainDoc = {
 const agents: AgentsDoc = { agents: [{ id: "lead_agent", name: "Lead Agent", capabilities: ["leads"], goal: "Qualify inbound leads" }] } as unknown as AgentsDoc;
 const comms: CommunicationsDoc = { actions: [{ id: "slack_lead_qualified", name: "Slack on qualified", channel: "slack", on: "lead_qualified", entity: "lead", recipient: "#sales", subject: "", template: "" }] };
 
-test("agentsAdapter emits a definition per agent with command tools + a notify tool + relevant comms", () => {
+test("agentsAdapter emits a runnable runtime + a definition per agent with wired tools", () => {
   const files = agentsAdapter(caps, domain, agents, comms);
-  assert.ok(files["agents/lead_agent.json"] && files["agents/README.md"]);
-  const def = JSON.parse(files["agents/lead_agent.json"]);
+  // the runtime
+  for (const p of ["agents/package.json", "agents/src/runner.ts", "agents/src/tools.ts", "agents/src/def.ts", "agents/tsconfig.json", "agents/README.md"]) assert.ok(files[p], `${p} missing`);
+  assert.match(files["agents/package.json"], /@anthropic-ai\/sdk/);
+  assert.match(files["agents/src/runner.ts"], /client\.messages\.create/);
+  // the definition
+  assert.ok(files["agents/definitions/lead_agent.json"]);
+  const def = JSON.parse(files["agents/definitions/lead_agent.json"]);
   assert.equal(def.goal, "Qualify inbound leads");
   const toolNames = def.tools.map((t: { name: string }) => t.name);
   // its capability's commands are tools

@@ -227,6 +227,8 @@ make db            # apply the schema
 make ui            # run the front-end (pnpm)
 \`\`\`
 
+- **Agents:** \`agents/\` is a runnable agent runtime (@anthropic-ai/sdk) — \`cd agents && pnpm install &&
+  pnpm start <agent-id> "<task>"\`. Each agent's tools are the spine commands + a notify router (see agents/README).
 - **API testing:** import \`hoppscotch/collection.json\` + \`hoppscotch/environment.json\` into
   [Hoppscotch](https://hoppscotch.io) — a request per command with example bodies. Or import \`openapi.json\`.
 - **Deploy:** [DEPLOY.md](./DEPLOY.md) — per-component (UI static host, managed Postgres, n8n, Odoo).

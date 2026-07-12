@@ -152,6 +152,11 @@ export interface AgentInput {
   name: string;
   capabilities: string[]; // capability ids it operates
   goal?: string; // one-line objective
+  /** authored behaviour a human augments — the system prompt / operating instructions for the agent. */
+  instructions?: string;
+  /** per-agent model + thinking level (Anthropic). Fall back to the runtime's env defaults if unset. */
+  model?: string;
+  effort?: "low" | "medium" | "high" | "max";
   meta?: Record<string, unknown>;
 }
 export interface AgentsDoc {

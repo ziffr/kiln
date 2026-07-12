@@ -27,6 +27,11 @@ export interface AgentDef {
   id: string;
   name: string;
   goal: string;
+  /** human-augmentable operating instructions (system prompt); falls back to a default if empty. */
+  instructions?: string;
+  /** per-agent model + thinking level (Anthropic); fall back to env defaults if unset. */
+  model?: string;
+  effort?: "low" | "medium" | "high" | "max";
   capabilities: string[];
   tools: AgentTool[];
 }
@@ -61,7 +66,16 @@ const SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown
 const RUNTIME: Record<string, string> = {
   "src/def.ts": `export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf";
 export interface AgentTool { name: string; kind: AgentToolKind; description: string; invoke: Record<string, unknown>; input?: string[]; }
-export interface AgentDef { id: string; name: string; goal: string; capabilities: string[]; tools: AgentTool[]; }
+export interface AgentDef {
+  id: string;
+  name: string;
+  goal: string;
+  instructions?: string; // human-augmentable system prompt (edit in the model → regenerate)
+  model?: string; // per-agent model override (else ANTHROPIC_MODEL / OPENROUTER_MODEL)
+  effort?: "low" | "medium" | "high" | "max"; // per-agent thinking level (Anthropic)
+  capabilities: string[];
+  tools: AgentTool[];
+}
 `,
   "src/tools.ts": `import type { AgentTool } from "./def";
 
@@ -90,15 +104,17 @@ import type { AgentDef, AgentTool } from "../def";
 
 ${SCHEMA_HELPER}
 
-// The native Anthropic tool-use loop — best Claude fidelity (caching, tool semantics).
+// The native Anthropic tool-use loop — best Claude fidelity (caching, tool semantics, thinking).
 export async function runAnthropic(def: AgentDef, task: string): Promise<void> {
   const client = new Anthropic(); // reads ANTHROPIC_API_KEY
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+  const model = def.model || process.env.ANTHROPIC_MODEL || "claude-sonnet-5"; // per-agent override
   const tools: Anthropic.Tool[] = def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: toolParams(t) as Anthropic.Tool.InputSchema }));
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: task }];
-  const system = "You are " + def.name + ". Goal: " + def.goal + "\\nUse the tools to accomplish the task; call one at a time and stop when done. Then summarize what you did.";
+  const system = def.instructions || "You are " + def.name + ". Goal: " + def.goal + "\\nUse the tools to accomplish the task; call one at a time and stop when done. Then summarize what you did.";
+  // per-agent thinking level: adaptive thinking + effort (low|medium|high|max) when set.
+  const effort = def.effort ? { thinking: { type: "adaptive" as const }, output_config: { effort: def.effort } } : {};
   for (let step = 0; step < 12; step++) {
-    const res = await client.messages.create({ model, max_tokens: 1024, system, tools, messages });
+    const res = await client.messages.create({ model, max_tokens: 2048, system, tools, messages, ...effort });
     const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
     if (text) console.log("\\n[" + def.name + "] " + text);
     messages.push({ role: "assistant", content: res.content });
@@ -125,10 +141,10 @@ ${SCHEMA_HELPER}
 // OpenAI-compatible loop via OpenRouter — any model (Claude, GPT, Gemini, Llama, self-hosted, …).
 export async function runOpenRouter(def: AgentDef, task: string): Promise<void> {
   const client = new OpenAI({ apiKey: process.env.OPENROUTER_API_KEY, baseURL: "https://openrouter.ai/api/v1" });
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5";
+  const model = def.model || process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5"; // per-agent override
   const tools = def.tools.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: toolParams(t) } }));
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: "system", content: "You are " + def.name + ". Goal: " + def.goal + ". Use the tools to accomplish the task; stop when done." },
+    { role: "system", content: def.instructions || "You are " + def.name + ". Goal: " + def.goal + ". Use the tools to accomplish the task; stop when done." },
     { role: "user", content: task },
   ];
   for (let step = 0; step < 12; step++) {
@@ -234,7 +250,7 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
       if (!ownedEntities.has(cm.entity) || cm.channel === "pdf") continue;
       tools.push({ name: slug(cm.id), kind: cm.channel, description: `${cm.name} → ${cm.recipient}`, invoke: { channel: cm.channel, on: cm.on, template: `templates/${cm.id}.md` } });
     }
-    defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools });
+    defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools });
   }
 
   const files: Record<string, string> = {};
@@ -252,8 +268,17 @@ pnpm install
 SPINE_URL=http://localhost:3000 ANTHROPIC_API_KEY=sk-ant-... pnpm start ${defs[0]?.id ?? "<agent-id>"} "qualify the newest lead"
 \`\`\`
 
+## Augmenting an agent's behaviour
+Each \`definitions/<id>.json\` carries the agent's **goal**, **tools**, and (optional) **instructions**
+(its system prompt), **model**, and **effort** (thinking level: low|medium|high|max). These come from the
+**model** (\`model.json\` → agents) — the source of truth. Edit them there and regenerate; the runtime
+applies **per-agent model + thinking + instructions**. (Anthropic honours model + effort; OpenRouter uses
+model + instructions.) Which agents exist and which tools they get is derived from their capabilities:
+change an agent's capabilities → its command tools change.
+
 ## Choosing a model / provider (\`.env\`)
-- **Anthropic native** (default): set \`ANTHROPIC_API_KEY\` + \`ANTHROPIC_MODEL\`. Best Claude fidelity.
+- **Anthropic native** (default): set \`ANTHROPIC_API_KEY\` + \`ANTHROPIC_MODEL\` (per-agent \`model\`/\`effort\`
+  in the definition override it). Best Claude fidelity.
 - **OpenRouter** (any model): set \`PROVIDER=openrouter\` + \`OPENROUTER_API_KEY\` + \`OPENROUTER_MODEL\`
   (e.g. \`openai/gpt-4o\`, \`google/gemini-2.0-flash\`, \`meta-llama/llama-3.3-70b\`, or a self-hosted model).
   One OpenAI-compatible integration for every provider — the cheapest/most-predictable route is a small

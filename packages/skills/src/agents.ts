@@ -15,7 +15,7 @@ const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }]
 export function mockGenerateAgents(caps: CapabilityDoc): AgentsDoc {
   const ids = caps.capabilities.map((c) => c.id);
   if (ids.length === 0) return { version: "0.1", agents: [] };
-  return { version: "0.1", agents: [{ id: "operations_agent", name: "Operations Agent", capabilities: ids, goal: "Run the business end to end", meta: grounded("all-capabilities") }] };
+  return { version: "0.1", agents: [{ id: "operations_agent", name: "Operations Agent", capabilities: ids, goal: "Run the business end to end", instructions: "You are the Operations Agent. Pursue the goal using your tools. Act on clear cases; when a decision needs a human, use the notify tool to route it and continue when they respond. Never fabricate data.", meta: grounded("all-capabilities") }] };
 }
 
 export const AGENT_SYSTEM_PROMPT = PROMPTS["agents"];
@@ -42,6 +42,7 @@ export const AGENT_SCHEMA = {
         properties: {
           name: { type: "string" },
           goal: { type: "string" },
+          instructions: { type: "string", description: "the agent's operating instructions / system prompt — how it should behave, when to act vs escalate" },
           capabilities: { type: "array", items: { type: "string" } },
           derivedFrom: { type: "array", items: { type: "object", additionalProperties: false, properties: { anchor: { type: "string" } } } },
         },
@@ -72,7 +73,7 @@ export function coerceAgents(json: unknown, caps: CapabilityDoc): AgentsDoc {
     while (seen.has(id)) id = `${id}_${agents.length + 1}`;
     seen.add(id);
     const capabilities = (Array.isArray(o.capabilities) ? (o.capabilities as string[]) : []).map((c) => bySlug.get(slug(c)) ?? c);
-    agents.push({ id, name, goal: typeof o.goal === "string" ? o.goal : "", capabilities, meta: { origin: "llm", derivedFrom: withAnchor(o.derivedFrom, name || id) } });
+    agents.push({ id, name, goal: typeof o.goal === "string" ? o.goal : "", instructions: typeof o.instructions === "string" ? o.instructions : undefined, capabilities, meta: { origin: "llm", derivedFrom: withAnchor(o.derivedFrom, name || id) } });
   }
   return { version: typeof obj.version === "string" ? obj.version : "0.1", agents };
 }

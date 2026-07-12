@@ -7,6 +7,7 @@ import {
   deriveSeams,
   postgresAdapter,
   n8nAdapter,
+  odooAdapter,
   DEFAULT_BINDING,
   ENGINES,
   TECH_CAPABILITIES,
@@ -121,6 +122,45 @@ test("deriveSeams finds cross-engine hops and NO direct n8n→postgres (spine me
   assert.ok(seams.some((s) => s.from === "n8n" && s.to === "node"), "n8n→node reaction hop");
   assert.ok(seams.some((s) => s.from === "node" && s.to === "postgres"), "node→postgres store hop");
   assert.equal(seams.filter((s) => s.from === "n8n" && s.to === "postgres").length, 0, "n8n must not reach postgres directly");
+});
+
+const ALL_ODOO: Binding = { defaults: { store: "odoo", operate: "odoo", authorize: "odoo", emit: "odoo", react: "odoo", sequence: "odoo" } };
+
+test("odooAdapter emits an installable module: models, typed fields, Many2one, command method, ACL", () => {
+  const r = resolveBinding(ALL_ODOO, caps, domain, contexts, roles, workflows);
+  const files = odooAdapter(r, caps, domain, roles);
+  assert.ok(files["__manifest__.py"], "manifest present");
+  assert.ok(files["__init__.py"] && files["models/models.py"], "python present");
+  const models = files["models/models.py"];
+  assert.match(models, /class Lead\(models\.Model\)/);
+  assert.match(models, /_name = "test\.lead"/);
+  assert.match(models, /fields\.Monetary/); // invoice.amount (money)
+  assert.match(models, /fields\.Many2one\("test\.lead"\)/); // invoice → lead reference
+  assert.match(models, /def qualify_lead\(self\)/); // command → model method
+  assert.match(files["security/ir.model.access.csv"], /group_rep/); // role → group ACL
+});
+
+test("odooAdapter returns nothing when no aggregate is bound to odoo", () => {
+  const r = resolveBinding(DEFAULT_BINDING, caps, domain, contexts, roles, workflows);
+  assert.equal(Object.keys(odooAdapter(r, caps, domain, roles)).length, 0);
+});
+
+test("TB5: a store-coupling engine (Odoo) rejects operate bound away from its store", () => {
+  const bad: Binding = { defaults: { ...DEFAULT_BINDING.defaults, operate: "odoo" } }; // store stays postgres
+  const r = resolveBinding(bad, caps, domain, contexts, roles, workflows);
+  assert.ok(validateBinding(r, workflows, domain).some((f) => f.code === "TB5"), "expected TB5 coherence error");
+});
+
+test("a whole Area bound to Odoo is coherent (no TB5) and produces the module", () => {
+  const rep = projectTargets(ALL_ODOO, caps, domain, contexts, roles, workflows);
+  assert.equal(rep.validation.filter((f) => f.code === "TB5").length, 0);
+  assert.ok(rep.coverage.some((c) => c.engineId === "odoo"));
+  assert.ok(Object.keys(rep.artifacts.odoo).length > 0);
+});
+
+test("adding Odoo did not require touching the model/binding/seam core (registry has 4 engines)", () => {
+  assert.equal(Object.keys(ENGINES).length, 4);
+  assert.equal(ENGINES.odoo.couplesStore, true);
 });
 
 test("projectTargets returns a coherent report with coverage and gaps", () => {

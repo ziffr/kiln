@@ -26,7 +26,7 @@ Regenerated whenever a document is added or changes status. See `CONVENTIONS.md`
 | SPEC-008 | Agents — autonomous operators + codegen pipeline end | spec | Approved | 1.0.0 |
 | PLAN-001 | MVP Execution Plan (M0–M5) | plan | Approved | 0.4.0 |
 | RES-001 | Codegen probe — model → scaffolding, and what's missing | research | Approved | 1.0.0 |
-| RES-002 | Execution-engine binding — model → multi-backend deployment-target compiler | research | Draft | 0.1.0 |
+| RES-002 | Execution-engine binding — model → multi-backend deployment-target compiler | research | Draft | 0.2.0 |
 | ADR-001 | TypeScript end-to-end (shared IR contract) | adr | Approved | 1.0.0 |
 | ADR-002 | Storage & source-of-truth model | adr | Approved | 1.0.0 |
 | ADR-003 | Front-end stack — React + Vite SPA, hosted, bilingual, IR-driven | adr | Approved | 1.0.0 |

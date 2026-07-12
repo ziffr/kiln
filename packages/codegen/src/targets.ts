@@ -41,6 +41,12 @@ export interface Engine {
   /** the connector the seam layer uses to reach this engine from another. */
   reach: "http" | "sql" | "event" | "in-process";
   provides: Record<TechCapability, Fidelity>;
+  /**
+   * True when the engine's operate/react/authorize only work on ITS OWN store — a full platform like
+   * Odoo owns a whole vertical slice; you cannot run its methods against a table living elsewhere.
+   * Drives the TB5 coherence check and is why the natural binding unit is an Area, not one capability.
+   */
+  couplesStore?: boolean;
 }
 
 /** Postgres: a first-class store + row-level authz; can emit via LISTEN/NOTIFY; not an orchestrator. */
@@ -68,7 +74,17 @@ export const NODE_SPINE: Engine = {
   provides: { operate: "native", emit: "native", react: "native", sequence: "native", store: "partial", authorize: "partial" },
 };
 
-export const ENGINES: Record<string, Engine> = { postgres: POSTGRES, n8n: N8N, node: NODE_SPINE };
+/** Odoo: a full business platform — owns a whole vertical slice (store + operate + authz + react),
+ *  so it couples to its own store. The engine that shrinks the spine the most. */
+export const ODOO: Engine = {
+  id: "odoo",
+  name: "Odoo",
+  reach: "http",
+  couplesStore: true,
+  provides: { store: "native", operate: "native", emit: "native", react: "native", sequence: "partial", authorize: "native" },
+};
+
+export const ENGINES: Record<string, Engine> = { postgres: POSTGRES, n8n: N8N, node: NODE_SPINE, odoo: ODOO };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. The Binding — the AUTHORED topology (which engine serves which capability, per area).
@@ -107,7 +123,7 @@ export interface ResolvedElement {
 }
 
 /** capability id → area id (via the contexts partition). Falls back to a single implicit area. */
-function areaResolver(caps: CapabilityDoc, contexts?: ContextsDoc): (capId: string) => string {
+function areaResolver(contexts?: ContextsDoc): (capId: string) => string {
   const areaOfCap = new Map<string, string>();
   for (const c of contexts?.contexts ?? []) for (const m of [...(c.capabilities ?? []), ...(c.shared_kernel ?? [])]) areaOfCap.set(m, c.id);
   return (capId: string) => areaOfCap.get(capId) ?? "app";
@@ -126,7 +142,7 @@ export function resolveBinding(
   roles?: RolesDoc,
   workflows?: WorkflowsDoc,
 ): ResolvedElement[] {
-  const areaOf = areaResolver(caps, contexts);
+  const areaOf = areaResolver(contexts);
   const aggAreaOf = new Map(domain.aggregates.map((a) => [a.id, areaOf(a.owner)]));
   const out: ResolvedElement[] = [];
   const place = (kind: ElementKind, id: string, name: string, cap: TechCapability, areaId: string) =>
@@ -174,6 +190,21 @@ export function validateBinding(resolved: ResolvedElement[], workflows?: Workflo
   const cmdIds = new Set((domain?.commands ?? []).map((c) => c.id));
   for (const w of workflows?.workflows ?? []) {
     for (const s of w.steps ?? []) if (!cmdIds.has(s)) findings.push({ level: "error", code: "TB4", message: `Workflow "${w.name || w.id}" step "${s}" references a command that does not exist.` });
+  }
+  // TB5 coherence: an engine that couples to its own store (e.g. Odoo) cannot operate/react on a store
+  // living elsewhere. A command's store, and a policy's triggering store, must be the SAME engine.
+  const storeEngineOfAgg = new Map(resolved.filter((r) => r.kind === "aggregate").map((r) => [r.id, r.engineId]));
+  const cmdAggById = new Map((domain?.commands ?? []).map((c) => [c.id, c.aggregate]));
+  const evAggById = new Map((domain?.events ?? []).map((e) => [e.id, e.aggregate]));
+  for (const el of resolved) {
+    const engine = ENGINES[el.engineId];
+    if (!engine?.couplesStore) continue;
+    const aggId = el.kind === "command" ? cmdAggById.get(el.id) : el.kind === "policy" ? evAggById.get((domain?.policies ?? []).find((p, i) => (p.id || `policy_${i}`) === el.id)?.on ?? "") : undefined;
+    if (!aggId) continue;
+    const storeEngine = storeEngineOfAgg.get(aggId);
+    if (storeEngine && storeEngine !== el.engineId) {
+      findings.push({ level: "error", code: "TB5", message: `${el.kind} "${el.name}" is on ${engine.name}, but its data ("${aggId}") is stored on ${ENGINES[storeEngine]?.name ?? storeEngine}. ${engine.name} owns a whole slice — bind that entity's store to ${engine.name} too (bind the Area).` });
+    }
   }
   return findings;
 }
@@ -279,6 +310,125 @@ export function n8nAdapter(resolved: ResolvedElement[], domain: DomainDoc, workf
   return out;
 }
 
+const ODOO_FIELD: Record<AttrType, string> = {
+  text: "fields.Char()",
+  number: "fields.Float()",
+  boolean: "fields.Boolean()",
+  date: "fields.Date()",
+  money: 'fields.Monetary(currency_field="currency_id")',
+  reference: "", // handled as Many2one below
+};
+
+const cls = (s: string): string => slug(s).split("_").filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join("");
+
+/**
+ * ODOO adapter: a full, installable Odoo module from the model. Aggregates → `models.Model` (typed
+ * fields, Many2one relations); commands → model methods (business logic hand-owned per ADR-002);
+ * roles → `res.groups` + `ir.model.access.csv`; policies → `base.automation` records. This is the
+ * engine that swallows a whole vertical slice — store + operate + authorize + react all land here.
+ *
+ * Returns the module as a path→content map (an Odoo module IS a directory).
+ */
+export function odooAdapter(resolved: ResolvedElement[], caps: CapabilityDoc, domain: DomainDoc, roles?: RolesDoc): Record<string, string> {
+  const mod = slug(caps.domain || "vbd") || "vbd";
+  const storeAggs = new Set(resolved.filter((r) => r.kind === "aggregate" && r.engineId === "odoo").map((r) => r.id));
+  if (storeAggs.size === 0) return {};
+  const aggById = new Map(domain.aggregates.map((a) => [a.id, a]));
+  const model = (aggId: string) => `${mod}.${slug(aggId).replace(/_/g, ".")}`;
+  const modelXmlId = (aggId: string) => `model_${model(aggId).replace(/\./g, "_")}`;
+  const opCmds = new Set(resolved.filter((r) => r.kind === "command" && r.engineId === "odoo").map((r) => r.id));
+  const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
+
+  // models.py — one class per bound aggregate.
+  const M: string[] = ["# Generated by @vbd/codegen targets (RES-002) — Odoo models. Business logic is hand-owned (ADR-002).", "from odoo import models, fields", ""];
+  for (const id of storeAggs) {
+    const a = aggById.get(id);
+    if (!a) continue;
+    const specs = attributeSpecs(a);
+    const hasMoney = specs.some((s) => s.type === "money");
+    M.push(`class ${cls(a.id)}(models.Model):`);
+    M.push(`    _name = ${JSON.stringify(model(a.id))}`);
+    M.push(`    _description = ${JSON.stringify(a.name || a.id)}`, "");
+    for (const s of specs) M.push(`    ${slug(s.name)} = ${s.type ? ODOO_FIELD[s.type] : "fields.Char()  # type not modelled"}`);
+    if (hasMoney) M.push(`    currency_id = fields.Many2one("res.currency", default=lambda s: s.env.company.currency_id)`);
+    for (const ref of a.references ?? []) if (storeAggs.has(ref)) M.push(`    ${slug(ref)}_id = fields.Many2one(${JSON.stringify(model(ref))})  # reference`);
+    // commands operable on this model → methods.
+    const cmds = (domain.commands ?? []).filter((c) => c.aggregate === a.id && opCmds.has(c.id));
+    for (const c of cmds) {
+      const emits = (c.emits ?? []).map((e) => evName.get(e) ?? e);
+      M.push("", `    def ${slug(c.id)}(self):`);
+      M.push(`        """${c.name}${emits.length ? ` — emits: ${emits.join(", ")}` : ""}. TODO: business logic."""`);
+      M.push(`        self.ensure_one()`, `        return True`);
+    }
+    M.push("");
+  }
+
+  // security: res.groups per role + ir.model.access.csv.
+  const rolesForCap = (capId: string) => (roles?.roles ?? []).filter((r) => (r.capabilities ?? []).includes(capId));
+  const usedRoles = new Map<string, string>(); // roleId -> name
+  const acl: string[] = ["id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink"];
+  for (const id of storeAggs) {
+    const a = aggById.get(id);
+    if (!a) continue;
+    for (const r of rolesForCap(a.owner)) {
+      usedRoles.set(r.id, r.name || r.id);
+      acl.push(`access_${slug(a.id)}_${slug(r.id)},${slug(a.id)} ${slug(r.id)},${modelXmlId(a.id)},group_${slug(r.id)},1,1,1,0`);
+    }
+  }
+  const groups: string[] = ["<odoo>"];
+  for (const [rid, rname] of usedRoles) groups.push(`  <record id="group_${slug(rid)}" model="res.groups"><field name="name">${rname}</field></record>`);
+  groups.push("</odoo>");
+
+  // data: base.automation per policy bound to odoo whose trigger event is an odoo-stored model.
+  const autoRecords: string[] = [];
+  (domain.policies ?? []).forEach((p, i) => {
+    const pid = p.id || `policy_${i}`;
+    const onOdoo = resolved.some((r) => r.kind === "policy" && r.id === pid && r.engineId === "odoo");
+    const ev = (domain.events ?? []).find((e) => e.id === p.on);
+    const cmd = (domain.commands ?? []).find((c) => c.id === p.then);
+    if (!onOdoo || !ev || !cmd || !storeAggs.has(ev.aggregate)) return;
+    const sameModel = cmd.aggregate === ev.aggregate;
+    const code = sameModel
+      ? `for record in records:\n    record.${slug(cmd.id)}()`
+      : `# cross-model reaction → ${model(cmd.aggregate)}\nfor target in env[${JSON.stringify(model(cmd.aggregate))}].search([]):\n    target.${slug(cmd.id)}()  # TODO: correlate to the triggering record`;
+    autoRecords.push(
+      [
+        `  <record id="automation_${slug(pid)}" model="base.automation">`,
+        `    <field name="name">${p.name || `on ${evName.get(p.on) ?? p.on}`}</field>`,
+        `    <field name="model_id" ref="${modelXmlId(ev.aggregate)}"/>`,
+        `    <field name="trigger">on_create_or_write</field>`,
+        `    <field name="state">code</field>`,
+        `    <field name="code">${code}</field>`,
+        `  </record>`,
+      ].join("\n"),
+    );
+  });
+
+  // only reference data files that actually have content — an installable module has no hollow files.
+  const dataFiles = ["security/groups.xml", "security/ir.model.access.csv"];
+  if (autoRecords.length) dataFiles.push("data/automations.xml");
+  const manifest = [
+    "{",
+    `    'name': ${JSON.stringify(`${caps.domain || "VBD"} (generated)`)},`,
+    "    'version': '0.1.0',",
+    "    'depends': ['base'],",
+    `    'data': [${dataFiles.map((f) => JSON.stringify(f)).join(", ")}],`,
+    "    'license': 'LGPL-3',",
+    "}",
+  ].join("\n");
+
+  const files: Record<string, string> = {
+    "__manifest__.py": manifest,
+    "__init__.py": "from . import models",
+    "models/__init__.py": "from . import models",
+    "models/models.py": M.join("\n").trim(),
+    "security/groups.xml": groups.join("\n"),
+    "security/ir.model.access.csv": acl.join("\n"),
+  };
+  if (autoRecords.length) files["data/automations.xml"] = ["<odoo>", ...autoRecords, "</odoo>"].join("\n");
+  return files;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 6. Seams — the cross-engine hops. The crux: which calls cross an engine boundary, and how.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -344,7 +494,7 @@ export interface TargetsReport {
   binding: Binding;
   resolved: ResolvedElement[];
   validation: BindingFinding[];
-  artifacts: { postgres: string; n8n: N8nWorkflow[] };
+  artifacts: { postgres: string; n8n: N8nWorkflow[]; odoo: Record<string, string> };
   seams: Seam[];
   /** per-engine tally of what it hosts, and what falls back to the spine — the honest coverage picture. */
   coverage: Array<{ engineId: string; elements: number; byKind: Record<string, number> }>;
@@ -362,7 +512,7 @@ export function projectTargets(
 ): TargetsReport {
   const resolved = resolveBinding(binding, caps, domain, contexts, roles, workflows);
   const validation = validateBinding(resolved, workflows, domain);
-  const artifacts = { postgres: postgresAdapter(resolved, domain, roles), n8n: n8nAdapter(resolved, domain, workflows) };
+  const artifacts = { postgres: postgresAdapter(resolved, domain, roles), n8n: n8nAdapter(resolved, domain, workflows), odoo: odooAdapter(resolved, caps, domain, roles) };
   const seams = deriveSeams(resolved, domain, workflows);
 
   const byEngine = new Map<string, { elements: number; byKind: Record<string, number> }>();

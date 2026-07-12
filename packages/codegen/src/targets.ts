@@ -291,7 +291,7 @@ export interface N8nWorkflow {
  * bound workflows → a workflow per process (manual trigger → chained HTTP calls, one per step).
  * The HTTP nodes target the spine's command endpoints — that IS the cross-engine seam, materialized.
  */
-export function n8nAdapter(resolved: ResolvedElement[], domain: DomainDoc, workflows?: WorkflowsDoc, baseUrl = "http://spine.local/api"): N8nWorkflow[] {
+export function n8nAdapter(resolved: ResolvedElement[], domain: DomainDoc, workflows?: WorkflowsDoc, baseUrl = "http://spine.local/api", services?: ExternalServicesDoc): N8nWorkflow[] {
   const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
   const cmdById = new Map((domain.commands ?? []).map((c) => [c.id, c]));
   const httpNode = (name: string, cmdId: string, x: number, y: number): Record<string, unknown> => {
@@ -318,9 +318,19 @@ export function n8nAdapter(resolved: ResolvedElement[], domain: DomainDoc, workf
   }
 
   const boundWf = new Set(resolved.filter((r) => r.kind === "workflow" && r.engineId === "n8n").map((r) => r.id));
-  // mode-driven (SPEC-009): agent-mode processes do NOT become a fixed n8n workflow — they fold into the
-  // covering agent's behaviour playbook (see agentsAdapter). Only workflow-mode processes generate here.
-  for (const w of (workflows?.workflows ?? []).filter((w) => boundWf.has(w.id) && w.mode !== "agent")) {
+  const svcById = new Map((services?.services ?? []).map((s) => [s.id, s]));
+  // mode-driven (SPEC-009): agent-mode processes fold into an agent (see agentsAdapter); external-mode
+  // processes are delegated to a bought/existing service (a thin connector below). Only workflow-mode
+  // processes become a fixed internal command pipeline here.
+  for (const w of (workflows?.workflows ?? []).filter((w) => boundWf.has(w.id) && w.mode === "external")) {
+    const svc = w.service ? svcById.get(w.service) : undefined;
+    const trigger = { parameters: {}, name: "Start", type: "n8n-nodes-base.manualTrigger", typeVersion: 1, position: [240, 300] };
+    const call = svc
+      ? { parameters: { method: "POST", url: svc.endpoint, sendBody: true, note: `delegated to ${svc.name} (${svc.invocation}) — see services/${svc.id}.json` }, name: `Delegate to ${svc.name}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [480, 300] }
+      : { parameters: { values: { string: [{ name: "todo", value: `bind an external service for ${w.name}` }] } }, name: "Bind a service", type: "n8n-nodes-base.set", typeVersion: 3, position: [480, 300] };
+    out.push({ id: `vbd_process_${slug(w.id)}`, name: `Process (external): ${w.name || w.id}`, nodes: [trigger, call], connections: { [trigger.name]: { main: [[{ node: call.name, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
+  }
+  for (const w of (workflows?.workflows ?? []).filter((w) => boundWf.has(w.id) && w.mode !== "agent" && w.mode !== "external")) {
     const steps = w.steps ?? [];
     const trigger = { parameters: {}, name: "Start", type: "n8n-nodes-base.manualTrigger", typeVersion: 1, position: [240, 300] };
     const nodes: Array<Record<string, unknown>> = [trigger];
@@ -576,7 +586,7 @@ export function projectTargets(
   const servicesDoc = services ?? mockExternalServices(caps, domain, workflows, agents); // shared by the services adapter + agent tools
   const artifacts = {
     postgres: postgresAdapter(resolved, domain, roles),
-    n8n: n8nAdapter(resolved, domain, workflows),
+    n8n: n8nAdapter(resolved, domain, workflows, undefined, servicesDoc),
     odoo: odooAdapter(resolved, caps, domain, roles),
     ui: uiGenerated ? shadcnAdapter(caps, domain, contexts, theme) : {},
     spine: spineHosted ? spineAdapter(caps, domain, handlers) : {},

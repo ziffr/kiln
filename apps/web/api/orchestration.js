@@ -295,7 +295,7 @@ var AGENT_SYSTEM_PROMPT = PROMPTS["agents"];
 // ../../packages/skills/src/orchestration.ts
 function applyOrchestration(workflows, doc) {
   const byId = new Map(doc.decisions.map((d) => [d.id, d.mode]));
-  return { version: workflows.version, workflows: (workflows.workflows ?? []).map((w) => ({ ...w, mode: byId.get(w.id) ?? w.mode ?? "workflow" })) };
+  return { version: workflows.version, workflows: (workflows.workflows ?? []).map((w) => ({ ...w, mode: w.mode === "external" ? "external" : byId.get(w.id) ?? w.mode ?? "workflow" })) };
 }
 var ORCHESTRATION_SYSTEM_PROMPT = PROMPTS["orchestration"];
 function renderOrchestrationUserPrompt(workflows, domain) {

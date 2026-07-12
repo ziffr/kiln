@@ -124,22 +124,30 @@ export function RolesMatrix({ roles, caps, highlightCap, t }: { roles: RolesDoc;
 // workflow-vs-agent toggle. The decision (a fixed n8n pipeline vs. an agent running it by judgement)
 // is the model's source of truth (WorkflowInput.mode) and drives what codegen emits. The LLM proposes;
 // the human confirms/flips here.
+type ProcessMode = "workflow" | "agent" | "external";
+const MODE_ICON: Record<ProcessMode, string> = { workflow: "⛓ ", agent: "🤖 ", external: "🌐 " };
+const MODE_KEY: Record<ProcessMode, string> = { workflow: "modeWorkflow", agent: "modeAgent", external: "modeExternal" };
+
 export function WorkflowsView({
   workflows,
   domain,
   t,
   onSetMode,
+  onSetService,
   onClassify,
   classifyBusy,
   rationales,
+  services,
 }: {
   workflows: WorkflowsDoc;
   domain: DomainDoc;
   t: T;
-  onSetMode?: (id: string, mode: "workflow" | "agent") => void;
+  onSetMode?: (id: string, mode: ProcessMode) => void;
+  onSetService?: (id: string, serviceId: string) => void;
   onClassify?: () => void;
   classifyBusy?: boolean;
   rationales?: Record<string, string>;
+  services?: Array<{ id: string; name: string; invocation: string }>;
 }): React.JSX.Element {
   if (!workflows.workflows.length) return <Empty msg={t("emptyWorkflows")} />;
   const cmdName = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.name || id;
@@ -154,7 +162,7 @@ export function WorkflowsView({
         )}
       </div>
       {workflows.workflows.map((w) => {
-        const mode = w.mode ?? "workflow";
+        const mode = (w.mode ?? "workflow") as ProcessMode;
         const rationale = rationales?.[w.id];
         return (
           <div key={w.id} className={`workflow-card wf-mode-${mode}`}>
@@ -163,20 +171,15 @@ export function WorkflowsView({
               {onSetMode ? (
                 <div className="wf-mode-toggle" role="group" aria-label={t("runAs")}>
                   <span className="muted wf-mode-label">{t("runAs")}</span>
-                  {(["workflow", "agent"] as const).map((m) => (
-                    <button
-                      key={m}
-                      className={`wf-mode-btn${mode === m ? " active" : ""}`}
-                      aria-pressed={mode === m}
-                      onClick={() => onSetMode(w.id, m)}
-                    >
-                      {m === "workflow" ? "⛓ " : "🤖 "}
-                      {t(m === "workflow" ? "modeWorkflow" : "modeAgent")}
+                  {(["workflow", "agent", "external"] as const).map((m) => (
+                    <button key={m} className={`wf-mode-btn${mode === m ? " active" : ""}`} aria-pressed={mode === m} onClick={() => onSetMode(w.id, m)}>
+                      {MODE_ICON[m]}
+                      {t(MODE_KEY[m])}
                     </button>
                   ))}
                 </div>
               ) : (
-                <span className={`wf-mode-chip wf-mode-${mode}`}>{mode === "workflow" ? "⛓ " : "🤖 "}{t(mode === "workflow" ? "modeWorkflow" : "modeAgent")}</span>
+                <span className={`wf-mode-chip wf-mode-${mode}`}>{MODE_ICON[mode]}{t(MODE_KEY[mode])}</span>
               )}
             </div>
             {rationale && <p className="wf-rationale muted">{rationale}</p>}
@@ -191,6 +194,21 @@ export function WorkflowsView({
               {(w.steps ?? []).length === 0 && <span className="muted">{t("noSteps")}</span>}
             </div>
             {mode === "agent" && <p className="wf-mode-note">{t("agentFold")}</p>}
+            {mode === "external" && (
+              <div className="wf-mode-note wf-ext-pick">
+                <span>{t("externalDelegate")}</span>
+                {onSetService && (services?.length ? (
+                  <select value={w.service ?? ""} onChange={(e) => onSetService(w.id, e.target.value)}>
+                    <option value="">{t("pickService")}</option>
+                    {services.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.invocation})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <em className="muted">{t("noServices")}</em>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}

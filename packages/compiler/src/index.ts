@@ -135,17 +135,20 @@ export interface RolesDoc {
 }
 
 /** SPEC-007 workflow: a named multi-step process (an ordered sequence of commands). */
-export type ProcessMode = "workflow" | "agent";
+export type ProcessMode = "workflow" | "agent" | "external";
 export interface WorkflowInput {
   id: string;
   name: string;
   steps: string[]; // ordered command ids
   /**
-   * SPEC-009 orchestration decision (authored, source of truth): should this process run as a fixed,
-   * deterministic **workflow** (n8n sequence) or be handled by an **agent** (judgment over the same
-   * commands)? Absent → treated as "workflow" (a workflow doc's default). Drives conditional codegen.
+   * SPEC-009 orchestration decision (authored, source of truth): how this process runs —
+   * a fixed, deterministic **workflow** (n8n sequence), an **agent** (judgment over the same commands),
+   * or an **external** service we delegate to (a bought/existing workflow or agent — the `service` id).
+   * Absent → treated as "workflow". Drives conditional codegen. `external` is a human pick (the LLM
+   * router only distinguishes workflow vs agent — it can't know what you've bought).
    */
   mode?: ProcessMode;
+  service?: string; // external service id when mode === "external"
   meta?: Record<string, unknown>;
 }
 export interface WorkflowsDoc {

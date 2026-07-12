@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mockExternalServices, externalServicesAdapter, agentsAdapter } from "../src/index.ts";
+import { mockExternalServices, externalServicesAdapter, agentsAdapter, projectTargets, DEFAULT_BINDING } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@vbd/compiler";
 
 const caps: CapabilityDoc = { domain: "Solar", capabilities: [{ id: "sales", name: "Sales", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
@@ -42,6 +42,17 @@ test("externalServicesAdapter: sync → one call workflow; async → a start + a
   assert.match(String((cb.nodes[0].parameters as { path: string }).path), /^callback\//);
   // the callback wakes the agent (async reviewer resultTarget = agent)
   assert.ok(cb.nodes.some((n) => (n.parameters as { url?: string }).url?.includes("/run")));
+});
+
+test("mode=external process → a delegate connector (not the internal pipeline)", () => {
+  const workflows = { version: "0.1", workflows: [{ id: "screen_lead", name: "Screen Lead", steps: ["qualify_lead"], mode: "external" as const, service: "svc_lead_qualifier" }] };
+  const services = { version: "0.1", services: [{ id: "svc_lead_qualifier", name: "Lead Qualifier", kind: "agent" as const, invocation: "sync" as const, entity: "lead", endpoint: "https://api.q.example.com/score", requestMapping: {}, responseMapping: {} }] };
+  const rep = projectTargets(DEFAULT_BINDING, caps, domain, undefined, undefined, workflows as never, undefined, {}, undefined, undefined, agents, undefined, services as never);
+  const proc = rep.artifacts.n8n.find((w) => w.name.startsWith("Process (external)"));
+  assert.ok(proc, "external-mode process emits a delegate connector");
+  assert.ok(proc!.nodes.some((n) => (n.parameters as { url?: string }).url === "https://api.q.example.com/score"), "delegates to the bound service endpoint");
+  // and it is NOT emitted as an internal command pipeline
+  assert.ok(!rep.artifacts.n8n.some((w) => w.name === "Process: Screen Lead"));
 });
 
 test("agents get external services they own as delegable tools (kind: external)", () => {

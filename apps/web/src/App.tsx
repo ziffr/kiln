@@ -22,6 +22,7 @@ import {
 } from "@vbd/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@vbd/validation";
 import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, critiqueToFeedback, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding } from "@vbd/skills";
+import { mockExternalServices } from "@vbd/codegen";
 import { SettingsModal } from "./components/SettingsModal";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { StageRail, type StageId, type StageInfo } from "./components/StageRail";
@@ -188,6 +189,11 @@ export default function App(): React.JSX.Element {
   const [orchestrationBusy, setOrchestrationBusy] = useState(false);
   const [orchestrationRationales, setOrchestrationRationales] = useState<Record<string, string>>({});
   const mockAgentsDoc = useMemo(() => mockGenerateAgents(activeDoc), [activeDoc]);
+  // external services available to delegate a process to (the "External" routing option's picker).
+  const serviceOptions = useMemo(
+    () => mockExternalServices(activeDoc, behaviourDoc, workflowsDoc, active.agents ?? mockGenerateAgents(activeDoc)).services.map((s) => ({ id: s.id, name: s.name, invocation: s.invocation })),
+    [activeDoc, behaviourDoc, workflowsDoc, active.agents],
+  );
   const agentsDoc = active.agents ?? mockAgentsDoc;
   const agentFindings = useMemo(() => validateAgents(agentsDoc, activeDoc.capabilities.map((c) => c.id)), [agentsDoc, activeDoc]);
   const [agentsBusy, setAgentsBusy] = useState(false);
@@ -640,9 +646,12 @@ export default function App(): React.JSX.Element {
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setWorkflowsBusy(false); }
   }
 
-  // SPEC-009 orchestration review: flip a process's mode (source of truth), or ask the LLM to recommend.
-  function setWorkflowMode(id: string, mode: "workflow" | "agent"): void {
+  // SPEC-009 orchestration review: route a process (source of truth), or ask the LLM to recommend.
+  function setWorkflowMode(id: string, mode: "workflow" | "agent" | "external"): void {
     patchActive({ workflows: { ...workflowsDoc, workflows: workflowsDoc.workflows.map((w) => (w.id === id ? { ...w, mode } : w)) } });
+  }
+  function setWorkflowService(id: string, service: string): void {
+    patchActive({ workflows: { ...workflowsDoc, workflows: workflowsDoc.workflows.map((w) => (w.id === id ? { ...w, service } : w)) } });
   }
   async function classifyOrchestration(): Promise<void> {
     setOrchestrationBusy(true); setError(null);
@@ -910,7 +919,7 @@ export default function App(): React.JSX.Element {
             {stage === "behaviour" && <BehaviourView domain={behaviourDoc} highlight={selectedAggregate?.id} t={t} />}
             {stage === "automations" && <AutomationsView domain={flowDoc} highlight={selectedAggregate?.id} t={t} />}
             {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} highlightCap={selectedAggregate?.owner ?? selected} t={t} />}
-            {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} onSetMode={setWorkflowMode} onClassify={classifyOrchestration} classifyBusy={orchestrationBusy} rationales={orchestrationRationales} />}
+            {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} onSetMode={setWorkflowMode} onSetService={setWorkflowService} onClassify={classifyOrchestration} classifyBusy={orchestrationBusy} rationales={orchestrationRationales} services={serviceOptions} />}
             {stage === "agents" && <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={setSelected} t={t} />}
             {stage === "code" && (
               <CodePreview

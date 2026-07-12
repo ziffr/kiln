@@ -55,7 +55,9 @@ export function mockOrchestration(workflows: WorkflowsDoc): OrchestrationDoc {
  */
 export function applyOrchestration(workflows: WorkflowsDoc, doc: OrchestrationDoc): WorkflowsDoc {
   const byId = new Map(doc.decisions.map((d) => [d.id, d.mode]));
-  return { version: workflows.version, workflows: (workflows.workflows ?? []).map((w) => ({ ...w, mode: byId.get(w.id) ?? w.mode ?? "workflow" })) };
+  // "external" is a human pick (delegate to a bought service) — the LLM router only distinguishes
+  // workflow vs agent, so never let auto-classify overwrite an existing external routing.
+  return { version: workflows.version, workflows: (workflows.workflows ?? []).map((w) => ({ ...w, mode: w.mode === "external" ? "external" : byId.get(w.id) ?? w.mode ?? "workflow" })) };
 }
 
 export const ORCHESTRATION_SYSTEM_PROMPT = PROMPTS["orchestration"];

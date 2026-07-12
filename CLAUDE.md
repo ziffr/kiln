@@ -113,6 +113,16 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   designer: **full shell swap** — topbar+stage-rail → sidebar (team header + project switcher + labeled
   StageRail nav + footer) + inset content card with breadcrumb topbar + collapse toggle (kept in VBD's own
   CSS, dark palette). Verified in-browser; 255 tests.
+- **Complete model.json store BUILT** — the whole business is ONE versionable document (all layers). The
+  web `Project` now holds every execution-layer decision (services/triggers/comms/integrations/binding/theme/
+  i18n), previously mock-only/export-flag splices. `apps/web/src/model.ts` `assembleModel` materializes the
+  COMPLETE model (absent layers filled from mock defaults → explicit + self-contained); `parseModel` loads it.
+  App: **⬇ Export model / ⬆ Import model** (sidebar footer) round-trip the whole model.json (recall + iterate
+  before generating; commit it to git = the chosen git-backed substrate). Exporter now treats model.json as
+  the single source of truth (reads authored services/triggers/comms/integrations/binding/theme/i18n from it,
+  emits the complete model.json — same shape as the app). Verified in-browser (16 layers; edited service
+  survives round-trip). Open: in-app EDIT UI for comms/integrations/binding/theme (edit via model.json for
+  now); a server-authoritative auto-git workspace API (still localStorage + manual export/import). 256 tests.
 - **Generated-app light/dark + i18n (LLM auto-translation) BUILT** — `ThemeToggle` (.dark class + persisted,
   no-flash init in index.html). i18n: every visible string keyed, rendered via a dependency-free runtime
   (`src/i18n.tsx` `t(key,fallback)`, locale persisted); **base locale = the model's source language** (the

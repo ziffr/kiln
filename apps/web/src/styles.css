@@ -775,3 +775,8 @@ textarea {
 .crumbs { min-width: 0; }
 .crumb-cur { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ai-review-top { flex: none; white-space: nowrap; }
+
+/* Ingest tab: paste/upload a raw transcript → structure it into the narrative. */
+.ingest { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.ingest-actions { display: flex; gap: 6px; margin: 6px 0 8px; }
+.ingest textarea.md { flex: 1; min-height: 300px; }

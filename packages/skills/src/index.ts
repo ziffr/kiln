@@ -38,6 +38,7 @@ export { generateCommunications, coerceCommunications, COMMS_SCHEMA, COMMS_SYSTE
 export { generateIntegrations, coerceIntegrations, INTEGRATIONS_SCHEMA, INTEGRATIONS_SYSTEM_PROMPT } from "./integrations.ts";
 export { generateExternalServices, coerceExternalServices, EXTERNAL_SERVICES_SCHEMA, EXTERNAL_SERVICES_SYSTEM_PROMPT } from "./services.ts";
 export { translateMessages, TRANSLATE_SCHEMA, TRANSLATE_SYSTEM_PROMPT } from "./translate.ts";
+export { structureNarrative, renderNarrativeMd, STRUCTURE_SCHEMA, STRUCTURE_SYSTEM_PROMPT, type StructuredNarrative, type StructureResult } from "./structure.ts";
 export {
   mockGroupContexts,
   generateContexts,

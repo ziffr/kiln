@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CoachConfig } from "@vbd/skills";
 import type { CoachMsg as Msg } from "../projects";
-
-const SERVICE_URL = "http://localhost:8787";
+import { SERVICE_URL } from "../config";
 
 /**
  * Narrative input with two modes (SPEC-001 §4.1 + user decision): an interactive **Interview**
@@ -38,13 +37,40 @@ export function NarrativeInput({
   const [messages, setMessages] = useState<Msg[]>(
     transcript.length ? [greeting, ...transcript] : [greeting],
   );
-  const [tab, setTab] = useState<"interview" | "markdown">("interview");
+  const [tab, setTab] = useState<"interview" | "markdown" | "ingest">("interview");
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
+  // Ingest: paste/upload a raw transcript or brief; an LLM structures it into the narrative.
+  const [raw, setRaw] = useState("");
+  const [structBusy, setStructBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function structure(): Promise<void> {
+    if (!raw.trim()) return;
+    setStructBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/structure`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ raw, model, effort }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      if (typeof data.narrative === "string" && data.narrative.trim()) {
+        onNarrative(data.narrative);
+        setTab("markdown"); // review/edit the structured result, then generate capabilities
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setStructBusy(false);
+    }
+  }
 
   // Auto-scroll the chat to the newest message (and the thinking bubble) as the turn progresses.
   useEffect(() => {
@@ -89,10 +115,34 @@ export function NarrativeInput({
     <div className="narrative-input">
       <div className="tabs">
         <button className={tab === "interview" ? "active" : ""} onClick={() => setTab("interview")}>{t("tabInterview")}</button>
+        <button className={tab === "ingest" ? "active" : ""} onClick={() => setTab("ingest")}>{t("tabIngest")}</button>
         <button className={tab === "markdown" ? "active" : ""} onClick={() => setTab("markdown")}>{t("tabMarkdown")}</button>
       </div>
 
-      {tab === "interview" ? (
+      {tab === "ingest" ? (
+        <div className="ingest">
+          <p className="hint">{t("ingestHint")}</p>
+          <div className="ingest-actions">
+            <button className="gen" disabled={structBusy} onClick={() => fileRef.current?.click()}>{t("ingestFile")}</button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".txt,.md,.markdown,.text,text/plain,text/markdown"
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (f) setRaw(await f.text());
+                e.target.value = "";
+              }}
+            />
+            <button className="send" disabled={structBusy || !raw.trim()} onClick={() => void structure()}>
+              {structBusy ? t("structuring") : t("structureBtn")}
+            </button>
+          </div>
+          {error && <p className="err-line"><code>{error}</code> — {t("serviceHint")}</p>}
+          <textarea className="md" value={raw} placeholder={t("ingestPlaceholder")} onChange={(e) => setRaw(e.target.value)} spellCheck={false} />
+        </div>
+      ) : tab === "interview" ? (
         <div className="interview">
           <div className="coach-config">
             <label>

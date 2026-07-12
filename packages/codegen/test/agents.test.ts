@@ -25,6 +25,11 @@ test("agentsAdapter emits a runnable runtime + a definition per agent with wired
   assert.match(files["agents/src/providers/anthropic.ts"], /client\.messages\.create/);
   assert.match(files["agents/src/providers/openrouter.ts"], /chat\.completions\.create/);
   assert.match(files["agents/src/runner.ts"], /openrouter|anthropic/);
+  // the behaviour playbook (the "HOW") — a markdown file the runtime loads as the system prompt
+  assert.ok(files["agents/behaviours/lead_agent.md"], "behaviour playbook");
+  assert.match(files["agents/behaviours/lead_agent.md"], /How you work/);
+  assert.match(files["agents/behaviours/lead_agent.md"], /edit it to change HOW/i);
+  assert.match(files["agents/src/runner.ts"], /behaviours/); // runtime loads it
   // the definition
   assert.ok(files["agents/definitions/lead_agent.json"]);
   const def = JSON.parse(files["agents/definitions/lead_agent.json"]);

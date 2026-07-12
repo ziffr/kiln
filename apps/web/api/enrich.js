@@ -76,9 +76,11 @@ var PROMPTS = {
 
 - An agent is a software operator with a GOAL that runs a set of capabilities (e.g. "Sales Assistant": qualify leads, prepare offers).
 - "capabilities": the capability ids this agent operates. "goal": a one-line objective.
-- "instructions": the agent's operating instructions (its system prompt) \u2014 how it should behave, what to
-  do autonomously vs. when to escalate to a human (via a notify action), and any guardrails. A few clear
-  sentences a human will refine.
+- "instructions": the agent's BEHAVIOUR PLAYBOOK \u2014 its system prompt, as short markdown. This is the
+  agent's "HOW". Include: **Role** (one line), **How you work** (the concrete approach \u2014 e.g. for a lead:
+  check source/score, verify contact info, qualify or request more info; for a ticket: triage severity,
+  attempt resolution, else assign), **When to escalate** (which cases go to a human via a notify action),
+  and **Guardrails**. Make it specific to THIS business and the agent's tools; a human will refine it.
 - Prefer a small set of focused agents (2\u20136); a capability may be run by more than one agent.
 - "derivedFrom": the narrative responsibility that motivates the agent (an "anchor").
 
@@ -633,12 +635,11 @@ import type { AgentDef, AgentTool } from "../def";
 ${SCHEMA_HELPER}
 
 // The native Anthropic tool-use loop \u2014 best Claude fidelity (caching, tool semantics, thinking).
-export async function runAnthropic(def: AgentDef, task: string): Promise<void> {
+export async function runAnthropic(def: AgentDef, task: string, system: string): Promise<void> {
   const client = new Anthropic(); // reads ANTHROPIC_API_KEY
   const model = def.model || process.env.ANTHROPIC_MODEL || "claude-sonnet-5"; // per-agent override
   const tools: Anthropic.Tool[] = def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: toolParams(t) as Anthropic.Tool.InputSchema }));
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: task }];
-  const system = def.instructions || "You are " + def.name + ". Goal: " + def.goal + "\\nUse the tools to accomplish the task; call one at a time and stop when done. Then summarize what you did.";
   // per-agent thinking level: adaptive thinking + effort (low|medium|high|max) when set.
   const effort = def.effort ? { thinking: { type: "adaptive" as const }, output_config: { effort: def.effort } } : {};
   for (let step = 0; step < 12; step++) {
@@ -667,12 +668,12 @@ import type { AgentDef, AgentTool } from "../def";
 ${SCHEMA_HELPER}
 
 // OpenAI-compatible loop via OpenRouter \u2014 any model (Claude, GPT, Gemini, Llama, self-hosted, \u2026).
-export async function runOpenRouter(def: AgentDef, task: string): Promise<void> {
+export async function runOpenRouter(def: AgentDef, task: string, system: string): Promise<void> {
   const client = new OpenAI({ apiKey: process.env.OPENROUTER_API_KEY, baseURL: "https://openrouter.ai/api/v1" });
   const model = def.model || process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5"; // per-agent override
   const tools = def.tools.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: toolParams(t) } }));
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: "system", content: def.instructions || "You are " + def.name + ". Goal: " + def.goal + ". Use the tools to accomplish the task; stop when done." },
+    { role: "system", content: system },
     { role: "user", content: task },
   ];
   for (let step = 0; step < 12; step++) {
@@ -695,7 +696,7 @@ export async function runOpenRouter(def: AgentDef, task: string): Promise<void> 
   }
 }
 `,
-  "src/runner.ts": `import { readFileSync } from "node:fs";
+  "src/runner.ts": `import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { runAnthropic } from "./providers/anthropic";
@@ -708,10 +709,15 @@ if (!id) { console.error("usage: pnpm start <agent-id> [task\u2026]  (agent ids:
 const def: AgentDef = JSON.parse(readFileSync(join(here, "..", "definitions", id + ".json"), "utf8"));
 const task = process.argv.slice(3).join(" ") || "Work toward your goal using the available tools and records.";
 
+// The agent's BEHAVIOUR (its "HOW") is the markdown playbook \u2014 the system prompt. Edit it to change how
+// the agent works. This is the authored surface; the definition JSON is just structure + config.
+const behaviourPath = join(here, "..", "behaviours", id + ".md");
+const system = existsSync(behaviourPath) ? readFileSync(behaviourPath, "utf8") : "You are " + def.name + ". Goal: " + def.goal;
+
 // Provider: Anthropic native by default (best Claude fidelity); OpenRouter for any model.
 const provider = process.env.PROVIDER || (process.env.OPENROUTER_API_KEY ? "openrouter" : "anthropic");
 const run = provider === "openrouter" ? runOpenRouter : runAnthropic;
-run(def, task).catch((e: unknown) => { console.error(e); process.exit(1); });
+run(def, task, system).catch((e: unknown) => { console.error(e); process.exit(1); });
 `,
   "package.json": JSON.stringify(
     {

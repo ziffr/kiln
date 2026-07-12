@@ -50,6 +50,43 @@ function commandTool(c: { id: string; name?: string; aggregate: string; emits?: 
   };
 }
 
+/**
+ * A default BEHAVIOUR playbook (markdown) — the agent's "HOW": its role, how it works its tools, when to
+ * escalate, guardrails. Deterministic + generic; the LLM agent generator writes a business-specific one
+ * (an agent's `instructions`) that supersedes this. Either way it's the editable system prompt.
+ */
+function defaultPlaybook(d: AgentDef): string {
+  const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
+  const notify = d.tools.some((t) => t.kind === "notify");
+  return [
+    `# ${d.name} — behaviour`,
+    "",
+    `**Role.** ${d.goal || `Operate the ${d.capabilities.join(", ")} capabilities.`}`,
+    "",
+    `## How you work`,
+    `Work through the task with your tools. For each item: read the relevant record, decide, then act via`,
+    `the right command. Take one action at a time and check the result before the next. Keep going until`,
+    `the goal is met, then summarise what you did and why.`,
+    "",
+    `## When to escalate`,
+    notify
+      ? `When a decision is ambiguous, high-value, or needs human judgement, use the \`notify\` tool to route`
+      : `When a decision needs human judgement, stop and report it clearly`,
+    `it to a person — don't guess. Continue once they respond.`,
+    "",
+    `## Guardrails`,
+    `- Never fabricate data; use only what the records and tools give you.`,
+    `- Prefer the smallest correct action; don't take irreversible steps without cause.`,
+    `- Stay within your goal and capabilities.`,
+    "",
+    `## Your commands`,
+    ...(cmds.length ? cmds.map((c) => `- \`${c}\``) : ["- (none)"]),
+    "",
+    `> This file is the agent's system prompt — **edit it to change HOW this agent behaves.**`,
+    "",
+  ].join("\n");
+}
+
 // ── the runnable runtime (generic + data-driven; loads a definition and runs the agent loop) ──
 
 // The tool-argument JSON schema (shared by both providers). All string params — the spine coerces.
@@ -105,12 +142,11 @@ import type { AgentDef, AgentTool } from "../def";
 ${SCHEMA_HELPER}
 
 // The native Anthropic tool-use loop — best Claude fidelity (caching, tool semantics, thinking).
-export async function runAnthropic(def: AgentDef, task: string): Promise<void> {
+export async function runAnthropic(def: AgentDef, task: string, system: string): Promise<void> {
   const client = new Anthropic(); // reads ANTHROPIC_API_KEY
   const model = def.model || process.env.ANTHROPIC_MODEL || "claude-sonnet-5"; // per-agent override
   const tools: Anthropic.Tool[] = def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: toolParams(t) as Anthropic.Tool.InputSchema }));
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: task }];
-  const system = def.instructions || "You are " + def.name + ". Goal: " + def.goal + "\\nUse the tools to accomplish the task; call one at a time and stop when done. Then summarize what you did.";
   // per-agent thinking level: adaptive thinking + effort (low|medium|high|max) when set.
   const effort = def.effort ? { thinking: { type: "adaptive" as const }, output_config: { effort: def.effort } } : {};
   for (let step = 0; step < 12; step++) {
@@ -139,12 +175,12 @@ import type { AgentDef, AgentTool } from "../def";
 ${SCHEMA_HELPER}
 
 // OpenAI-compatible loop via OpenRouter — any model (Claude, GPT, Gemini, Llama, self-hosted, …).
-export async function runOpenRouter(def: AgentDef, task: string): Promise<void> {
+export async function runOpenRouter(def: AgentDef, task: string, system: string): Promise<void> {
   const client = new OpenAI({ apiKey: process.env.OPENROUTER_API_KEY, baseURL: "https://openrouter.ai/api/v1" });
   const model = def.model || process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5"; // per-agent override
   const tools = def.tools.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: toolParams(t) } }));
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: "system", content: def.instructions || "You are " + def.name + ". Goal: " + def.goal + ". Use the tools to accomplish the task; stop when done." },
+    { role: "system", content: system },
     { role: "user", content: task },
   ];
   for (let step = 0; step < 12; step++) {
@@ -167,7 +203,7 @@ export async function runOpenRouter(def: AgentDef, task: string): Promise<void> 
   }
 }
 `,
-  "src/runner.ts": `import { readFileSync } from "node:fs";
+  "src/runner.ts": `import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { runAnthropic } from "./providers/anthropic";
@@ -180,10 +216,15 @@ if (!id) { console.error("usage: pnpm start <agent-id> [task…]  (agent ids: se
 const def: AgentDef = JSON.parse(readFileSync(join(here, "..", "definitions", id + ".json"), "utf8"));
 const task = process.argv.slice(3).join(" ") || "Work toward your goal using the available tools and records.";
 
+// The agent's BEHAVIOUR (its "HOW") is the markdown playbook — the system prompt. Edit it to change how
+// the agent works. This is the authored surface; the definition JSON is just structure + config.
+const behaviourPath = join(here, "..", "behaviours", id + ".md");
+const system = existsSync(behaviourPath) ? readFileSync(behaviourPath, "utf8") : "You are " + def.name + ". Goal: " + def.goal;
+
 // Provider: Anthropic native by default (best Claude fidelity); OpenRouter for any model.
 const provider = process.env.PROVIDER || (process.env.OPENROUTER_API_KEY ? "openrouter" : "anthropic");
 const run = provider === "openrouter" ? runOpenRouter : runAnthropic;
-run(def, task).catch((e: unknown) => { console.error(e); process.exit(1); });
+run(def, task, system).catch((e: unknown) => { console.error(e); process.exit(1); });
 `,
   "package.json": JSON.stringify(
     {
@@ -255,7 +296,11 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
 
   const files: Record<string, string> = {};
   for (const [rel, content] of Object.entries(RUNTIME)) files[`agents/${rel}`] = content;
-  for (const d of defs) files[`agents/definitions/${d.id}.json`] = JSON.stringify(d, null, 2);
+  for (const d of defs) {
+    // definition = structure + config; behaviour = the editable markdown playbook (the "HOW").
+    files[`agents/definitions/${d.id}.json`] = JSON.stringify({ ...d, instructions: undefined }, null, 2);
+    files[`agents/behaviours/${d.id}.md`] = d.instructions?.trim() ? d.instructions.trim() + "\n" : defaultPlaybook(d);
+  }
   files["agents/README.md"] = `# Agents — a runnable, provider-flexible agent runtime
 
 Goal-driven operators. Each \`definitions/<id>.json\` is a definition the runtime loads: a **goal** and
@@ -268,13 +313,17 @@ pnpm install
 SPINE_URL=http://localhost:3000 ANTHROPIC_API_KEY=sk-ant-... pnpm start ${defs[0]?.id ?? "<agent-id>"} "qualify the newest lead"
 \`\`\`
 
-## Augmenting an agent's behaviour
-Each \`definitions/<id>.json\` carries the agent's **goal**, **tools**, and (optional) **instructions**
-(its system prompt), **model**, and **effort** (thinking level: low|medium|high|max). These come from the
-**model** (\`model.json\` → agents) — the source of truth. Edit them there and regenerate; the runtime
-applies **per-agent model + thinking + instructions**. (Anthropic honours model + effort; OpenRouter uses
-model + instructions.) Which agents exist and which tools they get is derived from their capabilities:
-change an agent's capabilities → its command tools change.
+## The two files per agent
+- \`definitions/<id>.json\` — **structure + config**: goal, tools (derived from the agent's capabilities),
+  \`model\`, \`effort\` (thinking level: low|medium|high|max).
+- \`behaviours/<id>.md\` — **the "HOW"**: the agent's playbook / system prompt. Its role, how it works its
+  tools, when to escalate to a human, guardrails. **This is what you edit to change how the agent
+  behaves** — like a skill file. The runtime loads it as the system prompt.
+
+Which agents exist and which tools they get is derived from their **capabilities** (change an agent's
+capabilities → its command tools change). Per-agent \`model\`/\`effort\` apply on Anthropic; OpenRouter uses
+\`model\`. An agent doesn't have hardcoded procedure code — it *reasons* over its tools guided by the
+playbook. (If you want fixed, deterministic steps instead, that's a **workflow**, not an agent.)
 
 ## Choosing a model / provider (\`.env\`)
 - **Anthropic native** (default): set \`ANTHROPIC_API_KEY\` + \`ANTHROPIC_MODEL\` (per-agent \`model\`/\`effort\`

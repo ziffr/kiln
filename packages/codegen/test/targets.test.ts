@@ -145,6 +145,10 @@ test("odooAdapter emits an installable module: models, typed fields, Many2one, c
   // policy p1 (on lead_qualified) → a base.automation, so the manifest must depend on base_automation.
   assert.ok(files["data/automations.xml"], "automations emitted");
   assert.match(files["__manifest__.py"], /'base_automation'/);
+  // Odoo 16+ form (verified installing into live Odoo 17): a server action holds the code, the
+  // automation links it via action_server_ids — NOT `state`/`code` directly on base.automation.
+  assert.match(files["data/automations.xml"], /model="ir\.actions\.server"/);
+  assert.match(files["data/automations.xml"], /action_server_ids/);
 });
 
 test("odooAdapter returns nothing when no aggregate is bound to odoo", () => {

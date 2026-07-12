@@ -409,14 +409,22 @@ export function odooAdapter(resolved: ResolvedElement[], caps: CapabilityDoc, do
     const code = sameModel
       ? `for record in records:\n    record.${slug(cmd.id)}()`
       : `# cross-model reaction → ${model(cmd.aggregate)}\nfor target in env[${JSON.stringify(model(cmd.aggregate))}].search([]):\n    target.${slug(cmd.id)}()  # TODO: correlate to the triggering record`;
+    const nm = p.name || `on ${evName.get(p.on) ?? p.on}`;
+    // Odoo 16+ split base.automation: the code lives on an ir.actions.server; the automation links it
+    // via action_server_ids and holds the trigger. (Old single-record form errors: "Invalid field 'state'".)
     autoRecords.push(
       [
-        `  <record id="automation_${slug(pid)}" model="base.automation">`,
-        `    <field name="name">${p.name || `on ${evName.get(p.on) ?? p.on}`}</field>`,
+        `  <record id="server_${slug(pid)}" model="ir.actions.server">`,
+        `    <field name="name">${nm}</field>`,
         `    <field name="model_id" ref="${modelXmlId(ev.aggregate)}"/>`,
-        `    <field name="trigger">on_create_or_write</field>`,
         `    <field name="state">code</field>`,
         `    <field name="code">${code}</field>`,
+        `  </record>`,
+        `  <record id="automation_${slug(pid)}" model="base.automation">`,
+        `    <field name="name">${nm}</field>`,
+        `    <field name="model_id" ref="${modelXmlId(ev.aggregate)}"/>`,
+        `    <field name="trigger">on_create_or_write</field>`,
+        `    <field name="action_server_ids" eval="[(4, ref('server_${slug(pid)}'))]"/>`,
         `  </record>`,
       ].join("\n"),
     );

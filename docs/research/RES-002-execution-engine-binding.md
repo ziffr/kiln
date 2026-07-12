@@ -3,7 +3,7 @@ id: RES-002
 title: Execution-engine binding — model → multi-backend deployment-target compiler
 type: research
 status: Draft
-version: 0.4.0
+version: 0.5.0
 author: Claude (Opus 4.8)
 created: 2026-07-12
 updated: 2026-07-12
@@ -126,7 +126,8 @@ untouched" is not, and shouldn't be claimed.
 
 An **exporter** (`npm run targets:export`, `packages/codegen/bin/export-targets.mjs`) writes the
 artifacts to `out/targets/` — `postgres/schema.sql`, `n8n/*.json`, `odoo/<module>/…`, `_run.json`.
-Two of three engines are now proven against **live** software (Docker):
+All three engines are now proven against **live** software (Docker) — each surfaced a real adapter bug
+that only a running install caught:
 
 - **Postgres — RUNS.** `schema.sql` applied to a real Postgres 16 with `ON_ERROR_STOP=1` (aborts on any
   error): **12 tables, 15 foreign keys, 12 RLS policies** created — exactly the model's shape.
@@ -135,8 +136,13 @@ Two of three engines are now proven against **live** software (Docker):
   requires `id` (+ `active`, `settings`). Added them; **all 14 workflows then imported successfully**
   and list clean in n8n. This is the exact value of a live round-trip: "structurally faithful" hid a
   real gap that only a running importer surfaced.
-- **Odoo — not yet.** Heavy image (~2 GB) + needs its own Postgres + a module-install step
-  (`odoo -i <module> --stop-after-init`). A dedicated pass.
+- **Odoo — RUNS, after a fix the live install forced.** Bound the Customer Acquisition Area to Odoo
+  (Lead/Customer/Offer + relations, ACL, automations); `odoo -i solar_installation --stop-after-init`
+  into a live Odoo 17. First run failed: `Invalid field 'state' on model 'base.automation'` — Odoo 16+
+  split automations, so the code must live on an `ir.actions.server` linked via `action_server_ids`, not
+  as `state`/`code` on `base.automation`. Fixed; the module then **installed clean** (`state=installed`,
+  models `solar_installation.{lead,customer,offer}` created). Also required adding `base_automation` to
+  the manifest `depends`. **All three engines now proven against live software.**
 
 ## 4c. The skin system — `serve-ui` as the 7th capability (shadcn first adapter)
 
@@ -184,10 +190,10 @@ demonstrated live, not just asserted.
 
 ## 6. What this justifies next (recommended sequencing)
 
-- **Probe 2: round-trip through live engines — PARTIALLY DONE (§4b).** Postgres DDL applies and n8n
-  workflows import against live containers. Remaining: (a) **Odoo** — install the generated module into a
-  live Odoo (`odoo -i`), the heavy leg; (b) **end-to-end** — fire a webhook and assert the command
-  endpoint is hit across the seam (needs the spine running too).
+- **Probe 2: round-trip through live engines — DONE for all three (§4b).** Postgres DDL applies, n8n
+  workflows import, and the Odoo module installs — each into a live container. Remaining: **end-to-end** —
+  fire a webhook and assert the command endpoint is hit across the seam (needs the generated spine
+  running too), and run the shadcn UI against a live backend rather than empty state.
 - **Probe 3: Odoo — DONE (§4a).** The interface survived a store, an orchestrator, and a full business
   platform. Adding an engine is now confirmed to be *descriptor + adapter (+ coherence rule)* only.
 - **Then** promote to a SPEC: the authored **Binding** layer in the IR + UI (a per-Area engine picker),

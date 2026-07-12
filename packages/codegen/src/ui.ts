@@ -15,6 +15,7 @@
 
 import { slug } from "@vbd/ir";
 import { attributeSpecs, type AttrType, type CapabilityDoc, type DomainDoc, type ContextsDoc } from "@vbd/compiler";
+import { UI_SCAFFOLD } from "./ui-scaffold.ts";
 
 // ── The SKIN: a Theme is the shadcn design-token set (light + dark) + radius. Authored/chosen. ──
 
@@ -318,6 +319,7 @@ export function shadcnAdapter(caps: CapabilityDoc, domain: DomainDoc, contexts?:
   if (!domain.aggregates.length) return {};
   const struct = uiStructure(caps, domain, contexts);
   const files: Record<string, string> = {
+    ...UI_SCAFFOLD, // package.json, vite/tailwind/tsconfig, shadcn components — a runnable project
     "src/index.css": themeCss(theme),
     "src/App.tsx": appTsx(struct),
     "src/components/AppSidebar.tsx": sidebar(struct),

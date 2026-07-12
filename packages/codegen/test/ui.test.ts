@@ -49,6 +49,10 @@ test("shadcnAdapter emits a themeable scaffold: theme css, router, sidebar, page
   assert.ok(files["src/App.tsx"], "router");
   assert.ok(files["src/components/AppSidebar.tsx"], "sidebar");
   assert.ok(files["components.json"], "shadcn config");
+  // a complete, runnable project — not just app files (verified: npm i && npm run build works)
+  assert.ok(files["package.json"] && files["vite.config.ts"] && files["tailwind.config.js"], "runnable project config");
+  assert.ok(files["src/components/ui/button.tsx"] && files["src/components/ui/table.tsx"], "shadcn components emitted");
+  assert.ok(files["src/main.tsx"] && files["index.html"], "entry point");
   // list + detail per entity
   for (const t of ["Lead", "Invoice"]) {
     assert.ok(files[`src/pages/${t}List.tsx`], `${t} list`);

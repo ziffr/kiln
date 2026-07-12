@@ -107,6 +107,11 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   n8n pipeline emits a delegate node for that step; UI "Delegate individual steps" panel + 🌐 step marker).
   Routing is composable — process-level AND step-level. Solar: Excel lead import + offer-register export;
   sync Lead Qualifier + async Offer Reviewer. 252 tests.
+- **Generated-app in-app HELP system BUILT** — `helpModel` projects the model into end-user docs (screen
+  "what" = capability purpose/area intent; action "does" = command→emitted events; processes = workflows;
+  roles; automations = policies; field hints from types). `shadcnAdapter` emits `src/help.ts` + a `/help`
+  page + a dependency-light "ⓘ Help" drawer per screen (route+nav wired). Regenerated with the app → never
+  stale. Solar: 12 entities/5 processes/7 roles/9 automations. 254 tests.
 - **Triggers layer + agent HTTP mode BUILT** — `@vbd/codegen` triggers.ts: external signals in
   (webhook|schedule → command|workflow|agent|notify), grounded in the model's external/time events, →
   importable n8n `trigger_*` workflows + `TRIGGERS.md`. The generated agents runtime gained an HTTP mode

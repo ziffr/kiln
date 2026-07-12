@@ -113,6 +113,10 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   designer: **full shell swap** — topbar+stage-rail → sidebar (team header + project switcher + labeled
   StageRail nav + footer) + inset content card with breadcrumb topbar + collapse toggle (kept in VBD's own
   CSS, dark palette). Verified in-browser; 255 tests.
+- **Ingest raw text/transcript BUILT** — the Narrative stage has a "From text/transcript" tab: paste a
+  transcript/notes/brief or upload a .txt/.md; `@vbd/skills structureNarrative` (prompt `structure.md` +
+  `/api/structure`) projects it into the heading-anchored Business Narrative → the existing derive pipeline.
+  (Fixed NarrativeInput to use the config `SERVICE_URL` — was hardcoded localhost.) 256 tests.
 - **Complete model.json store BUILT** — the whole business is ONE versionable document (all layers). The
   web `Project` now holds every execution-layer decision (services/triggers/comms/integrations/binding/theme/
   i18n), previously mock-only/export-flag splices. `apps/web/src/model.ts` `assembleModel` materializes the

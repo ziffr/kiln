@@ -89,6 +89,16 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
 ## Status (keep current)
 - **Building the FULL methodology stack** (user: "the whole enchilada"): policies ✅ → roles ✅ →
   workflows ✅ → agents ✅ → application/implementation blueprints ✅ → execution codegen MCP/React ✅ (adapters hand-owned per ADR-002). FULL STACK BUILT.
+- **SPEC-009 orchestration (workflow-vs-agent router) BUILT** — each process carries an authored
+  `WorkflowInput.mode` (`workflow`|`agent`). `@vbd/skills` orchestration skill (mock heuristic +
+  `generateOrchestration` LLM + `/api/orchestration`, prompt `orchestration.md`) proposes; the app's
+  **Workflows stage is the review/override screen** (per-process "Run as" toggle + Auto-classify).
+  Mode-DRIVES codegen: workflow-mode → n8n `process_*`; agent-mode → folded into the covering agent's
+  `behaviours/<id>.md` ("Processes you own"). Exporter emits `ORCHESTRATION.md`. Solar: 4 workflow, 1 agent.
+- **Triggers layer + agent HTTP mode BUILT** — `@vbd/codegen` triggers.ts: external signals in
+  (webhook|schedule → command|workflow|agent|notify), grounded in the model's external/time events, →
+  importable n8n `trigger_*` workflows + `TRIGGERS.md`. The generated agents runtime gained an HTTP mode
+  (`pnpm serve` → `POST /run {agent,task}`) so a webhook can WAKE an agent; a webhook→agent trigger POSTs it.
 - **SPEC-005 (policies/reactions) BUILT + Approved** — `policy` node + when/then edges,
   `validatePolicies` (PL1–PL7 incl. joined-graph cycle), `PolicyModeler` (precision-biased, single
   call) + `/api/policies`, eval with reactionRecall + **spuriousRate** (anti over-wiring), codegen

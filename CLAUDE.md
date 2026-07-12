@@ -113,6 +113,13 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   designer: **full shell swap** — topbar+stage-rail → sidebar (team header + project switcher + labeled
   StageRail nav + footer) + inset content card with breadcrumb topbar + collapse toggle (kept in VBD's own
   CSS, dark palette). Verified in-browser; 255 tests.
+- **Generated-app light/dark + i18n (LLM auto-translation) BUILT** — `ThemeToggle` (.dark class + persisted,
+  no-flash init in index.html). i18n: every visible string keyed, rendered via a dependency-free runtime
+  (`src/i18n.tsx` `t(key,fallback)`, locale persisted); **base locale = the model's source language** (the
+  description's language), base bundle = `appMessages` source strings; LLM `translateMessages` (+ prompt
+  `translate.md` + `/api/translate`) translates into target locales; header language switcher when >1 locale;
+  exporter `--lang`/`--translations` bake them; `projectTargets` threads `i18n`. Verified via esbuild + a
+  German bake. 256 tests.
 - **Generated-app in-app HELP system BUILT** — `helpModel` projects the model into end-user docs (screen
   "what" = capability purpose/area intent; action "does" = command→emitted events; processes = workflows;
   roles; automations = policies; field hints from types). `shadcnAdapter` emits `src/help.ts` + a `/help`

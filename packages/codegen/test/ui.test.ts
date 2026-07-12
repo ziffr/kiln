@@ -100,6 +100,21 @@ test("no aggregates → no UI", () => {
   assert.equal(Object.keys(shadcnAdapter(caps, { aggregates: [] } as unknown as DomainDoc, contexts)).length, 0);
 });
 
+test("shadcnAdapter emits the sidebar-16 shell: sidebar + header + inset, model-derived nav", () => {
+  const files = shadcnAdapter(caps, domain, contexts);
+  assert.ok(files["src/components/AppShell.tsx"], "app shell");
+  assert.ok(files["src/components/AppHeader.tsx"], "header (breadcrumb + search)");
+  // App wraps routes in the shell (not the old plain flex layout)
+  assert.match(files["src/App.tsx"], /<AppShell>/);
+  // the shell is the inset dashboard: a rounded bordered content card + a team header + a search box
+  assert.match(files["src/components/AppShell.tsx"], /rounded-xl border/);
+  assert.match(files["src/components/AppSidebar.tsx"], /Generated app/);
+  assert.match(files["src/components/AppHeader.tsx"], /Search/);
+  // nav still model-derived: areas are groups, and a breadcrumb title map is emitted
+  assert.match(files["src/components/AppSidebar.tsx"], /area: "Sales"/);
+  assert.match(files["src/components/AppSidebar.tsx"], /routeTitles/);
+});
+
 test("helpModel projects end-user help from the model (what/fields/actions, processes, roles)", () => {
   const capsWithPurpose = { ...caps, capabilities: [{ id: "leads", name: "Leads", purpose: "Turn enquiries into qualified prospects.", outcomes: [] }, { id: "billing", name: "Billing", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
   const domainWithEmits = { ...domain, events: [{ id: "lead_qualified", name: "Lead Qualified", aggregate: "lead", trigger: "command" }], commands: [{ id: "qualify_lead", name: "Qualify Lead", aggregate: "lead", emits: ["lead_qualified"] }, { id: "void_invoice", name: "Void Invoice", aggregate: "invoice", emits: [] }], policies: [{ id: "p1", name: "", on: "lead_qualified", then: "void_invoice" }] } as unknown as DomainDoc;

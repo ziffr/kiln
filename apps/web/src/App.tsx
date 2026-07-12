@@ -185,6 +185,8 @@ export default function App(): React.JSX.Element {
   const workflowsDoc = active.workflows ?? mockWorkflowsDoc;
   const workflowFindings = useMemo(() => validateWorkflows(workflowsDoc, (behaviourDoc.commands ?? []).map((c) => c.id)), [workflowsDoc, behaviourDoc]);
   const [workflowsBusy, setWorkflowsBusy] = useState(false);
+  const [orchestrationBusy, setOrchestrationBusy] = useState(false);
+  const [orchestrationRationales, setOrchestrationRationales] = useState<Record<string, string>>({});
   const mockAgentsDoc = useMemo(() => mockGenerateAgents(activeDoc), [activeDoc]);
   const agentsDoc = active.agents ?? mockAgentsDoc;
   const agentFindings = useMemo(() => validateAgents(agentsDoc, activeDoc.capabilities.map((c) => c.id)), [agentsDoc, activeDoc]);
@@ -637,6 +639,22 @@ export default function App(): React.JSX.Element {
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setWorkflowsBusy(false); }
   }
+
+  // SPEC-009 orchestration review: flip a process's mode (source of truth), or ask the LLM to recommend.
+  function setWorkflowMode(id: string, mode: "workflow" | "agent"): void {
+    patchActive({ workflows: { ...workflowsDoc, workflows: workflowsDoc.workflows.map((w) => (w.id === id ? { ...w, mode } : w)) } });
+  }
+  async function classifyOrchestration(): Promise<void> {
+    setOrchestrationBusy(true); setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/orchestration`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workflows: workflowsDoc, domain: behaviourDoc, model: modelFor("workflows"), effort: active.effort }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      patchActive({ workflows: data.workflows }); // modes folded onto the workflows (source of truth)
+      setOrchestrationRationales(Object.fromEntries((data.doc?.decisions ?? []).map((d: { id: string; rationale: string }) => [d.id, d.rationale])));
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setOrchestrationBusy(false); }
+  }
   async function generateAgentsModel(): Promise<void> {
     setAgentsBusy(true); setError(null);
     try {
@@ -892,7 +910,7 @@ export default function App(): React.JSX.Element {
             {stage === "behaviour" && <BehaviourView domain={behaviourDoc} highlight={selectedAggregate?.id} t={t} />}
             {stage === "automations" && <AutomationsView domain={flowDoc} highlight={selectedAggregate?.id} t={t} />}
             {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} highlightCap={selectedAggregate?.owner ?? selected} t={t} />}
-            {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} />}
+            {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} onSetMode={setWorkflowMode} onClassify={classifyOrchestration} classifyBusy={orchestrationBusy} rationales={orchestrationRationales} />}
             {stage === "agents" && <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={setSelected} t={t} />}
             {stage === "code" && (
               <CodePreview

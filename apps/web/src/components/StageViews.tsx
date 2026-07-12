@@ -120,27 +120,80 @@ export function RolesMatrix({ roles, caps, highlightCap, t }: { roles: RolesDoc;
   );
 }
 
-// Workflows → a numbered left-to-right sequence: each step is a command, connected by arrows.
-export function WorkflowsView({ workflows, domain, t }: { workflows: WorkflowsDoc; domain: DomainDoc; t: T }): React.JSX.Element {
+// Workflows → the routing review (SPEC-009): each process shows its numbered command sequence AND a
+// workflow-vs-agent toggle. The decision (a fixed n8n pipeline vs. an agent running it by judgement)
+// is the model's source of truth (WorkflowInput.mode) and drives what codegen emits. The LLM proposes;
+// the human confirms/flips here.
+export function WorkflowsView({
+  workflows,
+  domain,
+  t,
+  onSetMode,
+  onClassify,
+  classifyBusy,
+  rationales,
+}: {
+  workflows: WorkflowsDoc;
+  domain: DomainDoc;
+  t: T;
+  onSetMode?: (id: string, mode: "workflow" | "agent") => void;
+  onClassify?: () => void;
+  classifyBusy?: boolean;
+  rationales?: Record<string, string>;
+}): React.JSX.Element {
   if (!workflows.workflows.length) return <Empty msg={t("emptyWorkflows")} />;
   const cmdName = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.name || id;
   return (
     <div className="workflows-view">
-      {workflows.workflows.map((w) => (
-        <div key={w.id} className="workflow-card">
-          <div className="workflow-name">{w.name || w.id}</div>
-          <div className="wf-seq">
-            {(w.steps ?? []).map((s, i) => (
-              <div key={i} className="wf-node">
-                {i > 0 && <span className="wf-conn" aria-hidden />}
-                <span className="wf-num">{i + 1}</span>
-                <span className="wf-box">{cmdName(s)}</span>
-              </div>
-            ))}
-            {(w.steps ?? []).length === 0 && <span className="muted">{t("noSteps")}</span>}
+      <div className="wf-orch-head">
+        <span className="muted">{t("orchestrationHint")}</span>
+        {onClassify && (
+          <button className="btn-secondary" onClick={onClassify} disabled={classifyBusy}>
+            {classifyBusy ? t("classifying") : t("classifyBtn")}
+          </button>
+        )}
+      </div>
+      {workflows.workflows.map((w) => {
+        const mode = w.mode ?? "workflow";
+        const rationale = rationales?.[w.id];
+        return (
+          <div key={w.id} className={`workflow-card wf-mode-${mode}`}>
+            <div className="wf-card-head">
+              <div className="workflow-name">{w.name || w.id}</div>
+              {onSetMode ? (
+                <div className="wf-mode-toggle" role="group" aria-label={t("runAs")}>
+                  <span className="muted wf-mode-label">{t("runAs")}</span>
+                  {(["workflow", "agent"] as const).map((m) => (
+                    <button
+                      key={m}
+                      className={`wf-mode-btn${mode === m ? " active" : ""}`}
+                      aria-pressed={mode === m}
+                      onClick={() => onSetMode(w.id, m)}
+                    >
+                      {m === "workflow" ? "⛓ " : "🤖 "}
+                      {t(m === "workflow" ? "modeWorkflow" : "modeAgent")}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <span className={`wf-mode-chip wf-mode-${mode}`}>{mode === "workflow" ? "⛓ " : "🤖 "}{t(mode === "workflow" ? "modeWorkflow" : "modeAgent")}</span>
+              )}
+            </div>
+            {rationale && <p className="wf-rationale muted">{rationale}</p>}
+            <div className="wf-seq">
+              {(w.steps ?? []).map((s, i) => (
+                <div key={i} className="wf-node">
+                  {i > 0 && <span className="wf-conn" aria-hidden />}
+                  <span className="wf-num">{i + 1}</span>
+                  <span className="wf-box">{cmdName(s)}</span>
+                </div>
+              ))}
+              {(w.steps ?? []).length === 0 && <span className="muted">{t("noSteps")}</span>}
+            </div>
+            {mode === "agent" && <p className="wf-mode-note">{t("agentFold")}</p>}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

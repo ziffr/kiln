@@ -530,6 +530,19 @@ textarea {
 .workflow-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .wf-sep { color: #64748b; margin: 0 4px; }
 
+/* SPEC-009 orchestration review — mode toggle + rationale on each process card. */
+.wf-orch-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.wf-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.wf-card-head .workflow-name { margin-bottom: 0; }
+.wf-mode-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.wf-mode-label { font-size: 12px; }
+.wf-mode-btn { padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
+.wf-mode-btn.active { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
+.wf-mode-chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.wf-rationale { font-size: 12px; margin: 0 0 8px; font-style: italic; }
+.wf-mode-note { font-size: 12px; margin: 8px 0 0; color: var(--muted); border-left: 2px solid var(--accent-2); padding-left: 8px; }
+.workflow-card.wf-mode-agent { border-left: 3px solid var(--accent-2); }
+
 .review-overlay { max-width: 640px; }
 
 @media (max-width: 900px) {

@@ -92,6 +92,13 @@ for (const wf of rep.artifacts.comms.n8n) {
   written.push(write(`n8n/${safe}.json`, JSON.stringify(wf, null, 2)));
 }
 
+// Integration layer → field-mapping files + n8n connectors (inbound: → spine command; outbound: event → API).
+for (const [rel, content] of Object.entries(rep.artifacts.integrations.mappings)) written.push(write(rel, content));
+for (const wf of rep.artifacts.integrations.n8n) {
+  const safe = wf.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+  written.push(write(`n8n/${safe}.json`, JSON.stringify(wf, null, 2)));
+}
+
 // a manifest of the run: binding, coverage, seams, validation, gaps
 const runInfo = {
   model: modelPath,
@@ -391,6 +398,11 @@ if (rep.artifacts.comms.n8n.length || Object.keys(rep.artifacts.comms.templates)
   todo.push(`- [ ] Refine the templates in \`templates/\` (subject/body/recipient bindings).`);
   todo.push(`- [ ] Add email/Slack credentials in n8n for the \`comm_*\` workflows and activate them.`);
   todo.push(`- [ ] Wire pdf/render actions to a document service (the \`pdf_*.md\` templates are the source).`);
+}
+if (rep.artifacts.integrations.n8n.length) {
+  todo.push(`\n## Integrations`);
+  todo.push(`- [ ] Refine the field mappings in \`integrations/*.mapping.json\` (model field ↔ external field).`);
+  todo.push(`- [ ] Set real endpoints + auth on the \`integration_*\` n8n connectors (inbound webhooks; outbound APIs).`);
 }
 written.push(write("TODO.md", todo.join("\n") + "\n"));
 

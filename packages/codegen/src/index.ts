@@ -410,3 +410,4 @@ export {
 export { shadcnAdapter, uiStructure, DEFAULT_THEME, type Theme, type UiStructure, type UiScreen } from "./ui.ts";
 export { spineAdapter } from "./spine.ts";
 export { mockCommunications, communicationsAdapter, type CommunicationsDoc, type CommAction, type CommChannel } from "./comms.ts";
+export { mockIntegrations, integrationsAdapter, type IntegrationsDoc, type IntegrationAction, type IntegrationDirection } from "./integrations.ts";

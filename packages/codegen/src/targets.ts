@@ -16,6 +16,7 @@
 
 import { slug } from "@vbd/ir";
 import { attributeSpecs, type AttrType, type CapabilityDoc, type DomainDoc, type ContextsDoc, type RolesDoc, type WorkflowsDoc } from "@vbd/compiler";
+import { shadcnAdapter, DEFAULT_THEME, type Theme } from "./ui.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. The technical-capability taxonomy — the pivot table between model and engines.
@@ -28,9 +29,10 @@ export type TechCapability =
   | "emit" // publish a fact (event)
   | "react" // run a reaction when a fact occurs (policy)
   | "sequence" // orchestrate an ordered multi-step process (workflow)
-  | "authorize"; // enforce who may operate (role)
+  | "authorize" // enforce who may operate (role)
+  | "serve-ui"; // present the app's screens (app-level, not per-element)
 
-export const TECH_CAPABILITIES: TechCapability[] = ["store", "operate", "emit", "react", "sequence", "authorize"];
+export const TECH_CAPABILITIES: TechCapability[] = ["store", "operate", "emit", "react", "sequence", "authorize", "serve-ui"];
 
 /** How well an engine covers a capability. `none` is a hard "cannot" — binding to it is an error. */
 export type Fidelity = "native" | "partial" | "none";
@@ -54,7 +56,7 @@ export const POSTGRES: Engine = {
   id: "postgres",
   name: "PostgreSQL",
   reach: "sql",
-  provides: { store: "native", authorize: "native", emit: "partial", operate: "partial", react: "none", sequence: "none" },
+  provides: { store: "native", authorize: "native", emit: "partial", operate: "partial", react: "none", sequence: "none", "serve-ui": "none" },
 };
 
 /** n8n: a cross-system orchestrator — its whole point is reacting + sequencing across services. */
@@ -62,7 +64,7 @@ export const N8N: Engine = {
   id: "n8n",
   name: "n8n",
   reach: "http",
-  provides: { react: "native", sequence: "native", emit: "partial", operate: "partial", store: "none", authorize: "none" },
+  provides: { react: "native", sequence: "native", emit: "partial", operate: "partial", store: "none", authorize: "none", "serve-ui": "none" },
 };
 
 /** The generated spine (Node): the fallback that fills whatever no external engine covers, and the
@@ -71,7 +73,16 @@ export const NODE_SPINE: Engine = {
   id: "node",
   name: "Generated spine (Node)",
   reach: "http",
-  provides: { operate: "native", emit: "native", react: "native", sequence: "native", store: "partial", authorize: "partial" },
+  provides: { operate: "native", emit: "native", react: "native", sequence: "native", store: "partial", authorize: "partial", "serve-ui": "partial" },
+};
+
+/** shadcn/ui: a UI-only engine — a generated Vite/React/shadcn front-end. Serves the app's screens;
+ *  provides nothing else. The first `serve-ui` adapter (structure derived; skin = a Theme). */
+export const SHADCN: Engine = {
+  id: "shadcn",
+  name: "shadcn/ui (React)",
+  reach: "http",
+  provides: { "serve-ui": "native", store: "none", operate: "none", emit: "none", react: "none", sequence: "none", authorize: "none" },
 };
 
 /** Odoo: a full business platform — owns a whole vertical slice (store + operate + authz + react),
@@ -81,10 +92,10 @@ export const ODOO: Engine = {
   name: "Odoo",
   reach: "http",
   couplesStore: true,
-  provides: { store: "native", operate: "native", emit: "native", react: "native", sequence: "partial", authorize: "native" },
+  provides: { store: "native", operate: "native", emit: "native", react: "native", sequence: "partial", authorize: "native", "serve-ui": "native" },
 };
 
-export const ENGINES: Record<string, Engine> = { postgres: POSTGRES, n8n: N8N, node: NODE_SPINE, odoo: ODOO };
+export const ENGINES: Record<string, Engine> = { postgres: POSTGRES, n8n: N8N, node: NODE_SPINE, odoo: ODOO, shadcn: SHADCN };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. The Binding — the AUTHORED topology (which engine serves which capability, per area).
@@ -102,7 +113,7 @@ export interface Binding {
 
 /** A sensible multi-backend default for the probe: data in Postgres, orchestration in n8n, rest = spine. */
 export const DEFAULT_BINDING: Binding = {
-  defaults: { store: "postgres", authorize: "postgres", react: "n8n", sequence: "n8n", operate: "node", emit: "node" },
+  defaults: { store: "postgres", authorize: "postgres", react: "n8n", sequence: "n8n", operate: "node", emit: "node", "serve-ui": "shadcn" },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -501,7 +512,9 @@ export interface TargetsReport {
   binding: Binding;
   resolved: ResolvedElement[];
   validation: BindingFinding[];
-  artifacts: { postgres: string; n8n: N8nWorkflow[]; odoo: Record<string, string> };
+  artifacts: { postgres: string; n8n: N8nWorkflow[]; odoo: Record<string, string>; ui: Record<string, string> };
+  /** which engine serves the UI (serve-ui binding), and whether we generated it or it's engine-native. */
+  ui: { engineId: string; generated: boolean; note: string };
   seams: Seam[];
   /** per-engine tally of what it hosts, and what falls back to the spine — the honest coverage picture. */
   coverage: Array<{ engineId: string; elements: number; byKind: Record<string, number> }>;
@@ -516,10 +529,28 @@ export function projectTargets(
   contexts?: ContextsDoc,
   roles?: RolesDoc,
   workflows?: WorkflowsDoc,
+  theme: Theme = DEFAULT_THEME,
 ): TargetsReport {
   const resolved = resolveBinding(binding, caps, domain, contexts, roles, workflows);
   const validation = validateBinding(resolved, workflows, domain);
-  const artifacts = { postgres: postgresAdapter(resolved, domain, roles), n8n: n8nAdapter(resolved, domain, workflows), odoo: odooAdapter(resolved, caps, domain, roles) };
+  // serve-ui is app-level (not per-element): read it from the binding directly.
+  const uiEngine = binding.defaults["serve-ui"] ?? "shadcn";
+  const uiGenerated = uiEngine === "shadcn";
+  const ui = {
+    engineId: uiEngine,
+    generated: uiGenerated,
+    note: uiGenerated
+      ? "generated a themeable shadcn/ui scaffold (structure derived; skin = Theme)"
+      : uiEngine === "odoo"
+        ? "Odoo serves its own UI (auto-rendered list/form views) — no custom UI generated"
+        : `UI bound to ${ENGINES[uiEngine]?.name ?? uiEngine} — no generator for it yet`,
+  };
+  const artifacts = {
+    postgres: postgresAdapter(resolved, domain, roles),
+    n8n: n8nAdapter(resolved, domain, workflows),
+    odoo: odooAdapter(resolved, caps, domain, roles),
+    ui: uiGenerated ? shadcnAdapter(caps, domain, contexts, theme) : {},
+  };
   const seams = deriveSeams(resolved, domain, workflows);
 
   const byEngine = new Map<string, { elements: number; byKind: Record<string, number> }>();
@@ -541,5 +572,5 @@ export function projectTargets(
   gaps.push("RLS row predicates are not modelled — Postgres policies emit `USING (true)`. Authorization needs a subject/tenant model to be faithful.");
   gaps.push("n8n artifacts are structurally faithful but not verified against a live n8n import — the next probe should round-trip one through a real n8n instance (reuse the Docker verifier).");
 
-  return { binding, resolved, validation, artifacts, seams, coverage: coverageOut, gaps };
+  return { binding, resolved, validation, artifacts, seams, coverage: coverageOut, gaps, ui };
 }

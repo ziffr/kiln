@@ -162,9 +162,11 @@ test("a whole Area bound to Odoo is coherent (no TB5) and produces the module", 
   assert.ok(Object.keys(rep.artifacts.odoo).length > 0);
 });
 
-test("adding Odoo did not require touching the model/binding/seam core (registry has 4 engines)", () => {
-  assert.equal(Object.keys(ENGINES).length, 4);
+test("connector registry: engines are declared descriptors (postgres, n8n, node, odoo, shadcn)", () => {
+  assert.equal(Object.keys(ENGINES).length, 5);
   assert.equal(ENGINES.odoo.couplesStore, true);
+  assert.equal(ENGINES.shadcn.provides["serve-ui"], "native");
+  assert.equal(ENGINES.postgres.provides["serve-ui"], "none");
 });
 
 test("projectTargets returns a coherent report with coverage and gaps", () => {

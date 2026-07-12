@@ -394,6 +394,7 @@ export {
   N8N,
   NODE_SPINE,
   ODOO,
+  SHADCN,
   DEFAULT_BINDING,
   TECH_CAPABILITIES,
   type TechCapability,
@@ -406,3 +407,4 @@ export {
   type N8nWorkflow,
   type TargetsReport,
 } from "./targets.ts";
+export { shadcnAdapter, uiStructure, DEFAULT_THEME, type Theme, type UiStructure, type UiScreen } from "./ui.ts";

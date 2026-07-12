@@ -57,6 +57,9 @@ for (const wf of rep.artifacts.n8n) {
 const mod = (m.capabilities?.domain || "vbd").toLowerCase().replace(/[^a-z0-9]+/g, "_");
 for (const [rel, content] of Object.entries(rep.artifacts.odoo)) written.push(write(`odoo/${mod}/${rel}`, content));
 
+// UI → a themeable shadcn/ui scaffold (npm i, add shadcn components, npm run dev)
+for (const [rel, content] of Object.entries(rep.artifacts.ui)) written.push(write(`ui/${rel}`, content));
+
 // a manifest of the run: binding, coverage, seams, validation, gaps
 const runInfo = {
   model: modelPath,

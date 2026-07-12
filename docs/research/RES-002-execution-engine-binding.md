@@ -3,7 +3,7 @@ id: RES-002
 title: Execution-engine binding — model → multi-backend deployment-target compiler
 type: research
 status: Draft
-version: 0.3.0
+version: 0.4.0
 author: Claude (Opus 4.8)
 created: 2026-07-12
 updated: 2026-07-12
@@ -137,6 +137,30 @@ Two of three engines are now proven against **live** software (Docker):
   real gap that only a running importer surfaced.
 - **Odoo — not yet.** Heavy image (~2 GB) + needs its own Postgres + a module-install step
   (`odoo -i <module> --stop-after-init`). A dedicated pass.
+
+## 4c. The skin system — `serve-ui` as the 7th capability (shadcn first adapter)
+
+UI splits into two halves, and conflating them is where "generate a UI" oversells:
+
+- **Structure — derivable** from the model: navigation = **Business Areas**, screens = entities, form
+  fields = **typed attributes** (money→number input, boolean→Switch, reference→Select), action buttons =
+  **commands**. No design taste required.
+- **Skin — a choice**: colour, typography, radius. NOT in the business model. Supplied as a `Theme`.
+
+So **"who says how it looks"** = the model supplies the structure; a `Theme` supplies the skin. UI is
+therefore just **another bindable capability** — `serve-ui`, the 7th in the taxonomy — with engine
+choices like any other: **shadcn** (generated React SPA), **Odoo** (its web client, UI for free — no
+custom UI generated), or Retool. `serve-ui` is app-level, so it's read from the binding directly rather
+than placed per-element.
+
+**shadcnAdapter (first `serve-ui` adapter)** — `packages/codegen/src/ui.ts` — emits a themeable
+Vite+React+react-router+shadcn scaffold: `src/index.css` (the skin, as shadcn CSS-variable tokens),
+`src/App.tsx` (routes), `src/components/AppSidebar.tsx` (nav grouped by Area), and a list+detail page
+per entity, plus `components.json`/`THEME.md`. On solar: **29 files**, nav grouped into the real Areas,
+`InvoiceDetail` carrying number/date/Switch inputs and all 5 Invoice commands as buttons. Tests prove
+**swapping the `Theme` changes the skin, not the structure** (same file set, different tokens). Covered
+by `packages/codegen/test/ui.test.ts`. Not yet run live (needs `npm i` + `npx shadcn add …` — the UI
+equivalent of the Odoo-install leg).
 
 ## 5. Findings / gaps (what a full multi-backend projection cannot yet do faithfully)
 

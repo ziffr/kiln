@@ -793,3 +793,15 @@ textarea {
 .enrich-src { margin-left: auto; font-size: 12px; }
 .enrich-cite { font-size: 11px; color: var(--accent); text-decoration: underline; }
 .enrich-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0 2px; border-top: 1px solid var(--border); margin-top: 8px; }
+
+/* Public-demo banner (shown only when VITE_PUBLIC_DEMO is set on a keyless hosted demo). */
+.demo-banner {
+  grid-column: 1 / -1;
+  padding: 8px 16px;
+  font-size: 13px;
+  text-align: center;
+  color: #ffb56b;
+  background: rgba(255, 138, 61, 0.12);
+  border-bottom: 1px solid rgba(255, 138, 61, 0.35);
+}
+.demo-banner a { color: #ffd0a6; text-decoration: underline; }

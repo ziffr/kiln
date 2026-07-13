@@ -19,12 +19,29 @@ browser (golden invariant #3).
 Without the key the app still runs in **mock/offline mode** (all layers work deterministically);
 the LLM buttons return a "key not set" error until the env var is added, then **Redeploy**.
 
+## ⚠️ A public deployment spends YOUR Anthropic credits
+
+A Vercel deployment URL is **public by default** — even if the GitHub repo is private. If the
+`KILN_ANTHROPIC_API_KEY` env var is set, **anyone who opens the URL can click "Generate" and bill your
+Anthropic account.** Repo-visibility and deployment-visibility are separate. So, for a hosted instance,
+pick one:
+
+- **Private / owner-only (keep real generation).** Vercel → project → **Settings → Deployment
+  Protection → enable "Vercel Authentication"** (or Password Protection). Only you can open it; the key
+  stays and real generation works. Use this for your own hosted Kiln.
+- **Public mock-only demo (safe to share).** Do **not** set `KILN_ANTHROPIC_API_KEY`, and set the
+  build-time flag **`VITE_PUBLIC_DEMO=1`** — the app shows a "Public demo" banner, real generation is
+  off, and the example businesses + client-side pipeline + code export still work. **Zero token risk.**
+- **Neither.** Don't host it — just `./kiln.sh dev` locally with your own key (the safest place for it).
+
+Never expose a key-holding deployment publicly.
+
 ## What runs where
 
 | Path | Runtime |
 |---|---|
 | `/` (the SPA) | static `apps/web/dist` |
-| `/api/models,generate,domain,contexts,events,coach,usage` | serverless functions (`apps/web/api`), hold the key |
+| `/api/*` (models, generate, domain, …) | ONE catch-all serverless function (`apps/web/api/[...path].js`), holds the key |
 | projects persistence | **localStorage** in the browser (the filesystem store isn't deployed) |
 
 ## Local dev (unchanged)

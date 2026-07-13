@@ -889,6 +889,14 @@ export default function App(): React.JSX.Element {
 
   return (
     <div className={`app shell${sidebarOpen ? "" : " sidebar-collapsed"}`}>
+      {import.meta.env.VITE_PUBLIC_DEMO && (
+        <div className="demo-banner">
+          🔥 <strong>Public demo</strong> — real AI generation is disabled here (no key). Explore the example
+          businesses, walk every stage, and export the code — then{" "}
+          <a href="https://github.com/ziffr/kiln" target="_blank" rel="noreferrer">run your own Kiln</a> with
+          your own Anthropic key.
+        </div>
+      )}
       {showGuide && <Guide onClose={() => setShowGuide(false)} />}
       {showSettings && (
         <SettingsModal

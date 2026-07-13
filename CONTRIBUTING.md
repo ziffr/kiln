@@ -24,9 +24,10 @@ For the full picture, read [GOVERNANCE.md](GOVERNANCE.md).
 
 ## Getting set up
 
-You need **Node ≥ 20** (the repo develops on newer Node, but 20 is the supported floor). There is
-**no build step** for the packages — Node runs the TypeScript sources directly via type-stripping,
-and `npm install` only links the workspaces (no registry fetch is required to run the tests).
+You need **Node ≥ 22.18** (the first release with unflagged TypeScript type-stripping; CI runs Node
+24). The packages have **no build step** — Node runs the TypeScript sources directly, so an older
+Node (e.g. 20) fails the tests with `ERR_UNKNOWN_FILE_EXTENSION`. `npm install` only links the
+workspaces (no registry fetch is required to run the tests).
 
 ```bash
 ./kiln.sh install     # install dependencies (links the npm workspaces; offline)

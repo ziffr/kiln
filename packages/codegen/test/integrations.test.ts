@@ -57,3 +57,17 @@ test("Excel is first-class: an xlsx import routes rows through a spreadsheet nod
   const map = JSON.parse(integrationsAdapter(i, domain).mappings[`integrations/${excel!.id}.mapping.json`]);
   assert.equal(map.transport, "xlsx");
 });
+
+test("Zapier is a first-class integration transport — outbound twin fans an event to a Catch Hook", () => {
+  const i = mockIntegrations(caps, domain);
+  const zap = i.actions.find((a) => a.transport === "zapier");
+  assert.ok(zap, "a zapier outbound action is seeded");
+  assert.equal(zap!.direction, "outbound");
+  assert.equal(zap!.system, "Zapier");
+  // the adapter emits an n8n workflow whose action POSTs the Zapier Catch Hook placeholder.
+  const { n8n } = integrationsAdapter({ actions: [zap!] }, domain);
+  const wf = n8n[0];
+  const fan = wf.nodes.find((n) => (n as { name?: string }).name === "Fan out via Zapier") as { parameters?: { url?: string } };
+  assert.ok(fan, "has a Zapier fan-out node");
+  assert.equal(fan.parameters!.url, "{{ZAPIER_HOOK_URL}}");
+})

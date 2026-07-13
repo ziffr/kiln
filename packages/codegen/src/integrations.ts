@@ -16,8 +16,10 @@ import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@kiln/compil
 import type { N8nWorkflow } from "./targets.ts";
 
 export type IntegrationDirection = "inbound" | "outbound";
-/** How the records move: a JSON API (default) or a spreadsheet — Excel is one of the most common. */
-export type IntegrationTransport = "api" | "xlsx" | "gsheet";
+/** How the records move: a JSON API (default), a spreadsheet (Excel/Sheets), or Zapier — a webhook
+ *  bridge to its 7000+ apps (outbound: fan an event out to a Catch Hook; inbound: a Zap POSTs a command,
+ *  same shape as an API import). Zapier isn't a workflow-codegen target — it rides the webhook edge. */
+export type IntegrationTransport = "api" | "xlsx" | "gsheet" | "zapier";
 
 export interface IntegrationAction {
   id: string;
@@ -76,6 +78,10 @@ export function mockIntegrations(caps: CapabilityDoc, domain: DomainDoc): Integr
   // The first importable inbound action gets an Excel twin (same mapping; rows → the create command).
   const firstIn = capped.find((a) => a.direction === "inbound");
   if (firstIn) capped.push({ ...firstIn, id: `in_${slug(firstIn.entity)}_excel`, name: `Import ${firstIn.entity} from Excel`, system: "Excel", transport: "xlsx" });
+  // Zapier is a webhook bridge to 7000+ apps — seed one outbound "fan out" so it's first-class, the same
+  // way Excel gets an inbound twin. The event POSTs a Zapier Catch Hook; the Zap does the rest.
+  const firstOut = capped.find((a) => a.direction === "outbound");
+  if (firstOut) capped.push({ ...firstOut, id: `out_${slug(firstOut.entity)}_zapier`, name: `Fan ${firstOut.entity} out via Zapier`, system: "Zapier", transport: "zapier" });
   return { actions: capped };
 }
 
@@ -107,8 +113,8 @@ export function integrationsAdapter(integrations: IntegrationsDoc, domain: Domai
       const call = { parameters: { method: "POST", url: `${spineUrl}${createEndpoint(domain, a.trigger)}`, sendBody: true }, name: `Create ${a.entity}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [800, 300] };
       let nodes: Array<Record<string, unknown>>;
       let connections: Record<string, unknown>;
-      if (transport === "api") {
-        // external system → webhook → map → POST the create command on the spine.
+      if (transport === "api" || transport === "zapier") {
+        // external system (or a Zap) → webhook → map → POST the create command on the spine.
         const trigger = { parameters: { httpMethod: "POST", path: `ingest/${slug(a.entity)}` }, name: `From ${a.system}`, type: "n8n-nodes-base.webhook", typeVersion: 2, position: [240, 300] };
         nodes = [trigger, { ...call, position: [520, 300] }];
         connections = { [trigger.name]: { main: [[{ node: call.name, type: "main", index: 0 }]] } };
@@ -124,9 +130,11 @@ export function integrationsAdapter(integrations: IntegrationsDoc, domain: Domai
       // model event → webhook → map → external system's API or spreadsheet append.
       const trigger = { parameters: { httpMethod: "POST", path: `on/${slug(a.trigger)}` }, name: `On ${a.trigger}`, type: "n8n-nodes-base.webhook", typeVersion: 2, position: [240, 300] };
       const action =
-        transport === "api"
-          ? { parameters: { method: "POST", url: `https://${a.system.toLowerCase()}.example.com/api/${slug(a.entity)}`, sendBody: true, note: "TODO: real endpoint + auth + apply mapping" }, name: `Push to ${a.system}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [520, 300] }
-          : sheetNode(transport, "append", a.entity, 520, 300);
+        transport === "zapier"
+          ? { parameters: { method: "POST", url: "{{ZAPIER_HOOK_URL}}", sendBody: true, note: "Set your Zapier Catch Hook URL (hooks.zapier.com/hooks/catch/…); the Zap fans this event out to any of Zapier's 7000+ apps. Body follows the mapping." }, name: "Fan out via Zapier", type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [520, 300] }
+          : transport === "api"
+            ? { parameters: { method: "POST", url: `https://${a.system.toLowerCase()}.example.com/api/${slug(a.entity)}`, sendBody: true, note: "TODO: real endpoint + auth + apply mapping" }, name: `Push to ${a.system}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [520, 300] }
+            : sheetNode(transport, "append", a.entity, 520, 300);
       n8n.push({ id: `kiln_${a.id}`, name: `Integration (out): ${a.name}`, nodes: [trigger, action], connections: { [trigger.name]: { main: [[{ node: action.name as string, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
     }
   }

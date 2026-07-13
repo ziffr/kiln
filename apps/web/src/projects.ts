@@ -12,6 +12,9 @@ import { narrativeMd } from "./data/solar";
 // diagram is rich and the entity connections trace works out of the box. Regenerate with the
 // generation script; it's a curated snapshot, editable like any project.
 import solarModel from "./data/solar-model.json";
+import legalModel from "./data/legal-model.json";
+import coffeeModel from "./data/coffee-model.json";
+import funeralModel from "./data/funeral-model.json";
 // Three more rich verticals, each demonstrating a DIFFERENT ingestion path (a legal office from a
 // Zoom transcript, a coffee franchise from an agent interview, a funeral franchise from owner-entered
 // files). They ship description-first — open one and "Generate with LLM" to derive the full model.
@@ -131,7 +134,13 @@ export function exampleProjects(): Project[] {
     provider: "example (generated)",
     updatedAt: 0,
   };
-  // A gallery entry: a rich narrative, ready to "Generate with LLM". `provider` notes the ingestion path.
+  // Pull the six model layers off a baked example model.json (same shape as solar's).
+  const baked = (m: unknown): Partial<Project> => {
+    const p = m as Pick<Project, "capabilities" | "contexts" | "domain" | "roles" | "workflows" | "agents">;
+    return { capabilities: p.capabilities, contexts: p.contexts, domain: p.domain, roles: p.roles, workflows: p.workflows, agents: p.agents };
+  };
+  // A gallery entry: a rich narrative + a fully-baked model (so every diagram is rich out of the box).
+  // `provider` notes the ingestion path the narrative came from.
   const example = (name: string, description: string, narrative: string, provider: string, binding: Binding, extra?: Partial<Project>): Project => ({
     id: uid(),
     name,
@@ -150,15 +159,15 @@ export function exampleProjects(): Project[] {
     example(
       "Kanzlei Berger (law firm, example)",
       "Commercial law firm — matters, deadlines, trust accounting. Stack: SQLite (single container) · workflows as JS.",
-      legalNarrative, "example (from a Zoom transcript)", B_SINGLE_CONTAINER),
+      legalNarrative, "example (from a Zoom transcript)", B_SINGLE_CONTAINER, baked(legalModel)),
     example(
       "Röstwerk Coffee (franchise, example)",
       "Specialty-coffee franchise — franchisor ops, cafés, loyalty. Stack: PostgreSQL · n8n · Excel/Sheets.",
-      baristaNarrative, "example (from an agent interview)", B_MULTISERVICE, { coachTranscript: baristaInterview }),
+      baristaNarrative, "example (from an agent interview)", B_MULTISERVICE, { ...baked(coffeeModel), coachTranscript: baristaInterview }),
     example(
       "Abschied & Würde (funeral franchise, example)",
       "Funeral-service franchise — at-need & pre-need, tightly regulated. Stack: Odoo (full business platform).",
-      funeralNarrative, "example (owner-entered)", B_ODOO_PLATFORM),
+      funeralNarrative, "example (owner-entered)", B_ODOO_PLATFORM, baked(funeralModel)),
   ];
 }
 

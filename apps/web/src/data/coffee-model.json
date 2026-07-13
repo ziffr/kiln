@@ -1,0 +1,5114 @@
+{
+  "capabilities": {
+    "version": "0.2",
+    "domain": "specialty_coffee_franchise",
+    "capabilities": [
+      {
+        "id": "franchise_development",
+        "name": "Franchise Development",
+        "purpose": "Recruit and qualify franchisees who fit the brand and set up new cafés for success.",
+        "outcomes": [
+          "grow_network_with_fit_franchisees"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "recruit-qualify-franchisees-application-capital-experience-location-screening-franchise-agreement",
+              "contentHash": "954ea2c8f3ba0128bc9e816ce6713ca3298f825ab865d48c572eabb17979acbf"
+            },
+            {
+              "section": "Core Activities",
+              "anchor": "open-caf-s-site-selection-fit-out-to-brand-standard-staff-training-grand-opening",
+              "contentHash": "e2072efa23d5acac95bace5fab63a2d614b4dc7c9af1582f48ac275bb75b78b3"
+            }
+          ]
+        }
+      },
+      {
+        "id": "production_distribution",
+        "name": "Production & Distribution",
+        "purpose": "Roast coffee centrally to recipe and fulfil standing orders and top-ups to keep cafés supplied.",
+        "outcomes": [
+          "keep_cafes_supplied_just_in_time"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "roast-distribute-roast-green-coffee-centrally-to-recipe-fulfil-standing-orders-top-ups",
+              "contentHash": "ff2039479c78ce9034162783d03525be85f52247c68cfb7235419b6058134f65"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_chain_fulfillment",
+        "name": "Supply Chain Fulfillment",
+        "purpose": "Receive, pick and ship each café's bean/milk/cup/food orders accurately and on time.",
+        "outcomes": [
+          "keep_cafes_supplied_just_in_time"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "supply-orders-receive-pick-ship-each-caf-s-bean-milk-cup-food-orders",
+              "contentHash": "2ab29dbce0f5933817ac356f7a203723b8b90505f1bc1356561ed12f12457bce"
+            }
+          ]
+        }
+      },
+      {
+        "id": "billing_collections",
+        "name": "Billing & Collections",
+        "purpose": "Invoice franchisees monthly for royalties and supplies and collect payment accurately and on time.",
+        "outcomes": [
+          "collect_royalties_and_supply_revenue_accurately_on_time"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "royalty-billing-invoice-franchisees-monthly-royalty-on-reported-sales-supplies-ordered-collect",
+              "contentHash": "37bba628499f1546c1e4b1615ee8b05a199a5f57f9bc7291a869a768513bf708"
+            }
+          ]
+        }
+      },
+      {
+        "id": "brand_marketing",
+        "name": "Brand & Marketing",
+        "purpose": "Push seasonal menus and promotions to every café and run the loyalty program to engage customers.",
+        "outcomes": [
+          "make_app_and_loyalty_reliable_and_loved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "brand-marketing-push-seasonal-menus-and-promotions-to-every-caf-run-the-loyalty-program",
+              "contentHash": "46ab8b3a7d532393e6ce4561280164532abcbf7aa01ed1e5da44db3c50549b94"
+            }
+          ]
+        }
+      },
+      {
+        "id": "quality_assurance",
+        "name": "Quality Assurance",
+        "purpose": "Audit and score cafés, run mystery shoppers and corrective plans to keep every café on-brand.",
+        "outcomes": [
+          "keep_every_cafe_on_brand"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "quality-assurance-announced-audits-mystery-shoppers-score-caf-s-corrective-plans-app-ratings",
+              "contentHash": "fe9a0f501a6d64b8011b44260cc73956627ad6d5378f6ee0b820bea6c7e0b523"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_service_operations",
+        "name": "Café Service Operations",
+        "purpose": "Take orders in-store and via the app, make drinks and run the counter to serve café customers.",
+        "outcomes": [
+          "make_app_and_loyalty_reliable_and_loved",
+          "keep_every_cafe_on_brand"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "serve-take-orders-in-store-and-via-the-app-make-drinks-run-the-counter",
+              "contentHash": "b15d5ae070f79fecf9aad2272aaf3568f3b48799516364dd020e0f9680f80587"
+            }
+          ]
+        }
+      },
+      {
+        "id": "workforce_management",
+        "name": "Workforce Management",
+        "purpose": "Hire, schedule and manage barista shifts to run cafés reliably.",
+        "outcomes": [
+          "keep_every_cafe_on_brand"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "staff-hire-and-schedule-baristas-manage-shifts",
+              "contentHash": "748afe37b4db07f23aa0cf1af011fb43ef9e8304a4d56668c7df5eac2c0fb5e5"
+            }
+          ]
+        }
+      },
+      {
+        "id": "inventory_management",
+        "name": "Inventory Management",
+        "purpose": "Count stock, reorder from the roastery or approved vendors, and manage freshness to avoid stockouts.",
+        "outcomes": [
+          "keep_cafes_supplied_just_in_time"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "inventory-count-stock-reorder-from-the-roastery-approved-vendors-manage-freshness",
+              "contentHash": "4154d8ccbe9c8858560470813660d9953b1dd37bff4eaee065a46bbd88ef69fd"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sales_cash_management",
+        "name": "Sales & Cash Management",
+        "purpose": "Take payment via POS or prepaid app, report sales and bank takings accurately.",
+        "outcomes": [
+          "collect_royalties_and_supply_revenue_accurately_on_time"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "cash-sales-take-payment-pos-prepaid-app-report-sales-bank-takings",
+              "contentHash": "1b0c0b09ee9c2faa25ba954ca0fde08456d33d8b2b2e8a7b08792a3c65cd5911"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "contexts": {
+    "version": "1.0",
+    "contexts": [
+      {
+        "id": "c_370ba223",
+        "name": "Franchise Growth & Compliance",
+        "intent": "Recruit franchisees and ensure every café meets brand standards.",
+        "capabilities": [
+          "franchise_development",
+          "quality_assurance"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchisee relationship & brand standards"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_1f111658",
+        "name": "Roastery Production & Supply Chain",
+        "intent": "Produce coffee and get supplies to cafés reliably.",
+        "capabilities": [
+          "production_distribution",
+          "supply_chain_fulfillment"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "central roasting and distribution flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_ab1814fe",
+        "name": "Café Operations",
+        "intent": "Run day-to-day café service, staffing and stock.",
+        "capabilities": [
+          "cafe_service_operations",
+          "workforce_management",
+          "inventory_management"
+        ],
+        "shared_kernel": [
+          "sales_cash_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "in-store operational activities"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_b517948f",
+        "name": "Finance & Billing",
+        "intent": "Invoice franchisees and manage collections and cash reconciliation.",
+        "capabilities": [
+          "billing_collections",
+          "sales_cash_management"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "money movement between cafés and HQ"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_1fec296b",
+        "name": "Customer Engagement & Marketing",
+        "intent": "Drive customer demand through promotions and loyalty.",
+        "capabilities": [
+          "brand_marketing"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer-facing brand campaigns"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "domain": {
+    "version": "1.0",
+    "aggregates": [
+      {
+        "id": "franchise_applicant",
+        "name": "Franchise Applicant",
+        "owner": "franchise_development",
+        "attributes": [
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "application_date",
+            "type": "date"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          }
+        ],
+        "references": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "franchise_development"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement",
+        "name": "Franchise Agreement",
+        "owner": "franchise_development",
+        "attributes": [
+          {
+            "name": "start_date",
+            "type": "date"
+          },
+          {
+            "name": "territory",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "franchise_applicant",
+          "cafe"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "franchise_development"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe",
+        "name": "Café",
+        "owner": "franchise_development",
+        "attributes": [
+          {
+            "name": "location",
+            "type": "text"
+          },
+          {
+            "name": "open_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "franchise_agreement"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "franchise_development"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch",
+        "name": "Roast Batch",
+        "owner": "production_distribution",
+        "attributes": [
+          {
+            "name": "recipe",
+            "type": "text"
+          },
+          {
+            "name": "roast_date",
+            "type": "date"
+          },
+          {
+            "name": "quantity_kg",
+            "type": "number"
+          }
+        ],
+        "references": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "production_distribution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order",
+        "name": "Standing Order",
+        "owner": "production_distribution",
+        "attributes": [
+          {
+            "name": "frequency",
+            "type": "text"
+          },
+          {
+            "name": "quantity",
+            "type": "number"
+          }
+        ],
+        "references": [
+          "cafe",
+          "roast_batch"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "production_distribution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order",
+        "name": "Supply Order",
+        "owner": "supply_chain_fulfillment",
+        "attributes": [
+          {
+            "name": "order_date",
+            "type": "date"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "cafe",
+          "standing_order"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "supply_chain_fulfillment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment",
+        "name": "Shipment",
+        "owner": "supply_chain_fulfillment",
+        "attributes": [
+          {
+            "name": "ship_date",
+            "type": "date"
+          },
+          {
+            "name": "tracking_number",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "supply_order"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "supply_chain_fulfillment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice",
+        "name": "Invoice",
+        "owner": "billing_collections",
+        "attributes": [
+          {
+            "name": "amount",
+            "type": "money"
+          },
+          {
+            "name": "due_date",
+            "type": "date"
+          },
+          {
+            "name": "paid",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "cafe",
+          "shipment"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "billing_collections"
+            }
+          ]
+        }
+      },
+      {
+        "id": "payment",
+        "name": "Payment",
+        "owner": "billing_collections",
+        "attributes": [
+          {
+            "name": "amount",
+            "type": "money"
+          },
+          {
+            "name": "payment_date",
+            "type": "date"
+          },
+          {
+            "name": "method",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "invoice"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "billing_collections"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion",
+        "name": "Promotion",
+        "owner": "brand_marketing",
+        "attributes": [
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "start_date",
+            "type": "date"
+          },
+          {
+            "name": "end_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "cafe"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "brand_marketing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member",
+        "name": "Loyalty Member",
+        "owner": "brand_marketing",
+        "attributes": [
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "points_balance",
+            "type": "number"
+          },
+          {
+            "name": "join_date",
+            "type": "date"
+          }
+        ],
+        "references": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "brand_marketing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit",
+        "name": "Audit",
+        "owner": "quality_assurance",
+        "attributes": [
+          {
+            "name": "score",
+            "type": "number"
+          },
+          {
+            "name": "audit_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "cafe"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "quality_assurance"
+            }
+          ]
+        }
+      },
+      {
+        "id": "corrective_plan",
+        "name": "Corrective Plan",
+        "owner": "quality_assurance",
+        "attributes": [
+          {
+            "name": "description",
+            "type": "text"
+          },
+          {
+            "name": "due_date",
+            "type": "date"
+          },
+          {
+            "name": "resolved",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "audit"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "quality_assurance"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order",
+        "name": "Customer Order",
+        "owner": "cafe_service_operations",
+        "attributes": [
+          {
+            "name": "order_date",
+            "type": "date"
+          },
+          {
+            "name": "channel",
+            "type": "text"
+          },
+          {
+            "name": "total",
+            "type": "money"
+          }
+        ],
+        "references": [
+          "cafe",
+          "loyalty_member"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "cafe_service_operations"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket",
+        "name": "Drink Ticket",
+        "owner": "cafe_service_operations",
+        "attributes": [
+          {
+            "name": "item",
+            "type": "text"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "customer_order"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "cafe_service_operations"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee",
+        "name": "Employee",
+        "owner": "workforce_management",
+        "attributes": [
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "hire_date",
+            "type": "date"
+          },
+          {
+            "name": "role",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "cafe"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "workforce_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift",
+        "name": "Shift",
+        "owner": "workforce_management",
+        "attributes": [
+          {
+            "name": "start_time",
+            "type": "date"
+          },
+          {
+            "name": "end_time",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "employee",
+          "cafe"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "workforce_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "stock_count",
+        "name": "Stock Count",
+        "owner": "inventory_management",
+        "attributes": [
+          {
+            "name": "count_date",
+            "type": "date"
+          },
+          {
+            "name": "quantity",
+            "type": "number"
+          }
+        ],
+        "references": [
+          "cafe"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "inventory_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request",
+        "name": "Reorder Request",
+        "owner": "inventory_management",
+        "attributes": [
+          {
+            "name": "request_date",
+            "type": "date"
+          },
+          {
+            "name": "quantity",
+            "type": "number"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "stock_count",
+          "cafe"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "inventory_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction",
+        "name": "Sale Transaction",
+        "owner": "sales_cash_management",
+        "attributes": [
+          {
+            "name": "amount",
+            "type": "money"
+          },
+          {
+            "name": "transaction_date",
+            "type": "date"
+          },
+          {
+            "name": "payment_method",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "customer_order",
+          "cafe"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "sales_cash_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cash_deposit",
+        "name": "Cash Deposit",
+        "owner": "sales_cash_management",
+        "attributes": [
+          {
+            "name": "amount",
+            "type": "money"
+          },
+          {
+            "name": "deposit_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "sale_transaction",
+          "cafe"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "sales_cash_management"
+            }
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "id": "franchise_applicant_submit_application",
+        "name": "Submit Application",
+        "aggregate": "franchise_applicant",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_applicant_application_submitted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit and qualify franchisees who fit the brand"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_applicant_qualify_application",
+        "name": "Qualify Application",
+        "aggregate": "franchise_applicant",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_applicant_application_qualified",
+          "franchise_applicant_application_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit and qualify franchisees who fit the brand"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_applicant_sign_franchise_agreement",
+        "name": "Sign Franchise Agreement",
+        "aggregate": "franchise_applicant",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_applicant_franchise_agreement_signed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "set up new cafés for success"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_applicant_withdraw_application",
+        "name": "Withdraw Application",
+        "aggregate": "franchise_applicant",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_applicant_application_withdrawn"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit and qualify franchisees who fit the brand"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_draft_franchise_agreement",
+        "name": "Draft Franchise Agreement",
+        "aggregate": "franchise_agreement",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_agreement_drafted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit and qualify franchisees"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_sign_franchise_agreement",
+        "name": "Sign Franchise Agreement",
+        "aggregate": "franchise_agreement",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_agreement_signed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Set up new cafés for success"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_assign_territory",
+        "name": "Assign Territory",
+        "aggregate": "franchise_agreement",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_agreement_territory_assigned"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Set up new cafés for success"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_amend_franchise_agreement",
+        "name": "Amend Franchise Agreement",
+        "aggregate": "franchise_agreement",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_agreement_amended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit and qualify franchisees who fit the brand"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_terminate_franchise_agreement",
+        "name": "Terminate Franchise Agreement",
+        "aggregate": "franchise_agreement",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_agreement_terminated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit and qualify franchisees who fit the brand"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_renew_franchise_agreement",
+        "name": "Renew Franchise Agreement",
+        "aggregate": "franchise_agreement",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_agreement_renewed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Set up new cafés for success"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_approve_caf_site",
+        "name": "Approve Café Site",
+        "aggregate": "cafe",
+        "capability": "franchise_development",
+        "emits": [
+          "cafe_caf_site_approved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit and qualify franchisees"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_open_caf",
+        "name": "Open Café",
+        "aggregate": "cafe",
+        "capability": "franchise_development",
+        "emits": [
+          "cafe_caf_opened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "set up new cafés for success"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_relocate_caf",
+        "name": "Relocate Café",
+        "aggregate": "cafe",
+        "capability": "franchise_development",
+        "emits": [
+          "cafe_caf_relocated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cafe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_close_caf",
+        "name": "Close Café",
+        "aggregate": "cafe",
+        "capability": "franchise_development",
+        "emits": [
+          "cafe_caf_closed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cafe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_audit_caf_quality",
+        "name": "Audit Café Quality",
+        "aggregate": "cafe",
+        "capability": "quality_assurance",
+        "emits": [
+          "cafe_caf_quality_audit_passed",
+          "cafe_caf_quality_audit_failed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cafe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch_schedule_roast_batch",
+        "name": "Schedule Roast Batch",
+        "aggregate": "roast_batch",
+        "capability": "production_distribution",
+        "emits": [
+          "roast_batch_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Roast coffee centrally to recipe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch_start_roasting",
+        "name": "Start Roasting",
+        "aggregate": "roast_batch",
+        "capability": "production_distribution",
+        "emits": [
+          "roast_batch_started"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Roast coffee centrally to recipe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch_complete_roast_batch",
+        "name": "Complete Roast Batch",
+        "aggregate": "roast_batch",
+        "capability": "production_distribution",
+        "emits": [
+          "roast_batch_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Roast coffee centrally to recipe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch_reject_roast_batch",
+        "name": "Reject Roast Batch",
+        "aggregate": "roast_batch",
+        "capability": "production_distribution",
+        "emits": [
+          "roast_batch_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "quality control of production output"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch_allocate_roast_batch_to_order",
+        "name": "Allocate Roast Batch To Order",
+        "aggregate": "roast_batch",
+        "capability": "production_distribution",
+        "emits": [
+          "roast_batch_allocated_to_order"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil standing orders and top-ups to keep cafés supplied"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_create_standing_order",
+        "name": "Create Standing Order",
+        "aggregate": "standing_order",
+        "capability": "production_distribution",
+        "emits": [
+          "standing_order_created"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil standing orders and top-ups to keep cafés supplied"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_adjust_standing_order_frequency",
+        "name": "Adjust Standing Order Frequency",
+        "aggregate": "standing_order",
+        "capability": "production_distribution",
+        "emits": [
+          "standing_order_frequency_adjusted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil standing orders and top-ups to keep cafés supplied"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_adjust_standing_order_quantity",
+        "name": "Adjust Standing Order Quantity",
+        "aggregate": "standing_order",
+        "capability": "production_distribution",
+        "emits": [
+          "standing_order_quantity_adjusted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil standing orders and top-ups to keep cafés supplied"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_suspend_standing_order",
+        "name": "Suspend Standing Order",
+        "aggregate": "standing_order",
+        "capability": "production_distribution",
+        "emits": [
+          "standing_order_suspended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil standing orders and top-ups to keep cafés supplied"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_resume_standing_order",
+        "name": "Resume Standing Order",
+        "aggregate": "standing_order",
+        "capability": "production_distribution",
+        "emits": [
+          "standing_order_resumed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil standing orders and top-ups to keep cafés supplied"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_cancel_standing_order",
+        "name": "Cancel Standing Order",
+        "aggregate": "standing_order",
+        "capability": "production_distribution",
+        "emits": [
+          "standing_order_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil standing orders and top-ups to keep cafés supplied"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_fulfil_standing_order",
+        "name": "Fulfil Standing Order",
+        "aggregate": "standing_order",
+        "capability": "production_distribution",
+        "emits": [
+          "standing_order_fulfilled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil standing orders and top-ups to keep cafés supplied"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_place_supply_order",
+        "name": "Place Supply Order",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "supply_order_placed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Receive café orders"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_pick_supply_order",
+        "name": "Pick Supply Order",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "supply_order_picked"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "pick each café's order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_ship_supply_order",
+        "name": "Ship Supply Order",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "supply_order_shipped"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ship accurately and on time"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_confirm_supply_order_delivery",
+        "name": "Confirm Supply Order Delivery",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "supply_order_delivered"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ship accurately and on time"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_flag_supply_order_delay",
+        "name": "Flag Supply Order Delay",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "supply_order_delayed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "on time"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_cancel_supply_order",
+        "name": "Cancel Supply Order",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "supply_order_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Receive café orders"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_create_shipment",
+        "name": "Create Shipment",
+        "aggregate": "shipment",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "shipment_created"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "order fulfillment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_pick_order_items",
+        "name": "Pick Order Items",
+        "aggregate": "shipment",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "shipment_picked"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "warehouse picking"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_pack_shipment",
+        "name": "Pack Shipment",
+        "aggregate": "shipment",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "shipment_packed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "warehouse packing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_dispatch_shipment",
+        "name": "Dispatch Shipment",
+        "aggregate": "shipment",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "shipment_dispatched"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "carrier handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_confirm_delivery",
+        "name": "Confirm Delivery",
+        "aggregate": "shipment",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "shipment_delivered"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "delivery confirmation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_report_shipment_delay",
+        "name": "Report Shipment Delay",
+        "aggregate": "shipment",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "shipment_delayed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "on-time delivery tracking"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_report_shipment_lost",
+        "name": "Report Shipment Lost",
+        "aggregate": "shipment",
+        "capability": "supply_chain_fulfillment",
+        "emits": [
+          "shipment_lost"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "exception handling"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_issue_invoice",
+        "name": "Issue Invoice",
+        "aggregate": "invoice",
+        "capability": "billing_collections",
+        "emits": [
+          "invoice_issued"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Invoice franchisees monthly for royalties and supplies"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_record_invoice_payment",
+        "name": "Record Invoice Payment",
+        "aggregate": "invoice",
+        "capability": "billing_collections",
+        "emits": [
+          "invoice_payment_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "collect payment accurately and on time"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_mark_invoice_overdue",
+        "name": "Mark Invoice Overdue",
+        "aggregate": "invoice",
+        "capability": "billing_collections",
+        "emits": [
+          "invoice_overdue_marked"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "collect payment accurately and on time"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_dispute_invoice",
+        "name": "Dispute Invoice",
+        "aggregate": "invoice",
+        "capability": "billing_collections",
+        "emits": [
+          "invoice_disputed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "collect payment accurately and on time"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_adjust_invoice",
+        "name": "Adjust Invoice",
+        "aggregate": "invoice",
+        "capability": "billing_collections",
+        "emits": [
+          "invoice_adjusted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Invoice franchisees monthly for royalties and supplies"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_cancel_invoice",
+        "name": "Cancel Invoice",
+        "aggregate": "invoice",
+        "capability": "billing_collections",
+        "emits": [
+          "invoice_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Invoice franchisees monthly for royalties and supplies"
+            }
+          ]
+        }
+      },
+      {
+        "id": "payment_initiate_payment",
+        "name": "Initiate Payment",
+        "aggregate": "payment",
+        "capability": "billing_collections",
+        "emits": [
+          "payment_initiated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "collect payment accurately and on time"
+            }
+          ]
+        }
+      },
+      {
+        "id": "payment_record_payment_success",
+        "name": "Record Payment Success",
+        "aggregate": "payment",
+        "capability": "billing_collections",
+        "emits": [
+          "payment_succeeded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "collect payment accurately and on time"
+            }
+          ]
+        }
+      },
+      {
+        "id": "payment_record_payment_failure",
+        "name": "Record Payment Failure",
+        "aggregate": "payment",
+        "capability": "billing_collections",
+        "emits": [
+          "payment_failed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "collect payment accurately and on time"
+            }
+          ]
+        }
+      },
+      {
+        "id": "payment_refund_payment",
+        "name": "Refund Payment",
+        "aggregate": "payment",
+        "capability": "billing_collections",
+        "emits": [
+          "payment_refunded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "collect payment accurately and on time"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion_create_promotion",
+        "name": "Create Promotion",
+        "aggregate": "promotion",
+        "capability": "brand_marketing",
+        "emits": [
+          "promotion_created"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Push seasonal menus and promotions to every café"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion_schedule_promotion",
+        "name": "Schedule Promotion",
+        "aggregate": "promotion",
+        "capability": "brand_marketing",
+        "emits": [
+          "promotion_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Push seasonal menus and promotions to every café"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion_launch_promotion",
+        "name": "Launch Promotion",
+        "aggregate": "promotion",
+        "capability": "brand_marketing",
+        "emits": [
+          "promotion_launched"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Push seasonal menus and promotions to every café"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion_end_promotion",
+        "name": "End Promotion",
+        "aggregate": "promotion",
+        "capability": "brand_marketing",
+        "emits": [
+          "promotion_ended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Push seasonal menus and promotions to every café"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion_cancel_promotion",
+        "name": "Cancel Promotion",
+        "aggregate": "promotion",
+        "capability": "brand_marketing",
+        "emits": [
+          "promotion_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Push seasonal menus and promotions to every café"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_enroll_loyalty_member",
+        "name": "Enroll Loyalty Member",
+        "aggregate": "loyalty_member",
+        "capability": "brand_marketing",
+        "emits": [
+          "loyalty_member_enrolled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_award_points",
+        "name": "Award Points",
+        "aggregate": "loyalty_member",
+        "capability": "brand_marketing",
+        "emits": [
+          "loyalty_member_points_earned"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_redeem_points",
+        "name": "Redeem Points",
+        "aggregate": "loyalty_member",
+        "capability": "brand_marketing",
+        "emits": [
+          "loyalty_member_points_redeemed",
+          "loyalty_member_reward_issued"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_expire_points",
+        "name": "Expire Points",
+        "aggregate": "loyalty_member",
+        "capability": "brand_marketing",
+        "emits": [
+          "loyalty_member_points_expired"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_deactivate_loyalty_member",
+        "name": "Deactivate Loyalty Member",
+        "aggregate": "loyalty_member",
+        "capability": "brand_marketing",
+        "emits": [
+          "loyalty_member_deactivated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_schedule_audit",
+        "name": "Schedule Audit",
+        "aggregate": "audit",
+        "capability": "quality_assurance",
+        "emits": [
+          "audit_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "mystery shopper audits"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_complete_audit",
+        "name": "Complete Audit",
+        "aggregate": "audit",
+        "capability": "quality_assurance",
+        "emits": [
+          "audit_completed",
+          "audit_failed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "scoring cafés"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_issue_corrective_plan",
+        "name": "Issue Corrective Plan",
+        "aggregate": "audit",
+        "capability": "quality_assurance",
+        "emits": [
+          "audit_corrective_plan_issued"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "corrective plans"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_verify_corrective_plan",
+        "name": "Verify Corrective Plan",
+        "aggregate": "audit",
+        "capability": "quality_assurance",
+        "emits": [
+          "audit_corrective_plan_verified"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "keep cafés on-brand"
+            }
+          ]
+        }
+      },
+      {
+        "id": "corrective_plan_issue_corrective_plan",
+        "name": "Issue Corrective Plan",
+        "aggregate": "corrective_plan",
+        "capability": "quality_assurance",
+        "emits": [
+          "corrective_plan_issued"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_scoring"
+            }
+          ]
+        }
+      },
+      {
+        "id": "corrective_plan_extend_corrective_plan_due_date",
+        "name": "Extend Corrective Plan Due Date",
+        "aggregate": "corrective_plan",
+        "capability": "quality_assurance",
+        "emits": [
+          "corrective_plan_due_date_extended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_scoring"
+            }
+          ]
+        }
+      },
+      {
+        "id": "corrective_plan_resolve_corrective_plan",
+        "name": "Resolve Corrective Plan",
+        "aggregate": "corrective_plan",
+        "capability": "quality_assurance",
+        "emits": [
+          "corrective_plan_resolved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_scoring"
+            }
+          ]
+        }
+      },
+      {
+        "id": "corrective_plan_escalate_corrective_plan",
+        "name": "Escalate Corrective Plan",
+        "aggregate": "corrective_plan",
+        "capability": "quality_assurance",
+        "emits": [
+          "corrective_plan_escalated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_scoring"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_place_order",
+        "name": "Place Order",
+        "aggregate": "customer_order",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "customer_order_order_placed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Take orders in-store and via the app"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_customize_order_item",
+        "name": "Customize Order Item",
+        "aggregate": "customer_order",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "customer_order_order_item_customized"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Take orders in-store and via the app"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_send_order_to_barista",
+        "name": "Send Order To Barista",
+        "aggregate": "customer_order",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "customer_order_order_sent_to_barista"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "make drinks and run the counter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_mark_order_prepared",
+        "name": "Mark Order Prepared",
+        "aggregate": "customer_order",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "customer_order_order_prepared",
+          "customer_order_order_ready_for_pickup"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "make drinks and run the counter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_serve_order",
+        "name": "Serve Order",
+        "aggregate": "customer_order",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "customer_order_order_served"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "serve café customers"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_cancel_order",
+        "name": "Cancel Order",
+        "aggregate": "customer_order",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "customer_order_order_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Take orders in-store and via the app"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket_create_drink_ticket",
+        "name": "Create Drink Ticket",
+        "aggregate": "drink_ticket",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "drink_ticket_created"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Take orders in-store and via the app"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket_start_drink_ticket",
+        "name": "Start Drink Ticket",
+        "aggregate": "drink_ticket",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "drink_ticket_started"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "make drinks and run the counter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket_complete_drink_ticket",
+        "name": "Complete Drink Ticket",
+        "aggregate": "drink_ticket",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "drink_ticket_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "serve café customers"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket_void_drink_ticket",
+        "name": "Void Drink Ticket",
+        "aggregate": "drink_ticket",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "drink_ticket_voided"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "run the counter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket_recall_drink_ticket",
+        "name": "Recall Drink Ticket",
+        "aggregate": "drink_ticket",
+        "capability": "cafe_service_operations",
+        "emits": [
+          "drink_ticket_recalled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "serve café customers"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee_hire_employee",
+        "name": "Hire Employee",
+        "aggregate": "employee",
+        "capability": "workforce_management",
+        "emits": [
+          "employee_hired"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "employee"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee_change_employee_role",
+        "name": "Change Employee Role",
+        "aggregate": "employee",
+        "capability": "workforce_management",
+        "emits": [
+          "employee_role_changed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "employee"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee_schedule_employee_shift",
+        "name": "Schedule Employee Shift",
+        "aggregate": "employee",
+        "capability": "workforce_management",
+        "emits": [
+          "employee_scheduled_for_shift"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "employee"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee_complete_employee_shift",
+        "name": "Complete Employee Shift",
+        "aggregate": "employee",
+        "capability": "workforce_management",
+        "emits": [
+          "employee_shift_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "employee"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee_terminate_employee",
+        "name": "Terminate Employee",
+        "aggregate": "employee",
+        "capability": "workforce_management",
+        "emits": [
+          "employee_terminated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "employee"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_schedule_shift",
+        "name": "Schedule Shift",
+        "aggregate": "shift",
+        "capability": "workforce_management",
+        "emits": [
+          "shift_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "schedule barista shifts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_assign_barista_to_shift",
+        "name": "Assign Barista To Shift",
+        "aggregate": "shift",
+        "capability": "workforce_management",
+        "emits": [
+          "shift_assigned_to_barista"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "schedule barista shifts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_start_shift",
+        "name": "Start Shift",
+        "aggregate": "shift",
+        "capability": "workforce_management",
+        "emits": [
+          "shift_started"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "manage barista shifts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_end_shift",
+        "name": "End Shift",
+        "aggregate": "shift",
+        "capability": "workforce_management",
+        "emits": [
+          "shift_ended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "manage barista shifts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_cancel_shift",
+        "name": "Cancel Shift",
+        "aggregate": "shift",
+        "capability": "workforce_management",
+        "emits": [
+          "shift_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "run cafés reliably"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_request_shift_swap",
+        "name": "Request Shift Swap",
+        "aggregate": "shift",
+        "capability": "workforce_management",
+        "emits": [
+          "shift_swap_requested"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "manage barista shifts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_approve_shift_swap",
+        "name": "Approve Shift Swap",
+        "aggregate": "shift",
+        "capability": "workforce_management",
+        "emits": [
+          "shift_swap_approved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "manage barista shifts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "stock_count_start_stock_count",
+        "name": "Start Stock Count",
+        "aggregate": "stock_count",
+        "capability": "inventory_management",
+        "emits": [
+          "stock_count_started"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Count stock"
+            }
+          ]
+        }
+      },
+      {
+        "id": "stock_count_record_stock_count",
+        "name": "Record Stock Count",
+        "aggregate": "stock_count",
+        "capability": "inventory_management",
+        "emits": [
+          "stock_count_recorded",
+          "stock_count_discrepancy_detected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Count stock"
+            }
+          ]
+        }
+      },
+      {
+        "id": "stock_count_complete_stock_count",
+        "name": "Complete Stock Count",
+        "aggregate": "stock_count",
+        "capability": "inventory_management",
+        "emits": [
+          "stock_count_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Manage freshness to avoid stockouts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request_create_reorder_request",
+        "name": "Create Reorder Request",
+        "aggregate": "reorder_request",
+        "capability": "inventory_management",
+        "emits": [
+          "reorder_request_created"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "reorder from the roastery or approved vendors"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request_approve_reorder_request",
+        "name": "Approve Reorder Request",
+        "aggregate": "reorder_request",
+        "capability": "inventory_management",
+        "emits": [
+          "reorder_request_approved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "reorder from the roastery or approved vendors"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request_reject_reorder_request",
+        "name": "Reject Reorder Request",
+        "aggregate": "reorder_request",
+        "capability": "inventory_management",
+        "emits": [
+          "reorder_request_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "manage freshness to avoid stockouts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request_fulfill_reorder_request",
+        "name": "Fulfill Reorder Request",
+        "aggregate": "reorder_request",
+        "capability": "inventory_management",
+        "emits": [
+          "reorder_request_fulfilled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "manage freshness to avoid stockouts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request_cancel_reorder_request",
+        "name": "Cancel Reorder Request",
+        "aggregate": "reorder_request",
+        "capability": "inventory_management",
+        "emits": [
+          "reorder_request_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Count stock, reorder from the roastery or approved vendors"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_initiate_sale_transaction",
+        "name": "Initiate Sale Transaction",
+        "aggregate": "sale_transaction",
+        "capability": "sales_cash_management",
+        "emits": [
+          "sale_transaction_initiated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_capture_payment",
+        "name": "Capture Payment",
+        "aggregate": "sale_transaction",
+        "capability": "sales_cash_management",
+        "emits": [
+          "sale_transaction_payment_captured",
+          "sale_transaction_payment_declined"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_void_sale_transaction",
+        "name": "Void Sale Transaction",
+        "aggregate": "sale_transaction",
+        "capability": "sales_cash_management",
+        "emits": [
+          "sale_transaction_voided"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_refund_sale_transaction",
+        "name": "Refund Sale Transaction",
+        "aggregate": "sale_transaction",
+        "capability": "sales_cash_management",
+        "emits": [
+          "sale_transaction_refunded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_reconcile_daily_takings",
+        "name": "Reconcile Daily Takings",
+        "aggregate": "sale_transaction",
+        "capability": "sales_cash_management",
+        "emits": [
+          "sale_transaction_daily_takings_reconciled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cash_deposit_record_cash_deposit",
+        "name": "Record Cash Deposit",
+        "aggregate": "cash_deposit",
+        "capability": "sales_cash_management",
+        "emits": [
+          "cash_deposit_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "report sales and bank takings accurately"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cash_deposit_reconcile_cash_deposit",
+        "name": "Reconcile Cash Deposit",
+        "aggregate": "cash_deposit",
+        "capability": "sales_cash_management",
+        "emits": [
+          "cash_deposit_reconciled",
+          "cash_deposit_discrepancy_flagged"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "report sales and bank takings accurately"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cash_deposit_adjust_cash_deposit",
+        "name": "Adjust Cash Deposit",
+        "aggregate": "cash_deposit",
+        "capability": "sales_cash_management",
+        "emits": [
+          "cash_deposit_adjusted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "report sales and bank takings accurately"
+            }
+          ]
+        }
+      }
+    ],
+    "events": [
+      {
+        "id": "franchise_applicant_application_submitted",
+        "name": "Application Submitted",
+        "aggregate": "franchise_applicant",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_applicant"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_applicant_application_qualified",
+        "name": "Application Qualified",
+        "aggregate": "franchise_applicant",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_applicant"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_applicant_application_rejected",
+        "name": "Application Rejected",
+        "aggregate": "franchise_applicant",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_applicant"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_applicant_franchise_agreement_signed",
+        "name": "Franchise Agreement Signed",
+        "aggregate": "franchise_applicant",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_applicant"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_applicant_application_withdrawn",
+        "name": "Application Withdrawn",
+        "aggregate": "franchise_applicant",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_applicant"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_drafted",
+        "name": "Franchise Agreement Drafted",
+        "aggregate": "franchise_agreement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_agreement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_signed",
+        "name": "Franchise Agreement Signed",
+        "aggregate": "franchise_agreement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_agreement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_territory_assigned",
+        "name": "Territory Assigned",
+        "aggregate": "franchise_agreement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_agreement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_amended",
+        "name": "Franchise Agreement Amended",
+        "aggregate": "franchise_agreement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_agreement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_terminated",
+        "name": "Franchise Agreement Terminated",
+        "aggregate": "franchise_agreement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_agreement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_agreement_renewed",
+        "name": "Franchise Agreement Renewed",
+        "aggregate": "franchise_agreement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_agreement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_caf_site_approved",
+        "name": "Café Site Approved",
+        "aggregate": "cafe",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cafe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_caf_opened",
+        "name": "Café Opened",
+        "aggregate": "cafe",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cafe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_caf_relocated",
+        "name": "Café Relocated",
+        "aggregate": "cafe",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cafe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_caf_closed",
+        "name": "Café Closed",
+        "aggregate": "cafe",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cafe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_caf_quality_audit_failed",
+        "name": "Café Quality Audit Failed",
+        "aggregate": "cafe",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cafe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cafe_caf_quality_audit_passed",
+        "name": "Café Quality Audit Passed",
+        "aggregate": "cafe",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cafe"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch_scheduled",
+        "name": "Roast Batch Scheduled",
+        "aggregate": "roast_batch",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "roast_batch"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch_started",
+        "name": "Roast Batch Started",
+        "aggregate": "roast_batch",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "roast_batch"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch_completed",
+        "name": "Roast Batch Completed",
+        "aggregate": "roast_batch",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "roast_batch"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch_rejected",
+        "name": "Roast Batch Rejected",
+        "aggregate": "roast_batch",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "roast_batch"
+            }
+          ]
+        }
+      },
+      {
+        "id": "roast_batch_allocated_to_order",
+        "name": "Roast Batch Allocated To Order",
+        "aggregate": "roast_batch",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "roast_batch"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_created",
+        "name": "Standing Order Created",
+        "aggregate": "standing_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "standing_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_frequency_adjusted",
+        "name": "Standing Order Frequency Adjusted",
+        "aggregate": "standing_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "standing_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_quantity_adjusted",
+        "name": "Standing Order Quantity Adjusted",
+        "aggregate": "standing_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "standing_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_suspended",
+        "name": "Standing Order Suspended",
+        "aggregate": "standing_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "standing_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_resumed",
+        "name": "Standing Order Resumed",
+        "aggregate": "standing_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "standing_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_cancelled",
+        "name": "Standing Order Cancelled",
+        "aggregate": "standing_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "standing_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "standing_order_fulfilled",
+        "name": "Standing Order Fulfilled",
+        "aggregate": "standing_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "standing_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_placed",
+        "name": "Supply Order Placed",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_picked",
+        "name": "Supply Order Picked",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_shipped",
+        "name": "Supply Order Shipped",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_delivered",
+        "name": "Supply Order Delivered",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_delayed",
+        "name": "Supply Order Delayed",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_cancelled",
+        "name": "Supply Order Cancelled",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_created",
+        "name": "Shipment Created",
+        "aggregate": "shipment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shipment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_picked",
+        "name": "Shipment Picked",
+        "aggregate": "shipment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shipment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_packed",
+        "name": "Shipment Packed",
+        "aggregate": "shipment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shipment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_dispatched",
+        "name": "Shipment Dispatched",
+        "aggregate": "shipment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shipment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_delivered",
+        "name": "Shipment Delivered",
+        "aggregate": "shipment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shipment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_delayed",
+        "name": "Shipment Delayed",
+        "aggregate": "shipment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shipment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipment_lost",
+        "name": "Shipment Lost",
+        "aggregate": "shipment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shipment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_issued",
+        "name": "Invoice Issued",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_due_date_reached",
+        "name": "Invoice Due Date Reached",
+        "aggregate": "invoice",
+        "trigger": "time",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_payment_recorded",
+        "name": "Invoice Payment Recorded",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_overdue_marked",
+        "name": "Invoice Overdue Marked",
+        "aggregate": "invoice",
+        "trigger": "time",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_disputed",
+        "name": "Invoice Disputed",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_adjusted",
+        "name": "Invoice Adjusted",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_cancelled",
+        "name": "Invoice Cancelled",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "payment_initiated",
+        "name": "Payment Initiated",
+        "aggregate": "payment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "payment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "payment_succeeded",
+        "name": "Payment Succeeded",
+        "aggregate": "payment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "payment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "payment_failed",
+        "name": "Payment Failed",
+        "aggregate": "payment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "payment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "payment_refunded",
+        "name": "Payment Refunded",
+        "aggregate": "payment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "payment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion_created",
+        "name": "Promotion Created",
+        "aggregate": "promotion",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "promotion"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion_scheduled",
+        "name": "Promotion Scheduled",
+        "aggregate": "promotion",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "promotion"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion_launched",
+        "name": "Promotion Launched",
+        "aggregate": "promotion",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "promotion"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion_ended",
+        "name": "Promotion Ended",
+        "aggregate": "promotion",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "promotion"
+            }
+          ]
+        }
+      },
+      {
+        "id": "promotion_cancelled",
+        "name": "Promotion Cancelled",
+        "aggregate": "promotion",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "promotion"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_enrolled",
+        "name": "Loyalty Member Enrolled",
+        "aggregate": "loyalty_member",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_points_earned",
+        "name": "Points Earned",
+        "aggregate": "loyalty_member",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_points_redeemed",
+        "name": "Points Redeemed",
+        "aggregate": "loyalty_member",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_reward_issued",
+        "name": "Reward Issued",
+        "aggregate": "loyalty_member",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_points_expired",
+        "name": "Points Expired",
+        "aggregate": "loyalty_member",
+        "trigger": "time",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "loyalty_member_deactivated",
+        "name": "Loyalty Member Deactivated",
+        "aggregate": "loyalty_member",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "loyalty_member"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_scheduled",
+        "name": "Audit Scheduled",
+        "aggregate": "audit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_completed",
+        "name": "Audit Completed",
+        "aggregate": "audit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_failed",
+        "name": "Audit Failed",
+        "aggregate": "audit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_corrective_plan_issued",
+        "name": "Corrective Plan Issued",
+        "aggregate": "audit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_corrective_plan_verified",
+        "name": "Corrective Plan Verified",
+        "aggregate": "audit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "corrective_plan_issued",
+        "name": "Corrective Plan Issued",
+        "aggregate": "corrective_plan",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "corrective_plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "corrective_plan_due_date_extended",
+        "name": "Corrective Plan Due Date Extended",
+        "aggregate": "corrective_plan",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "corrective_plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "corrective_plan_resolved",
+        "name": "Corrective Plan Resolved",
+        "aggregate": "corrective_plan",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "corrective_plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "corrective_plan_escalated",
+        "name": "Corrective Plan Escalated",
+        "aggregate": "corrective_plan",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "corrective_plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_order_placed",
+        "name": "Order Placed",
+        "aggregate": "customer_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_order_item_customized",
+        "name": "Order Item Customized",
+        "aggregate": "customer_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_order_sent_to_barista",
+        "name": "Order Sent To Barista",
+        "aggregate": "customer_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_order_prepared",
+        "name": "Order Prepared",
+        "aggregate": "customer_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_order_ready_for_pickup",
+        "name": "Order Ready For Pickup",
+        "aggregate": "customer_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_order_served",
+        "name": "Order Served",
+        "aggregate": "customer_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "customer_order_order_cancelled",
+        "name": "Order Cancelled",
+        "aggregate": "customer_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "customer_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket_created",
+        "name": "Drink Ticket Created",
+        "aggregate": "drink_ticket",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "drink_ticket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket_started",
+        "name": "Drink Ticket Started",
+        "aggregate": "drink_ticket",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "drink_ticket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket_completed",
+        "name": "Drink Ticket Completed",
+        "aggregate": "drink_ticket",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "drink_ticket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket_voided",
+        "name": "Drink Ticket Voided",
+        "aggregate": "drink_ticket",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "drink_ticket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "drink_ticket_recalled",
+        "name": "Drink Ticket Recalled",
+        "aggregate": "drink_ticket",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "drink_ticket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee_hired",
+        "name": "Employee Hired",
+        "aggregate": "employee",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "employee"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee_role_changed",
+        "name": "Employee Role Changed",
+        "aggregate": "employee",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "employee"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee_scheduled_for_shift",
+        "name": "Employee Scheduled For Shift",
+        "aggregate": "employee",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "employee"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee_shift_completed",
+        "name": "Employee Shift Completed",
+        "aggregate": "employee",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "employee"
+            }
+          ]
+        }
+      },
+      {
+        "id": "employee_terminated",
+        "name": "Employee Terminated",
+        "aggregate": "employee",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "employee"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_scheduled",
+        "name": "Shift Scheduled",
+        "aggregate": "shift",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shift"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_assigned_to_barista",
+        "name": "Shift Assigned To Barista",
+        "aggregate": "shift",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shift"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_started",
+        "name": "Shift Started",
+        "aggregate": "shift",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shift"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_ended",
+        "name": "Shift Ended",
+        "aggregate": "shift",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shift"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_cancelled",
+        "name": "Shift Cancelled",
+        "aggregate": "shift",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shift"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_swap_requested",
+        "name": "Shift Swap Requested",
+        "aggregate": "shift",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shift"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shift_swap_approved",
+        "name": "Shift Swap Approved",
+        "aggregate": "shift",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "shift"
+            }
+          ]
+        }
+      },
+      {
+        "id": "stock_count_started",
+        "name": "Stock Count Started",
+        "aggregate": "stock_count",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "stock_count"
+            }
+          ]
+        }
+      },
+      {
+        "id": "stock_count_recorded",
+        "name": "Stock Count Recorded",
+        "aggregate": "stock_count",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "stock_count"
+            }
+          ]
+        }
+      },
+      {
+        "id": "stock_count_discrepancy_detected",
+        "name": "Stock Count Discrepancy Detected",
+        "aggregate": "stock_count",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "stock_count"
+            }
+          ]
+        }
+      },
+      {
+        "id": "stock_count_completed",
+        "name": "Stock Count Completed",
+        "aggregate": "stock_count",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "stock_count"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request_created",
+        "name": "Reorder Request Created",
+        "aggregate": "reorder_request",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "reorder_request"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request_approved",
+        "name": "Reorder Request Approved",
+        "aggregate": "reorder_request",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "reorder_request"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request_rejected",
+        "name": "Reorder Request Rejected",
+        "aggregate": "reorder_request",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "reorder_request"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request_fulfilled",
+        "name": "Reorder Request Fulfilled",
+        "aggregate": "reorder_request",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "reorder_request"
+            }
+          ]
+        }
+      },
+      {
+        "id": "reorder_request_cancelled",
+        "name": "Reorder Request Cancelled",
+        "aggregate": "reorder_request",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "reorder_request"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_initiated",
+        "name": "Sale Transaction Initiated",
+        "aggregate": "sale_transaction",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_payment_captured",
+        "name": "Payment Captured",
+        "aggregate": "sale_transaction",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_payment_declined",
+        "name": "Payment Declined",
+        "aggregate": "sale_transaction",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_voided",
+        "name": "Sale Transaction Voided",
+        "aggregate": "sale_transaction",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_refunded",
+        "name": "Sale Transaction Refunded",
+        "aggregate": "sale_transaction",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sale_transaction_daily_takings_reconciled",
+        "name": "Daily Takings Reconciled",
+        "aggregate": "sale_transaction",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sale_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cash_deposit_recorded",
+        "name": "Cash Deposit Recorded",
+        "aggregate": "cash_deposit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cash_deposit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cash_deposit_reconciled",
+        "name": "Cash Deposit Reconciled",
+        "aggregate": "cash_deposit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cash_deposit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cash_deposit_discrepancy_flagged",
+        "name": "Cash Deposit Discrepancy Flagged",
+        "aggregate": "cash_deposit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cash_deposit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cash_deposit_adjusted",
+        "name": "Cash Deposit Adjusted",
+        "aggregate": "cash_deposit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cash_deposit"
+            }
+          ]
+        }
+      }
+    ],
+    "policies": [
+      {
+        "id": "pol_0f50ebe9",
+        "name": "Draft agreement when applicant qualified",
+        "on": "franchise_applicant_application_qualified",
+        "then": "franchise_agreement_draft_franchise_agreement",
+        "condition": "when an applicant is qualified, draft their franchise agreement",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise application to agreement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_6e2e364c",
+        "name": "Sign agreement when applicant signs",
+        "on": "franchise_applicant_franchise_agreement_signed",
+        "then": "franchise_agreement_sign_franchise_agreement",
+        "condition": "applicant's signature triggers the formal agreement signing",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise application to agreement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_40772a39",
+        "name": "Assign territory after agreement signed",
+        "on": "franchise_agreement_signed",
+        "then": "franchise_agreement_assign_territory",
+        "condition": "once the agreement is signed, assign territory",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise agreement lifecycle"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_22a7a4d2",
+        "name": "Approve site after territory assigned",
+        "on": "franchise_agreement_territory_assigned",
+        "then": "cafe_approve_caf_site",
+        "condition": "territory assignment enables café site approval",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise to café rollout"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_c1535ab8",
+        "name": "Open café after site approved",
+        "on": "cafe_caf_site_approved",
+        "then": "cafe_open_caf",
+        "condition": "once site approved, open the café",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "café lifecycle"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_a7e88b33",
+        "name": "Issue corrective plan on failed quality audit",
+        "on": "cafe_caf_quality_audit_failed",
+        "then": "corrective_plan_issue_corrective_plan",
+        "condition": "a failed café quality audit requires a corrective plan",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "quality audit to corrective plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_229aaaf8",
+        "name": "Issue corrective plan on audit failure",
+        "on": "audit_failed",
+        "then": "corrective_plan_issue_corrective_plan",
+        "condition": "failed audits require corrective plans",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit compliance flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_066cb7bc",
+        "name": "Escalate audit corrective plan",
+        "on": "corrective_plan_escalated",
+        "then": "audit_verify_corrective_plan",
+        "condition": "escalated plans require audit re-verification",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit compliance flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_61468add",
+        "name": "Create supply order from reorder approval",
+        "on": "reorder_request_approved",
+        "then": "supply_order_place_supply_order",
+        "condition": "approved reorder requests trigger a supply order placement",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "inventory replenishment flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_3ab5d616",
+        "name": "Flag discrepancy triggers reorder request",
+        "on": "stock_count_discrepancy_detected",
+        "then": "reorder_request_create_reorder_request",
+        "condition": "detected stock discrepancies trigger a reorder request",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "inventory replenishment flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_e8bb8308",
+        "name": "Create shipment on supply order placed",
+        "on": "supply_order_placed",
+        "then": "shipment_create_shipment",
+        "condition": "placing a supply order creates the shipment to fulfill it",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply chain fulfillment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_b25c5920",
+        "name": "Confirm supply order delivery on shipment delivery",
+        "on": "shipment_delivered",
+        "then": "supply_order_confirm_supply_order_delivery",
+        "condition": "shipment delivery confirms the related supply order",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply chain fulfillment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_5266ac50",
+        "name": "Flag supply order delay on shipment delay",
+        "on": "shipment_delayed",
+        "then": "supply_order_flag_supply_order_delay",
+        "condition": "a shipment delay should be reflected on the supply order",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply chain fulfillment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_5b6fdecd",
+        "name": "Issue invoice on supply order delivery",
+        "on": "supply_order_delivered",
+        "then": "invoice_issue_invoice",
+        "condition": "delivered supply orders are invoiced",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "billing flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_3d62ef9e",
+        "name": "Fulfil standing order on shipment delivered",
+        "on": "shipment_delivered",
+        "then": "standing_order_fulfil_standing_order",
+        "condition": "if the shipment is for a standing order cycle",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "standing order fulfillment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_6cd0949f",
+        "name": "Initiate payment on invoice issued",
+        "on": "invoice_issued",
+        "then": "payment_initiate_payment",
+        "condition": "issuing an invoice initiates the payment process",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "billing to payment flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_f5f6d04e",
+        "name": "Record invoice payment on payment success",
+        "on": "payment_succeeded",
+        "then": "invoice_record_invoice_payment",
+        "condition": "a successful payment records against the invoice",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "billing to payment flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_568c2958",
+        "name": "Mark invoice overdue on due date reached without payment",
+        "on": "invoice_due_date_reached",
+        "then": "invoice_mark_invoice_overdue",
+        "condition": "if payment has not been recorded by due date",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "billing overdue flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_69fd5ed7",
+        "name": "Refund payment on invoice dispute",
+        "on": "invoice_disputed",
+        "then": "payment_refund_payment",
+        "condition": "a disputed invoice may trigger a refund",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "billing dispute flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_749ec3ea",
+        "name": "Create drink ticket on order sent to barista",
+        "on": "customer_order_order_sent_to_barista",
+        "then": "drink_ticket_create_drink_ticket",
+        "condition": "sending an order to the barista creates a drink ticket",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "order to preparation flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_0b353bc8",
+        "name": "Mark order prepared on drink ticket completed",
+        "on": "drink_ticket_completed",
+        "then": "customer_order_mark_order_prepared",
+        "condition": "completing the drink ticket marks the order prepared",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "order to preparation flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_75b55ce7",
+        "name": "Award loyalty points on payment success",
+        "on": "sale_transaction_payment_captured",
+        "then": "loyalty_member_award_points",
+        "condition": "if the customer is a loyalty member",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sales to loyalty flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_ee756566",
+        "name": "Refund sale transaction on payment refund",
+        "on": "payment_refunded",
+        "then": "sale_transaction_refund_sale_transaction",
+        "condition": "a refunded payment triggers a sale transaction refund",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sales refund flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_884462e7",
+        "name": "Reconcile cash deposit after daily takings reconciled",
+        "on": "sale_transaction_daily_takings_reconciled",
+        "then": "cash_deposit_record_cash_deposit",
+        "condition": "reconciled daily takings are recorded as a cash deposit",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cash management flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_b5db36d0",
+        "name": "Flag discrepancy on cash deposit reconciliation issue",
+        "on": "cash_deposit_discrepancy_flagged",
+        "then": "cash_deposit_adjust_cash_deposit",
+        "condition": "a flagged discrepancy requires an adjustment",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "cash management flow"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_66bfdfe7",
+        "name": "Allocate roast batch to order on completion",
+        "on": "roast_batch_completed",
+        "then": "roast_batch_allocate_roast_batch_to_order",
+        "condition": "completed roast batches are allocated to pending orders",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "roasting to order fulfillment"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "roles": {
+    "version": "1.0",
+    "roles": [
+      {
+        "id": "franchise_recruiter",
+        "name": "Franchise Recruiter",
+        "capabilities": [
+          "franchise_development"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit and qualify franchisees who fit the brand and set up new cafés for success."
+            }
+          ]
+        }
+      },
+      {
+        "id": "roastery_operations_manager",
+        "name": "Roastery Operations Manager",
+        "capabilities": [
+          "production_distribution",
+          "supply_chain_fulfillment"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Roast coffee centrally to recipe and fulfil standing orders and top-ups to keep cafés supplied."
+            },
+            {
+              "anchor": "Receive, pick and ship each café's bean/milk/cup/food orders accurately and on time."
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_accounts_clerk",
+        "name": "Franchise Accounts Clerk",
+        "capabilities": [
+          "billing_collections"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Invoice franchisees monthly for royalties and supplies and collect payment accurately and on time."
+            }
+          ]
+        }
+      },
+      {
+        "id": "brand_marketing_manager",
+        "name": "Brand Marketing Manager",
+        "capabilities": [
+          "brand_marketing"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Push seasonal menus and promotions to every café and run the loyalty program to engage customers."
+            }
+          ]
+        }
+      },
+      {
+        "id": "quality_auditor",
+        "name": "Quality Auditor",
+        "capabilities": [
+          "quality_assurance"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Audit and score cafés, run mystery shoppers and corrective plans to keep every café on-brand."
+            }
+          ]
+        }
+      },
+      {
+        "id": "caf_barista",
+        "name": "Café Barista",
+        "capabilities": [
+          "cafe_service_operations",
+          "sales_cash_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Take orders in-store and via the app, make drinks and run the counter to serve café customers."
+            },
+            {
+              "anchor": "Take payment via POS or prepaid app, report sales and bank takings accurately."
+            }
+          ]
+        }
+      },
+      {
+        "id": "caf_manager",
+        "name": "Café Manager",
+        "capabilities": [
+          "workforce_management",
+          "inventory_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Hire, schedule and manage barista shifts to run cafés reliably."
+            },
+            {
+              "anchor": "Count stock, reorder from the roastery or approved vendors, and manage freshness to avoid stockouts."
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "workflows": {
+    "version": "1.0",
+    "workflows": [
+      {
+        "id": "franchise_onboarding",
+        "name": "Franchise Onboarding",
+        "steps": [
+          "franchise_applicant_submit_application",
+          "franchise_applicant_qualify_application",
+          "franchise_agreement_draft_franchise_agreement",
+          "franchise_agreement_sign_franchise_agreement",
+          "franchise_applicant_sign_franchise_agreement",
+          "franchise_agreement_assign_territory",
+          "cafe_approve_caf_site",
+          "cafe_open_caf"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise applicant to open cafe"
+            }
+          ]
+        },
+        "mode": "agent"
+      },
+      {
+        "id": "supply_chain_fulfillment",
+        "name": "Supply Chain Fulfillment",
+        "steps": [
+          "reorder_request_create_reorder_request",
+          "reorder_request_approve_reorder_request",
+          "supply_order_place_supply_order",
+          "supply_order_pick_supply_order",
+          "supply_order_ship_supply_order",
+          "supply_order_confirm_supply_order_delivery",
+          "reorder_request_fulfill_reorder_request",
+          "invoice_issue_invoice",
+          "payment_initiate_payment",
+          "payment_record_payment_success",
+          "invoice_record_invoice_payment"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "reorder to invoice payment"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "customer_order_to_serve",
+        "name": "Customer Order to Serve",
+        "steps": [
+          "customer_order_place_order",
+          "customer_order_customize_order_item",
+          "drink_ticket_create_drink_ticket",
+          "customer_order_send_order_to_barista",
+          "drink_ticket_start_drink_ticket",
+          "drink_ticket_complete_drink_ticket",
+          "customer_order_mark_order_prepared",
+          "customer_order_serve_order",
+          "sale_transaction_initiate_sale_transaction",
+          "sale_transaction_capture_payment"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "order to cash counter sale"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "standing_order_to_shipment",
+        "name": "Standing Order to Shipment",
+        "steps": [
+          "standing_order_create_standing_order",
+          "standing_order_fulfil_standing_order",
+          "shipment_create_shipment",
+          "shipment_pick_order_items",
+          "shipment_pack_shipment",
+          "shipment_dispatch_shipment",
+          "shipment_confirm_delivery",
+          "invoice_issue_invoice",
+          "invoice_record_invoice_payment"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "standing order fulfillment to invoicing"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "audit_and_corrective_action",
+        "name": "Audit and Corrective Action",
+        "steps": [
+          "audit_schedule_audit",
+          "audit_complete_audit",
+          "audit_issue_corrective_plan",
+          "corrective_plan_issue_corrective_plan",
+          "corrective_plan_extend_corrective_plan_due_date",
+          "corrective_plan_resolve_corrective_plan",
+          "audit_verify_corrective_plan"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "quality audit to remediation"
+            }
+          ]
+        },
+        "mode": "agent"
+      },
+      {
+        "id": "employee_shift_lifecycle",
+        "name": "Employee Shift Lifecycle",
+        "steps": [
+          "employee_hire_employee",
+          "shift_schedule_shift",
+          "shift_assign_barista_to_shift",
+          "employee_schedule_employee_shift",
+          "shift_start_shift",
+          "shift_end_shift",
+          "employee_complete_employee_shift"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "hiring to shift completion"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "daily_cash_reconciliation",
+        "name": "Daily Cash Reconciliation",
+        "steps": [
+          "sale_transaction_reconcile_daily_takings",
+          "cash_deposit_record_cash_deposit",
+          "cash_deposit_reconcile_cash_deposit",
+          "cash_deposit_adjust_cash_deposit"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "end of day cash handling"
+            }
+          ]
+        },
+        "mode": "workflow"
+      }
+    ]
+  },
+  "agents": {
+    "version": "1.0",
+    "agents": [
+      {
+        "id": "fulfillment_distribution_agent",
+        "name": "Fulfillment & Distribution Agent",
+        "goal": "Keep cafés supplied by roasting to plan and shipping accurate orders on time",
+        "instructions": "**Role**: Central operations agent for roasting, inventory replenishment logistics, and order fulfillment.\n**How you work**: Monitor standing orders and café top-up requests, schedule roasting batches to recipe, pick and pack shipments, confirm carrier pickup and delivery windows, reconcile shipment accuracy against orders.\n**When to escalate**: Roast quality deviations, recipe non-conformance, repeated stockouts at a café, carrier delays beyond SLA, or supply shortages from vendors — notify supply chain manager.\n**Guardrails**: Never ship product past freshness date; do not alter recipes without QA sign-off; flag any order >20% above historical average for review before fulfilling.",
+        "capabilities": [
+          "production_distribution",
+          "supply_chain_fulfillment",
+          "inventory_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Fulfillment & Distribution Agent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchisee_billing_recruitment_agent",
+        "name": "Franchisee Billing & Recruitment Agent",
+        "goal": "Recruit qualified franchisees and ensure accurate, timely billing and collections",
+        "instructions": "**Role**: Manages franchisee lifecycle touchpoints — recruitment qualification and monthly financial administration.\n**How you work**: Screen inbound franchise applicants against brand fit criteria (capital, location, experience), route qualified leads to development team for site setup; generate monthly invoices for royalties and supply orders, track payment status, send reminders for overdue accounts.\n**When to escalate**: Applicants who don't meet minimum criteria but show strong potential, disputes over invoice amounts, accounts more than 30 days overdue, or requests for payment plans — notify franchise development director or finance lead.\n**Guardrails**: Never approve a franchisee without required financial documentation; never write off or discount an invoice without human approval; keep all billing calculations traceable to source orders/royalty rates.",
+        "capabilities": [
+          "franchise_development",
+          "billing_collections"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Franchisee Billing & Recruitment Agent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "brand_marketing_quality_agent",
+        "name": "Brand, Marketing & Quality Agent",
+        "goal": "Keep every café on-brand, engaged with promotions, and meeting quality standards",
+        "instructions": "**Role**: Drives brand consistency through marketing campaigns, loyalty engagement, and quality audits.\n**How you work**: Push seasonal menu updates and promotions to café systems and the app, manage loyalty program point accrual/redemption, schedule and conduct café audits and mystery shopper visits, score cafés against brand checklist, issue corrective action plans for failures.\n**When to escalate**: Audit scores below acceptable threshold twice in a row, health/safety violations found during audit, brand damage incidents (social media, complaints), or loyalty program fraud patterns — notify QA director or brand manager.\n**Guardrails**: Never publish a promotion without confirming inventory support from supply chain; do not close out a corrective action plan without a verified re-audit; treat any safety violation as immediate escalation, not routine follow-up.",
+        "capabilities": [
+          "brand_marketing",
+          "quality_assurance"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Brand, Marketing & Quality Agent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "caf_operations_agent",
+        "name": "Café Operations Agent",
+        "goal": "Run reliable, well-staffed café floors that serve customers accurately and handle cash correctly",
+        "instructions": "**Role**: Runs day-to-day in-café operations — staffing, service, and point-of-sale.\n**How you work**: Build barista schedules based on forecasted demand and staff availability, take and fulfill in-store/app orders, process payments via POS or prepaid app, reconcile daily sales against bank takings, monitor local stock levels and trigger reorders per inventory thresholds.\n**When to escalate**: Repeated no-shows or staffing shortfalls that risk coverage, cash/sales discrepancies beyond tolerance, POS system failures, or stockouts on high-demand items — notify café manager or regional ops.\n**Guardrails**: Never leave a shift uncovered without escalation; reconcile and report cash takings daily without exception; do not deviate from published recipes/pricing without approval.",
+        "capabilities": [
+          "cafe_service_operations",
+          "workforce_management",
+          "sales_cash_management",
+          "inventory_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Café Operations Agent"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,3472 @@
+{
+  "capabilities": {
+    "version": "0.2",
+    "domain": "law_firm",
+    "capabilities": [
+      {
+        "id": "conflict_clearance",
+        "name": "Conflict Clearance",
+        "purpose": "Screen new parties and matters against existing clients to avoid conflicts of interest before work begins.",
+        "outcomes": [
+          "take_on_right_matters"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "conflict-check-screen-new-parties-against-the-client-and-matter-database-before-any-work-begins",
+              "contentHash": "3fb88bed5a70c825a3403689f4bf1a305b7b525efaaa602c92528a21c4413d20"
+            }
+          ]
+        }
+      },
+      {
+        "id": "client_intake",
+        "name": "Client Intake",
+        "purpose": "Capture the issue, parties, deadlines and decision-maker to decide whether to act for a prospective client.",
+        "outcomes": [
+          "take_on_right_matters"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "client-intake-capture-the-issue-parties-deadlines-and-decision-maker-decide-whether-to-act",
+              "contentHash": "b33a5b3e180b6af37a0c4997ae31f986dfd3b779a725cbc9158eb0c3dd4f912b"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_management",
+        "name": "Engagement Management",
+        "purpose": "Agree engagement letters and fee arrangements and open new matters properly.",
+        "outcomes": [
+          "take_on_right_matters"
+        ],
+        "depends_on": [
+          "conflict_clearance",
+          "client_intake"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "engagement-agree-the-letter-and-fee-arrangement-hourly-fixed-retainer-open-the-matter-with-a",
+              "contentHash": "4471c606f476dd9dfbc8f2d7eb5ead2c1dfcf7f2f9882fd14807cb63c12dd2fc"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_execution",
+        "name": "Matter Execution",
+        "purpose": "Perform the substantive legal work: drafting, review, and discovery for each matter.",
+        "outcomes": [
+          "deliver_quality_legal_work"
+        ],
+        "depends_on": [
+          "engagement_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "matter-work-draft-pleadings-and-contracts-review-the-other-side-s-documents-run-discovery",
+              "contentHash": "0130885873047bb85ec338a1474a21516f589880eeddaa70ecd9004a065760d7"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_management",
+        "name": "Deadline Management",
+        "purpose": "Track and double-track all court dates, filing deadlines, and limitation periods to ensure nothing is missed.",
+        "outcomes": [
+          "meet_every_deadline"
+        ],
+        "depends_on": [
+          "matter_execution"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "deadline-management-diary-and-double-diary-court-dates-filing-deadlines-and-limitation-periods",
+              "contentHash": "f5f815b9357bde79996d20743b4e9d95a39dd6623148ad098136d1be830142be"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_recording",
+        "name": "Time Recording",
+        "purpose": "Capture lawyer time against matters in six-minute units as the basis for accurate billing.",
+        "outcomes": [
+          "bill_accurately_and_collect"
+        ],
+        "depends_on": [
+          "matter_execution"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "time-recording-lawyers-log-time-to-the-matter-in-six-minute-units-the-basis-for-billing",
+              "contentHash": "15ed01411b49f78b5ce747e68275066bc641c385b553c09e7f47a9332c3705bf"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_management",
+        "name": "Document Management",
+        "purpose": "Maintain versioned matter files and ensure clarity on who holds the latest version.",
+        "outcomes": [
+          "deliver_quality_legal_work",
+          "protect_confidentiality_and_privilege"
+        ],
+        "depends_on": [
+          "matter_execution"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "document-management-versioned-matter-files-know-who-holds-the-latest",
+              "contentHash": "91cfc6cc79aebf32b76812b53d7bd0ac54329d4c3eda228b6c616260a5c1cf1a"
+            }
+          ]
+        }
+      },
+      {
+        "id": "client_communication_logging",
+        "name": "Client Communication Logging",
+        "purpose": "Log every material client interaction to the matter for accountability and continuity.",
+        "outcomes": [
+          "protect_confidentiality_and_privilege",
+          "deliver_quality_legal_work"
+        ],
+        "depends_on": [
+          "matter_execution"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "client-communication-log-every-material-client-interaction-to-the-matter",
+              "contentHash": "13379498789e4971aea6f8a02651ab82b6862df0f79d8be0e34f2409ef75094c"
+            }
+          ]
+        }
+      },
+      {
+        "id": "billing",
+        "name": "Billing",
+        "purpose": "Assemble, review, issue and collect bills based on logged time and value delivered.",
+        "outcomes": [
+          "bill_accurately_and_collect"
+        ],
+        "depends_on": [
+          "time_recording"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "billing-assemble-monthly-bills-from-logged-time-a-partner-reviews-and-writes-off-issue-and-collect",
+              "contentHash": "3464a1088d2f11b233a44410c469b165787c1261c8e7373f3aa19ade3bfac91a"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_accounting",
+        "name": "Trust Accounting",
+        "purpose": "Hold client funds and retainers safely in trust, drawing only as billed to remain compliant.",
+        "outcomes": [
+          "keep_client_money_safe_and_compliant"
+        ],
+        "depends_on": [
+          "billing"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "trust-accounting-hold-retainers-and-client-funds-in-a-separate-trust-account-draw-only-as-billed",
+              "contentHash": "348fad3eb748234ffd5e478b30ffae19314987853d75ab7a986dfd9e8c4ae073"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "contexts": {
+    "version": "1.0",
+    "contexts": [
+      {
+        "id": "c_bc922401",
+        "name": "Client & Engagement Intake",
+        "intent": "Screen, capture, and formally onboard prospective clients and matters before work begins.",
+        "capabilities": [
+          "conflict_clearance",
+          "client_intake",
+          "engagement_management"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Narrative theme: pre-work screening and onboarding of clients/matters"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_d294f541",
+        "name": "Matter Delivery & Records",
+        "intent": "Perform and manage the substantive legal work and the records that document it.",
+        "capabilities": [
+          "matter_execution",
+          "deadline_management",
+          "document_management",
+          "client_communication_logging"
+        ],
+        "shared_kernel": [
+          "time_recording"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Shared entity: the matter file and its associated deadlines, documents, and communications"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_4ddc74d8",
+        "name": "Financial Management",
+        "intent": "Convert recorded work into billed revenue and safeguard client funds in compliance with trust obligations.",
+        "capabilities": [
+          "time_recording",
+          "billing",
+          "trust_accounting"
+        ],
+        "shared_kernel": [
+          "matter_execution"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Shared data: recorded time and billed amounts flowing into trust and billing ledgers"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "domain": {
+    "version": "1.0",
+    "aggregates": [
+      {
+        "id": "prospective_party",
+        "name": "Prospective Party",
+        "owner": "conflict_clearance",
+        "attributes": [
+          {
+            "name": "party_name",
+            "type": "text"
+          },
+          {
+            "name": "role",
+            "type": "text"
+          },
+          {
+            "name": "conflict_status",
+            "type": "text"
+          }
+        ],
+        "references": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "conflict_clearance"
+            }
+          ]
+        }
+      },
+      {
+        "id": "conflict_check",
+        "name": "Conflict Check",
+        "owner": "conflict_clearance",
+        "attributes": [
+          {
+            "name": "checked_date",
+            "type": "date"
+          },
+          {
+            "name": "result",
+            "type": "text"
+          },
+          {
+            "name": "cleared",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "prospective_party"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "conflict_clearance"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_client",
+        "name": "Prospective Client",
+        "owner": "client_intake",
+        "attributes": [
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "issue_summary",
+            "type": "text"
+          },
+          {
+            "name": "decision_maker",
+            "type": "text"
+          },
+          {
+            "name": "intake_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "conflict_check"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "client_intake"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record",
+        "name": "Intake Record",
+        "owner": "client_intake",
+        "attributes": [
+          {
+            "name": "deadline_noted",
+            "type": "date"
+          },
+          {
+            "name": "accepted",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "prospective_client"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "client_intake"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter",
+        "name": "Engagement Letter",
+        "owner": "engagement_management",
+        "attributes": [
+          {
+            "name": "signed_date",
+            "type": "date"
+          },
+          {
+            "name": "fee_arrangement",
+            "type": "text"
+          },
+          {
+            "name": "scope",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "prospective_client",
+          "prospective_party"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "engagement_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter",
+        "name": "Matter",
+        "owner": "engagement_management",
+        "attributes": [
+          {
+            "name": "matter_number",
+            "type": "text"
+          },
+          {
+            "name": "open_date",
+            "type": "date"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "engagement_letter",
+          "prospective_client",
+          "prospective_party"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "engagement_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item",
+        "name": "Work Item",
+        "owner": "matter_execution",
+        "attributes": [
+          {
+            "name": "description",
+            "type": "text"
+          },
+          {
+            "name": "type",
+            "type": "text"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "matter"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "matter_execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "discovery_request",
+        "name": "Discovery Request",
+        "owner": "matter_execution",
+        "attributes": [
+          {
+            "name": "description",
+            "type": "text"
+          },
+          {
+            "name": "due_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "matter"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "matter_execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline",
+        "name": "Deadline",
+        "owner": "deadline_management",
+        "attributes": [
+          {
+            "name": "deadline_type",
+            "type": "text"
+          },
+          {
+            "name": "due_date",
+            "type": "date"
+          },
+          {
+            "name": "double_tracked",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "matter",
+          "work_item"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "deadline_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry",
+        "name": "Time Entry",
+        "owner": "time_recording",
+        "attributes": [
+          {
+            "name": "duration_units",
+            "type": "number"
+          },
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "description",
+            "type": "text"
+          },
+          {
+            "name": "lawyer",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "matter",
+          "work_item"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "time_recording"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document",
+        "name": "Document",
+        "owner": "document_management",
+        "attributes": [
+          {
+            "name": "title",
+            "type": "text"
+          },
+          {
+            "name": "version",
+            "type": "number"
+          },
+          {
+            "name": "current_holder",
+            "type": "text"
+          },
+          {
+            "name": "last_modified",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "matter",
+          "work_item"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "document_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "communication_log",
+        "name": "Communication Log",
+        "owner": "client_communication_logging",
+        "attributes": [
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "summary",
+            "type": "text"
+          },
+          {
+            "name": "channel",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "matter",
+          "prospective_client",
+          "work_item"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "client_communication_logging"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice",
+        "name": "Invoice",
+        "owner": "billing",
+        "attributes": [
+          {
+            "name": "amount",
+            "type": "money"
+          },
+          {
+            "name": "issue_date",
+            "type": "date"
+          },
+          {
+            "name": "paid",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "matter",
+          "time_entry"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "billing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account",
+        "name": "Trust Account",
+        "owner": "trust_accounting",
+        "attributes": [
+          {
+            "name": "balance",
+            "type": "money"
+          },
+          {
+            "name": "opened_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "prospective_client",
+          "matter",
+          "invoice"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "trust_accounting"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_transaction",
+        "name": "Trust Transaction",
+        "owner": "trust_accounting",
+        "attributes": [
+          {
+            "name": "amount",
+            "type": "money"
+          },
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "transaction_type",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "trust_account",
+          "invoice"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "trust_accounting"
+            }
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "id": "prospective_party_submit_party_for_screening",
+        "name": "Submit Party For Screening",
+        "aggregate": "prospective_party",
+        "capability": "conflict_clearance",
+        "emits": [
+          "prospective_party_party_submitted_for_screening"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "screen new parties and matters against existing clients"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_run_conflict_check",
+        "name": "Run Conflict Check",
+        "aggregate": "prospective_party",
+        "capability": "conflict_clearance",
+        "emits": [
+          "prospective_party_conflict_check_completed",
+          "prospective_party_conflict_detected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "screen new parties and matters against existing clients to avoid conflicts of interest"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_clear_party",
+        "name": "Clear Party",
+        "aggregate": "prospective_party",
+        "capability": "conflict_clearance",
+        "emits": [
+          "prospective_party_party_cleared"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "avoid conflicts of interest before work begins"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_reject_party",
+        "name": "Reject Party",
+        "aggregate": "prospective_party",
+        "capability": "conflict_clearance",
+        "emits": [
+          "prospective_party_party_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "avoid conflicts of interest before work begins"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_request_conflict_waiver",
+        "name": "Request Conflict Waiver",
+        "aggregate": "prospective_party",
+        "capability": "conflict_clearance",
+        "emits": [
+          "prospective_party_conflict_waiver_requested"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "screen new parties and matters against existing clients"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_grant_conflict_waiver",
+        "name": "Grant Conflict Waiver",
+        "aggregate": "prospective_party",
+        "capability": "conflict_clearance",
+        "emits": [
+          "prospective_party_conflict_waiver_granted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "avoid conflicts of interest before work begins"
+            }
+          ]
+        }
+      },
+      {
+        "id": "conflict_check_request_conflict_check",
+        "name": "Request Conflict Check",
+        "aggregate": "conflict_check",
+        "capability": "conflict_clearance",
+        "emits": [
+          "conflict_check_requested"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Screen new parties and matters against existing clients"
+            }
+          ]
+        }
+      },
+      {
+        "id": "conflict_check_record_conflict_check_result",
+        "name": "Record Conflict Check Result",
+        "aggregate": "conflict_check",
+        "capability": "conflict_clearance",
+        "emits": [
+          "conflict_check_completed",
+          "conflict_check_conflict_detected",
+          "conflict_check_conflict_cleared"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "avoid conflicts of interest before work begins"
+            }
+          ]
+        }
+      },
+      {
+        "id": "conflict_check_waive_conflict_check",
+        "name": "Waive Conflict Check",
+        "aggregate": "conflict_check",
+        "capability": "conflict_clearance",
+        "emits": [
+          "conflict_check_waived"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "avoid conflicts of interest before work begins"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_client_register_prospective_client",
+        "name": "Register Prospective Client",
+        "aggregate": "prospective_client",
+        "capability": "client_intake",
+        "emits": [
+          "prospective_client_registered"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Capture the issue, parties, deadlines and decision-maker"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_client_capture_intake_details",
+        "name": "Capture Intake Details",
+        "aggregate": "prospective_client",
+        "capability": "client_intake",
+        "emits": [
+          "prospective_client_intake_details_captured"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Capture the issue, parties, deadlines and decision-maker"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_client_decline_prospective_client",
+        "name": "Decline Prospective Client",
+        "aggregate": "prospective_client",
+        "capability": "client_intake",
+        "emits": [
+          "prospective_client_declined"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "decide whether to act for a prospective client"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_client_accept_prospective_client_for_engagement",
+        "name": "Accept Prospective Client For Engagement",
+        "aggregate": "prospective_client",
+        "capability": "client_intake",
+        "emits": [
+          "prospective_client_accepted_for_engagement"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "decide whether to act for a prospective client"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_open_intake_record",
+        "name": "Open Intake Record",
+        "aggregate": "intake_record",
+        "capability": "client_intake",
+        "emits": [
+          "intake_record_opened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_capture_issue_and_parties",
+        "name": "Capture Issue And Parties",
+        "aggregate": "intake_record",
+        "capability": "client_intake",
+        "emits": [
+          "intake_record_issue_and_parties_captured"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_note_deadline",
+        "name": "Note Deadline",
+        "aggregate": "intake_record",
+        "capability": "client_intake",
+        "emits": [
+          "intake_record_deadline_noted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_identify_decision_maker",
+        "name": "Identify Decision Maker",
+        "aggregate": "intake_record",
+        "capability": "client_intake",
+        "emits": [
+          "intake_record_decision_maker_identified"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_accept_prospective_client",
+        "name": "Accept Prospective Client",
+        "aggregate": "intake_record",
+        "capability": "client_intake",
+        "emits": [
+          "intake_record_prospective_client_accepted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_decline_prospective_client",
+        "name": "Decline Prospective Client",
+        "aggregate": "intake_record",
+        "capability": "client_intake",
+        "emits": [
+          "intake_record_prospective_client_declined"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_draft_engagement_letter",
+        "name": "Draft Engagement Letter",
+        "aggregate": "engagement_letter",
+        "capability": "engagement_management",
+        "emits": [
+          "engagement_letter_drafted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Agree engagement letters and fee arrangements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_send_engagement_letter",
+        "name": "Send Engagement Letter",
+        "aggregate": "engagement_letter",
+        "capability": "engagement_management",
+        "emits": [
+          "engagement_letter_sent"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Agree engagement letters and fee arrangements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_record_client_signature",
+        "name": "Record Client Signature",
+        "aggregate": "engagement_letter",
+        "capability": "engagement_management",
+        "emits": [
+          "engagement_letter_signed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "open new matters properly"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_reject_engagement_letter",
+        "name": "Reject Engagement Letter",
+        "aggregate": "engagement_letter",
+        "capability": "engagement_management",
+        "emits": [
+          "engagement_letter_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Agree engagement letters and fee arrangements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_amend_fee_arrangement",
+        "name": "Amend Fee Arrangement",
+        "aggregate": "engagement_letter",
+        "capability": "engagement_management",
+        "emits": [
+          "engagement_letter_fee_arrangement_amended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Agree engagement letters and fee arrangements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_amend_scope",
+        "name": "Amend Scope",
+        "aggregate": "engagement_letter",
+        "capability": "engagement_management",
+        "emits": [
+          "engagement_letter_scope_amended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Agree engagement letters and fee arrangements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_open_matter",
+        "name": "Open Matter",
+        "aggregate": "matter",
+        "capability": "engagement_management",
+        "emits": [
+          "matter_opened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "open new matters properly"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_agree_engagement_letter",
+        "name": "Agree Engagement Letter",
+        "aggregate": "matter",
+        "capability": "engagement_management",
+        "emits": [
+          "matter_engagement_letter_agreed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "agree engagement letters and fee arrangements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_amend_matter_scope",
+        "name": "Amend Matter Scope",
+        "aggregate": "matter",
+        "capability": "engagement_management",
+        "emits": [
+          "matter_scope_amended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "agree engagement letters and fee arrangements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_close_matter",
+        "name": "Close Matter",
+        "aggregate": "matter",
+        "capability": "engagement_management",
+        "emits": [
+          "matter_closed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "open new matters properly"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_reopen_matter",
+        "name": "Reopen Matter",
+        "aggregate": "matter",
+        "capability": "engagement_management",
+        "emits": [
+          "matter_reopened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "open new matters properly"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_create_work_item",
+        "name": "Create Work Item",
+        "aggregate": "work_item",
+        "capability": "matter_execution",
+        "emits": [
+          "work_item_created"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter_execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_start_work_item",
+        "name": "Start Work Item",
+        "aggregate": "work_item",
+        "capability": "matter_execution",
+        "emits": [
+          "work_item_started"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter_execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_complete_work_item",
+        "name": "Complete Work Item",
+        "aggregate": "work_item",
+        "capability": "matter_execution",
+        "emits": [
+          "work_item_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter_execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_review_work_item",
+        "name": "Review Work Item",
+        "aggregate": "work_item",
+        "capability": "matter_execution",
+        "emits": [
+          "work_item_reviewed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter_execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_block_work_item",
+        "name": "Block Work Item",
+        "aggregate": "work_item",
+        "capability": "matter_execution",
+        "emits": [
+          "work_item_blocked"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter_execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_reassign_work_item",
+        "name": "Reassign Work Item",
+        "aggregate": "work_item",
+        "capability": "matter_execution",
+        "emits": [
+          "work_item_reassigned"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter_execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_cancel_work_item",
+        "name": "Cancel Work Item",
+        "aggregate": "work_item",
+        "capability": "matter_execution",
+        "emits": [
+          "work_item_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter_execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "discovery_request_issue_discovery_request",
+        "name": "Issue Discovery Request",
+        "aggregate": "discovery_request",
+        "capability": "matter_execution",
+        "emits": [
+          "discovery_request_issued"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "discovery"
+            }
+          ]
+        }
+      },
+      {
+        "id": "discovery_request_respond_to_discovery_request",
+        "name": "Respond To Discovery Request",
+        "aggregate": "discovery_request",
+        "capability": "matter_execution",
+        "emits": [
+          "discovery_request_responded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "discovery"
+            }
+          ]
+        }
+      },
+      {
+        "id": "discovery_request_extend_discovery_request_deadline",
+        "name": "Extend Discovery Request Deadline",
+        "aggregate": "discovery_request",
+        "capability": "matter_execution",
+        "emits": [
+          "discovery_request_extended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "discovery"
+            }
+          ]
+        }
+      },
+      {
+        "id": "discovery_request_withdraw_discovery_request",
+        "name": "Withdraw Discovery Request",
+        "aggregate": "discovery_request",
+        "capability": "matter_execution",
+        "emits": [
+          "discovery_request_withdrawn"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "discovery"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_calculate_deadline",
+        "name": "Calculate Deadline",
+        "aggregate": "deadline",
+        "capability": "deadline_management",
+        "emits": [
+          "deadline_calculated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "track court dates, filing deadlines, and limitation periods"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_double_track_deadline",
+        "name": "Double Track Deadline",
+        "aggregate": "deadline",
+        "capability": "deadline_management",
+        "emits": [
+          "deadline_double_tracked"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "double-track all court dates and deadlines"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_reschedule_deadline",
+        "name": "Reschedule Deadline",
+        "aggregate": "deadline",
+        "capability": "deadline_management",
+        "emits": [
+          "deadline_rescheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ensure nothing is missed"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_mark_deadline_met",
+        "name": "Mark Deadline Met",
+        "aggregate": "deadline",
+        "capability": "deadline_management",
+        "emits": [
+          "deadline_met"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ensure nothing is missed"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_flag_deadline_missed",
+        "name": "Flag Deadline Missed",
+        "aggregate": "deadline",
+        "capability": "deadline_management",
+        "emits": [
+          "deadline_missed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ensure nothing is missed"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_cancel_deadline",
+        "name": "Cancel Deadline",
+        "aggregate": "deadline",
+        "capability": "deadline_management",
+        "emits": [
+          "deadline_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "track court dates, filing deadlines, and limitation periods"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_record_time_entry",
+        "name": "Record Time Entry",
+        "aggregate": "time_entry",
+        "capability": "time_recording",
+        "emits": [
+          "time_entry_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Capture lawyer time against matters in six-minute units"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_correct_time_entry",
+        "name": "Correct Time Entry",
+        "aggregate": "time_entry",
+        "capability": "time_recording",
+        "emits": [
+          "time_entry_corrected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "accurate billing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_submit_time_entry_for_approval",
+        "name": "Submit Time Entry For Approval",
+        "aggregate": "time_entry",
+        "capability": "time_recording",
+        "emits": [
+          "time_entry_submitted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "basis for accurate billing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_approve_time_entry",
+        "name": "Approve Time Entry",
+        "aggregate": "time_entry",
+        "capability": "time_recording",
+        "emits": [
+          "time_entry_approved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "basis for accurate billing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_reject_time_entry",
+        "name": "Reject Time Entry",
+        "aggregate": "time_entry",
+        "capability": "time_recording",
+        "emits": [
+          "time_entry_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "basis for accurate billing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_mark_time_entry_billed",
+        "name": "Mark Time Entry Billed",
+        "aggregate": "time_entry",
+        "capability": "time_recording",
+        "emits": [
+          "time_entry_billed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "basis for accurate billing"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_create_document",
+        "name": "Create Document",
+        "aggregate": "document",
+        "capability": "document_management",
+        "emits": [
+          "document_created"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_check_out_document",
+        "name": "Check Out Document",
+        "aggregate": "document",
+        "capability": "document_management",
+        "emits": [
+          "document_checked_out"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_revise_document",
+        "name": "Revise Document",
+        "aggregate": "document",
+        "capability": "document_management",
+        "emits": [
+          "document_revised"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_check_in_document",
+        "name": "Check In Document",
+        "aggregate": "document",
+        "capability": "document_management",
+        "emits": [
+          "document_checked_in"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_revert_document_version",
+        "name": "Revert Document Version",
+        "aggregate": "document",
+        "capability": "document_management",
+        "emits": [
+          "document_version_reverted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_archive_document",
+        "name": "Archive Document",
+        "aggregate": "document",
+        "capability": "document_management",
+        "emits": [
+          "document_archived"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "communication_log_log_communication",
+        "name": "Log Communication",
+        "aggregate": "communication_log",
+        "capability": "client_communication_logging",
+        "emits": [
+          "communication_log_communication_logged"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Log every material client interaction to the matter for accountability and continuity"
+            }
+          ]
+        }
+      },
+      {
+        "id": "communication_log_correct_communication_log_entry",
+        "name": "Correct Communication Log Entry",
+        "aggregate": "communication_log",
+        "capability": "client_communication_logging",
+        "emits": [
+          "communication_log_corrected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Log every material client interaction to the matter for accountability and continuity"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_draft_invoice",
+        "name": "Draft Invoice",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_drafted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Assemble bills based on logged time and value delivered"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_review_invoice",
+        "name": "Review Invoice",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_reviewed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "review... bills"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_issue_invoice",
+        "name": "Issue Invoice",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_issued"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "issue... bills"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_record_invoice_payment",
+        "name": "Record Invoice Payment",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_payment_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "collect bills"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_dispute_invoice",
+        "name": "Dispute Invoice",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_disputed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "collect bills"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_write_off_invoice",
+        "name": "Write Off Invoice",
+        "aggregate": "invoice",
+        "capability": "billing",
+        "emits": [
+          "invoice_written_off"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "collect bills"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_open_trust_account",
+        "name": "Open Trust Account",
+        "aggregate": "trust_account",
+        "capability": "trust_accounting",
+        "emits": [
+          "trust_account_opened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Hold client funds and retainers safely in trust"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_deposit_trust_funds",
+        "name": "Deposit Trust Funds",
+        "aggregate": "trust_account",
+        "capability": "trust_accounting",
+        "emits": [
+          "trust_account_trust_funds_deposited"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Hold client funds and retainers safely in trust"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_draw_down_billed_funds",
+        "name": "Draw Down Billed Funds",
+        "aggregate": "trust_account",
+        "capability": "trust_accounting",
+        "emits": [
+          "trust_account_trust_funds_drawn_down"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "drawing only as billed to remain compliant"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_withdraw_trust_funds",
+        "name": "Withdraw Trust Funds",
+        "aggregate": "trust_account",
+        "capability": "trust_accounting",
+        "emits": [
+          "trust_account_trust_funds_withdrawn"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "drawing only as billed to remain compliant"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_reconcile_trust_account",
+        "name": "Reconcile Trust Account",
+        "aggregate": "trust_account",
+        "capability": "trust_accounting",
+        "emits": [
+          "trust_account_reconciled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "remain compliant"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_close_trust_account",
+        "name": "Close Trust Account",
+        "aggregate": "trust_account",
+        "capability": "trust_accounting",
+        "emits": [
+          "trust_account_closed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Hold client funds and retainers safely in trust"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_transaction_record_trust_deposit",
+        "name": "Record Trust Deposit",
+        "aggregate": "trust_transaction",
+        "capability": "trust_accounting",
+        "emits": [
+          "trust_transaction_trust_deposit_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "hold client funds and retainers safely in trust"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_transaction_draw_trust_funds_against_billed_invoice",
+        "name": "Draw Trust Funds Against Billed Invoice",
+        "aggregate": "trust_transaction",
+        "capability": "trust_accounting",
+        "emits": [
+          "trust_transaction_trust_funds_drawn_against_invoice",
+          "trust_transaction_trust_withdrawal_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "drawing only as billed to remain compliant"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_transaction_refund_trust_funds",
+        "name": "Refund Trust Funds",
+        "aggregate": "trust_transaction",
+        "capability": "trust_accounting",
+        "emits": [
+          "trust_transaction_trust_funds_refunded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "hold client funds and retainers safely in trust"
+            }
+          ]
+        }
+      }
+    ],
+    "events": [
+      {
+        "id": "prospective_party_party_submitted_for_screening",
+        "name": "Party Submitted For Screening",
+        "aggregate": "prospective_party",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_party"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_conflict_check_completed",
+        "name": "Conflict Check Completed",
+        "aggregate": "prospective_party",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_party"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_conflict_detected",
+        "name": "Conflict Detected",
+        "aggregate": "prospective_party",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_party"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_party_cleared",
+        "name": "Party Cleared",
+        "aggregate": "prospective_party",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_party"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_party_rejected",
+        "name": "Party Rejected",
+        "aggregate": "prospective_party",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_party"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_conflict_waiver_requested",
+        "name": "Conflict Waiver Requested",
+        "aggregate": "prospective_party",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_party"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_party_conflict_waiver_granted",
+        "name": "Conflict Waiver Granted",
+        "aggregate": "prospective_party",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_party"
+            }
+          ]
+        }
+      },
+      {
+        "id": "conflict_check_requested",
+        "name": "Conflict Check Requested",
+        "aggregate": "conflict_check",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "conflict_check"
+            }
+          ]
+        }
+      },
+      {
+        "id": "conflict_check_completed",
+        "name": "Conflict Check Completed",
+        "aggregate": "conflict_check",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "conflict_check"
+            }
+          ]
+        }
+      },
+      {
+        "id": "conflict_check_conflict_detected",
+        "name": "Conflict Detected",
+        "aggregate": "conflict_check",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "conflict_check"
+            }
+          ]
+        }
+      },
+      {
+        "id": "conflict_check_conflict_cleared",
+        "name": "Conflict Cleared",
+        "aggregate": "conflict_check",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "conflict_check"
+            }
+          ]
+        }
+      },
+      {
+        "id": "conflict_check_waived",
+        "name": "Conflict Check Waived",
+        "aggregate": "conflict_check",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "conflict_check"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_client_registered",
+        "name": "Prospective Client Registered",
+        "aggregate": "prospective_client",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_client"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_client_intake_details_captured",
+        "name": "Intake Details Captured",
+        "aggregate": "prospective_client",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_client"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_client_declined",
+        "name": "Prospective Client Declined",
+        "aggregate": "prospective_client",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_client"
+            }
+          ]
+        }
+      },
+      {
+        "id": "prospective_client_accepted_for_engagement",
+        "name": "Prospective Client Accepted For Engagement",
+        "aggregate": "prospective_client",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prospective_client"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_opened",
+        "name": "Intake Record Opened",
+        "aggregate": "intake_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_issue_and_parties_captured",
+        "name": "Issue And Parties Captured",
+        "aggregate": "intake_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_deadline_noted",
+        "name": "Deadline Noted",
+        "aggregate": "intake_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_decision_maker_identified",
+        "name": "Decision Maker Identified",
+        "aggregate": "intake_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_prospective_client_accepted",
+        "name": "Prospective Client Accepted",
+        "aggregate": "intake_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "intake_record_prospective_client_declined",
+        "name": "Prospective Client Declined",
+        "aggregate": "intake_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_drafted",
+        "name": "Engagement Letter Drafted",
+        "aggregate": "engagement_letter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "engagement_letter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_sent",
+        "name": "Engagement Letter Sent",
+        "aggregate": "engagement_letter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "engagement_letter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_signed",
+        "name": "Engagement Letter Signed",
+        "aggregate": "engagement_letter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "engagement_letter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_rejected",
+        "name": "Engagement Letter Rejected",
+        "aggregate": "engagement_letter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "engagement_letter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_fee_arrangement_amended",
+        "name": "Fee Arrangement Amended",
+        "aggregate": "engagement_letter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "engagement_letter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "engagement_letter_scope_amended",
+        "name": "Scope Amended",
+        "aggregate": "engagement_letter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "engagement_letter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_opened",
+        "name": "Matter Opened",
+        "aggregate": "matter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_engagement_letter_agreed",
+        "name": "Engagement Letter Agreed",
+        "aggregate": "matter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_scope_amended",
+        "name": "Matter Scope Amended",
+        "aggregate": "matter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_closed",
+        "name": "Matter Closed",
+        "aggregate": "matter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_reopened",
+        "name": "Matter Reopened",
+        "aggregate": "matter",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "matter"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_created",
+        "name": "Work Item Created",
+        "aggregate": "work_item",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_item"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_started",
+        "name": "Work Item Started",
+        "aggregate": "work_item",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_item"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_completed",
+        "name": "Work Item Completed",
+        "aggregate": "work_item",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_item"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_reviewed",
+        "name": "Work Item Reviewed",
+        "aggregate": "work_item",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_item"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_blocked",
+        "name": "Work Item Blocked",
+        "aggregate": "work_item",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_item"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_reassigned",
+        "name": "Work Item Reassigned",
+        "aggregate": "work_item",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_item"
+            }
+          ]
+        }
+      },
+      {
+        "id": "work_item_cancelled",
+        "name": "Work Item Cancelled",
+        "aggregate": "work_item",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "work_item"
+            }
+          ]
+        }
+      },
+      {
+        "id": "discovery_request_issued",
+        "name": "Discovery Request Issued",
+        "aggregate": "discovery_request",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "discovery_request"
+            }
+          ]
+        }
+      },
+      {
+        "id": "discovery_request_responded",
+        "name": "Discovery Request Responded",
+        "aggregate": "discovery_request",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "discovery_request"
+            }
+          ]
+        }
+      },
+      {
+        "id": "discovery_request_extended",
+        "name": "Discovery Request Extended",
+        "aggregate": "discovery_request",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "discovery_request"
+            }
+          ]
+        }
+      },
+      {
+        "id": "discovery_request_withdrawn",
+        "name": "Discovery Request Withdrawn",
+        "aggregate": "discovery_request",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "discovery_request"
+            }
+          ]
+        }
+      },
+      {
+        "id": "discovery_request_overdue",
+        "name": "Discovery Request Overdue",
+        "aggregate": "discovery_request",
+        "trigger": "time",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "discovery_request"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_calculated",
+        "name": "Deadline Calculated",
+        "aggregate": "deadline",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deadline"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_double_tracked",
+        "name": "Deadline Double Tracked",
+        "aggregate": "deadline",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deadline"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_rescheduled",
+        "name": "Deadline Rescheduled",
+        "aggregate": "deadline",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deadline"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_met",
+        "name": "Deadline Met",
+        "aggregate": "deadline",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deadline"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_missed",
+        "name": "Deadline Missed",
+        "aggregate": "deadline",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deadline"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deadline_cancelled",
+        "name": "Deadline Cancelled",
+        "aggregate": "deadline",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deadline"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_recorded",
+        "name": "Time Entry Recorded",
+        "aggregate": "time_entry",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "time_entry"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_corrected",
+        "name": "Time Entry Corrected",
+        "aggregate": "time_entry",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "time_entry"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_submitted",
+        "name": "Time Entry Submitted",
+        "aggregate": "time_entry",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "time_entry"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_approved",
+        "name": "Time Entry Approved",
+        "aggregate": "time_entry",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "time_entry"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_rejected",
+        "name": "Time Entry Rejected",
+        "aggregate": "time_entry",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "time_entry"
+            }
+          ]
+        }
+      },
+      {
+        "id": "time_entry_billed",
+        "name": "Time Entry Billed",
+        "aggregate": "time_entry",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "time_entry"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_created",
+        "name": "Document Created",
+        "aggregate": "document",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_checked_out",
+        "name": "Document Checked Out",
+        "aggregate": "document",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_revised",
+        "name": "Document Revised",
+        "aggregate": "document",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_checked_in",
+        "name": "Document Checked In",
+        "aggregate": "document",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_version_reverted",
+        "name": "Document Version Reverted",
+        "aggregate": "document",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "document_archived",
+        "name": "Document Archived",
+        "aggregate": "document",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "document"
+            }
+          ]
+        }
+      },
+      {
+        "id": "communication_log_communication_logged",
+        "name": "Communication Logged",
+        "aggregate": "communication_log",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "communication_log"
+            }
+          ]
+        }
+      },
+      {
+        "id": "communication_log_corrected",
+        "name": "Communication Log Corrected",
+        "aggregate": "communication_log",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "communication_log"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_drafted",
+        "name": "Invoice Drafted",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_reviewed",
+        "name": "Invoice Reviewed",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_issued",
+        "name": "Invoice Issued",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_payment_recorded",
+        "name": "Invoice Payment Recorded",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_disputed",
+        "name": "Invoice Disputed",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "invoice_written_off",
+        "name": "Invoice Written Off",
+        "aggregate": "invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_opened",
+        "name": "Trust Account Opened",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_trust_funds_deposited",
+        "name": "Trust Funds Deposited",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_trust_funds_drawn_down",
+        "name": "Trust Funds Drawn Down",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_trust_funds_withdrawn",
+        "name": "Trust Funds Withdrawn",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_reconciled",
+        "name": "Trust Account Reconciled",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_closed",
+        "name": "Trust Account Closed",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_transaction_trust_deposit_recorded",
+        "name": "Trust Deposit Recorded",
+        "aggregate": "trust_transaction",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_transaction_trust_funds_drawn_against_invoice",
+        "name": "Trust Funds Drawn Against Invoice",
+        "aggregate": "trust_transaction",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_transaction_trust_withdrawal_rejected",
+        "name": "Trust Withdrawal Rejected",
+        "aggregate": "trust_transaction",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_transaction"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_transaction_trust_funds_refunded",
+        "name": "Trust Funds Refunded",
+        "aggregate": "trust_transaction",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_transaction"
+            }
+          ]
+        }
+      }
+    ],
+    "policies": []
+  },
+  "roles": {
+    "version": "1.0",
+    "roles": [
+      {
+        "id": "intake_coordinator",
+        "name": "Intake Coordinator",
+        "capabilities": [
+          "conflict_clearance",
+          "client_intake"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "intake and conflicts screening"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_lead_attorney",
+        "name": "Matter Lead Attorney",
+        "capabilities": [
+          "engagement_management",
+          "matter_execution",
+          "deadline_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "lawyer responsible for matter work and deadlines"
+            }
+          ]
+        }
+      },
+      {
+        "id": "legal_practice_support",
+        "name": "Legal Practice Support",
+        "capabilities": [
+          "document_management",
+          "client_communication_logging"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "file and communication management support staff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "billing_administrator",
+        "name": "Billing Administrator",
+        "capabilities": [
+          "time_recording",
+          "billing",
+          "trust_accounting"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "finance/billing clerk handling time entry, invoicing, and trust funds"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "workflows": {
+    "version": "1.0",
+    "workflows": [
+      {
+        "id": "client_intake_to_engagement",
+        "name": "Client Intake to Engagement",
+        "steps": [
+          "prospective_party_submit_party_for_screening",
+          "prospective_party_run_conflict_check",
+          "conflict_check_request_conflict_check",
+          "conflict_check_record_conflict_check_result",
+          "prospective_party_clear_party",
+          "prospective_client_register_prospective_client",
+          "prospective_client_capture_intake_details",
+          "intake_record_open_intake_record",
+          "intake_record_capture_issue_and_parties",
+          "intake_record_note_deadline",
+          "intake_record_identify_decision_maker",
+          "intake_record_accept_prospective_client",
+          "prospective_client_accept_prospective_client_for_engagement",
+          "engagement_letter_draft_engagement_letter",
+          "engagement_letter_send_engagement_letter",
+          "engagement_letter_record_client_signature",
+          "matter_open_matter",
+          "matter_agree_engagement_letter"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Prospective Client Intake"
+            },
+            {
+              "anchor": "Conflict Clearance"
+            },
+            {
+              "anchor": "Engagement Formation"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "matter_execution_and_discovery",
+        "name": "Matter Execution and Discovery",
+        "steps": [
+          "work_item_create_work_item",
+          "work_item_start_work_item",
+          "deadline_calculate_deadline",
+          "deadline_double_track_deadline",
+          "discovery_request_issue_discovery_request",
+          "discovery_request_respond_to_discovery_request",
+          "work_item_review_work_item",
+          "work_item_complete_work_item",
+          "deadline_mark_deadline_met",
+          "document_create_document",
+          "document_check_out_document",
+          "document_revise_document",
+          "document_check_in_document"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Matter Work Execution"
+            },
+            {
+              "anchor": "Discovery Management"
+            },
+            {
+              "anchor": "Document Lifecycle"
+            }
+          ]
+        },
+        "mode": "agent"
+      },
+      {
+        "id": "time_tracking_to_billing",
+        "name": "Time Tracking to Billing",
+        "steps": [
+          "time_entry_record_time_entry",
+          "time_entry_submit_time_entry_for_approval",
+          "time_entry_approve_time_entry",
+          "invoice_draft_invoice",
+          "invoice_review_invoice",
+          "invoice_issue_invoice",
+          "time_entry_mark_time_entry_billed",
+          "invoice_record_invoice_payment"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Billing Cycle"
+            },
+            {
+              "anchor": "Time Capture and Approval"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "trust_fund_management",
+        "name": "Trust Fund Management",
+        "steps": [
+          "trust_account_open_trust_account",
+          "trust_account_deposit_trust_funds",
+          "trust_transaction_record_trust_deposit",
+          "trust_account_draw_down_billed_funds",
+          "trust_transaction_draw_trust_funds_against_billed_invoice",
+          "trust_account_reconcile_trust_account",
+          "trust_transaction_refund_trust_funds",
+          "trust_account_withdraw_trust_funds"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Trust Accounting"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "matter_closure",
+        "name": "Matter Closure",
+        "steps": [
+          "matter_close_matter",
+          "document_archive_document",
+          "invoice_write_off_invoice",
+          "trust_account_close_trust_account"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Matter Wind-down"
+            }
+          ]
+        },
+        "mode": "workflow"
+      }
+    ]
+  },
+  "agents": {
+    "version": "1.0",
+    "agents": [
+      {
+        "id": "intake_conflicts_agent",
+        "name": "Intake & Conflicts Agent",
+        "goal": "Screen and onboard new clients and matters quickly without creating conflicts of interest",
+        "instructions": "**Role**: First point of contact for prospective clients and new matters.\n**How you work**: On a new inquiry, capture issue, parties, deadlines and decision-maker via client_intake. Run conflict_clearance against the existing client/party database before any substantive discussion. If clear and the matter fits firm practice areas, proceed to draft engagement terms via engagement_management (scope, fee arrangement, retainer). Open the matter file only after signed engagement letter and retainer received.\n**When to escalate**: Escalate to a partner/human whenever conflict_clearance flags a possible conflict, when the prospective client requests unusual fee terms, or when the matter type is outside firm expertise.\n**Guardrails**: Never open a matter or discuss substantive strategy before conflicts are cleared and engagement is signed. Do not accept funds without a valid engagement letter.",
+        "capabilities": [
+          "conflict_clearance",
+          "client_intake",
+          "engagement_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Intake & Conflicts Agent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "matter_operations_agent",
+        "name": "Matter Operations Agent",
+        "goal": "Ensure every open matter progresses on time with organized, up-to-date files",
+        "instructions": "**Role**: Day-to-day operator of active legal matters.\n**How you work**: Support matter_execution by organizing drafting/review/discovery tasks per matter plan. Maintain document_management so every version is tracked and the latest is clearly labeled. Continuously update deadline_management with double-tracked reminders (calendar + backup) for all filings, hearings and limitation periods. Log every client call, email or meeting via client_communication_logging immediately after it occurs.\n**When to escalate**: Escalate to the responsible lawyer immediately if a deadline is at risk of being missed, if document versions conflict, or if client communication reveals a change in scope, urgency, or dissatisfaction.\n**Guardrails**: Never let a deadline pass without a human-confirmed acknowledgment. Never overwrite a document version — always version and preserve history.",
+        "capabilities": [
+          "matter_execution",
+          "deadline_management",
+          "document_management",
+          "client_communication_logging"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Matter Operations Agent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "billing_trust_agent",
+        "name": "Billing & Trust Agent",
+        "goal": "Ensure accurate, timely billing and fully compliant handling of client trust funds",
+        "instructions": "**Role**: Financial operator for time capture, billing and trust compliance.\n**How you work**: Ensure time_recording is captured in six-minute units against the correct matter, prompting lawyers for missing entries. Periodically assemble draft bills from recorded time and value delivered via billing, route for lawyer review before issuing, then send and track collection. Manage trust_accounting so retainers are held safely and only drawn down against issued, approved bills.\n**When to escalate**: Escalate to a partner or compliance officer for any trust shortfall, any bill dispute from a client, unusual write-offs, or any drawdown request not matched to an approved bill.\n**Guardrails**: Never draw from trust funds without a corresponding approved bill. Never issue a bill without lawyer review. Maintain strict segregation of client trust funds from firm operating funds at all times.",
+        "capabilities": [
+          "time_recording",
+          "billing",
+          "trust_accounting"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Billing & Trust Agent"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

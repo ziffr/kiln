@@ -1,0 +1,6291 @@
+{
+  "capabilities": {
+    "version": "0.2",
+    "domain": "funeral_service_franchise",
+    "capabilities": [
+      {
+        "id": "case_intake",
+        "name": "Case Intake & First Response",
+        "purpose": "Receive death notifications any hour and open a case immediately and compassionately.",
+        "outcomes": [
+          "respond_immediately_and_compassionately"
+        ],
+        "actors": [
+          "Bereaved families",
+          "Institutions"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "first-call-receive-the-notification-of-a-death-family-hospital-coroner-24-7-open-a-case",
+              "contentHash": "114a91829b31567bf6dd865ff5a6979f235bd9e7dae1fab8e35cd428632a8ea9"
+            }
+          ]
+        }
+      },
+      {
+        "id": "care_and_preparation",
+        "name": "Deceased Transfer & Care",
+        "purpose": "Bring the deceased into care, confirm identification, and prepare them per family and faith requirements.",
+        "outcomes": [
+          "arrange_and_deliver_each_funeral_exactly_to_wishes"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "transfer-care-bring-the-deceased-into-care-identification-preparation-embalming-cosmetics-dressing",
+              "contentHash": "fa9112b341e94eb995d0feac6ee069d9b85304bca6061bad47544fa9dd64a509"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_management",
+        "name": "Funeral Arrangement Management",
+        "purpose": "Work with families to select service type, merchandise, ceremony details, and options that match wishes, faith, and budget.",
+        "outcomes": [
+          "arrange_and_deliver_each_funeral_exactly_to_wishes"
+        ],
+        "actors": [
+          "Bereaved families",
+          "Pre-need clients"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "arrangement-conference-meet-the-family-choose-service-type-casket-urn-ceremony-dates-and-options",
+              "contentHash": "5aa6f81dc56c71dc9d56af083520c21ddcd287fd6a070fd8b6dd91a9e3f77951"
+            }
+          ]
+        }
+      },
+      {
+        "id": "legal_documentation",
+        "name": "Legal Documentation & Authorization",
+        "purpose": "Register deaths, obtain permits, and coordinate burial or cremation authorization to meet all legal requirements.",
+        "outcomes": [
+          "meet_every_legal_and_documentary_requirement"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "documentation-register-the-death-obtain-permits-coordinate-burial-or-cremation-authorization",
+              "contentHash": "56353c6063994a17447ea8c7f9aea0138824d92fb3488d4facc59874f3bc9097"
+            }
+          ]
+        }
+      },
+      {
+        "id": "service_logistics",
+        "name": "Service Logistics Coordination",
+        "purpose": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral.",
+        "outcomes": [
+          "arrange_and_deliver_each_funeral_exactly_to_wishes"
+        ],
+        "depends_on": [
+          "arrangement_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "logistics-schedule-the-venue-celebrant-clergy-hearse-and-cars-flowers-printed-order-of-service",
+              "contentHash": "7ce1833e5724824a16112a5c299f49a2e946e878485164c249011f811a04ae53"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_delivery",
+        "name": "Ceremony Delivery",
+        "purpose": "Conduct viewings, wakes, funeral services, and committals as arranged.",
+        "outcomes": [
+          "arrange_and_deliver_each_funeral_exactly_to_wishes"
+        ],
+        "depends_on": [
+          "service_logistics"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "ceremony-conduct-the-viewing-wake-and-the-funeral-service-the-committal",
+              "contentHash": "6fb7d4ec11b5f02ea91114a0803af27dc98eb14afb67432fba2897d122a5a5c7"
+            }
+          ]
+        }
+      },
+      {
+        "id": "after_care_services",
+        "name": "After-Care & Settlement",
+        "purpose": "Return ashes and keepsakes, provide grief resources, and finalize accounts with families.",
+        "outcomes": [
+          "arrange_and_deliver_each_funeral_exactly_to_wishes"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "after-care-return-ashes-keepsakes-grief-resources-final-account-and-settlement",
+              "contentHash": "ab0568b0251b9025daa7f640e8d0ad445714fe6d729ad5c5776f66f498a8d9cf"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_development",
+        "name": "Franchisee Recruitment & Licensing",
+        "purpose": "Recruit, license, and open new homes that meet brand and regulatory standards.",
+        "outcomes": [
+          "keep_every_home_on_brand_for_dignity_and_compliance"
+        ],
+        "actors": [
+          "Franchisees"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "recruit-license-franchisees-open-new-homes-to-brand-and-regulatory-standard",
+              "contentHash": "4a5aec7f6a725c08a757609676535758a42a6e4be5bf5c74258421b0b65f1915"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_chain_management",
+        "name": "Supply Chain Management",
+        "purpose": "Supply caskets, urns, and printed materials to franchise homes.",
+        "outcomes": [
+          "keep_every_home_on_brand_for_dignity_and_compliance"
+        ],
+        "actors": [
+          "Franchisees"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "supply-caskets-urns-and-printed-materials-to-homes",
+              "contentHash": "f437536612eabe89b8502708f3548aad43ac1a86bd009fadd2a79bb46f324a76"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_administration",
+        "name": "Pre-Need Plan Administration",
+        "purpose": "Sell and safeguard pre-paid funeral plans and fulfil them decades later at need.",
+        "outcomes": [
+          "honour_pre_need_plans_decades_later_with_funds_safely_held"
+        ],
+        "actors": [
+          "Pre-need clients"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "pre-need-administration-sell-and-safeguard-pre-paid-plans-trust-insurance-backed-fulfil-at-need",
+              "contentHash": "970519107f29e19e73f8477bd0cdfff6e4b9ddb6c17b9b98975aaaa0f0b5b22b"
+            }
+          ]
+        }
+      },
+      {
+        "id": "compliance_quality_assurance",
+        "name": "Compliance & Quality Assurance",
+        "purpose": "Audit homes for regulatory and dignity standards and provide training to maintain brand quality.",
+        "outcomes": [
+          "keep_every_home_on_brand_for_dignity_and_compliance"
+        ],
+        "actors": [
+          "Franchisees"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "compliance-quality-audit-homes-for-regulatory-and-dignity-standards-training",
+              "contentHash": "32c7865fbcdd103d22b9110186b24a1a9796130b571f0dba22d83e09d32351fa"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_billing",
+        "name": "Royalty & Billing Management",
+        "purpose": "Collect royalty and supply revenue from each home to sustain the franchise network.",
+        "outcomes": [
+          "keep_every_home_on_brand_for_dignity_and_compliance"
+        ],
+        "actors": [
+          "Franchisees"
+        ],
+        "depends_on": [
+          "supply_chain_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "modelId": "anthropic:claude-sonnet-5",
+          "derivedFrom": [
+            {
+              "section": "Core Activities",
+              "anchor": "royalty-billing-royalty-on-services-supply-revenue-from-each-home",
+              "contentHash": "9dd578932833188ffd2fa9e0bd8aef695ed26ffa1d25554fe9a2307f326a5e58"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "contexts": {
+    "version": "1.0",
+    "contexts": [
+      {
+        "id": "c_4fd7543a",
+        "name": "Case Intake & Family Care",
+        "intent": "Receive death notifications and manage the deceased's transfer and care with dignity.",
+        "capabilities": [
+          "case_intake",
+          "care_and_preparation"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "First point of contact and physical care of the deceased"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_d041022c",
+        "name": "Funeral Arrangement & Ceremony Delivery",
+        "intent": "Plan and execute funeral services matching family wishes, faith, and budget.",
+        "capabilities": [
+          "arrangement_management",
+          "service_logistics",
+          "ceremony_delivery"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Arrangement details drive logistics and ceremony execution"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_e1530b77",
+        "name": "Legal & Compliance Oversight",
+        "intent": "Ensure legal authorization and brand/regulatory compliance across homes.",
+        "capabilities": [
+          "legal_documentation",
+          "compliance_quality_assurance"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Regulatory and legal standards governing funeral operations"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_e414d01a",
+        "name": "After-Care & Pre-Need Relationship",
+        "intent": "Support families after the service and manage long-term pre-paid plan commitments.",
+        "capabilities": [
+          "after_care_services",
+          "preneed_administration"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Ongoing family relationship beyond the immediate funeral event"
+            }
+          ]
+        }
+      },
+      {
+        "id": "c_4e5af7c3",
+        "name": "Franchise Network Management",
+        "intent": "Grow and sustain the franchise network through licensing, supply, and revenue collection.",
+        "capabilities": [
+          "franchise_development",
+          "supply_chain_management",
+          "royalty_billing"
+        ],
+        "shared_kernel": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Franchise home lifecycle: recruitment, supply, and billing"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "domain": {
+    "version": "1.0",
+    "aggregates": [
+      {
+        "id": "case",
+        "name": "Case",
+        "owner": "case_intake",
+        "attributes": [
+          {
+            "name": "opened_at",
+            "type": "date"
+          },
+          {
+            "name": "notification_source",
+            "type": "text"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "deceased",
+          "family_contact"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "case_intake"
+            }
+          ]
+        }
+      },
+      {
+        "id": "family_contact",
+        "name": "Family Contact",
+        "owner": "case_intake",
+        "attributes": [
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "phone",
+            "type": "text"
+          },
+          {
+            "name": "relationship",
+            "type": "text"
+          }
+        ],
+        "references": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "case_intake"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deceased",
+        "name": "Deceased",
+        "owner": "care_and_preparation",
+        "attributes": [
+          {
+            "name": "identification_confirmed",
+            "type": "boolean"
+          },
+          {
+            "name": "faith_requirements",
+            "type": "text"
+          },
+          {
+            "name": "transfer_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "case"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "care_and_preparation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record",
+        "name": "Preparation Record",
+        "owner": "care_and_preparation",
+        "attributes": [
+          {
+            "name": "embalming_done",
+            "type": "boolean"
+          },
+          {
+            "name": "notes",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "deceased"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "care_and_preparation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement",
+        "name": "Arrangement",
+        "owner": "arrangement_management",
+        "attributes": [
+          {
+            "name": "service_type",
+            "type": "text"
+          },
+          {
+            "name": "budget",
+            "type": "money"
+          },
+          {
+            "name": "faith_preferences",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "case",
+          "family_contact",
+          "merchandise_selection"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "arrangement_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "merchandise_selection",
+        "name": "Merchandise Selection",
+        "owner": "arrangement_management",
+        "attributes": [
+          {
+            "name": "item_type",
+            "type": "text"
+          },
+          {
+            "name": "price",
+            "type": "money"
+          }
+        ],
+        "references": [
+          "deceased"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "arrangement_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "death_registration",
+        "name": "Death Registration",
+        "owner": "legal_documentation",
+        "attributes": [
+          {
+            "name": "registration_number",
+            "type": "text"
+          },
+          {
+            "name": "filed_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "deceased"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "legal_documentation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "permit",
+        "name": "Permit",
+        "owner": "legal_documentation",
+        "attributes": [
+          {
+            "name": "permit_type",
+            "type": "text"
+          },
+          {
+            "name": "issued_date",
+            "type": "date"
+          },
+          {
+            "name": "authority",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "death_registration"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "legal_documentation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization",
+        "name": "Burial/Cremation Authorization",
+        "owner": "legal_documentation",
+        "attributes": [
+          {
+            "name": "method",
+            "type": "text"
+          },
+          {
+            "name": "authorized_by",
+            "type": "text"
+          },
+          {
+            "name": "authorized_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "permit",
+          "arrangement"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "legal_documentation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "venue_booking",
+        "name": "Venue Booking",
+        "owner": "service_logistics",
+        "attributes": [
+          {
+            "name": "venue_name",
+            "type": "text"
+          },
+          {
+            "name": "date_time",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "arrangement"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "service_logistics"
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment",
+        "name": "Celebrant Assignment",
+        "owner": "service_logistics",
+        "attributes": [
+          {
+            "name": "celebrant_name",
+            "type": "text"
+          },
+          {
+            "name": "confirmed",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "arrangement"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "service_logistics"
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule",
+        "name": "Transport Schedule",
+        "owner": "service_logistics",
+        "attributes": [
+          {
+            "name": "vehicle_type",
+            "type": "text"
+          },
+          {
+            "name": "scheduled_time",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "arrangement",
+          "deceased"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "service_logistics"
+            }
+          ]
+        }
+      },
+      {
+        "id": "flower_order",
+        "name": "Flower Order",
+        "owner": "service_logistics",
+        "attributes": [
+          {
+            "name": "arrangement_type",
+            "type": "text"
+          },
+          {
+            "name": "cost",
+            "type": "money"
+          }
+        ],
+        "references": [
+          "arrangement"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "service_logistics"
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order",
+        "name": "Printed Material Order",
+        "owner": "service_logistics",
+        "attributes": [
+          {
+            "name": "material_type",
+            "type": "text"
+          },
+          {
+            "name": "quantity",
+            "type": "number"
+          }
+        ],
+        "references": [
+          "arrangement",
+          "supply_order"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "service_logistics"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony",
+        "name": "Ceremony",
+        "owner": "ceremony_delivery",
+        "attributes": [
+          {
+            "name": "ceremony_type",
+            "type": "text"
+          },
+          {
+            "name": "date_time",
+            "type": "date"
+          },
+          {
+            "name": "location",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "venue_booking",
+          "celebrant_assignment",
+          "burial_authorization"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "ceremony_delivery"
+            }
+          ]
+        }
+      },
+      {
+        "id": "committal_record",
+        "name": "Committal Record",
+        "owner": "ceremony_delivery",
+        "attributes": [
+          {
+            "name": "disposition_method",
+            "type": "text"
+          },
+          {
+            "name": "completed_at",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "ceremony",
+          "burial_authorization",
+          "venue_booking"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "ceremony_delivery"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ashes_return",
+        "name": "Ashes/Keepsake Return",
+        "owner": "after_care_services",
+        "attributes": [
+          {
+            "name": "returned_date",
+            "type": "date"
+          },
+          {
+            "name": "item_description",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "committal_record",
+          "family_contact"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "after_care_services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "grief_resource_referral",
+        "name": "Grief Resource Referral",
+        "owner": "after_care_services",
+        "attributes": [
+          {
+            "name": "resource_type",
+            "type": "text"
+          },
+          {
+            "name": "referral_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "family_contact"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "after_care_services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "final_account",
+        "name": "Final Account",
+        "owner": "after_care_services",
+        "attributes": [
+          {
+            "name": "total_amount",
+            "type": "money"
+          },
+          {
+            "name": "paid",
+            "type": "boolean"
+          },
+          {
+            "name": "settled_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "arrangement",
+          "family_contact"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "after_care_services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license",
+        "name": "Franchise License",
+        "owner": "franchise_development",
+        "attributes": [
+          {
+            "name": "licensee_name",
+            "type": "text"
+          },
+          {
+            "name": "license_start",
+            "type": "date"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "franchise_home"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "franchise_development"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home",
+        "name": "Franchise Home",
+        "owner": "franchise_development",
+        "attributes": [
+          {
+            "name": "location",
+            "type": "text"
+          },
+          {
+            "name": "opened_date",
+            "type": "date"
+          }
+        ],
+        "references": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "franchise_development"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier",
+        "name": "Supplier",
+        "owner": "supply_chain_management",
+        "attributes": [
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "contact_info",
+            "type": "text"
+          }
+        ],
+        "references": [],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "supply_chain_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order",
+        "name": "Supply Order",
+        "owner": "supply_chain_management",
+        "attributes": [
+          {
+            "name": "item_type",
+            "type": "text"
+          },
+          {
+            "name": "quantity",
+            "type": "number"
+          },
+          {
+            "name": "order_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "supplier",
+          "franchise_home"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "supply_chain_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan",
+        "name": "Pre-Need Plan",
+        "owner": "preneed_administration",
+        "attributes": [
+          {
+            "name": "plan_holder",
+            "type": "text"
+          },
+          {
+            "name": "amount_paid",
+            "type": "money"
+          },
+          {
+            "name": "sale_date",
+            "type": "date"
+          },
+          {
+            "name": "fulfilled",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "family_contact",
+          "franchise_home"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "preneed_administration"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account",
+        "name": "Trust Account",
+        "owner": "preneed_administration",
+        "attributes": [
+          {
+            "name": "balance",
+            "type": "money"
+          },
+          {
+            "name": "last_reviewed",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "preneed_plan"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "preneed_administration"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report",
+        "name": "Audit Report",
+        "owner": "compliance_quality_assurance",
+        "attributes": [
+          {
+            "name": "audit_date",
+            "type": "date"
+          },
+          {
+            "name": "score",
+            "type": "number"
+          },
+          {
+            "name": "findings",
+            "type": "text"
+          }
+        ],
+        "references": [
+          "franchise_home"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "compliance_quality_assurance"
+            }
+          ]
+        }
+      },
+      {
+        "id": "training_record",
+        "name": "Training Record",
+        "owner": "compliance_quality_assurance",
+        "attributes": [
+          {
+            "name": "training_topic",
+            "type": "text"
+          },
+          {
+            "name": "completed_date",
+            "type": "date"
+          }
+        ],
+        "references": [
+          "franchise_home"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "compliance_quality_assurance"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice",
+        "name": "Royalty Invoice",
+        "owner": "royalty_billing",
+        "attributes": [
+          {
+            "name": "amount",
+            "type": "money"
+          },
+          {
+            "name": "due_date",
+            "type": "date"
+          },
+          {
+            "name": "paid",
+            "type": "boolean"
+          }
+        ],
+        "references": [
+          "franchise_home",
+          "supply_order"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "capability": "royalty_billing"
+            }
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "id": "case_open_case",
+        "name": "Open Case",
+        "aggregate": "case",
+        "capability": "case_intake",
+        "emits": [
+          "case_opened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Receive death notifications any hour and open a case immediately"
+            }
+          ]
+        }
+      },
+      {
+        "id": "case_record_notification_details",
+        "name": "Record Notification Details",
+        "aggregate": "case",
+        "capability": "case_intake",
+        "emits": [
+          "case_notification_received"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Receive death notifications any hour"
+            }
+          ]
+        }
+      },
+      {
+        "id": "case_assign_case_director",
+        "name": "Assign Case Director",
+        "aggregate": "case",
+        "capability": "case_intake",
+        "emits": [
+          "case_assigned_to_director"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "open a case immediately and compassionately"
+            }
+          ]
+        }
+      },
+      {
+        "id": "case_close_case",
+        "name": "Close Case",
+        "aggregate": "case",
+        "capability": "case_intake",
+        "emits": [
+          "case_closed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "open a case immediately and compassionately"
+            }
+          ]
+        }
+      },
+      {
+        "id": "case_reopen_case",
+        "name": "Reopen Case",
+        "aggregate": "case",
+        "capability": "case_intake",
+        "emits": [
+          "case_reopened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "open a case immediately and compassionately"
+            }
+          ]
+        }
+      },
+      {
+        "id": "family_contact_register_family_contact",
+        "name": "Register Family Contact",
+        "aggregate": "family_contact",
+        "capability": "case_intake",
+        "emits": [
+          "family_contact_registered"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Receive death notifications any hour and open a case immediately"
+            }
+          ]
+        }
+      },
+      {
+        "id": "family_contact_update_family_contact_details",
+        "name": "Update Family Contact Details",
+        "aggregate": "family_contact",
+        "capability": "case_intake",
+        "emits": [
+          "family_contact_details_updated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Receive death notifications any hour and open a case immediately"
+            }
+          ]
+        }
+      },
+      {
+        "id": "family_contact_designate_primary_family_contact",
+        "name": "Designate Primary Family Contact",
+        "aggregate": "family_contact",
+        "capability": "case_intake",
+        "emits": [
+          "family_contact_designated_primary"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Receive death notifications any hour and open a case immediately"
+            }
+          ]
+        }
+      },
+      {
+        "id": "family_contact_remove_family_contact",
+        "name": "Remove Family Contact",
+        "aggregate": "family_contact",
+        "capability": "case_intake",
+        "emits": [
+          "family_contact_removed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Receive death notifications any hour and open a case immediately"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deceased_transfer_deceased_into_care",
+        "name": "Transfer Deceased Into Care",
+        "aggregate": "deceased",
+        "capability": "care_and_preparation",
+        "emits": [
+          "deceased_transferred_into_care"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Bring the deceased into care"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deceased_confirm_identification",
+        "name": "Confirm Identification",
+        "aggregate": "deceased",
+        "capability": "care_and_preparation",
+        "emits": [
+          "deceased_identity_confirmed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "confirm identification"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deceased_record_faith_requirements",
+        "name": "Record Faith Requirements",
+        "aggregate": "deceased",
+        "capability": "care_and_preparation",
+        "emits": [
+          "deceased_faith_requirements_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prepare them per family and faith requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deceased_complete_preparation",
+        "name": "Complete Preparation",
+        "aggregate": "deceased",
+        "capability": "care_and_preparation",
+        "emits": [
+          "deceased_preparation_completed",
+          "deceased_preparation_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prepare them per family and faith requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record_receive_deceased_into_care",
+        "name": "Receive Deceased Into Care",
+        "aggregate": "preparation_record",
+        "capability": "care_and_preparation",
+        "emits": [
+          "preparation_record_deceased_received_into_care"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Bring the deceased into care"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record_confirm_identification",
+        "name": "Confirm Identification",
+        "aggregate": "preparation_record",
+        "capability": "care_and_preparation",
+        "emits": [
+          "preparation_record_identification_confirmed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "confirm identification"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record_perform_embalming",
+        "name": "Perform Embalming",
+        "aggregate": "preparation_record",
+        "capability": "care_and_preparation",
+        "emits": [
+          "preparation_record_embalming_performed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prepare them per family and faith requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record_record_preparation_notes",
+        "name": "Record Preparation Notes",
+        "aggregate": "preparation_record",
+        "capability": "care_and_preparation",
+        "emits": [
+          "preparation_record_preparation_notes_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prepare them per family and faith requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record_complete_preparation",
+        "name": "Complete Preparation",
+        "aggregate": "preparation_record",
+        "capability": "care_and_preparation",
+        "emits": [
+          "preparation_record_preparation_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "prepare them per family and faith requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_start_arrangement",
+        "name": "Start Arrangement",
+        "aggregate": "arrangement",
+        "capability": "arrangement_management",
+        "emits": [
+          "arrangement_started"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Work with families to select service type, merchandise, ceremony details, and options"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_select_service_type",
+        "name": "Select Service Type",
+        "aggregate": "arrangement",
+        "capability": "arrangement_management",
+        "emits": [
+          "arrangement_service_type_selected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "select service type"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_select_merchandise",
+        "name": "Select Merchandise",
+        "aggregate": "arrangement",
+        "capability": "arrangement_management",
+        "emits": [
+          "arrangement_merchandise_selected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "merchandise"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_set_ceremony_details",
+        "name": "Set Ceremony Details",
+        "aggregate": "arrangement",
+        "capability": "arrangement_management",
+        "emits": [
+          "arrangement_ceremony_details_set"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ceremony details"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_confirm_budget",
+        "name": "Confirm Budget",
+        "aggregate": "arrangement",
+        "capability": "arrangement_management",
+        "emits": [
+          "arrangement_budget_confirmed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "match wishes, faith, and budget"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_record_faith_preferences",
+        "name": "Record Faith Preferences",
+        "aggregate": "arrangement",
+        "capability": "arrangement_management",
+        "emits": [
+          "arrangement_faith_preferences_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "match wishes, faith, and budget"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_finalize_arrangement",
+        "name": "Finalize Arrangement",
+        "aggregate": "arrangement",
+        "capability": "arrangement_management",
+        "emits": [
+          "arrangement_finalized"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "options that match wishes, faith, and budget"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_cancel_arrangement",
+        "name": "Cancel Arrangement",
+        "aggregate": "arrangement",
+        "capability": "arrangement_management",
+        "emits": [
+          "arrangement_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "merchandise_selection_select_merchandise_item",
+        "name": "Select Merchandise Item",
+        "aggregate": "merchandise_selection",
+        "capability": "arrangement_management",
+        "emits": [
+          "merchandise_selection_merchandise_item_selected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "select merchandise"
+            }
+          ]
+        }
+      },
+      {
+        "id": "merchandise_selection_change_merchandise_item",
+        "name": "Change Merchandise Item",
+        "aggregate": "merchandise_selection",
+        "capability": "arrangement_management",
+        "emits": [
+          "merchandise_selection_merchandise_item_changed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "select merchandise"
+            }
+          ]
+        }
+      },
+      {
+        "id": "merchandise_selection_remove_merchandise_item",
+        "name": "Remove Merchandise Item",
+        "aggregate": "merchandise_selection",
+        "capability": "arrangement_management",
+        "emits": [
+          "merchandise_selection_merchandise_item_removed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "select merchandise"
+            }
+          ]
+        }
+      },
+      {
+        "id": "merchandise_selection_finalize_merchandise_selection",
+        "name": "Finalize Merchandise Selection",
+        "aggregate": "merchandise_selection",
+        "capability": "arrangement_management",
+        "emits": [
+          "merchandise_selection_finalized"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "match wishes, faith, and budget"
+            }
+          ]
+        }
+      },
+      {
+        "id": "death_registration_file_death_registration",
+        "name": "File Death Registration",
+        "aggregate": "death_registration",
+        "capability": "legal_documentation",
+        "emits": [
+          "death_registration_filed",
+          "death_registration_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Register deaths to meet legal requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "death_registration_obtain_burial_or_cremation_permit",
+        "name": "Obtain Burial Or Cremation Permit",
+        "aggregate": "death_registration",
+        "capability": "legal_documentation",
+        "emits": [
+          "death_registration_burial_or_cremation_permit_obtained"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Obtain permits and coordinate burial or cremation authorization"
+            }
+          ]
+        }
+      },
+      {
+        "id": "death_registration_amend_death_registration",
+        "name": "Amend Death Registration",
+        "aggregate": "death_registration",
+        "capability": "legal_documentation",
+        "emits": [
+          "death_registration_amended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Meet all legal requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "permit_request_permit",
+        "name": "Request Permit",
+        "aggregate": "permit",
+        "capability": "legal_documentation",
+        "emits": [
+          "permit_requested"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "obtain permits to meet legal requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "permit_record_permit_issuance",
+        "name": "Record Permit Issuance",
+        "aggregate": "permit",
+        "capability": "legal_documentation",
+        "emits": [
+          "permit_issued"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "obtain permits to meet legal requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "permit_record_permit_rejection",
+        "name": "Record Permit Rejection",
+        "aggregate": "permit",
+        "capability": "legal_documentation",
+        "emits": [
+          "permit_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "meet all legal requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization_request_authorization",
+        "name": "Request Authorization",
+        "aggregate": "burial_authorization",
+        "capability": "legal_documentation",
+        "emits": [
+          "burial_authorization_authorization_requested"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "burial or cremation authorization to meet all legal requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization_select_disposition_method",
+        "name": "Select Disposition Method",
+        "aggregate": "burial_authorization",
+        "capability": "legal_documentation",
+        "emits": [
+          "burial_authorization_disposition_method_selected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "method attribute"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization_grant_authorization",
+        "name": "Grant Authorization",
+        "aggregate": "burial_authorization",
+        "capability": "legal_documentation",
+        "emits": [
+          "burial_authorization_authorization_granted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "authorized_by, authorized_date attributes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization_reject_authorization",
+        "name": "Reject Authorization",
+        "aggregate": "burial_authorization",
+        "capability": "legal_documentation",
+        "emits": [
+          "burial_authorization_authorization_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "meet all legal requirements"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization_revoke_authorization",
+        "name": "Revoke Authorization",
+        "aggregate": "burial_authorization",
+        "capability": "legal_documentation",
+        "emits": [
+          "burial_authorization_authorization_revoked"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "coordinate burial or cremation authorization"
+            }
+          ]
+        }
+      },
+      {
+        "id": "venue_booking_request_venue_booking",
+        "name": "Request Venue Booking",
+        "aggregate": "venue_booking",
+        "capability": "service_logistics",
+        "emits": [
+          "venue_booking_requested"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues needed for each funeral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "venue_booking_confirm_venue_booking",
+        "name": "Confirm Venue Booking",
+        "aggregate": "venue_booking",
+        "capability": "service_logistics",
+        "emits": [
+          "venue_booking_confirmed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues needed for each funeral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "venue_booking_reschedule_venue_booking",
+        "name": "Reschedule Venue Booking",
+        "aggregate": "venue_booking",
+        "capability": "service_logistics",
+        "emits": [
+          "venue_booking_rescheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues needed for each funeral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "venue_booking_cancel_venue_booking",
+        "name": "Cancel Venue Booking",
+        "aggregate": "venue_booking",
+        "capability": "service_logistics",
+        "emits": [
+          "venue_booking_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues needed for each funeral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment_request_celebrant",
+        "name": "Request Celebrant",
+        "aggregate": "celebrant_assignment",
+        "capability": "service_logistics",
+        "emits": [
+          "celebrant_assignment_celebrant_requested"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment_assign_celebrant",
+        "name": "Assign Celebrant",
+        "aggregate": "celebrant_assignment",
+        "capability": "service_logistics",
+        "emits": [
+          "celebrant_assignment_celebrant_assigned"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment_confirm_celebrant",
+        "name": "Confirm Celebrant",
+        "aggregate": "celebrant_assignment",
+        "capability": "service_logistics",
+        "emits": [
+          "celebrant_assignment_celebrant_confirmed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment_reassign_celebrant",
+        "name": "Reassign Celebrant",
+        "aggregate": "celebrant_assignment",
+        "capability": "service_logistics",
+        "emits": [
+          "celebrant_assignment_celebrant_reassigned"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment_cancel_celebrant_assignment",
+        "name": "Cancel Celebrant Assignment",
+        "aggregate": "celebrant_assignment",
+        "capability": "service_logistics",
+        "emits": [
+          "celebrant_assignment_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule_schedule_transport",
+        "name": "Schedule Transport",
+        "aggregate": "transport_schedule",
+        "capability": "service_logistics",
+        "emits": [
+          "transport_schedule_transport_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule_reschedule_transport",
+        "name": "Reschedule Transport",
+        "aggregate": "transport_schedule",
+        "capability": "service_logistics",
+        "emits": [
+          "transport_schedule_transport_rescheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule_assign_transport_vehicle",
+        "name": "Assign Transport Vehicle",
+        "aggregate": "transport_schedule",
+        "capability": "service_logistics",
+        "emits": [
+          "transport_schedule_transport_vehicle_assigned"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule_cancel_transport",
+        "name": "Cancel Transport",
+        "aggregate": "transport_schedule",
+        "capability": "service_logistics",
+        "emits": [
+          "transport_schedule_transport_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule_confirm_transport",
+        "name": "Confirm Transport",
+        "aggregate": "transport_schedule",
+        "capability": "service_logistics",
+        "emits": [
+          "transport_schedule_transport_confirmed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "flower_order_place_flower_order",
+        "name": "Place Flower Order",
+        "aggregate": "flower_order",
+        "capability": "service_logistics",
+        "emits": [
+          "flower_order_placed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "flower_order_modify_flower_order",
+        "name": "Modify Flower Order",
+        "aggregate": "flower_order",
+        "capability": "service_logistics",
+        "emits": [
+          "flower_order_modified"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "flower_order_cancel_flower_order",
+        "name": "Cancel Flower Order",
+        "aggregate": "flower_order",
+        "capability": "service_logistics",
+        "emits": [
+          "flower_order_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "flower_order_confirm_flower_delivery",
+        "name": "Confirm Flower Delivery",
+        "aggregate": "flower_order",
+        "capability": "service_logistics",
+        "emits": [
+          "flower_order_delivered"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule venues, celebrants, transport, flowers, and printed materials needed for each funeral."
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order_place_printed_material_order",
+        "name": "Place Printed Material Order",
+        "aggregate": "printed_material_order",
+        "capability": "service_logistics",
+        "emits": [
+          "printed_material_order_placed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule printed materials needed for each funeral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order_update_printed_material_order_specification",
+        "name": "Update Printed Material Order Specification",
+        "aggregate": "printed_material_order",
+        "capability": "service_logistics",
+        "emits": [
+          "printed_material_order_specification_updated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule printed materials needed for each funeral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order_cancel_printed_material_order",
+        "name": "Cancel Printed Material Order",
+        "aggregate": "printed_material_order",
+        "capability": "service_logistics",
+        "emits": [
+          "printed_material_order_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule printed materials needed for each funeral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order_confirm_printed_material_order_fulfillment",
+        "name": "Confirm Printed Material Order Fulfillment",
+        "aggregate": "printed_material_order",
+        "capability": "service_logistics",
+        "emits": [
+          "printed_material_order_fulfilled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule printed materials needed for each funeral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order_report_printed_material_order_delivery_delay",
+        "name": "Report Printed Material Order Delivery Delay",
+        "aggregate": "printed_material_order",
+        "capability": "service_logistics",
+        "emits": [
+          "printed_material_order_delivery_delayed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Schedule printed materials needed for each funeral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_schedule_ceremony",
+        "name": "Schedule Ceremony",
+        "aggregate": "ceremony",
+        "capability": "ceremony_delivery",
+        "emits": [
+          "ceremony_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Conduct viewings, wakes, funeral services, and committals as arranged"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_reschedule_ceremony",
+        "name": "Reschedule Ceremony",
+        "aggregate": "ceremony",
+        "capability": "ceremony_delivery",
+        "emits": [
+          "ceremony_rescheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Conduct viewings, wakes, funeral services, and committals as arranged"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_start_ceremony",
+        "name": "Start Ceremony",
+        "aggregate": "ceremony",
+        "capability": "ceremony_delivery",
+        "emits": [
+          "ceremony_started"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Conduct viewings, wakes, funeral services, and committals as arranged"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_deliver_eulogy",
+        "name": "Deliver Eulogy",
+        "aggregate": "ceremony",
+        "capability": "ceremony_delivery",
+        "emits": [
+          "ceremony_eulogy_delivered"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Conduct viewings, wakes, funeral services, and committals as arranged"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_complete_committal",
+        "name": "Complete Committal",
+        "aggregate": "ceremony",
+        "capability": "ceremony_delivery",
+        "emits": [
+          "ceremony_committal_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Conduct viewings, wakes, funeral services, and committals as arranged"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_conclude_ceremony",
+        "name": "Conclude Ceremony",
+        "aggregate": "ceremony",
+        "capability": "ceremony_delivery",
+        "emits": [
+          "ceremony_concluded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Conduct viewings, wakes, funeral services, and committals as arranged"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_cancel_ceremony",
+        "name": "Cancel Ceremony",
+        "aggregate": "ceremony",
+        "capability": "ceremony_delivery",
+        "emits": [
+          "ceremony_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Conduct viewings, wakes, funeral services, and committals as arranged"
+            }
+          ]
+        }
+      },
+      {
+        "id": "committal_record_schedule_committal",
+        "name": "Schedule Committal",
+        "aggregate": "committal_record",
+        "capability": "ceremony_delivery",
+        "emits": [
+          "committal_record_committal_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "conduct committals as arranged"
+            }
+          ]
+        }
+      },
+      {
+        "id": "committal_record_record_committal_completion",
+        "name": "Record Committal Completion",
+        "aggregate": "committal_record",
+        "capability": "ceremony_delivery",
+        "emits": [
+          "committal_record_committal_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "disposition_method, completed_at"
+            }
+          ]
+        }
+      },
+      {
+        "id": "committal_record_delay_committal",
+        "name": "Delay Committal",
+        "aggregate": "committal_record",
+        "capability": "ceremony_delivery",
+        "emits": [
+          "committal_record_committal_delayed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "conduct committals as arranged"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ashes_return_mark_ashes_ready_for_return",
+        "name": "Mark Ashes Ready For Return",
+        "aggregate": "ashes_return",
+        "capability": "after_care_services",
+        "emits": [
+          "ashes_return_ashes_ready_for_return"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "after_care_services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ashes_return_prepare_keepsake",
+        "name": "Prepare Keepsake",
+        "aggregate": "ashes_return",
+        "capability": "after_care_services",
+        "emits": [
+          "ashes_return_keepsake_prepared"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "after_care_services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ashes_return_record_ashes_keepsake_return",
+        "name": "Record Ashes/Keepsake Return",
+        "aggregate": "ashes_return",
+        "capability": "after_care_services",
+        "emits": [
+          "ashes_return_ashes_keepsake_returned"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "after_care_services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ashes_return_log_failed_return_attempt",
+        "name": "Log Failed Return Attempt",
+        "aggregate": "ashes_return",
+        "capability": "after_care_services",
+        "emits": [
+          "ashes_return_return_attempt_failed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "after_care_services"
+            }
+          ]
+        }
+      },
+      {
+        "id": "grief_resource_referral_create_grief_resource_referral",
+        "name": "Create Grief Resource Referral",
+        "aggregate": "grief_resource_referral",
+        "capability": "after_care_services",
+        "emits": [
+          "grief_resource_referral_created"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "provide grief resources"
+            }
+          ]
+        }
+      },
+      {
+        "id": "grief_resource_referral_send_grief_resource_referral",
+        "name": "Send Grief Resource Referral",
+        "aggregate": "grief_resource_referral",
+        "capability": "after_care_services",
+        "emits": [
+          "grief_resource_referral_sent"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "provide grief resources"
+            }
+          ]
+        }
+      },
+      {
+        "id": "grief_resource_referral_decline_grief_resource_referral",
+        "name": "Decline Grief Resource Referral",
+        "aggregate": "grief_resource_referral",
+        "capability": "after_care_services",
+        "emits": [
+          "grief_resource_referral_declined"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "finalize accounts with families"
+            }
+          ]
+        }
+      },
+      {
+        "id": "grief_resource_referral_complete_grief_resource_follow_up",
+        "name": "Complete Grief Resource Follow Up",
+        "aggregate": "grief_resource_referral",
+        "capability": "after_care_services",
+        "emits": [
+          "grief_resource_referral_grief_resource_follow_up_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "provide grief resources"
+            }
+          ]
+        }
+      },
+      {
+        "id": "final_account_generate_final_account",
+        "name": "Generate Final Account",
+        "aggregate": "final_account",
+        "capability": "after_care_services",
+        "emits": [
+          "final_account_generated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "finalize accounts with families"
+            }
+          ]
+        }
+      },
+      {
+        "id": "final_account_record_final_account_payment",
+        "name": "Record Final Account Payment",
+        "aggregate": "final_account",
+        "capability": "after_care_services",
+        "emits": [
+          "final_account_payment_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "finalize accounts with families"
+            }
+          ]
+        }
+      },
+      {
+        "id": "final_account_adjust_final_account",
+        "name": "Adjust Final Account",
+        "aggregate": "final_account",
+        "capability": "after_care_services",
+        "emits": [
+          "final_account_adjusted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "finalize accounts with families"
+            }
+          ]
+        }
+      },
+      {
+        "id": "final_account_settle_final_account",
+        "name": "Settle Final Account",
+        "aggregate": "final_account",
+        "capability": "after_care_services",
+        "emits": [
+          "final_account_settled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "finalize accounts with families"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_apply_for_franchise_license",
+        "name": "Apply For Franchise License",
+        "aggregate": "franchise_license",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_license_applied_for"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit, license, and open new homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_approve_franchise_license",
+        "name": "Approve Franchise License",
+        "aggregate": "franchise_license",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_license_approved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit, license, and open new homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_reject_franchise_license",
+        "name": "Reject Franchise License",
+        "aggregate": "franchise_license",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_license_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Recruit, license, and open new homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_activate_franchise_license",
+        "name": "Activate Franchise License",
+        "aggregate": "franchise_license",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_license_activated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "open new homes that meet brand and regulatory standards"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_suspend_franchise_license",
+        "name": "Suspend Franchise License",
+        "aggregate": "franchise_license",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_license_suspended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "meet brand and regulatory standards"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_revoke_franchise_license",
+        "name": "Revoke Franchise License",
+        "aggregate": "franchise_license",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_license_revoked"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "meet brand and regulatory standards"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_renew_franchise_license",
+        "name": "Renew Franchise License",
+        "aggregate": "franchise_license",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_license_renewed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "license, and open new homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_terminate_franchise_license",
+        "name": "Terminate Franchise License",
+        "aggregate": "franchise_license",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_license_terminated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "license, and open new homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_submit_franchise_application",
+        "name": "Submit Franchise Application",
+        "aggregate": "franchise_home",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_home_application_received"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "recruit new homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_license_franchise_home",
+        "name": "License Franchise Home",
+        "aggregate": "franchise_home",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_home_licensed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "license homes that meet brand and regulatory standards"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_approve_franchise_site",
+        "name": "Approve Franchise Site",
+        "aggregate": "franchise_home",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_home_site_approved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "open new homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_open_franchise_home",
+        "name": "Open Franchise Home",
+        "aggregate": "franchise_home",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_home_opened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "open new homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_suspend_franchise_license",
+        "name": "Suspend Franchise License",
+        "aggregate": "franchise_home",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_home_license_suspended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "meet brand and regulatory standards"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_close_franchise_home",
+        "name": "Close Franchise Home",
+        "aggregate": "franchise_home",
+        "capability": "franchise_development",
+        "emits": [
+          "franchise_home_closed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "license and open new homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_register_supplier",
+        "name": "Register Supplier",
+        "aggregate": "supplier",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supplier_registered"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_chain_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_update_supplier_contact_info",
+        "name": "Update Supplier Contact Info",
+        "aggregate": "supplier",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supplier_contact_updated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_chain_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_approve_supplier",
+        "name": "Approve Supplier",
+        "aggregate": "supplier",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supplier_approved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_chain_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_suspend_supplier",
+        "name": "Suspend Supplier",
+        "aggregate": "supplier",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supplier_suspended"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_chain_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_deactivate_supplier",
+        "name": "Deactivate Supplier",
+        "aggregate": "supplier",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supplier_deactivated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_chain_management"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_place_supply_order",
+        "name": "Place Supply Order",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supply_order_placed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Supply caskets, urns, and printed materials to franchise homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_approve_supply_order",
+        "name": "Approve Supply Order",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supply_order_approved"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Supply caskets, urns, and printed materials to franchise homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_reject_supply_order",
+        "name": "Reject Supply Order",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supply_order_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Supply caskets, urns, and printed materials to franchise homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_ship_supply_order",
+        "name": "Ship Supply Order",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supply_order_shipped"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Supply caskets, urns, and printed materials to franchise homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_confirm_supply_order_delivery",
+        "name": "Confirm Supply Order Delivery",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supply_order_delivered"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Supply caskets, urns, and printed materials to franchise homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_cancel_supply_order",
+        "name": "Cancel Supply Order",
+        "aggregate": "supply_order",
+        "capability": "supply_chain_management",
+        "emits": [
+          "supply_order_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Supply caskets, urns, and printed materials to franchise homes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_sell_plan",
+        "name": "Sell Plan",
+        "aggregate": "preneed_plan",
+        "capability": "preneed_administration",
+        "emits": [
+          "preneed_plan_plan_sold"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Sell and safeguard pre-paid funeral plans"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_record_payment",
+        "name": "Record Payment",
+        "aggregate": "preneed_plan",
+        "capability": "preneed_administration",
+        "emits": [
+          "preneed_plan_payment_received"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Sell and safeguard pre-paid funeral plans"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_fund_trust",
+        "name": "Fund Trust",
+        "aggregate": "preneed_plan",
+        "capability": "preneed_administration",
+        "emits": [
+          "preneed_plan_plan_trust_funded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "safeguard pre-paid funeral plans"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_transfer_plan",
+        "name": "Transfer Plan",
+        "aggregate": "preneed_plan",
+        "capability": "preneed_administration",
+        "emits": [
+          "preneed_plan_plan_transferred"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "safeguard pre-paid funeral plans"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_cancel_plan",
+        "name": "Cancel Plan",
+        "aggregate": "preneed_plan",
+        "capability": "preneed_administration",
+        "emits": [
+          "preneed_plan_plan_cancelled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "safeguard pre-paid funeral plans"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_fulfill_plan",
+        "name": "Fulfill Plan",
+        "aggregate": "preneed_plan",
+        "capability": "preneed_administration",
+        "emits": [
+          "preneed_plan_plan_fulfilled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil them decades later at need"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_open_trust_account",
+        "name": "Open Trust Account",
+        "aggregate": "trust_account",
+        "capability": "preneed_administration",
+        "emits": [
+          "trust_account_opened"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Sell and safeguard pre-paid funeral plans"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_deposit_funds",
+        "name": "Deposit Funds",
+        "aggregate": "trust_account",
+        "capability": "preneed_administration",
+        "emits": [
+          "trust_account_funds_deposited"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "safeguard pre-paid funeral plans"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_review_trust_account",
+        "name": "Review Trust Account",
+        "aggregate": "trust_account",
+        "capability": "preneed_administration",
+        "emits": [
+          "trust_account_reviewed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "last_reviewed attribute"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_withdraw_funds_for_fulfillment",
+        "name": "Withdraw Funds For Fulfillment",
+        "aggregate": "trust_account",
+        "capability": "preneed_administration",
+        "emits": [
+          "trust_account_funds_withdrawn_for_fulfillment",
+          "trust_account_withdrawal_rejected"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil them decades later at need"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_close_trust_account",
+        "name": "Close Trust Account",
+        "aggregate": "trust_account",
+        "capability": "preneed_administration",
+        "emits": [
+          "trust_account_closed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "fulfil them decades later at need"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_schedule_audit",
+        "name": "Schedule Audit",
+        "aggregate": "audit_report",
+        "capability": "compliance_quality_assurance",
+        "emits": [
+          "audit_report_audit_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Audit homes for regulatory and dignity standards"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_conduct_audit",
+        "name": "Conduct Audit",
+        "aggregate": "audit_report",
+        "capability": "compliance_quality_assurance",
+        "emits": [
+          "audit_report_audit_conducted",
+          "audit_report_findings_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Audit homes for regulatory and dignity standards"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_score_audit",
+        "name": "Score Audit",
+        "aggregate": "audit_report",
+        "capability": "compliance_quality_assurance",
+        "emits": [
+          "audit_report_audit_passed",
+          "audit_report_audit_failed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "maintain brand quality"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_request_corrective_action",
+        "name": "Request Corrective Action",
+        "aggregate": "audit_report",
+        "capability": "compliance_quality_assurance",
+        "emits": [
+          "audit_report_corrective_action_requested"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "maintain brand quality"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_close_audit",
+        "name": "Close Audit",
+        "aggregate": "audit_report",
+        "capability": "compliance_quality_assurance",
+        "emits": [
+          "audit_report_audit_closed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "maintain brand quality"
+            }
+          ]
+        }
+      },
+      {
+        "id": "training_record_schedule_training",
+        "name": "Schedule Training",
+        "aggregate": "training_record",
+        "capability": "compliance_quality_assurance",
+        "emits": [
+          "training_record_training_scheduled"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "training_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "training_record_record_training_completion",
+        "name": "Record Training Completion",
+        "aggregate": "training_record",
+        "capability": "compliance_quality_assurance",
+        "emits": [
+          "training_record_training_completed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "training_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "training_record_record_training_failure",
+        "name": "Record Training Failure",
+        "aggregate": "training_record",
+        "capability": "compliance_quality_assurance",
+        "emits": [
+          "training_record_training_failed"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "training_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "training_record_expire_certification",
+        "name": "Expire Certification",
+        "aggregate": "training_record",
+        "capability": "compliance_quality_assurance",
+        "emits": [
+          "training_record_certification_expired"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "training_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice_generate_royalty_invoice",
+        "name": "Generate Royalty Invoice",
+        "aggregate": "royalty_invoice",
+        "capability": "royalty_billing",
+        "emits": [
+          "royalty_invoice_generated"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Collect royalty and supply revenue from each home"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice_adjust_royalty_invoice_amount",
+        "name": "Adjust Royalty Invoice Amount",
+        "aggregate": "royalty_invoice",
+        "capability": "royalty_billing",
+        "emits": [
+          "royalty_invoice_amount_adjusted"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sustain the franchise network"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice_record_royalty_invoice_payment",
+        "name": "Record Royalty Invoice Payment",
+        "aggregate": "royalty_invoice",
+        "capability": "royalty_billing",
+        "emits": [
+          "royalty_invoice_payment_recorded"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Collect royalty and supply revenue"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice_mark_royalty_invoice_overdue",
+        "name": "Mark Royalty Invoice Overdue",
+        "aggregate": "royalty_invoice",
+        "capability": "royalty_billing",
+        "emits": [
+          "royalty_invoice_overdue_marked"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sustain the franchise network"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice_waive_royalty_invoice",
+        "name": "Waive Royalty Invoice",
+        "aggregate": "royalty_invoice",
+        "capability": "royalty_billing",
+        "emits": [
+          "royalty_invoice_waived"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "sustain the franchise network"
+            }
+          ]
+        }
+      }
+    ],
+    "events": [
+      {
+        "id": "case_opened",
+        "name": "Case Opened",
+        "aggregate": "case",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "case"
+            }
+          ]
+        }
+      },
+      {
+        "id": "case_notification_received",
+        "name": "Case Notification Received",
+        "aggregate": "case",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "case"
+            }
+          ]
+        }
+      },
+      {
+        "id": "case_assigned_to_director",
+        "name": "Case Assigned To Director",
+        "aggregate": "case",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "case"
+            }
+          ]
+        }
+      },
+      {
+        "id": "case_closed",
+        "name": "Case Closed",
+        "aggregate": "case",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "case"
+            }
+          ]
+        }
+      },
+      {
+        "id": "case_reopened",
+        "name": "Case Reopened",
+        "aggregate": "case",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "case"
+            }
+          ]
+        }
+      },
+      {
+        "id": "family_contact_registered",
+        "name": "Family Contact Registered",
+        "aggregate": "family_contact",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "family_contact"
+            }
+          ]
+        }
+      },
+      {
+        "id": "family_contact_details_updated",
+        "name": "Family Contact Details Updated",
+        "aggregate": "family_contact",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "family_contact"
+            }
+          ]
+        }
+      },
+      {
+        "id": "family_contact_designated_primary",
+        "name": "Family Contact Designated Primary",
+        "aggregate": "family_contact",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "family_contact"
+            }
+          ]
+        }
+      },
+      {
+        "id": "family_contact_removed",
+        "name": "Family Contact Removed",
+        "aggregate": "family_contact",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "family_contact"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deceased_transferred_into_care",
+        "name": "Deceased Transferred Into Care",
+        "aggregate": "deceased",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deceased"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deceased_identity_confirmed",
+        "name": "Identity Confirmed",
+        "aggregate": "deceased",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deceased"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deceased_faith_requirements_recorded",
+        "name": "Faith Requirements Recorded",
+        "aggregate": "deceased",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deceased"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deceased_preparation_completed",
+        "name": "Preparation Completed",
+        "aggregate": "deceased",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deceased"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deceased_preparation_rejected",
+        "name": "Preparation Rejected",
+        "aggregate": "deceased",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deceased"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record_deceased_received_into_care",
+        "name": "Deceased Received Into Care",
+        "aggregate": "preparation_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preparation_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record_identification_confirmed",
+        "name": "Identification Confirmed",
+        "aggregate": "preparation_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preparation_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record_embalming_performed",
+        "name": "Embalming Performed",
+        "aggregate": "preparation_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preparation_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record_preparation_completed",
+        "name": "Preparation Completed",
+        "aggregate": "preparation_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preparation_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preparation_record_preparation_notes_recorded",
+        "name": "Preparation Notes Recorded",
+        "aggregate": "preparation_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preparation_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_started",
+        "name": "Arrangement Started",
+        "aggregate": "arrangement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_service_type_selected",
+        "name": "Service Type Selected",
+        "aggregate": "arrangement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_merchandise_selected",
+        "name": "Merchandise Selected",
+        "aggregate": "arrangement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_ceremony_details_set",
+        "name": "Ceremony Details Set",
+        "aggregate": "arrangement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_budget_confirmed",
+        "name": "Budget Confirmed",
+        "aggregate": "arrangement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_faith_preferences_recorded",
+        "name": "Faith Preferences Recorded",
+        "aggregate": "arrangement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_finalized",
+        "name": "Arrangement Finalized",
+        "aggregate": "arrangement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "arrangement_cancelled",
+        "name": "Arrangement Cancelled",
+        "aggregate": "arrangement",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "merchandise_selection_merchandise_item_selected",
+        "name": "Merchandise Item Selected",
+        "aggregate": "merchandise_selection",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "merchandise_selection"
+            }
+          ]
+        }
+      },
+      {
+        "id": "merchandise_selection_merchandise_item_changed",
+        "name": "Merchandise Item Changed",
+        "aggregate": "merchandise_selection",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "merchandise_selection"
+            }
+          ]
+        }
+      },
+      {
+        "id": "merchandise_selection_merchandise_item_removed",
+        "name": "Merchandise Item Removed",
+        "aggregate": "merchandise_selection",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "merchandise_selection"
+            }
+          ]
+        }
+      },
+      {
+        "id": "merchandise_selection_finalized",
+        "name": "Merchandise Selection Finalized",
+        "aggregate": "merchandise_selection",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "merchandise_selection"
+            }
+          ]
+        }
+      },
+      {
+        "id": "death_registration_filed",
+        "name": "Death Registration Filed",
+        "aggregate": "death_registration",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "death_registration"
+            }
+          ]
+        }
+      },
+      {
+        "id": "death_registration_rejected",
+        "name": "Death Registration Rejected",
+        "aggregate": "death_registration",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "death_registration"
+            }
+          ]
+        }
+      },
+      {
+        "id": "death_registration_burial_or_cremation_permit_obtained",
+        "name": "Burial Or Cremation Permit Obtained",
+        "aggregate": "death_registration",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "death_registration"
+            }
+          ]
+        }
+      },
+      {
+        "id": "death_registration_amended",
+        "name": "Death Registration Amended",
+        "aggregate": "death_registration",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "death_registration"
+            }
+          ]
+        }
+      },
+      {
+        "id": "permit_requested",
+        "name": "Permit Requested",
+        "aggregate": "permit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "permit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "permit_issued",
+        "name": "Permit Issued",
+        "aggregate": "permit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "permit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "permit_rejected",
+        "name": "Permit Rejected",
+        "aggregate": "permit",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "permit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "permit_expired",
+        "name": "Permit Expired",
+        "aggregate": "permit",
+        "trigger": "time",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "permit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization_authorization_requested",
+        "name": "Authorization Requested",
+        "aggregate": "burial_authorization",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "burial_authorization"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization_disposition_method_selected",
+        "name": "Disposition Method Selected",
+        "aggregate": "burial_authorization",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "burial_authorization"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization_authorization_granted",
+        "name": "Authorization Granted",
+        "aggregate": "burial_authorization",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "burial_authorization"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization_authorization_rejected",
+        "name": "Authorization Rejected",
+        "aggregate": "burial_authorization",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "burial_authorization"
+            }
+          ]
+        }
+      },
+      {
+        "id": "burial_authorization_authorization_revoked",
+        "name": "Authorization Revoked",
+        "aggregate": "burial_authorization",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "burial_authorization"
+            }
+          ]
+        }
+      },
+      {
+        "id": "venue_booking_requested",
+        "name": "Venue Booking Requested",
+        "aggregate": "venue_booking",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "venue_booking"
+            }
+          ]
+        }
+      },
+      {
+        "id": "venue_booking_confirmed",
+        "name": "Venue Booking Confirmed",
+        "aggregate": "venue_booking",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "venue_booking"
+            }
+          ]
+        }
+      },
+      {
+        "id": "venue_booking_rescheduled",
+        "name": "Venue Booking Rescheduled",
+        "aggregate": "venue_booking",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "venue_booking"
+            }
+          ]
+        }
+      },
+      {
+        "id": "venue_booking_cancelled",
+        "name": "Venue Booking Cancelled",
+        "aggregate": "venue_booking",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "venue_booking"
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment_celebrant_requested",
+        "name": "Celebrant Requested",
+        "aggregate": "celebrant_assignment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "celebrant_assignment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment_celebrant_assigned",
+        "name": "Celebrant Assigned",
+        "aggregate": "celebrant_assignment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "celebrant_assignment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment_celebrant_confirmed",
+        "name": "Celebrant Confirmed",
+        "aggregate": "celebrant_assignment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "celebrant_assignment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment_celebrant_reassigned",
+        "name": "Celebrant Reassigned",
+        "aggregate": "celebrant_assignment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "celebrant_assignment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "celebrant_assignment_cancelled",
+        "name": "Celebrant Assignment Cancelled",
+        "aggregate": "celebrant_assignment",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "celebrant_assignment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule_transport_scheduled",
+        "name": "Transport Scheduled",
+        "aggregate": "transport_schedule",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "transport_schedule"
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule_transport_rescheduled",
+        "name": "Transport Rescheduled",
+        "aggregate": "transport_schedule",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "transport_schedule"
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule_transport_vehicle_assigned",
+        "name": "Transport Vehicle Assigned",
+        "aggregate": "transport_schedule",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "transport_schedule"
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule_transport_cancelled",
+        "name": "Transport Cancelled",
+        "aggregate": "transport_schedule",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "transport_schedule"
+            }
+          ]
+        }
+      },
+      {
+        "id": "transport_schedule_transport_confirmed",
+        "name": "Transport Confirmed",
+        "aggregate": "transport_schedule",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "transport_schedule"
+            }
+          ]
+        }
+      },
+      {
+        "id": "flower_order_placed",
+        "name": "Flower Order Placed",
+        "aggregate": "flower_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "flower_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "flower_order_modified",
+        "name": "Flower Order Modified",
+        "aggregate": "flower_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "flower_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "flower_order_cancelled",
+        "name": "Flower Order Cancelled",
+        "aggregate": "flower_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "flower_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "flower_order_delivered",
+        "name": "Flower Order Delivered",
+        "aggregate": "flower_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "flower_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order_placed",
+        "name": "Printed Material Order Placed",
+        "aggregate": "printed_material_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "printed_material_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order_specification_updated",
+        "name": "Printed Material Order Specification Updated",
+        "aggregate": "printed_material_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "printed_material_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order_cancelled",
+        "name": "Printed Material Order Cancelled",
+        "aggregate": "printed_material_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "printed_material_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order_fulfilled",
+        "name": "Printed Material Order Fulfilled",
+        "aggregate": "printed_material_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "printed_material_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "printed_material_order_delivery_delayed",
+        "name": "Printed Material Order Delivery Delayed",
+        "aggregate": "printed_material_order",
+        "trigger": "external",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "printed_material_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_scheduled",
+        "name": "Ceremony Scheduled",
+        "aggregate": "ceremony",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ceremony"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_rescheduled",
+        "name": "Ceremony Rescheduled",
+        "aggregate": "ceremony",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ceremony"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_started",
+        "name": "Ceremony Started",
+        "aggregate": "ceremony",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ceremony"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_eulogy_delivered",
+        "name": "Eulogy Delivered",
+        "aggregate": "ceremony",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ceremony"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_committal_completed",
+        "name": "Committal Completed",
+        "aggregate": "ceremony",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ceremony"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_concluded",
+        "name": "Ceremony Concluded",
+        "aggregate": "ceremony",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ceremony"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_cancelled",
+        "name": "Ceremony Cancelled",
+        "aggregate": "ceremony",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ceremony"
+            }
+          ]
+        }
+      },
+      {
+        "id": "committal_record_committal_scheduled",
+        "name": "Committal Scheduled",
+        "aggregate": "committal_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "committal_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "committal_record_committal_completed",
+        "name": "Committal Completed",
+        "aggregate": "committal_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "committal_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "committal_record_committal_delayed",
+        "name": "Committal Delayed",
+        "aggregate": "committal_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "committal_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ashes_return_ashes_ready_for_return",
+        "name": "Ashes Ready For Return",
+        "aggregate": "ashes_return",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ashes_return"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ashes_return_ashes_keepsake_returned",
+        "name": "Ashes/Keepsake Returned",
+        "aggregate": "ashes_return",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ashes_return"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ashes_return_return_attempt_failed",
+        "name": "Return Attempt Failed",
+        "aggregate": "ashes_return",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ashes_return"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ashes_return_keepsake_prepared",
+        "name": "Keepsake Prepared",
+        "aggregate": "ashes_return",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ashes_return"
+            }
+          ]
+        }
+      },
+      {
+        "id": "grief_resource_referral_created",
+        "name": "Grief Resource Referral Created",
+        "aggregate": "grief_resource_referral",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "grief_resource_referral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "grief_resource_referral_sent",
+        "name": "Grief Resource Referral Sent",
+        "aggregate": "grief_resource_referral",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "grief_resource_referral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "grief_resource_referral_declined",
+        "name": "Grief Resource Referral Declined",
+        "aggregate": "grief_resource_referral",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "grief_resource_referral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "grief_resource_referral_grief_resource_follow_up_completed",
+        "name": "Grief Resource Follow Up Completed",
+        "aggregate": "grief_resource_referral",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "grief_resource_referral"
+            }
+          ]
+        }
+      },
+      {
+        "id": "final_account_generated",
+        "name": "Final Account Generated",
+        "aggregate": "final_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "final_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "final_account_payment_recorded",
+        "name": "Final Account Payment Recorded",
+        "aggregate": "final_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "final_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "final_account_settled",
+        "name": "Final Account Settled",
+        "aggregate": "final_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "final_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "final_account_adjusted",
+        "name": "Final Account Adjusted",
+        "aggregate": "final_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "final_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_applied_for",
+        "name": "Franchise License Applied For",
+        "aggregate": "franchise_license",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_approved",
+        "name": "Franchise License Approved",
+        "aggregate": "franchise_license",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_rejected",
+        "name": "Franchise License Rejected",
+        "aggregate": "franchise_license",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_activated",
+        "name": "Franchise License Activated",
+        "aggregate": "franchise_license",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_suspended",
+        "name": "Franchise License Suspended",
+        "aggregate": "franchise_license",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_revoked",
+        "name": "Franchise License Revoked",
+        "aggregate": "franchise_license",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_renewed",
+        "name": "Franchise License Renewed",
+        "aggregate": "franchise_license",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_license_terminated",
+        "name": "Franchise License Terminated",
+        "aggregate": "franchise_license",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_application_received",
+        "name": "Franchise Home Application Received",
+        "aggregate": "franchise_home",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_home"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_licensed",
+        "name": "Franchise Home Licensed",
+        "aggregate": "franchise_home",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_home"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_site_approved",
+        "name": "Franchise Home Site Approved",
+        "aggregate": "franchise_home",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_home"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_opened",
+        "name": "Franchise Home Opened",
+        "aggregate": "franchise_home",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_home"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_license_suspended",
+        "name": "Franchise Home License Suspended",
+        "aggregate": "franchise_home",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_home"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_home_closed",
+        "name": "Franchise Home Closed",
+        "aggregate": "franchise_home",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_home"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_registered",
+        "name": "Supplier Registered",
+        "aggregate": "supplier",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_contact_updated",
+        "name": "Supplier Contact Updated",
+        "aggregate": "supplier",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_approved",
+        "name": "Supplier Approved",
+        "aggregate": "supplier",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_suspended",
+        "name": "Supplier Suspended",
+        "aggregate": "supplier",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supplier_deactivated",
+        "name": "Supplier Deactivated",
+        "aggregate": "supplier",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supplier"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_placed",
+        "name": "Supply Order Placed",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_approved",
+        "name": "Supply Order Approved",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_rejected",
+        "name": "Supply Order Rejected",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_shipped",
+        "name": "Supply Order Shipped",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_delivered",
+        "name": "Supply Order Delivered",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_order_cancelled",
+        "name": "Supply Order Cancelled",
+        "aggregate": "supply_order",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "supply_order"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_plan_sold",
+        "name": "Plan Sold",
+        "aggregate": "preneed_plan",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preneed_plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_payment_received",
+        "name": "Payment Received",
+        "aggregate": "preneed_plan",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preneed_plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_plan_trust_funded",
+        "name": "Plan Trust Funded",
+        "aggregate": "preneed_plan",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preneed_plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_plan_transferred",
+        "name": "Plan Transferred",
+        "aggregate": "preneed_plan",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preneed_plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_plan_cancelled",
+        "name": "Plan Cancelled",
+        "aggregate": "preneed_plan",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preneed_plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "preneed_plan_plan_fulfilled",
+        "name": "Plan Fulfilled",
+        "aggregate": "preneed_plan",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preneed_plan"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_opened",
+        "name": "Trust Account Opened",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_funds_deposited",
+        "name": "Funds Deposited",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_reviewed",
+        "name": "Trust Account Reviewed",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_interest_accrued",
+        "name": "Interest Accrued",
+        "aggregate": "trust_account",
+        "trigger": "time",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_funds_withdrawn_for_fulfillment",
+        "name": "Funds Withdrawn For Fulfillment",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_withdrawal_rejected",
+        "name": "Withdrawal Rejected",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trust_account_closed",
+        "name": "Trust Account Closed",
+        "aggregate": "trust_account",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "trust_account"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_audit_scheduled",
+        "name": "Audit Scheduled",
+        "aggregate": "audit_report",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_report"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_audit_conducted",
+        "name": "Audit Conducted",
+        "aggregate": "audit_report",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_report"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_findings_recorded",
+        "name": "Findings Recorded",
+        "aggregate": "audit_report",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_report"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_audit_passed",
+        "name": "Audit Passed",
+        "aggregate": "audit_report",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_report"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_audit_failed",
+        "name": "Audit Failed",
+        "aggregate": "audit_report",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_report"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_corrective_action_requested",
+        "name": "Corrective Action Requested",
+        "aggregate": "audit_report",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_report"
+            }
+          ]
+        }
+      },
+      {
+        "id": "audit_report_audit_closed",
+        "name": "Audit Closed",
+        "aggregate": "audit_report",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_report"
+            }
+          ]
+        }
+      },
+      {
+        "id": "training_record_training_scheduled",
+        "name": "Training Scheduled",
+        "aggregate": "training_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "training_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "training_record_training_completed",
+        "name": "Training Completed",
+        "aggregate": "training_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "training_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "training_record_training_failed",
+        "name": "Training Failed",
+        "aggregate": "training_record",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "training_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "training_record_certification_expired",
+        "name": "Certification Expired",
+        "aggregate": "training_record",
+        "trigger": "time",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "training_record"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice_generated",
+        "name": "Royalty Invoice Generated",
+        "aggregate": "royalty_invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "royalty_invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice_amount_adjusted",
+        "name": "Royalty Invoice Amount Adjusted",
+        "aggregate": "royalty_invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "royalty_invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice_payment_recorded",
+        "name": "Royalty Invoice Payment Recorded",
+        "aggregate": "royalty_invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "royalty_invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice_overdue_marked",
+        "name": "Royalty Invoice Overdue Marked",
+        "aggregate": "royalty_invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "royalty_invoice"
+            }
+          ]
+        }
+      },
+      {
+        "id": "royalty_invoice_waived",
+        "name": "Royalty Invoice Waived",
+        "aggregate": "royalty_invoice",
+        "trigger": "command",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "royalty_invoice"
+            }
+          ]
+        }
+      }
+    ],
+    "policies": [
+      {
+        "id": "pol_0feaa0a2",
+        "name": "Open case triggers receiving deceased into care",
+        "on": "case_opened",
+        "then": "deceased_transfer_deceased_into_care",
+        "condition": "when a new case is opened for a deceased",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "case-to-deceased handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_e3135a5b",
+        "name": "Deceased transfer creates preparation record intake",
+        "on": "deceased_transferred_into_care",
+        "then": "preparation_record_receive_deceased_into_care",
+        "condition": "once the deceased is transferred into care",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deceased-to-preparation_record handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_59d877f6",
+        "name": "Identity confirmation mirrored on preparation record",
+        "on": "deceased_identity_confirmed",
+        "then": "preparation_record_confirm_identification",
+        "condition": "after identity is confirmed on the deceased entity",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "deceased-to-preparation_record handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_02150952",
+        "name": "Preparation record completion closes deceased preparation",
+        "on": "preparation_record_preparation_completed",
+        "then": "deceased_complete_preparation",
+        "condition": "once embalming/preparation work is finished",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preparation_record-to-deceased handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_27567adf",
+        "name": "Finalized arrangement triggers death registration filing",
+        "on": "arrangement_finalized",
+        "then": "death_registration_file_death_registration",
+        "condition": "after the arrangement details are finalized",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement-to-death_registration handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_3579e3d5",
+        "name": "Finalized arrangement triggers venue booking request",
+        "on": "arrangement_finalized",
+        "then": "venue_booking_request_venue_booking",
+        "condition": "if the arrangement includes a ceremony venue",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement-to-venue_booking handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_3c204535",
+        "name": "Finalized arrangement triggers celebrant request",
+        "on": "arrangement_finalized",
+        "then": "celebrant_assignment_request_celebrant",
+        "condition": "if the arrangement includes a ceremony celebrant",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement-to-celebrant_assignment handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_754b0776",
+        "name": "Finalized arrangement triggers transport scheduling",
+        "on": "arrangement_finalized",
+        "then": "transport_schedule_schedule_transport",
+        "condition": "if the arrangement requires transport",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement-to-transport_schedule handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_3e7ef7b4",
+        "name": "Finalized arrangement generates final account",
+        "on": "arrangement_finalized",
+        "then": "final_account_generate_final_account",
+        "condition": "once arrangement is finalized and priced",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "arrangement-to-final_account handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_eeb06849",
+        "name": "Permit obtained on registration triggers formal permit request",
+        "on": "death_registration_burial_or_cremation_permit_obtained",
+        "then": "permit_request_permit",
+        "condition": "to record the formal permit request against the permit entity",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "death_registration-to-permit handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_f25c3856",
+        "name": "Permit issuance enables burial authorization request",
+        "on": "permit_issued",
+        "then": "burial_authorization_request_authorization",
+        "condition": "once the burial/cremation permit is issued",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "permit-to-burial_authorization handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_26ca6130",
+        "name": "Authorization granted schedules committal",
+        "on": "burial_authorization_authorization_granted",
+        "then": "committal_record_schedule_committal",
+        "condition": "after disposition authorization is granted",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "burial_authorization-to-committal_record handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_42ea5afd",
+        "name": "Venue confirmation schedules the ceremony",
+        "on": "venue_booking_confirmed",
+        "then": "ceremony_schedule_ceremony",
+        "condition": "once the venue is confirmed",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "venue_booking-to-ceremony handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_92b08537",
+        "name": "Ceremony committal completion records committal record",
+        "on": "ceremony_committal_completed",
+        "then": "committal_record_record_committal_completion",
+        "condition": "when the committal portion of the ceremony concludes",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ceremony-to-committal_record handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_e896f1fb",
+        "name": "Committal completion readies ashes for return",
+        "on": "committal_record_committal_completed",
+        "then": "ashes_return_mark_ashes_ready_for_return",
+        "condition": "if the disposition was cremation",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "committal_record-to-ashes_return handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_382253a7",
+        "name": "Ashes returned prompts grief resource referral",
+        "on": "ashes_return_ashes_keepsake_returned",
+        "then": "grief_resource_referral_create_grief_resource_referral",
+        "condition": "after ashes/keepsake are returned to the family",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "ashes_return-to-grief_resource_referral handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_fd58b595",
+        "name": "Settled account closes the case",
+        "on": "final_account_settled",
+        "then": "case_close_case",
+        "condition": "once the final account is fully settled",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "final_account-to-case handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_540c816c",
+        "name": "Preneed plan sale opens a trust account",
+        "on": "preneed_plan_plan_sold",
+        "then": "trust_account_open_trust_account",
+        "condition": "when a new preneed plan is sold",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preneed_plan-to-trust_account handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_a8dbba65",
+        "name": "Preneed payment deposits into trust",
+        "on": "preneed_plan_payment_received",
+        "then": "trust_account_deposit_funds",
+        "condition": "when a payment is received on a preneed plan",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preneed_plan-to-trust_account handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_bc749239",
+        "name": "Plan fulfillment withdraws trust funds",
+        "on": "preneed_plan_plan_fulfilled",
+        "then": "trust_account_withdraw_funds_for_fulfillment",
+        "condition": "when the preneed plan is fulfilled at time of need",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "preneed_plan-to-trust_account handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_c2913770",
+        "name": "Approved franchise site triggers license application",
+        "on": "franchise_home_site_approved",
+        "then": "franchise_license_apply_for_franchise_license",
+        "condition": "once the site is approved for a franchise home",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_home-to-franchise_license handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_107c8848",
+        "name": "Approved license triggers home licensing",
+        "on": "franchise_license_approved",
+        "then": "franchise_home_license_franchise_home",
+        "condition": "after the franchise license is approved",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license-to-franchise_home handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_987fcf30",
+        "name": "Activated license opens the home",
+        "on": "franchise_license_activated",
+        "then": "franchise_home_open_franchise_home",
+        "condition": "once the franchise license becomes active",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license-to-franchise_home handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_23af31e4",
+        "name": "Revoked license closes the home",
+        "on": "franchise_license_revoked",
+        "then": "franchise_home_close_franchise_home",
+        "condition": "when the franchise license is revoked",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "franchise_license-to-franchise_home handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_4c090d81",
+        "name": "Failed audit triggers corrective training",
+        "on": "audit_report_audit_failed",
+        "then": "training_record_schedule_training",
+        "condition": "when an audit reveals training deficiencies",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "audit_report-to-training_record handoff"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pol_9a5c52e1",
+        "name": "Overdue royalty invoice suspends franchise license",
+        "on": "royalty_invoice_overdue_marked",
+        "then": "franchise_license_suspend_franchise_license",
+        "condition": "if royalty payments remain overdue",
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "royalty_invoice-to-franchise_license handoff"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "roles": {
+    "version": "1.0",
+    "roles": [
+      {
+        "id": "intake_coordinator",
+        "name": "Intake Coordinator",
+        "capabilities": [
+          "case_intake"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Bereaved families"
+            },
+            {
+              "anchor": "Institutions"
+            }
+          ]
+        }
+      },
+      {
+        "id": "funeral_director",
+        "name": "Funeral Director",
+        "capabilities": [
+          "care_and_preparation",
+          "arrangement_management",
+          "legal_documentation",
+          "ceremony_delivery"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Bereaved families"
+            }
+          ]
+        }
+      },
+      {
+        "id": "service_logistics_coordinator",
+        "name": "Service Logistics Coordinator",
+        "capabilities": [
+          "service_logistics"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Bereaved families"
+            }
+          ]
+        }
+      },
+      {
+        "id": "after_care_specialist",
+        "name": "After-Care Specialist",
+        "capabilities": [
+          "after_care_services",
+          "preneed_administration"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Bereaved families"
+            },
+            {
+              "anchor": "Pre-need clients"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_development_manager",
+        "name": "Franchise Development Manager",
+        "capabilities": [
+          "franchise_development"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Franchisees"
+            }
+          ]
+        }
+      },
+      {
+        "id": "supply_chain_manager",
+        "name": "Supply Chain Manager",
+        "capabilities": [
+          "supply_chain_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Franchisees"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_compliance_finance_officer",
+        "name": "Franchise Compliance & Finance Officer",
+        "capabilities": [
+          "compliance_quality_assurance",
+          "royalty_billing"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Franchisees"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "workflows": {
+    "version": "1.0",
+    "workflows": [
+      {
+        "id": "case_intake_to_arrangement_finalization",
+        "name": "Case Intake to Arrangement Finalization",
+        "steps": [
+          "case_open_case",
+          "case_record_notification_details",
+          "case_assign_case_director",
+          "family_contact_register_family_contact",
+          "family_contact_designate_primary_family_contact",
+          "deceased_transfer_deceased_into_care",
+          "deceased_confirm_identification",
+          "deceased_record_faith_requirements",
+          "arrangement_start_arrangement",
+          "arrangement_select_service_type",
+          "arrangement_select_merchandise",
+          "arrangement_set_ceremony_details",
+          "arrangement_confirm_budget",
+          "arrangement_finalize_arrangement"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Case to Arrangement"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "preparation_and_legal_authorization",
+        "name": "Preparation and Legal Authorization",
+        "steps": [
+          "preparation_record_receive_deceased_into_care",
+          "preparation_record_confirm_identification",
+          "preparation_record_perform_embalming",
+          "preparation_record_record_preparation_notes",
+          "preparation_record_complete_preparation",
+          "death_registration_file_death_registration",
+          "death_registration_obtain_burial_or_cremation_permit",
+          "permit_request_permit",
+          "permit_record_permit_issuance",
+          "burial_authorization_request_authorization",
+          "burial_authorization_select_disposition_method",
+          "burial_authorization_grant_authorization"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Legal and Preparation Compliance"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "ceremony_and_service_delivery",
+        "name": "Ceremony and Service Delivery",
+        "steps": [
+          "venue_booking_request_venue_booking",
+          "venue_booking_confirm_venue_booking",
+          "celebrant_assignment_request_celebrant",
+          "celebrant_assignment_assign_celebrant",
+          "celebrant_assignment_confirm_celebrant",
+          "transport_schedule_schedule_transport",
+          "transport_schedule_assign_transport_vehicle",
+          "transport_schedule_confirm_transport",
+          "flower_order_place_flower_order",
+          "flower_order_confirm_flower_delivery",
+          "printed_material_order_place_printed_material_order",
+          "printed_material_order_confirm_printed_material_order_fulfillment",
+          "ceremony_schedule_ceremony",
+          "ceremony_start_ceremony",
+          "ceremony_deliver_eulogy",
+          "ceremony_complete_committal",
+          "ceremony_conclude_ceremony",
+          "committal_record_schedule_committal",
+          "committal_record_record_committal_completion"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Service Day Execution"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "post_service_closure_and_aftercare",
+        "name": "Post-Service Closure and Aftercare",
+        "steps": [
+          "ashes_return_mark_ashes_ready_for_return",
+          "ashes_return_prepare_keepsake",
+          "ashes_return_record_ashes_keepsake_return",
+          "grief_resource_referral_create_grief_resource_referral",
+          "grief_resource_referral_send_grief_resource_referral",
+          "grief_resource_referral_complete_grief_resource_follow_up",
+          "final_account_generate_final_account",
+          "final_account_record_final_account_payment",
+          "final_account_settle_final_account",
+          "case_close_case"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Aftercare and Billing"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "franchise_onboarding_and_licensing",
+        "name": "Franchise Onboarding and Licensing",
+        "steps": [
+          "franchise_home_submit_franchise_application",
+          "franchise_home_approve_franchise_site",
+          "franchise_license_apply_for_franchise_license",
+          "franchise_license_approve_franchise_license",
+          "franchise_license_activate_franchise_license",
+          "franchise_home_license_franchise_home",
+          "franchise_home_open_franchise_home"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Franchise Expansion"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "supplier_procurement_and_preneed_trust_management",
+        "name": "Supplier Procurement and Preneed Trust Management",
+        "steps": [
+          "supplier_register_supplier",
+          "supplier_approve_supplier",
+          "supply_order_place_supply_order",
+          "supply_order_approve_supply_order",
+          "supply_order_ship_supply_order",
+          "supply_order_confirm_supply_order_delivery",
+          "preneed_plan_sell_plan",
+          "preneed_plan_record_payment",
+          "trust_account_open_trust_account",
+          "trust_account_deposit_funds",
+          "preneed_plan_fund_trust",
+          "trust_account_review_trust_account",
+          "trust_account_withdraw_funds_for_fulfillment",
+          "preneed_plan_fulfill_plan"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Procurement and Preneed Fulfillment"
+            }
+          ]
+        },
+        "mode": "workflow"
+      },
+      {
+        "id": "franchise_compliance_and_royalty_cycle",
+        "name": "Franchise Compliance and Royalty Cycle",
+        "steps": [
+          "audit_report_schedule_audit",
+          "audit_report_conduct_audit",
+          "audit_report_score_audit",
+          "audit_report_request_corrective_action",
+          "audit_report_close_audit",
+          "training_record_schedule_training",
+          "training_record_record_training_completion",
+          "royalty_invoice_generate_royalty_invoice",
+          "royalty_invoice_record_royalty_invoice_payment"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Franchise Oversight"
+            }
+          ]
+        },
+        "mode": "agent"
+      }
+    ]
+  },
+  "agents": {
+    "version": "1.0",
+    "agents": [
+      {
+        "id": "case_intake_family_liaison_agent",
+        "name": "Case Intake & Family Liaison Agent",
+        "goal": "Open every death notification case immediately and compassionately, then guide the family through arrangement decisions.",
+        "instructions": "**Role**: First point of contact for grieving families, available 24/7.\n**How you work**: On receiving a death notification (phone, web, partner referral), open a case within minutes, capture deceased/family details, faith and cultural requirements, and dispatch transfer & care team. Guide family through arrangement_management: present service types, merchandise, and packages matching stated budget and wishes; confirm choices in writing.\n**When to escalate**: Escalate to on-call funeral director for unusual circumstances (unattended death, coroner involvement, dispute among family members, or budget conflicts) and any emotionally distressed callers needing human comfort beyond scripted empathy.\n**Guardrails**: Never quote legal/medical conclusions about cause of death; always confirm identity and contact details before proceeding; keep all family data confidential.",
+        "capabilities": [
+          "case_intake",
+          "arrangement_management"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Case Intake & Family Liaison Agent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "care_legal_logistics_agent",
+        "name": "Care, Legal & Logistics Agent",
+        "goal": "Ensure the deceased is respectfully cared for and every legal and logistical requirement is met on time.",
+        "instructions": "**Role**: Operational coordinator handling the deceased's care and the legal/logistics backbone of each funeral.\n**How you work**: Coordinate transfer and preparation of the deceased per family/faith instructions (care_and_preparation); file death registration, obtain permits, secure burial/cremation authorization (legal_documentation); book venues, celebrants, transport, flowers, and printed materials in line with arrangement decisions (service_logistics). Track deadlines and confirm all bookings 48 hours ahead.\n**When to escalate**: Escalate to compliance officer or director if documentation is rejected, permit delayed, faith requirements conflict with regulations, or any identification discrepancy arises.\n**Guardrails**: Never proceed with cremation/burial without confirmed legal authorization; follow chain-of-custody protocols; double-check identity at every handoff.",
+        "capabilities": [
+          "care_and_preparation",
+          "legal_documentation",
+          "service_logistics"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Care, Legal & Logistics Agent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "ceremony_after_care_agent",
+        "name": "Ceremony & After-Care Agent",
+        "goal": "Deliver dignified ceremonies and support families through settlement and grief after the service.",
+        "instructions": "**Role**: On-site ceremony execution and post-service family support.\n**How you work**: Conduct viewings, wakes, services and committals per the confirmed arrangement plan (ceremony_delivery); afterwards coordinate return of ashes/keepsakes, share grief resources, and finalize billing/accounts with the family (after_care_services).\n**When to escalate**: Escalate immediately for any ceremony disruption, family disputes at the service, or unresolved account balances beyond standard payment plans.\n**Guardrails**: Follow the exact ceremony script/order agreed with family; verify identity before releasing ashes/keepsakes; never close a case with outstanding legal or financial items unresolved.",
+        "capabilities": [
+          "ceremony_delivery",
+          "after_care_services"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Ceremony & After-Care Agent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pre_need_plan_agent",
+        "name": "Pre-Need Plan Agent",
+        "goal": "Sell, safeguard, and faithfully fulfil pre-paid funeral plans whenever they come to need.",
+        "instructions": "**Role**: Manages the lifecycle of pre-need funeral plans from sale to fulfilment decades later.\n**How you work**: Present pre-need plan options, process payments/trust deposits, maintain accurate long-term records, and trigger fulfilment workflow (handoff to case_intake/arrangement agents) when a plan holder passes.\n**When to escalate**: Escalate any discrepancy between plan terms and current pricing/inventory, trust fund irregularities, or family disputes over plan details to management.\n**Guardrails**: Never alter locked plan terms unilaterally; ensure all funds are held in compliant trust accounts; maintain airtight audit trail for every transaction.",
+        "capabilities": [
+          "preneed_administration"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Pre-Need Plan Agent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "franchise_network_operations_agent",
+        "name": "Franchise Network Operations Agent",
+        "goal": "Grow, supply, and maintain quality across the franchise network while collecting revenue owed.",
+        "instructions": "**Role**: Back-office manager of the franchise network's growth, supply chain, quality, and finances.\n**How you work**: Recruit and license qualified franchisees and guide new home openings (franchise_development); manage ordering and distribution of caskets, urns, and printed materials to homes (supply_chain_management); schedule and conduct audits/training to uphold brand and regulatory standards (compliance_quality_assurance); calculate, invoice, and collect royalty and supply revenue (royalty_billing).\n**When to escalate**: Escalate failed audits, repeated non-compliance, franchisee financial distress, or supply shortages threatening service delivery to senior franchise leadership.\n**Guardrails**: Apply licensing and audit standards uniformly across all homes; never approve a new home that fails baseline regulatory checks; flag but do not unilaterally terminate franchise agreements.",
+        "capabilities": [
+          "franchise_development",
+          "supply_chain_management",
+          "compliance_quality_assurance",
+          "royalty_billing"
+        ],
+        "meta": {
+          "origin": "llm",
+          "derivedFrom": [
+            {
+              "anchor": "Franchise Network Operations Agent"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

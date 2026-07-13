@@ -68,14 +68,29 @@ export function anthropicProvider(client: Anthropic, model: string, effort: stri
       const outputConfig: Record<string, unknown> = {};
       if (req.schema) outputConfig.format = { type: "json_schema", schema: req.schema };
       if (supportsEffort && effort) outputConfig.effort = effort;
-      const resp = await client.messages.create({
+      const params = {
         model,
         max_tokens: 16000,
         // Cache the stable system prompt so re-review/refine reuse it from cache (prompt-caching).
         system: [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user" as const, content: req.user }],
         output_config: outputConfig,
-      } as unknown as Anthropic.MessageCreateParamsNonStreaming);
+      };
+      const create = (p: unknown) => client.messages.create(p as Anthropic.MessageCreateParamsNonStreaming);
+      let resp;
+      try {
+        resp = await create(params);
+      } catch (err) {
+        // Langdock output_config passthrough is unverified (no test-tier key) → degrade gracefully:
+        // only on the Langdock path, only a 400, only when output_config was sent → retry without it.
+        const status = (err as { status?: number } | null)?.status;
+        if (label === "langdock" && status === 400 && Object.keys(outputConfig).length > 0) {
+          const { output_config: _drop, ...rest } = params;
+          resp = await create(rest);
+        } else {
+          throw err;
+        }
+      }
       const u = resp.usage;
       usage.input += u.input_tokens ?? 0;
       usage.output += u.output_tokens ?? 0;

@@ -80,8 +80,10 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
   Langdock's Anthropic-native endpoint (EU-resident, governed, multi-provider gateway) — Bearer
   `authToken` + `KILN_LANGDOCK_BASE_URL` (default `.../anthropic/eu/v1`), no request-code change. It
   takes precedence over `KILN_ANTHROPIC_API_KEY`. Both the service and hosted functions honor it.
-  Unverified against a live key: whether the gateway forwards the newest `output_config` fields
-  (effort + structured `format`); `tools` are confirmed.
+  Langdock gates the API behind a paid plan (no test-tier key), so `output_config` passthrough (effort +
+  structured `format`) is UNVERIFIED live → the provider **degrades gracefully**: only on the Langdock
+  path, only on a 400, only when an `output_config` was sent, it retries once without it (JSON falls back
+  to the repair-parse). `tools` are confirmed. Anthropic-path errors are untouched.
 
 ## Docs & process discipline
 - All plans/specs/reviews/ADRs go under `docs/` per **`docs/CONVENTIONS.md`** (ID prefixes, frontmatter,

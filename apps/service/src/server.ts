@@ -58,7 +58,8 @@ const API_KEY = process.env.KILN_ANTHROPIC_API_KEY ?? process.env.VBD_ANTHROPIC_
 // Optional LLM provider: Langdock (an EU-resident, governed, multi-provider gateway) exposes an
 // Anthropic-NATIVE Messages endpoint, so the same @anthropic-ai/sdk works by swapping the base URL +
 // Bearer auth — no request-code change (same messages.create, tools, output_config). Set the key to
-// route generation through it instead of the Anthropic API directly. See docs/ADR/LLM-provider.
+// route generation through it instead of the Anthropic API directly (takes precedence over the Anthropic
+// key). output_config passthrough is unverified against a live key → the provider degrades gracefully.
 const LANGDOCK_KEY = process.env.KILN_LANGDOCK_API_KEY;
 const LANGDOCK_BASE_URL = process.env.KILN_LANGDOCK_BASE_URL ?? "https://api.langdock.com/anthropic/eu/v1";
 
@@ -104,7 +105,25 @@ function anthropicProvider(
         output_config: outputConfig,
       };
 
-      const resp = await client.messages.create(params as unknown as Anthropic.MessageCreateParamsNonStreaming);
+      const create = (p: unknown) => client.messages.create(p as Anthropic.MessageCreateParamsNonStreaming);
+      let resp;
+      try {
+        resp = await create(params);
+      } catch (err) {
+        // We can't verify (no test-tier key) whether the Langdock gateway forwards the newest
+        // `output_config` (effort + structured `format`). So degrade gracefully: ONLY on the Langdock
+        // path, ONLY on a 400, ONLY when we actually sent an output_config → retry once without it
+        // (structured output then falls back to the caller's repair-parse of `json`). The SDK already
+        // retries 429/5xx; a real Anthropic-path 400 still surfaces.
+        const status = (err as { status?: number } | null)?.status;
+        if (PROVIDER_LABEL === "langdock" && status === 400 && Object.keys(outputConfig).length > 0) {
+          const { output_config: _drop, ...rest } = params;
+          console.warn("[kiln] Langdock rejected output_config; retrying without it (JSON → repair-parse).");
+          resp = await create(rest);
+        } else {
+          throw err;
+        }
+      }
       const u = resp.usage;
       usage.input += u.input_tokens ?? 0;
       usage.output += u.output_tokens ?? 0;

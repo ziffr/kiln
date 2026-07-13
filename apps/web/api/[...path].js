@@ -5021,14 +5021,27 @@ function anthropicProvider(client, model, effort, supportsEffort, usage) {
       const outputConfig = {};
       if (req.schema) outputConfig.format = { type: "json_schema", schema: req.schema };
       if (supportsEffort && effort) outputConfig.effort = effort;
-      const resp = await client.messages.create({
+      const params = {
         model,
         max_tokens: 16e3,
         // Cache the stable system prompt so re-review/refine reuse it from cache (prompt-caching).
         system: [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: req.user }],
         output_config: outputConfig
-      });
+      };
+      const create = (p) => client.messages.create(p);
+      let resp;
+      try {
+        resp = await create(params);
+      } catch (err) {
+        const status = err?.status;
+        if (label === "langdock" && status === 400 && Object.keys(outputConfig).length > 0) {
+          const { output_config: _drop, ...rest } = params;
+          resp = await create(rest);
+        } else {
+          throw err;
+        }
+      }
       const u = resp.usage;
       usage.input += u.input_tokens ?? 0;
       usage.output += u.output_tokens ?? 0;

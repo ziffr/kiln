@@ -492,11 +492,11 @@ textarea {
 /* Left: the pipeline rail */
 .stage-rail { display: flex; flex-direction: column; gap: 2px; padding: 12px 8px; border-right: 1px solid var(--border, var(--border)); overflow-y: auto; background: var(--bg); }
 .stage-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; background: transparent; color: var(--fg); border-radius: 8px; cursor: pointer; text-align: left; width: 100%; position: relative; }
-.stage-item:hover { background: #131a29; }
-.stage-item.active { background: #1a2333; color: #fff; }
-.stage-item.active::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--accent, var(--accent-2)); }
+.stage-item:hover { background: var(--panel); }
+.stage-item.active { background: var(--accent-soft); color: var(--fg); font-weight: 600; }
+.stage-item.active::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--accent); }
 .stage-n { width: 22px; height: 22px; flex: none; display: grid; place-items: center; font-size: 11px; border-radius: 6px; background: var(--border); color: var(--muted); }
-.stage-item.active .stage-n { background: var(--accent-2); color: #fff; }
+.stage-item.active .stage-n { background: var(--accent); color: var(--accent-fg); }
 .stage-label { flex: 1; font-size: 13px; }
 .stage-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .dot-empty { background: var(--border); }
@@ -623,11 +623,11 @@ textarea {
 /* ============ Visual polish pass (harmonize to the token system) ============ */
 .stage-rail { background: var(--panel-2); border-right: 1px solid var(--border); padding: 14px 10px; gap: 3px; }
 .stage-item { border-radius: var(--radius); padding: 9px 10px; transition: background .12s; }
-.stage-item:hover { background: #131b2b; }
-.stage-item.active { background: #14203a; color: #fff; }
+.stage-item:hover { background: var(--panel); }
+.stage-item.active { background: var(--accent-soft); color: var(--fg); font-weight: 600; }
 .stage-item.active::before { background: var(--accent); }
-.stage-item.active .stage-n { background: var(--accent); color: #04121f; }
-.stage-n { background: var(--panel-2); color: var(--muted); font-weight: 600; }
+.stage-item.active .stage-n { background: var(--accent); color: var(--accent-fg); }
+.stage-n { background: var(--border); color: var(--muted); font-weight: 600; }
 .stage-label { font-size: 13px; letter-spacing: .01em; }
 
 .stage-main { padding: 22px 26px; gap: 4px; }
@@ -848,9 +848,9 @@ textarea {
 .project-desc {
   display: block; width: 100%; text-align: left; cursor: text;
   margin: 2px 0 10px; padding: 6px 8px; font-size: 12px; line-height: 1.45;
-  color: var(--fg, #cdd8f5); background: transparent; border: 1px solid transparent; border-radius: 8px;
+  color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 8px;
 }
-.project-desc:hover { border-color: var(--line, #24314f); background: rgba(255,255,255,0.02); }
+.project-desc:hover { border-color: var(--edge); background: var(--panel); }
 
 /* ── Buttons (shared) ─────────────────────────────────────────────────────────── */
 .btn {

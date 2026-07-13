@@ -986,7 +986,7 @@ export default function App(): React.JSX.Element {
           <div className="side-mark"><Icon name="flame" size={17} /></div>
           <div className="side-team-name">
             <div className="side-title">{t("appTitle")}</div>
-            <div className="side-sub muted">{active.name}</div>
+            <div className="side-sub muted">{t("brandTagline")}</div>
           </div>
         </div>
 

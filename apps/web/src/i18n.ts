@@ -8,6 +8,7 @@ const resources = {
     translation: {
       appTitle: "Kiln Studio",
       tagline: "Business-Modell → Capability Map → Review",
+      brandTagline: "der Business-Compiler",
       narrative: "Business-Narrativ",
       narrativeHint: "Beschreibe das Unternehmen. Fähigkeiten entstehen daraus.",
       sections: "Abschnitte",
@@ -285,6 +286,7 @@ const resources = {
     translation: {
       appTitle: "Kiln Studio",
       tagline: "Business model → Capability Map → review",
+      brandTagline: "the business compiler",
       narrative: "Business Narrative",
       narrativeHint: "Describe the business. Capabilities are derived from it.",
       sections: "Sections",

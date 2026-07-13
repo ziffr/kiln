@@ -44,6 +44,18 @@ The web app runs standalone with an **offline mock** generator. For **real LLM g
 also run the service (it holds the Anthropic key). Put your key in a git-ignored `.env` at the
 repo root: `VBD_ANTHROPIC_API_KEY=sk-ant-...`
 
+The easiest entrypoint is the **`vbd.sh`** helper — one script wrapping every CLI task
+(`./vbd.sh help` lists them all; `./vbd.sh doctor` checks your environment):
+
+```bash
+./vbd.sh install     # install deps (links workspaces)
+./vbd.sh dev         # run the service (:8787) + web app (:5188) together
+./vbd.sh export      # project the model → a complete multi-backend system in ./out/targets
+./vbd.sh app:up      # build + run that generated system (docker compose + schema)
+```
+
+Or drive the underlying tools directly:
+
 ```bash
 npm install                          # links workspaces + installs deps
 npm run dev --workspace @vbd/web     # web (Vite) on http://localhost:5188

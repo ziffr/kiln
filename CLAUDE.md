@@ -146,6 +146,16 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   details}` before any handler/DB work. Env-driven (no new exporter flag; matches the `N8N_WEBHOOK_TOKEN`/`PGSSL`
   idiom). Verified: generated `validate()` executed against good/bad/partial/null/unknown inputs; app.ts +
   validate.ts esbuild-parse. RLS + observability remain the open deploy gaps. 265 tests.
+- **Full-stack export from the app + `vbd.sh` CLI helper BUILT.** (1) The complete multi-backend file-map
+  assembly was extracted out of the CLI bin into a pure, isomorphic `assembleFullStack(input) → {files,
+  report}` in `@vbd/codegen` (byte-identical to the CLI, both dialects; the bin is now a thin wrapper). The
+  web app's **View code** stage gained a **📦 Full-stack** button that assembles the whole repo in the browser
+  and downloads it as a `.zip` (dialect auto-detected from the store binding; AI-drafted handlers included) —
+  previously only the self-contained single-process app (`generateApp`) could be exported in-app. Verified
+  in-browser: 660 KB zip, 199 files, no errors. (2) **`vbd.sh`** (repo root, documented, `./vbd.sh help`):
+  one entrypoint for every CLI task — `install`/`doctor`/`dev`/`web`/`service`/`test`/`build`/`check`,
+  `export [flags]` (the codegen exporter), and `app:up|down|ui|spine|logs` (run a GENERATED system via its
+  Makefile) + `verify:up`. 268 tests.
 - **Repo hygiene: env templates were never committed (FIXED).** The `.gitignore` `.env.*` rule silently
   shadowed every `.env.example`, so a fresh clone shipped with NO env docs — despite the required
   `VBD_ANTHROPIC_API_KEY`. (The earlier "root `.env.example` rewritten" note was doubly wrong: the file was

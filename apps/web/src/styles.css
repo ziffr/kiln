@@ -582,8 +582,15 @@ textarea {
 .stage-issues-body { max-height: 210px; overflow-y: auto; padding: 0 12px 8px; }
 .stage-issues-body .findings { margin: 4px 0; }
 .si-help { font-size: 12px; margin: 6px 0 8px; }
-.stage-issues-body .findings li { display: flex; align-items: baseline; gap: 8px; }
-.stage-issues-body .findings li .fi-text { flex: 1; min-width: 0; }
+.stage-issues-body .findings li { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; }
+.stage-issues-body .findings li .fi-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fi-msg { line-height: 1.4; }
+.fi-fix { font-size: 11px; color: var(--muted); line-height: 1.35; }
+.fi-fix::before { content: "→ "; }
+.sev-pill { display: inline-block; margin-right: 6px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 1px 6px; border-radius: 999px; vertical-align: 1px; }
+.sev-pill.sev-blocker { background: color-mix(in srgb, #d64545 22%, transparent); color: #d64545; }
+.sev-pill.sev-major { background: var(--warn-bg); color: var(--warn-fg); }
+.sev-pill.sev-minor { background: var(--panel); color: var(--muted); border: 1px solid var(--border); }
 .fi-dismiss { flex: none; align-self: center; display: inline-flex; padding: 2px; border: none; background: none; color: var(--muted); cursor: pointer; border-radius: 5px; opacity: 0; }
 .stage-issues-body .findings li:hover .fi-dismiss { opacity: 1; }
 .fi-dismiss:hover { background: var(--warn-bg); color: var(--warn-fg); }

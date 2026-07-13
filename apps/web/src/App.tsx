@@ -47,6 +47,7 @@ type DialogState =
 import { ReviewPanel } from "./components/ReviewPanel";
 import { Guide } from "./components/Guide";
 import { ExamplesModal } from "./components/ExamplesModal";
+import { findingFix } from "./findingFix";
 import { NarrativeInput } from "./components/NarrativeInput";
 import {
   loadProjects,
@@ -1203,9 +1204,13 @@ export default function App(): React.JSX.Element {
                       <ul className="findings cap-findings">
                         {det.map((f) => {
                           const subj = f.subjects.find(isArtifact);
+                          const fix = findingFix(f.code, i18n.language) ?? t("findingFixFallback");
                           return (
-                            <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && navTo(stage, subj)} onMouseEnter={() => subj && setHovered(subj)} onMouseLeave={() => setHovered(null)} title={subj ? t("findingGoHint") : undefined}>
-                              <span className="fi-text"><code className={f.severity}>{f.code}</code> {f.message}</span>
+                            <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && navTo(stage, subj)} onMouseEnter={() => subj && setHovered(subj)} onMouseLeave={() => setHovered(null)} title={`${f.code}${subj ? " · " + t("findingGoHint") : ""}`}>
+                              <span className="fi-text">
+                                <span className="fi-msg"><span className={`sev-pill sev-${f.severity}`}>{t(`sev_${f.severity}`)}</span> {f.message}</span>
+                                <span className="fi-fix">{fix}</span>
+                              </span>
                               <button className="fi-dismiss" title={t("dismiss")} aria-label={t("dismiss")} onClick={(e) => { e.stopPropagation(); dismissFinding(f.id); }}><Icon name="x" size={13} /></button>
                             </li>
                           );

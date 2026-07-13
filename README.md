@@ -1,28 +1,56 @@
-# Kiln
+<div align="center">
 
-**The business compiler.** Describe a vertical business in structured text — an LLM derives a formal
-model, deterministic validators check it, it renders as an interactive, reviewable **Capability
-Map**, and codegen projects it into a runnable multi-backend system. **Text is the source of truth;
-everything downstream is a projection of it.**
+# 🔥 Kiln
 
-> Note: **Kiln** is the product name. Internally the code uses the codename **VBD** — the `@vbd/*`
-> workspace packages and the historically-misspelled repo directory (`VerticalBusinessDesiger`) keep
-> that codename; they are not renamed.
+### The business compiler — describe a business, get the software that runs it.
 
-## Status
+[![License](https://img.shields.io/badge/license-Apache--2.0-5b8cff)](LICENSE)
+[![CI](https://github.com/ziffr/kiln/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![Node](https://img.shields.io/badge/node-%E2%89%A520-339933)](package.json)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-ff8a3d)](CONTRIBUTING.md)
 
-MVP in progress — see the governed docs under [`docs/`](docs/INDEX.md):
+![Kiln: describe → model → run](docs/assets/kiln-demo.gif)
 
-- [SPEC-001](docs/specs/SPEC-001-mvp-narrative-capability-loop.md) — MVP spec (Approved)
-- [PLAN-001](docs/plans/PLAN-001-mvp-execution-plan.md) — execution plan M0–M5 (Approved)
-- [ADR-001](docs/adr/ADR-001-typescript-end-to-end.md), [ADR-002](docs/adr/ADR-002-storage-and-source-of-truth.md) — key decisions
-- [CONVENTIONS.md](docs/CONVENTIONS.md) — documentation policy (status lifecycle, review process)
+**[▶ Try it live](https://vertical-business-designer-web.vercel.app)** · [Quickstart](#run-the-app) · [How it works](#how-it-works) · [Add an engine](docs/good-first-issues/README.md) · [Contribute](CONTRIBUTING.md)
 
-**Full modeling + codegen stack built** — the complete arc runs end-to-end: narrative → capabilities →
-business areas → entities → behaviour (commands/events) → policies → roles → workflows → agents, then
-deterministic **codegen** projects the model to a runnable multi-backend system (PostgreSQL/SQLite +
-a command API + n8n + Odoo + a shadcn/ui front-end + an agent runtime), exportable from the CLI or the
-web app as a complete, docker-ready repo. 268+ passing package tests; app builds & runs.
+</div>
+
+Kiln is an LLM-guided **"business compiler."** You describe a vertical business in plain, structured
+text; an LLM derives a formal **model** (capabilities, entities, behaviour, policies, roles, workflows,
+agents); deterministic validators check it; it renders as an interactive, reviewable **Capability
+Map**; and codegen **projects the model into a runnable multi-backend system** — a PostgreSQL/SQLite
+schema, a command API, n8n automations, an Odoo module, a shadcn/ui front-end, and an agent runtime —
+exportable as a complete, docker-ready repo. **Text is the source of truth; everything downstream is a
+projection of it, and a human reviews the AI's work at every step.**
+
+## How it works
+
+```
+describe            →   model (reviewed)                    →   run
+plain-language          capabilities · business areas ·         PostgreSQL/SQLite · command API ·
+narrative,              entities · commands/events ·            n8n · Odoo · shadcn/ui · agents ·
+transcript, or          policies · roles · workflows ·         docker-compose — a complete,
+agent interview         agents  (validated + human-edited)     git-initialized repo
+```
+
+Content enters three ways — paste a **transcript**, let the **agent interview** you, or **write it**
+directly — and the same pipeline derives the model. The projection is deterministic; the **engines are
+pluggable** (add a store, orchestrator, UI, or platform by registering one adapter — see
+[SPEC-010](docs/specs/SPEC-010-engine-plugin-seam.md)).
+
+## Examples
+
+The app opens on a gallery of worked verticals, each demonstrating a different way in:
+
+| Vertical | How it was captured |
+|---|---|
+| ☀️ **Sonnenkraft Solar** — residential & commercial solar installer | owner-written narrative (ships a fully-baked model) |
+| ⚖️ **Kanzlei Berger** — commercial law firm | an uploaded **Zoom-call transcript** |
+| ☕ **Röstwerk** — specialty-coffee **franchise** | a **structured interview** run by the agent |
+| ⚰️ **Abschied & Würde** — funeral-service **franchise** | owner-entered content |
+
+> **Naming:** **Kiln** is the product; the code uses the internal codename **VBD** (`@vbd/*` packages +
+> the historically-misspelled repo dir), which are not renamed.
 
 ## Repository layout
 

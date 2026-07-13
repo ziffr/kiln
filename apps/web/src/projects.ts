@@ -58,6 +58,10 @@ export interface Project {
   coachConfig?: CoachConfig;
   /** persisted interview transcript (excludes the localized greeting). */
   coachTranscript?: CoachMsg[];
+  /** content-addressed ids of findings the human has reviewed and dismissed (acknowledged as
+   *  acceptable). Filtered out of the badge counts + lists; a finding that materially changes gets a
+   *  new id and reappears. Restorable. */
+  dismissedFindings?: string[];
   updatedAt: number;
 }
 

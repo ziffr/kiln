@@ -579,6 +579,14 @@ textarea {
 .stage-issues-head:hover { background: var(--panel); }
 .stage-issues-body { max-height: 210px; overflow-y: auto; padding: 0 12px 8px; }
 .stage-issues-body .findings { margin: 4px 0; }
+.si-help { font-size: 12px; margin: 6px 0 8px; }
+.stage-issues-body .findings li { display: flex; align-items: baseline; gap: 8px; }
+.stage-issues-body .findings li .fi-text { flex: 1; min-width: 0; }
+.fi-dismiss { flex: none; align-self: center; display: inline-flex; padding: 2px; border: none; background: none; color: var(--muted); cursor: pointer; border-radius: 5px; opacity: 0; }
+.stage-issues-body .findings li:hover .fi-dismiss { opacity: 1; }
+.fi-dismiss:hover { background: var(--warn-bg); color: var(--warn-fg); }
+.si-restore { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
+.si-restore:hover { background: var(--panel); color: var(--fg); }
 .role-matrix .matrix-cell.hot-col { background: color-mix(in srgb, var(--accent-2) 14%, transparent); }
 .role-matrix th.rot.hot-col > span { color: var(--accent-2); }
 

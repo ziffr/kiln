@@ -894,18 +894,30 @@ export default function App(): React.JSX.Element {
 
   const supportsEffort = MODELS.find((m) => m.id === active.model)?.supportsEffort ?? true;
 
+  // ---- Findings the human has dismissed (acknowledged) — excluded from the badge counts + lists ----
+  const dismissed = useMemo(() => new Set(active.dismissedFindings ?? []), [active.dismissedFindings]);
+  const liveCount = (arr: { id: string }[]): number => arr.reduce((n, f) => n + (dismissed.has(f.id) ? 0 : 1), 0);
+  function dismissFinding(id: string): void {
+    if (dismissed.has(id)) return;
+    patchActive({ dismissedFindings: [...(active.dismissedFindings ?? []), id] });
+  }
+  function restoreDismissed(ids: string[]): void {
+    const drop = new Set(ids);
+    patchActive({ dismissedFindings: (active.dismissedFindings ?? []).filter((id) => !drop.has(id)) });
+  }
+
   // ---- Stage pipeline (progressive disclosure) ----
   const layerStatus = (authored: unknown, live: number): "empty" | "mock" | "ready" => (authored ? "ready" : live > 0 ? "mock" : "empty");
   const stages: StageInfo[] = [
-    { id: "narrative", label: t("narrative"), status: text.trim() ? "ready" : "empty", findings: narrativeFindings.length },
-    { id: "capabilities", label: t("capabilities"), status: layerStatus(active.capabilities, activeDoc.capabilities.length), findings: capFindings.length },
-    { id: "areas", label: t("areas"), status: layerStatus(active.contexts, contextsDoc.contexts.length), findings: contextFindings.length },
-    { id: "entities", label: t("entities"), status: layerStatus(active.domain, domainDoc.aggregates.length), findings: domainFindings.length },
-    { id: "behaviour", label: t("behaviour"), status: layerStatus(active.domain?.commands?.length, (behaviourDoc.commands?.length ?? 0) + (behaviourDoc.events?.length ?? 0)), findings: eventFindings.length },
-    { id: "automations", label: t("automations"), status: layerStatus(active.domain?.policies?.length, flowDoc.policies?.length ?? 0), findings: policyFindings.length },
-    { id: "roles", label: t("roles"), status: layerStatus(active.roles, rolesDoc.roles.length), findings: roleFindings.length },
-    { id: "workflows", label: t("workflows"), status: layerStatus(active.workflows, workflowsDoc.workflows.length), findings: workflowFindings.length },
-    { id: "agents", label: t("agents"), status: layerStatus(active.agents, agentsDoc.agents.length), findings: agentFindings.length },
+    { id: "narrative", label: t("narrative"), status: text.trim() ? "ready" : "empty", findings: liveCount(narrativeFindings) },
+    { id: "capabilities", label: t("capabilities"), status: layerStatus(active.capabilities, activeDoc.capabilities.length), findings: liveCount(capFindings) },
+    { id: "areas", label: t("areas"), status: layerStatus(active.contexts, contextsDoc.contexts.length), findings: liveCount(contextFindings) },
+    { id: "entities", label: t("entities"), status: layerStatus(active.domain, domainDoc.aggregates.length), findings: liveCount(domainFindings) },
+    { id: "behaviour", label: t("behaviour"), status: layerStatus(active.domain?.commands?.length, (behaviourDoc.commands?.length ?? 0) + (behaviourDoc.events?.length ?? 0)), findings: liveCount(eventFindings) },
+    { id: "automations", label: t("automations"), status: layerStatus(active.domain?.policies?.length, flowDoc.policies?.length ?? 0), findings: liveCount(policyFindings) },
+    { id: "roles", label: t("roles"), status: layerStatus(active.roles, rolesDoc.roles.length), findings: liveCount(roleFindings) },
+    { id: "workflows", label: t("workflows"), status: layerStatus(active.workflows, workflowsDoc.workflows.length), findings: liveCount(workflowFindings) },
+    { id: "agents", label: t("agents"), status: layerStatus(active.agents, agentsDoc.agents.length), findings: liveCount(agentFindings) },
     { id: "code", label: t("viewCode"), status: "ready", findings: 0 },
   ];
   const stageGen: Partial<Record<StageId, { run: () => void; busy: boolean; label: string }>> = {
@@ -1162,10 +1174,13 @@ export default function App(): React.JSX.Element {
           {/* Findings live at the TOP (below the header) so they're visible on entry regardless of how
               tall the diagram is; a collapsible, height-capped panel keeps a long list from dominating. */}
           {(() => {
-            const det = stageFindings[stage] ?? [];
-            const crit = REVIEW_KIND[stage] ? critique[REVIEW_KIND[stage]!] : undefined;
+            const raw = stageFindings[stage] ?? [];
+            const det = raw.filter((f) => !dismissed.has(f.id));
+            const critRaw = REVIEW_KIND[stage] ? critique[REVIEW_KIND[stage]!] : undefined;
+            const crit = critRaw?.filter((f) => !dismissed.has(f.id));
+            const dismissedHere = [...raw, ...(critRaw ?? [])].filter((f) => dismissed.has(f.id)).map((f) => f.id);
             const total = det.length + (crit?.length ?? 0);
-            if (total === 0 && !crit) return null;
+            if (total === 0 && !critRaw && dismissedHere.length === 0) return null;
             return (
               <div className="stage-issues">
                 <button className="stage-issues-head" onClick={() => setShowIssues((v) => !v)} aria-expanded={showIssues}>
@@ -1175,11 +1190,17 @@ export default function App(): React.JSX.Element {
                 </button>
                 {showIssues && (
                   <div className="stage-issues-body">
+                    {total > 0 && <p className="si-help muted">{t("issuesHelp")}</p>}
                     {det.length > 0 && (
                       <ul className="findings cap-findings">
                         {det.map((f) => {
                           const subj = f.subjects.find(isArtifact);
-                          return <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && navTo(stage, subj)} onMouseEnter={() => subj && setHovered(subj)} onMouseLeave={() => setHovered(null)}><code className={f.severity}>{f.code}</code> {f.message}</li>;
+                          return (
+                            <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && navTo(stage, subj)} onMouseEnter={() => subj && setHovered(subj)} onMouseLeave={() => setHovered(null)} title={subj ? t("findingGoHint") : undefined}>
+                              <span className="fi-text"><code className={f.severity}>{f.code}</code> {f.message}</span>
+                              <button className="fi-dismiss" title={t("dismiss")} aria-label={t("dismiss")} onClick={(e) => { e.stopPropagation(); dismissFinding(f.id); }}><Icon name="x" size={13} /></button>
+                            </li>
+                          );
                         })}
                       </ul>
                     )}
@@ -1188,11 +1209,17 @@ export default function App(): React.JSX.Element {
                         <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("aiReviewTitle")}</li>
                         {crit.length === 0 && <li className="muted">{t("aiReviewOk")}</li>}
                         {crit.map((f) => (
-                          <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)}>
-                            <code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}
+                          <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)} title={f.target ? t("findingGoHint") : undefined}>
+                            <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
+                            <button className="fi-dismiss" title={t("dismiss")} aria-label={t("dismiss")} onClick={(e) => { e.stopPropagation(); dismissFinding(f.id); }}><Icon name="x" size={13} /></button>
                           </li>
                         ))}
                       </ul>
+                    )}
+                    {dismissedHere.length > 0 && (
+                      <button className="si-restore" onClick={() => restoreDismissed(dismissedHere)}>
+                        <Icon name="refresh" size={12} /> {t("restoreDismissed", { count: dismissedHere.length })}
+                      </button>
                     )}
                   </div>
                 )}

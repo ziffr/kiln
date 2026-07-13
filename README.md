@@ -16,7 +16,11 @@ MVP in progress — see the governed docs under [`docs/`](docs/INDEX.md):
 - [ADR-001](docs/adr/ADR-001-typescript-end-to-end.md), [ADR-002](docs/adr/ADR-002-storage-and-source-of-truth.md) — key decisions
 - [CONVENTIONS.md](docs/CONVENTIONS.md) — documentation policy (status lifecycle, review process)
 
-**M0 & M1 complete; M2 pipeline delivered (mock generator)** — 42 passing package tests; app builds & runs. The web app now generates the Capability Map from the narrative live.
+**Full modeling + codegen stack built** — the complete arc runs end-to-end: narrative → capabilities →
+business areas → entities → behaviour (commands/events) → policies → roles → workflows → agents, then
+deterministic **codegen** projects the model to a runnable multi-backend system (PostgreSQL/SQLite +
+a command API + n8n + Odoo + a shadcn/ui front-end + an agent runtime), exportable from the CLI or the
+web app as a complete, docker-ready repo. 268+ passing package tests; app builds & runs.
 
 ## Repository layout
 

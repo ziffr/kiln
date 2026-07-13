@@ -58,10 +58,11 @@ export interface Project {
   coachConfig?: CoachConfig;
   /** persisted interview transcript (excludes the localized greeting). */
   coachTranscript?: CoachMsg[];
-  /** content-addressed ids of findings the human has reviewed and dismissed (acknowledged as
-   *  acceptable). Filtered out of the badge counts + lists; a finding that materially changes gets a
-   *  new id and reappears. Restorable. */
-  dismissedFindings?: string[];
+  /** MEANING-keys of findings the human has reviewed and chosen to ignore (acknowledged as acceptable /
+   *  can't-fix-yet). Keyed on the hint's meaning — code + the NAMES of the artifacts it's about — not the
+   *  generated id, so ignoring survives a regenerate that reissues ids. Filtered from badge counts + lists;
+   *  restorable. (Renamed from the id-keyed `dismissedFindings`.) */
+  ignoredFindings?: string[];
   updatedAt: number;
 }
 

@@ -915,16 +915,34 @@ export default function App(): React.JSX.Element {
 
   const supportsEffort = MODELS.find((m) => m.id === active.model)?.supportsEffort ?? true;
 
-  // ---- Findings the human has dismissed (acknowledged) — excluded from the badge counts + lists ----
-  const dismissed = useMemo(() => new Set(active.dismissedFindings ?? []), [active.dismissedFindings]);
-  const liveCount = (arr: { id: string }[]): number => arr.reduce((n, f) => n + (dismissed.has(f.id) ? 0 : 1), 0);
-  function dismissFinding(id: string): void {
-    if (dismissed.has(id)) return;
-    patchActive({ dismissedFindings: [...(active.dismissedFindings ?? []), id] });
+  // Resolve any artifact id (capability / area-node / entity / command / event / policy / role / agent)
+  // to a display NAME — used for breadcrumb labels AND for the meaning-key of an ignored finding.
+  const nameFor = (id: string): string => {
+    const cap = activeDoc.capabilities.find((c) => c.id === id); if (cap) return cap.name || id;
+    const area = contextsDoc.contexts.find((c) => contextNodeId(c.id) === id || c.id === id); if (area) return area.name || id;
+    const agg = domainDoc.aggregates.find((a) => a.id === id); if (agg) return agg.name || id;
+    const cmd = (behaviourDoc.commands ?? []).find((c) => c.id === id); if (cmd) return cmd.name || id;
+    const ev = (behaviourDoc.events ?? []).find((e) => e.id === id); if (ev) return ev.name || id;
+    const pol = (flowDoc.policies ?? []).find((p) => p.id === id); if (pol) return pol.name || id;
+    const role = rolesDoc.roles.find((r) => r.id === id); if (role) return role.name || id;
+    const agent = agentsDoc.agents.find((a) => a.id === id); if (agent) return agent.name || id;
+    return id;
+  };
+
+  // ---- Findings the human has chosen to IGNORE (acknowledged / can't-fix-yet) — excluded from badge
+  // counts + lists. Keyed on the hint's MEANING (code + the NAMES of the artifacts it's about), not the
+  // generated id, so an ignore survives a regenerate that reissues ids. Restorable. ----
+  const ignored = useMemo(() => new Set(active.ignoredFindings ?? []), [active.ignoredFindings]);
+  const detKey = (f: { code: string; subjects: string[] }): string => `${f.code}|${f.subjects.map(nameFor).slice().sort().join(",")}`;
+  const critKey = (f: { message: string }): string => `ai|${f.message}`;
+  const liveCount = (arr: { code: string; subjects: string[] }[]): number => arr.reduce((n, f) => n + (ignored.has(detKey(f)) ? 0 : 1), 0);
+  function ignoreFinding(key: string): void {
+    if (ignored.has(key)) return;
+    patchActive({ ignoredFindings: [...(active.ignoredFindings ?? []), key] });
   }
-  function restoreDismissed(ids: string[]): void {
-    const drop = new Set(ids);
-    patchActive({ dismissedFindings: (active.dismissedFindings ?? []).filter((id) => !drop.has(id)) });
+  function restoreIgnored(keys: string[]): void {
+    const drop = new Set(keys);
+    patchActive({ ignoredFindings: (active.ignoredFindings ?? []).filter((k) => !drop.has(k)) });
   }
 
   // ---- Stage pipeline (progressive disclosure) ----
@@ -961,19 +979,6 @@ export default function App(): React.JSX.Element {
   };
   const activeStage = stages.find((s) => s.id === stage) ?? stages[1];
 
-  // Resolve any artifact id (capability / area-node / entity / command / event / role / agent) to a
-  // display name — used to label breadcrumb segments for the current selection.
-  const nameFor = (id: string): string => {
-    const cap = activeDoc.capabilities.find((c) => c.id === id); if (cap) return cap.name || id;
-    const area = contextsDoc.contexts.find((c) => contextNodeId(c.id) === id || c.id === id); if (area) return area.name || id;
-    const agg = domainDoc.aggregates.find((a) => a.id === id); if (agg) return agg.name || id;
-    const cmd = (behaviourDoc.commands ?? []).find((c) => c.id === id); if (cmd) return cmd.name || id;
-    const ev = (behaviourDoc.events ?? []).find((e) => e.id === id); if (ev) return ev.name || id;
-    const pol = (flowDoc.policies ?? []).find((p) => p.id === id); if (pol) return pol.name || id;
-    const role = rolesDoc.roles.find((r) => r.id === id); if (role) return role.name || id;
-    const agent = agentsDoc.agents.find((a) => a.id === id); if (agent) return agent.name || id;
-    return id;
-  };
   const stageLabelOf = (s: StageId): string => stages.find((x) => x.id === s)?.label ?? s;
   // Is this id any known artifact? (broadens finding subjects beyond capabilities so behaviour/
   // automation/role findings can highlight + navigate too.)
@@ -1196,12 +1201,15 @@ export default function App(): React.JSX.Element {
               tall the diagram is; a collapsible, height-capped panel keeps a long list from dominating. */}
           {(() => {
             const raw = stageFindings[stage] ?? [];
-            const det = raw.filter((f) => !dismissed.has(f.id));
+            const det = raw.filter((f) => !ignored.has(detKey(f)));
             const critRaw = REVIEW_KIND[stage] ? critique[REVIEW_KIND[stage]!] : undefined;
-            const crit = critRaw?.filter((f) => !dismissed.has(f.id));
-            const dismissedHere = [...raw, ...(critRaw ?? [])].filter((f) => dismissed.has(f.id)).map((f) => f.id);
+            const crit = critRaw?.filter((f) => !ignored.has(critKey(f)));
+            const ignoredHere = [
+              ...raw.filter((f) => ignored.has(detKey(f))).map(detKey),
+              ...(critRaw ?? []).filter((f) => ignored.has(critKey(f))).map(critKey),
+            ];
             const total = det.length + (crit?.length ?? 0);
-            if (total === 0 && !critRaw && dismissedHere.length === 0) return null;
+            if (total === 0 && !critRaw && ignoredHere.length === 0) return null;
             return (
               <div className="stage-issues">
                 <button className="stage-issues-head" onClick={() => setShowIssues((v) => !v)} aria-expanded={showIssues}>
@@ -1227,7 +1235,7 @@ export default function App(): React.JSX.Element {
                                   {removablePolicy && <button className="fi-action" onClick={(e) => { e.stopPropagation(); deletePolicy(removablePolicy); }}><Icon name="trash" size={11} /> {t("removeAutomation")}</button>}
                                 </span>
                               </span>
-                              <button className="fi-dismiss" title={t("dismiss")} aria-label={t("dismiss")} onClick={(e) => { e.stopPropagation(); dismissFinding(f.id); }}><Icon name="x" size={13} /></button>
+                              <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); ignoreFinding(detKey(f)); }}><Icon name="x" size={13} /></button>
                             </li>
                           );
                         })}
@@ -1240,14 +1248,14 @@ export default function App(): React.JSX.Element {
                         {crit.map((f) => (
                           <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)} title={f.target ? t("findingGoHint") : undefined}>
                             <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
-                            <button className="fi-dismiss" title={t("dismiss")} aria-label={t("dismiss")} onClick={(e) => { e.stopPropagation(); dismissFinding(f.id); }}><Icon name="x" size={13} /></button>
+                            <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); ignoreFinding(critKey(f)); }}><Icon name="x" size={13} /></button>
                           </li>
                         ))}
                       </ul>
                     )}
-                    {dismissedHere.length > 0 && (
-                      <button className="si-restore" onClick={() => restoreDismissed(dismissedHere)}>
-                        <Icon name="refresh" size={12} /> {t("restoreDismissed", { count: dismissedHere.length })}
+                    {ignoredHere.length > 0 && (
+                      <button className="si-restore" onClick={() => restoreIgnored(ignoredHere)}>
+                        <Icon name="refresh" size={12} /> {t("restoreIgnored", { count: ignoredHere.length })}
                       </button>
                     )}
                   </div>

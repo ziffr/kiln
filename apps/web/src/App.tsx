@@ -439,6 +439,18 @@ export default function App(): React.JSX.Element {
     const agg: AggregateInput = { id, name: "New Entity", owner: ownerId, attributes: [], references: [], meta: { origin: "authored" } };
     patchActive({ domain: { ...base, aggregates: [...base.aggregates, agg] } });
   }
+  // Remove an authored automation (policy). This is the concrete fix for the PL6 self-loop / PL7 cycle
+  // findings ("remove one link"): a policy IS the event→command link, so deleting it breaks the cycle.
+  function deletePolicy(id: string): void {
+    const base = active.domain;
+    if (!base?.policies?.some((p) => p.id === id)) return; // only authored policies are deletable
+    const pol = base.policies.find((p) => p.id === id);
+    setDialog({
+      kind: "confirm", title: t("removeAutomation"), message: `${t("removeAutomationConfirm")}${pol?.name ? ` „${pol.name}“` : ""}`,
+      confirmLabel: t("del"), danger: true,
+      onConfirm: () => patchActive({ domain: { ...base, policies: base.policies!.filter((p) => p.id !== id) } }),
+    });
+  }
 
   // ---- Business-areas: generate + editing (SPEC-003; the model proposes, the human decides) ----
   async function generateAreas(): Promise<void> {
@@ -1205,11 +1217,15 @@ export default function App(): React.JSX.Element {
                         {det.map((f) => {
                           const subj = f.subjects.find(isArtifact);
                           const fix = findingFix(f.code, i18n.language) ?? t("findingFixFallback");
+                          const removablePolicy = subj && (active.domain?.policies ?? []).some((p) => p.id === subj) ? subj : undefined;
                           return (
                             <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && navTo(stage, subj)} onMouseEnter={() => subj && setHovered(subj)} onMouseLeave={() => setHovered(null)} title={`${f.code}${subj ? " · " + t("findingGoHint") : ""}`}>
                               <span className="fi-text">
                                 <span className="fi-msg"><span className={`sev-pill sev-${f.severity}`}>{t(`sev_${f.severity}`)}</span> {f.message}</span>
-                                <span className="fi-fix">{fix}</span>
+                                <span className="fi-fix">
+                                  {fix}
+                                  {removablePolicy && <button className="fi-action" onClick={(e) => { e.stopPropagation(); deletePolicy(removablePolicy); }}><Icon name="trash" size={11} /> {t("removeAutomation")}</button>}
+                                </span>
                               </span>
                               <button className="fi-dismiss" title={t("dismiss")} aria-label={t("dismiss")} onClick={(e) => { e.stopPropagation(); dismissFinding(f.id); }}><Icon name="x" size={13} /></button>
                             </li>

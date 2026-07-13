@@ -587,6 +587,9 @@ textarea {
 .fi-msg { line-height: 1.4; }
 .fi-fix { font-size: 11px; color: var(--muted); line-height: 1.35; }
 .fi-fix::before { content: "→ "; }
+.fi-action { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--warn-fg); font-size: 11px; font-weight: 600; cursor: pointer; vertical-align: 1px; }
+.fi-action:hover { border-color: var(--warn-fg); background: var(--warn-bg); }
+.fi-action svg { flex: none; }
 .sev-pill { display: inline-block; margin-right: 6px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 1px 6px; border-radius: 999px; vertical-align: 1px; }
 .sev-pill.sev-blocker { background: color-mix(in srgb, #d64545 22%, transparent); color: #d64545; }
 .sev-pill.sev-major { background: var(--warn-bg); color: var(--warn-fg); }

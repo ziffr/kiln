@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spineAdapter } from "../src/index.ts";
+import { spineAdapter, entityFieldTypes } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
 
 const caps: CapabilityDoc = { domain: "Test", capabilities: [{ id: "sales", name: "Sales", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
@@ -63,4 +63,31 @@ test("a multi-line, heavily-commented block body embeds with its comments + an i
 
 test("no commands → no spine", () => {
   assert.equal(Object.keys(spineAdapter(caps, { aggregates: domain.aggregates } as unknown as DomainDoc)).length, 0);
+});
+
+test("entityFieldTypes maps typed attributes (+ id, references) per aggregate slug", () => {
+  const ft = entityFieldTypes(domain);
+  assert.equal(ft.lead.id, "text");
+  assert.equal(ft.lead.email, "text");
+  assert.equal(ft.invoice.amount, "money");
+  assert.equal(ft.invoice.lead_id, "reference"); // a reference → an id string
+});
+
+test("untyped attribute → 'any' (no constraint at validation)", () => {
+  const d = { aggregates: [{ id: "note", name: "Note", owner: "sales", attributes: ["body"] }], commands: [{ id: "add_note", name: "Add Note", aggregate: "note" }] } as unknown as DomainDoc;
+  assert.equal(entityFieldTypes(d).note.body, "any");
+});
+
+test("spine emits validate.ts + wires opt-in bearer auth + validation into app.ts", () => {
+  const f = spineAdapter(caps, domain);
+  assert.ok(f["src/validate.ts"], "validate.ts missing");
+  assert.match(f["src/validate.ts"], /export function validate\(entity: string, body: unknown\): string\[\]/);
+  assert.match(f["src/validate.ts"], /"money": Number\.isFinite|case "money"/); // money type-check present
+  // app.ts: auth middleware, applied to command routes (not /health), and a validation gate before handlers.
+  assert.match(f["src/app.ts"], /const API_TOKEN = process\.env\.API_TOKEN/);
+  assert.match(f["src/app.ts"], /timingSafeEqual/); // constant-time compare
+  assert.match(f["src/app.ts"], /app\.post\(path, requireAuth,/);
+  assert.match(f["src/app.ts"], /const errors = validate\(r\.entity, req\.body\)/);
+  assert.match(f["src/app.ts"], /status\(400\)\.json\(\{ error: "validation failed"/);
+  assert.match(f[".env.example"], /API_TOKEN/);
 });

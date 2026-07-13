@@ -791,12 +791,15 @@ export interface AgentDef {
   "src/tools.ts": `import type { AgentTool } from "./def";
 
 const SPINE = process.env.SPINE_URL || "http://localhost:3000";
+const API_TOKEN = process.env.API_TOKEN; // if the spine requires auth, send the same bearer token
 
 // Execute one tool call. command \u2192 POST the spine endpoint; notify/comm \u2192 your integration (logged here).
 export async function executeTool(tool: AgentTool, input: Record<string, unknown>): Promise<unknown> {
   if (tool.kind === "command") {
     const url = String(tool.invoke.url ?? "").replace("{{SPINE_URL}}", SPINE).replace("{id}", encodeURIComponent(String(input.id ?? "")));
-    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (API_TOKEN) headers.authorization = "Bearer " + API_TOKEN;
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(input) });
     const body = await res.json().catch(() => ({}));
     return { status: res.status, body };
   }
@@ -987,6 +990,8 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
   ".env.example": `# Copy to .env. Pick a provider.
 PROVIDER=anthropic                         # or: openrouter
 SPINE_URL=http://localhost:3000
+# If the spine requires auth (its API_TOKEN is set), send the SAME token on command calls:
+# API_TOKEN=change-me
 
 # Anthropic native (default \u2014 best Claude fidelity):
 ANTHROPIC_API_KEY=sk-ant-...

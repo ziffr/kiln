@@ -410,7 +410,7 @@ export {
   type TargetsReport,
 } from "./targets.ts";
 export { shadcnAdapter, uiStructure, helpModel, appMessages, DEFAULT_THEME, type Theme, type UiStructure, type UiScreen, type HelpModel, type HelpEntity } from "./ui.ts";
-export { spineAdapter } from "./spine.ts";
+export { spineAdapter, entityFieldTypes } from "./spine.ts";
 export { mockCommunications, communicationsAdapter, type CommunicationsDoc, type CommAction, type CommChannel } from "./comms.ts";
 export { mockIntegrations, integrationsAdapter, type IntegrationsDoc, type IntegrationAction, type IntegrationDirection } from "./integrations.ts";
 export { hoppscotchCollection } from "./hoppscotch.ts";

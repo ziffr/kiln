@@ -456,9 +456,14 @@ N8N_BASE_URL=http://localhost:5678/webhook
 
 # ── Spine API ──
 PORT=3000
+# Opt-in bearer auth: set a shared token to require Authorization: Bearer <token> on all command routes
+# (unset = OPEN). The UI, n8n HTTP nodes, and the agents runtime must send the SAME token when set.
+# API_TOKEN=change-me
 
 # ── UI → the spine base URL (Vite build-time; set in ui/.env or your host's env) ──
-VITE_API_URL=http://localhost:3000
+# Not read yet — the generated UI's data-fetch points are TODO stubs. Uncomment + wire it (and the fetch
+# calls in ui/src/pages/*) once the UI talks to the spine.
+# VITE_API_URL=http://localhost:3000
 
 # ── Agents runtime (only if you run agents/) ──
 # ANTHROPIC_API_KEY=sk-ant-...

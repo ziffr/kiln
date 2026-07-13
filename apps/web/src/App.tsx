@@ -1022,7 +1022,7 @@ export default function App(): React.JSX.Element {
   const hasDetail = !!(selectedArea || selectedAggregate || selectedCap || selectedWorkflow);
 
   return (
-    <div className={`app shell${sidebarOpen ? "" : " sidebar-collapsed"}`}>
+    <div className={`app${sidebarOpen ? "" : " sidebar-collapsed"}`}>
       {import.meta.env.VITE_PUBLIC_DEMO && (
         <div className="demo-banner">
           🔥 <strong>Public demo</strong> — real AI generation is disabled here (no key). Explore the example
@@ -1122,6 +1122,7 @@ export default function App(): React.JSX.Element {
           </div>
         </div>
       )}
+      <div className="shell">
       <aside className="side">
         <button className="side-team" onClick={() => setShowHome(true)} title={t("homeOpen")} aria-label={t("homeOpen")}>
           <div className="side-mark"><Icon name="flame" size={17} /></div>
@@ -1436,6 +1437,7 @@ export default function App(): React.JSX.Element {
         </div>
         </>
         )}
+      </div>
       </div>
     </div>
   );

@@ -46,6 +46,7 @@ type DialogState =
   | { kind: "confirm"; title: string; message: string; confirmLabel: string; danger?: boolean; onConfirm: () => void };
 import { ReviewPanel } from "./components/ReviewPanel";
 import { Guide } from "./components/Guide";
+import { ExamplesModal } from "./components/ExamplesModal";
 import { NarrativeInput } from "./components/NarrativeInput";
 import {
   loadProjects,
@@ -216,6 +217,7 @@ export default function App(): React.JSX.Element {
   const agentFindings = useMemo(() => validateAgents(agentsDoc, activeDoc.capabilities.map((c) => c.id)), [agentsDoc, activeDoc]);
   const [agentsBusy, setAgentsBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showExamples, setShowExamples] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showReview, setShowReview] = useState(false);
@@ -756,6 +758,10 @@ export default function App(): React.JSX.Element {
       setSelected(null);
     } });
   }
+  function pickExample(p: Project): void {
+    setState((s) => ({ projects: [...s.projects, p], activeId: p.id }));
+    setSelected(null);
+  }
   function renameProject(): void {
     setDialog({ kind: "input", title: t("rename"), label: t("renamePrompt"), initial: active.name, submitLabel: t("save"), onSubmit: (v) => { if (v.trim()) patchActive({ name: v.trim() }); } });
   }
@@ -921,6 +927,7 @@ export default function App(): React.JSX.Element {
           onClose={() => setStudioLocked(false)} />
       )}
       {showGuide && <Guide onClose={() => setShowGuide(false)} />}
+      {showExamples && <ExamplesModal onPick={pickExample} onClose={() => setShowExamples(false)} t={t} />}
       {showSettings && (
         <SettingsModal
           layers={reviewLayers.map((r) => ({ kind: r.kind, label: r.label }))}
@@ -1011,6 +1018,7 @@ export default function App(): React.JSX.Element {
             <button onClick={addProject} title={t("newProject")} aria-label={t("newProject")}><Icon name="plus" /></button>
           </div>
           <div className="project-tools">
+            <button onClick={() => setShowExamples(true)} title={t("examplesOpen")} aria-label={t("examplesOpen")}><Icon name="grid" size={15} /></button>
             <button onClick={renameProject} title={t("rename")} aria-label={t("rename")}><Icon name="pencil" size={15} /></button>
             <button onClick={deleteProject} disabled={state.projects.length <= 1} title={t("del")} aria-label={t("del")}><Icon name="trash" size={15} /></button>
             <span className="pt-spacer" />

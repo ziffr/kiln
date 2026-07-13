@@ -103,7 +103,10 @@ const B_MULTISERVICE: Binding = { defaults: { store: "postgres", authorize: "pos
 const B_SINGLE_CONTAINER: Binding = { defaults: { store: "sqlite", authorize: "node", react: "node", sequence: "node", operate: "node", emit: "node", "serve-ui": "shadcn" } };
 const B_ODOO_PLATFORM: Binding = { defaults: { store: "odoo", authorize: "odoo", react: "odoo", sequence: "odoo", operate: "odoo", emit: "odoo", "serve-ui": "odoo" } };
 
-function seed(): ProjectState {
+// The example gallery, as fresh Project objects (new ids on every call). Used both to seed a first-run
+// store AND on demand from the in-app Examples picker — so the demos stay reachable even once a user has
+// their own projects (the seed only runs on empty storage).
+export function exampleProjects(): Project[] {
   const m = solarModel as unknown as Pick<Project, "capabilities" | "contexts" | "domain" | "roles" | "workflows" | "agents">;
   // The showcase: solar ships with a fully-baked model so every diagram is rich out of the box.
   const solar: Project = {
@@ -137,7 +140,7 @@ function seed(): ProjectState {
     updatedAt: 0,
     ...extra,
   });
-  const projects: Project[] = [
+  return [
     solar,
     example(
       "Kanzlei Berger (law firm, example)",
@@ -152,7 +155,11 @@ function seed(): ProjectState {
       "Funeral-service franchise — at-need & pre-need, tightly regulated. Stack: Odoo (full business platform).",
       funeralNarrative, "example (owner-entered)", B_ODOO_PLATFORM),
   ];
-  return { projects, activeId: solar.id };
+}
+
+function seed(): ProjectState {
+  const projects = exampleProjects();
+  return { projects, activeId: projects[0].id };
 }
 
 export function loadProjects(): ProjectState {

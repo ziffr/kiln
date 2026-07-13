@@ -791,6 +791,20 @@ textarea {
 .side .projectbar select { flex: 1; min-width: 0; }
 .project-tools { display: flex; align-items: center; gap: 3px; padding: 0 6px; }
 .project-tools .pt-spacer { flex: 1; }
+
+/* Examples gallery (modal) */
+.examples-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.example-card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); cursor: pointer; transition: border-color .12s, transform .12s; }
+.example-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.example-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.example-card-head strong { font-size: 13px; }
+.example-badge { flex: none; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 999px; text-transform: uppercase; letter-spacing: .02em; }
+.example-badge.ready { background: var(--accent-soft); color: var(--accent); }
+.example-badge.gen { background: var(--accent-2-soft); color: var(--accent-2); }
+.example-desc { font-size: 12px; color: var(--fg); line-height: 1.35; margin: 0; }
+.example-provider { font-size: 11px; }
+.example-go { margin-top: 2px; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--accent); }
+@media (max-width: 560px) { .examples-grid { grid-template-columns: 1fr; } }
 .project-tools button { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--muted); cursor: pointer; }
 .project-tools button svg { display: block; }
 .project-tools button:hover:not(:disabled) { background: var(--panel); color: var(--fg); border-color: var(--border); }

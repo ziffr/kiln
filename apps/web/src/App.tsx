@@ -744,6 +744,11 @@ export default function App(): React.JSX.Element {
     if (name === null || !name.trim()) return;
     patchActive({ name: name.trim() });
   }
+  function editDescription(): void {
+    const d = window.prompt(t("descriptionPrompt"), active.description ?? "");
+    if (d === null) return;
+    patchActive({ description: d.trim() || undefined });
+  }
   function deleteProject(): void {
     if (state.projects.length <= 1) return;
     if (!window.confirm(`${t("deleteConfirm")} "${active.name}"`)) return;
@@ -762,7 +767,7 @@ export default function App(): React.JSX.Element {
   const modelFileRef = useRef<HTMLInputElement>(null);
   function exportModel(): void {
     const model = assembleModel(
-      { name: active.name, narrative: text, capabilities: activeDoc, contexts: contextsDoc, domain: flowDoc, roles: rolesDoc, workflows: workflowsDoc, agents: agentsDoc },
+      { name: active.name, description: active.description, narrative: text, capabilities: activeDoc, contexts: contextsDoc, domain: flowDoc, roles: rolesDoc, workflows: workflowsDoc, agents: agentsDoc },
       active,
     );
     const blob = new Blob([JSON.stringify(model, null, 2)], { type: "application/json" });
@@ -986,6 +991,10 @@ export default function App(): React.JSX.Element {
           <button onClick={deleteProject} disabled={state.projects.length <= 1} title={t("del")}>🗑</button>
         </div>
 
+        <button className="project-desc" onClick={editDescription} title={t("descriptionHint")}>
+          {active.description || <span className="muted">+ {t("addDescription")}</span>}
+        </button>
+
         <StageRail stages={stages} active={stage} onSelect={(s) => { setStage(s); setSelected(null); }} t={t} />
 
         <div className="side-foot">
@@ -1116,7 +1125,7 @@ export default function App(): React.JSX.Element {
                 }}
                 buildModel={() =>
                   assembleModel(
-                    { name: active.name, narrative: text, capabilities: activeDoc, contexts: contextsDoc, domain: flowDoc, roles: rolesDoc, workflows: workflowsDoc, agents: agentsDoc },
+                    { name: active.name, description: active.description, narrative: text, capabilities: activeDoc, contexts: contextsDoc, domain: flowDoc, roles: rolesDoc, workflows: workflowsDoc, agents: agentsDoc },
                     active,
                   )
                 }

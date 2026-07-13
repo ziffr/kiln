@@ -25,6 +25,7 @@ import type { Project } from "./projects";
 export interface ModelDoc {
   version: string;
   name: string;
+  description?: string;
   narrative: string;
   capabilities: CapabilityDoc;
   contexts: ContextsDoc;
@@ -44,6 +45,7 @@ export interface ModelDoc {
 /** The already-resolved core docs from the app (active.X ?? live mock). */
 export interface ResolvedCore {
   name: string;
+  description?: string;
   narrative: string;
   capabilities: CapabilityDoc;
   contexts: ContextsDoc;
@@ -59,6 +61,7 @@ export function assembleModel(core: ResolvedCore, p: Project): ModelDoc {
   return {
     version: "1.0",
     name: core.name,
+    description: p.description ?? undefined,
     narrative: core.narrative,
     capabilities,
     contexts,
@@ -81,6 +84,7 @@ export function parseModel(json: unknown): Partial<Project> {
   const m = (json ?? {}) as Partial<ModelDoc>;
   return {
     name: typeof m.name === "string" ? m.name : "Imported model",
+    description: typeof m.description === "string" ? m.description : undefined,
     narrative: typeof m.narrative === "string" ? m.narrative : "",
     capabilities: m.capabilities ?? null,
     contexts: m.contexts ?? null,

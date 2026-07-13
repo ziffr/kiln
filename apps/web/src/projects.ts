@@ -20,6 +20,8 @@ import { legalNarrative, baristaNarrative, baristaInterview, funeralNarrative } 
 export interface Project {
   id: string;
   name: string;
+  /** short one-line summary of the business (distinct from the full narrative) — shown on the project card. */
+  description?: string;
   narrative: string;
   model: string;
   effort: string;
@@ -95,12 +97,19 @@ function uid(): string {
   return `p_${Math.floor(performance.now() * 1000).toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
 
+// Each example demonstrates a DIFFERENT execution-engine binding, so the gallery shows the full range of
+// backends Kiln can target (Postgres, SQLite, Odoo, n8n, the generated spine, shadcn UI, Excel/Sheets).
+const B_MULTISERVICE: Binding = { defaults: { store: "postgres", authorize: "postgres", react: "n8n", sequence: "n8n", operate: "node", emit: "node", "serve-ui": "shadcn" } };
+const B_SINGLE_CONTAINER: Binding = { defaults: { store: "sqlite", authorize: "node", react: "node", sequence: "node", operate: "node", emit: "node", "serve-ui": "shadcn" } };
+const B_ODOO_PLATFORM: Binding = { defaults: { store: "odoo", authorize: "odoo", react: "odoo", sequence: "odoo", operate: "odoo", emit: "odoo", "serve-ui": "odoo" } };
+
 function seed(): ProjectState {
   const m = solarModel as unknown as Pick<Project, "capabilities" | "contexts" | "domain" | "roles" | "workflows" | "agents">;
   // The showcase: solar ships with a fully-baked model so every diagram is rich out of the box.
   const solar: Project = {
     id: uid(),
     name: "Sonnenkraft Solar (example)",
+    description: "Regional solar installer — leads → design → install → service. Stack: PostgreSQL · n8n · a command API.",
     narrative: narrativeMd,
     model: "claude-sonnet-5",
     effort: "medium",
@@ -110,26 +119,38 @@ function seed(): ProjectState {
     roles: m.roles,
     workflows: m.workflows,
     agents: m.agents,
+    binding: B_MULTISERVICE,
     provider: "example (generated)",
     updatedAt: 0,
   };
   // A gallery entry: a rich narrative, ready to "Generate with LLM". `provider` notes the ingestion path.
-  const example = (name: string, narrative: string, provider: string, extra?: Partial<Project>): Project => ({
+  const example = (name: string, description: string, narrative: string, provider: string, binding: Binding, extra?: Partial<Project>): Project => ({
     id: uid(),
     name,
+    description,
     narrative,
     model: "claude-sonnet-5",
     effort: "medium",
     capabilities: null, // description-first — derive the model in-app
+    binding,
     provider,
     updatedAt: 0,
     ...extra,
   });
   const projects: Project[] = [
     solar,
-    example("Kanzlei Berger (law firm, example)", legalNarrative, "example (from a Zoom transcript)"),
-    example("Röstwerk Coffee (franchise, example)", baristaNarrative, "example (from an agent interview)", { coachTranscript: baristaInterview }),
-    example("Abschied & Würde (funeral franchise, example)", funeralNarrative, "example (owner-entered)"),
+    example(
+      "Kanzlei Berger (law firm, example)",
+      "Commercial law firm — matters, deadlines, trust accounting. Stack: SQLite (single container) · workflows as JS.",
+      legalNarrative, "example (from a Zoom transcript)", B_SINGLE_CONTAINER),
+    example(
+      "Röstwerk Coffee (franchise, example)",
+      "Specialty-coffee franchise — franchisor ops, cafés, loyalty. Stack: PostgreSQL · n8n · Excel/Sheets.",
+      baristaNarrative, "example (from an agent interview)", B_MULTISERVICE, { coachTranscript: baristaInterview }),
+    example(
+      "Abschied & Würde (funeral franchise, example)",
+      "Funeral-service franchise — at-need & pre-need, tightly regulated. Stack: Odoo (full business platform).",
+      funeralNarrative, "example (owner-entered)", B_ODOO_PLATFORM),
   ];
   return { projects, activeId: solar.id };
 }

@@ -805,3 +805,11 @@ textarea {
   border-bottom: 1px solid rgba(255, 138, 61, 0.35);
 }
 .demo-banner a { color: #ffd0a6; text-decoration: underline; }
+
+/* Project one-line description (editable, under the project switcher). */
+.project-desc {
+  display: block; width: 100%; text-align: left; cursor: text;
+  margin: 2px 0 10px; padding: 6px 8px; font-size: 12px; line-height: 1.45;
+  color: var(--fg, #cdd8f5); background: transparent; border: 1px solid transparent; border-radius: 8px;
+}
+.project-desc:hover { border-color: var(--line, #24314f); background: rgba(255,255,255,0.02); }

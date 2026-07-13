@@ -1,0 +1,34 @@
+# CODEOWNERS — require maintainer review on the security- and contract-sensitive paths.
+#
+# The AI Maintainer (Claude) reviews every PR on the Owner's behalf (see GOVERNANCE.md); this file
+# makes review MANDATORY on the paths where a bad change is most costly: the LLM prompts (an
+# injection surface), the code that holds the Anthropic key, the engine/model public contracts, and
+# the security & governance files themselves. The listed owner (@ziffr) is the account of record;
+# the AI Maintainer performs the technical review under it.
+#
+# Last match wins — order matters. Enforced only when branch protection requires code-owner review.
+
+# ── Default: everything is owned, so nothing merges without review ──────────────────────────────
+*                                       @ziffr
+
+# ── LLM prompts — the prompt-injection surface (golden invariant #5) ────────────────────────────
+/packages/skills/**                     @ziffr
+
+# ── The Anthropic key lives here, and only here (golden invariant #3) ───────────────────────────
+/apps/service/**                        @ziffr
+/apps/web/api/**                        @ziffr
+
+# ── Engine contract — the public API the whole codegen depends on ───────────────────────────────
+/packages/codegen/src/engines/**        @ziffr
+/packages/codegen/src/targets.ts        @ziffr
+
+# ── The model schema + the invariants it must uphold ────────────────────────────────────────────
+/packages/ir/**                         @ziffr
+/packages/compiler/**                   @ziffr
+/packages/validation/**                 @ziffr
+
+# ── Security & governance surface — CI gates, policy, license ───────────────────────────────────
+/LICENSE                                @ziffr
+/SECURITY.md                            @ziffr
+/GOVERNANCE.md                          @ziffr
+/.github/**                             @ziffr

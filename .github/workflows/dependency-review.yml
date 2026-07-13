@@ -1,0 +1,22 @@
+name: Dependency Review
+
+# Scans dependency manifest changes on a PR and fails if it would introduce a known-vulnerable
+# package. Runs only on pull_request (the action diffs the PR's base against its head).
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: dependency-review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high

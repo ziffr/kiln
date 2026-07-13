@@ -7,6 +7,24 @@
  * "text is the source of truth" invariant is enforceable by construction (SPEC-001 §3.3).
  */
 
+/**
+ * MODEL_SCHEMA_VERSION — the compatibility version of the model.json / IR shape.
+ *
+ * The exported model.json (and the IR it materializes) is a contract that generated apps and the
+ * `--since` incremental-migration generator depend on. This constant makes that contract explicit
+ * so consumers can detect a shape they cannot read.
+ *
+ * Semver meaning for THIS constant:
+ * - **MINOR** bump: additive, backward-compatible model fields (a new optional layer/attribute).
+ *   Older readers keep working; new fields are simply absent in old documents.
+ * - **MAJOR** bump: a breaking change to the model shape — a removed/renamed/retyped field, or any
+ *   change that would require MIGRATING already-exported model.json files before they load.
+ * - PATCH: reserved (documentation-only / non-shape clarifications).
+ *
+ * Not yet wired into serialization — this establishes the constant and its meaning only.
+ */
+export const MODEL_SCHEMA_VERSION = "1.0.0";
+
 export type NodeType =
   | "capability"
   | "actor"

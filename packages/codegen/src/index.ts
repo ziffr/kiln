@@ -418,6 +418,7 @@ export { agentsAdapter, type AgentDef, type AgentTool } from "./agents.ts";
 export { mockTriggers, triggersAdapter, type TriggersDoc, type TriggerInput, type TriggerSource, type TriggerTarget, type TriggerTargetKind } from "./triggers.ts";
 export { mockExternalServices, externalServicesAdapter, type ExternalServicesDoc, type ExternalServiceInput, type ServiceKind, type ServiceInvocation, type ServiceResultTarget } from "./services.ts";
 export { migrate, migratePostgres, type MigrationResult, type BreakingChange, type Dialect } from "./migrate.ts";
+export { diffModels, type ModelDiff, type LayerDiff, type DiffChange, type DiffModel } from "./modelDiff.ts";
 export { assembleFullStack, type FullStackInput } from "./fullstack.ts";
 // SPEC-010 engine plugin seam: the registry API + the adapter contract (add an engine by registering it).
 export { registerEngine, getEngineAdapter, registeredEngines, type EngineAdapter, type EngineContext, type EngineOutput } from "./engines/index.ts";

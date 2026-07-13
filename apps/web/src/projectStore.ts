@@ -56,6 +56,18 @@ export async function serverListVersions(id: string): Promise<WorkspaceVersion[]
   }
 }
 
+/** The full project as it was at a given version (for diffing two versions), or null. */
+export async function serverGetVersion(id: string, sha: string): Promise<Project | null> {
+  try {
+    const r = await fetch(`${SERVICE_URL}/api/projects/${encodeURIComponent(id)}/versions/${encodeURIComponent(sha)}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (d.project as Project) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Restore a project to a past version; returns the restored project (now the working copy) or null. */
 export async function serverRestoreVersion(id: string, sha: string): Promise<Project | null> {
   try {

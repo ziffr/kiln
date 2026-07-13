@@ -35,7 +35,7 @@ export function EntitiesView({ domain, caps, onSelect, t }: { domain: DomainDoc;
 
 // Behaviour → event-storming style: per entity, commands (blue) emit events (orange).
 // `highlight` (an entity id, e.g. arrived-at via a cross-layer trace jump) glows its group.
-export function BehaviourView({ domain, highlight, t }: { domain: DomainDoc; highlight?: string | null; t: T }): React.JSX.Element {
+export function BehaviourView({ domain, highlight, highlightId, t }: { domain: DomainDoc; highlight?: string | null; highlightId?: string | null; t: T }): React.JSX.Element {
   const commands = domain.commands ?? [];
   const events = domain.events ?? [];
   if (!commands.length && !events.length) return <Empty msg={t("emptyBehaviour")} />;
@@ -51,13 +51,13 @@ export function BehaviourView({ domain, highlight, t }: { domain: DomainDoc; hig
           <div className="behaviour-flow">
             {v.cmds.map((c) => (
               <div key={c.id} className="storm-row">
-                <span className="storm command">{c.name}</span>
+                <span className={`storm command${c.id === highlightId ? " hot" : ""}`}>{c.name}</span>
                 {(c.emits ?? []).length > 0 && <span className="storm-arrow">→</span>}
-                {(c.emits ?? []).map((ev) => <span key={ev} className="storm event">{events.find((e) => e.id === ev)?.name || ev}</span>)}
+                {(c.emits ?? []).map((ev) => <span key={ev} className={`storm event${ev === highlightId ? " hot" : ""}`}>{events.find((e) => e.id === ev)?.name || ev}</span>)}
               </div>
             ))}
             {v.evs.filter((e) => (e.trigger ?? "command") !== "command").map((e) => (
-              <div key={e.id} className="storm-row"><span className={`storm event trig-${e.trigger}`}>{e.name}</span><span className="muted storm-trig">{t(`trigger_${e.trigger}`)}</span></div>
+              <div key={e.id} className="storm-row"><span className={`storm event trig-${e.trigger}${e.id === highlightId ? " hot" : ""}`}>{e.name}</span><span className="muted storm-trig">{t(`trigger_${e.trigger}`)}</span></div>
             ))}
           </div>
         </div>
@@ -68,7 +68,7 @@ export function BehaviourView({ domain, highlight, t }: { domain: DomainDoc; hig
 
 // Automations → a bipartite wiring diagram: trigger events (left) curve to the commands they run
 // (right). Reads at a glance which events drive which actions across entities.
-export function AutomationsView({ domain, highlight, t }: { domain: DomainDoc; highlight?: string | null; t: T }): React.JSX.Element {
+export function AutomationsView({ domain, highlight, highlightId, t }: { domain: DomainDoc; highlight?: string | null; highlightId?: string | null; t: T }): React.JSX.Element {
   const policies = domain.policies ?? [];
   const evName = (id: string) => (domain.events ?? []).find((e) => e.id === id)?.name || id;
   const cmdName = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.name || id;
@@ -94,25 +94,25 @@ export function AutomationsView({ domain, highlight, t }: { domain: DomainDoc; h
           return <path key={i} d={`M ${x1} ${y1} C ${x1 + 70} ${y1}, ${x2 - 70} ${y2}, ${x2} ${y2}`} className={`wire${hot ? " hot" : ""}`} markerEnd="url(#wire-arrow)" />;
         })}
       </svg>
-      {events.map((e, i) => <div key={e} className={`storm event wire-box${highlight && evAgg(e) === highlight ? " hot" : ""}`} style={{ top: i * GAP + PADY, left: 0, width: COL_W }}>{evName(e)}</div>)}
-      {commands.map((c, i) => <div key={c} className={`storm command wire-box${highlight && cmdAgg(c) === highlight ? " hot" : ""}`} style={{ top: i * GAP + PADY, left: GAP_X, width: COL_W }}>{cmdName(c)}</div>)}
+      {events.map((e, i) => <div key={e} className={`storm event wire-box${(highlight && evAgg(e) === highlight) || e === highlightId ? " hot" : ""}`} style={{ top: i * GAP + PADY, left: 0, width: COL_W }}>{evName(e)}</div>)}
+      {commands.map((c, i) => <div key={c} className={`storm command wire-box${(highlight && cmdAgg(c) === highlight) || c === highlightId ? " hot" : ""}`} style={{ top: i * GAP + PADY, left: GAP_X, width: COL_W }}>{cmdName(c)}</div>)}
     </div>
   );
 }
 
 // Roles → a role × capability matrix. `highlightCap` glows the row for the arrived-at entity's owner.
-export function RolesMatrix({ roles, caps, highlightCap, t }: { roles: RolesDoc; caps: CapabilityDoc; highlightCap?: string | null; t: T }): React.JSX.Element {
+export function RolesMatrix({ roles, caps, highlightCap, highlightId, t }: { roles: RolesDoc; caps: CapabilityDoc; highlightCap?: string | null; highlightId?: string | null; t: T }): React.JSX.Element {
   if (!roles.roles.length) return <Empty msg={t("emptyRoles")} />;
   return (
     <div className="matrix-wrap">
       <table className="role-matrix">
-        <thead><tr><th className="matrix-corner" />{roles.roles.map((r) => <th key={r.id} className="rot"><span>{r.name || r.id}</span></th>)}</tr></thead>
+        <thead><tr><th className="matrix-corner" />{roles.roles.map((r) => <th key={r.id} className={`rot${r.id === highlightId ? " hot-col" : ""}`}><span>{r.name || r.id}</span></th>)}</tr></thead>
         <tbody>
           {caps.capabilities.map((c) => (
             <tr key={c.id} className={c.id === highlightCap ? "hot" : ""}>
               <td className="matrix-cap">{c.name}</td>
               {roles.roles.map((r) => (
-                <td key={r.id} className="matrix-cell">{(r.capabilities ?? []).includes(c.id) ? <span className="matrix-yes">●</span> : ""}</td>
+                <td key={r.id} className={`matrix-cell${r.id === highlightId ? " hot-col" : ""}`}>{(r.capabilities ?? []).includes(c.id) ? <span className="matrix-yes">●</span> : ""}</td>
               ))}
             </tr>
           ))}

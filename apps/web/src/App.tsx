@@ -141,6 +141,8 @@ export default function App(): React.JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  // Transient hover target — hovering a finding glows the matching artifact on the canvas.
+  const [hovered, setHovered] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [studioLocked, setStudioLocked] = useState(false);
   const [spend, setSpend] = useState<{
@@ -222,6 +224,24 @@ export default function App(): React.JSX.Element {
   const [showSettings, setShowSettings] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [stage, setStage] = useState<StageId>("capabilities");
+  // Navigation history for the breadcrumb: every in-screen jump appends; clicking a crumb (or an artifact
+  // already visited) truncates back to it; using the left rail resets the trail to a fresh root.
+  const [trail, setTrail] = useState<{ stage: StageId; id: string | null }[]>([{ stage: "capabilities", id: null }]);
+  // Central navigation: the ONE way to change stage+selection so the trail stays honest.
+  function navTo(nextStage: StageId, id: string | null = null): void {
+    setStage(nextStage);
+    setSelected(id);
+    setTrail((prev) => {
+      const i = prev.findIndex((e) => e.stage === nextStage && e.id === id);
+      return i >= 0 ? prev.slice(0, i + 1) : [...prev, { stage: nextStage, id }];
+    });
+  }
+  // A top-level jump (left rail / project switch): start a fresh trail rooted at this stage.
+  function navRoot(nextStage: StageId): void {
+    setStage(nextStage);
+    setSelected(null);
+    setTrail([{ stage: nextStage, id: null }]);
+  }
   // The map IR carries every layer: domain + contexts + behaviour/policies + roles + workflows + agents.
   const ir = useMemo(
     () => compileCapabilities(activeDoc, flowDoc, contextsDoc, rolesDoc, workflowsDoc, agentsDoc),
@@ -635,11 +655,16 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  // The artifact id an AI-review finding points at (area ids become their node id) — shared by
+  // click (navigate) and hover (highlight).
+  function findingTargetId(f: CritiqueFinding): string | null {
+    const r = resolveTarget(f.target, { caps: activeDoc, contexts: contextsDoc, domain: flowDoc });
+    return r ? (r.kind === "area" ? contextNodeId(r.id) : r.id) : null;
+  }
   // Click a finding → select the capability / area / entity it is about.
   function selectFinding(f: CritiqueFinding): void {
-    const r = resolveTarget(f.target, { caps: activeDoc, contexts: contextsDoc, domain: flowDoc });
-    if (!r) return;
-    setSelected(r.kind === "area" ? contextNodeId(r.id) : r.id);
+    const id = findingTargetId(f);
+    if (id) navTo(stage, id);
   }
 
   // The layers the Review panel drives (only those with content to review).
@@ -760,7 +785,7 @@ export default function App(): React.JSX.Element {
   }
   function pickExample(p: Project): void {
     setState((s) => ({ projects: [...s.projects, p], activeId: p.id }));
-    setSelected(null);
+    navRoot(stage);
   }
   function renameProject(): void {
     setDialog({ kind: "input", title: t("rename"), label: t("renamePrompt"), initial: active.name, submitLabel: t("save"), onSubmit: (v) => { if (v.trim()) patchActive({ name: v.trim() }); } });
@@ -902,6 +927,36 @@ export default function App(): React.JSX.Element {
   };
   const activeStage = stages.find((s) => s.id === stage) ?? stages[1];
 
+  // Resolve any artifact id (capability / area-node / entity / command / event / role / agent) to a
+  // display name — used to label breadcrumb segments for the current selection.
+  const nameFor = (id: string): string => {
+    const cap = activeDoc.capabilities.find((c) => c.id === id); if (cap) return cap.name || id;
+    const area = contextsDoc.contexts.find((c) => contextNodeId(c.id) === id || c.id === id); if (area) return area.name || id;
+    const agg = domainDoc.aggregates.find((a) => a.id === id); if (agg) return agg.name || id;
+    const cmd = (behaviourDoc.commands ?? []).find((c) => c.id === id); if (cmd) return cmd.name || id;
+    const ev = (behaviourDoc.events ?? []).find((e) => e.id === id); if (ev) return ev.name || id;
+    const role = rolesDoc.roles.find((r) => r.id === id); if (role) return role.name || id;
+    const agent = agentsDoc.agents.find((a) => a.id === id); if (agent) return agent.name || id;
+    return id;
+  };
+  const stageLabelOf = (s: StageId): string => stages.find((x) => x.id === s)?.label ?? s;
+  // Is this id any known artifact? (broadens finding subjects beyond capabilities so behaviour/
+  // automation/role findings can highlight + navigate too.)
+  const isArtifact = (id: string): boolean =>
+    activeDoc.capabilities.some((c) => c.id === id) ||
+    contextsDoc.contexts.some((c) => contextNodeId(c.id) === id || c.id === id) ||
+    domainDoc.aggregates.some((a) => a.id === id) ||
+    (behaviourDoc.commands ?? []).some((c) => c.id === id) ||
+    (behaviourDoc.events ?? []).some((e) => e.id === id) ||
+    rolesDoc.roles.some((r) => r.id === id) ||
+    agentsDoc.agents.some((a) => a.id === id);
+  // What the diagrams should glow: a hovered finding wins over the sticky selection.
+  const highlightId = hovered ?? selected;
+  // The detail panel only opens for artifacts that HAVE a detail view (area / entity / capability);
+  // selecting a command/role/etc. just highlights the canvas without an empty slide-in.
+  const selectedCap = selected ? activeDoc.capabilities.find((c) => c.id === selected) : undefined;
+  const hasDetail = !!(selectedArea || selectedAggregate || selectedCap);
+
   return (
     <div className={`app shell${sidebarOpen ? "" : " sidebar-collapsed"}`}>
       {import.meta.env.VITE_PUBLIC_DEMO && (
@@ -1008,7 +1063,7 @@ export default function App(): React.JSX.Element {
               value={active.id}
               onChange={(e) => {
                 setState((s) => ({ ...s, activeId: e.target.value }));
-                setSelected(null);
+                navRoot(stage);
               }}
             >
               {state.projects.map((p) => (
@@ -1031,7 +1086,7 @@ export default function App(): React.JSX.Element {
           </button>
         </div>
 
-        <StageRail stages={stages} active={stage} onSelect={(s) => { setStage(s); setSelected(null); }} t={t} />
+        <StageRail stages={stages} active={stage} onSelect={(s) => navRoot(s)} t={t} />
 
         <div className="side-foot">
           <button className="side-foot-btn" onClick={() => setShowGuide(true)}><Icon name="book" size={15} /> {t("guideOpen")}</button>
@@ -1054,15 +1109,26 @@ export default function App(): React.JSX.Element {
       <div className="inset">
         <header className="inset-top">
           <button className="side-toggle" onClick={() => setSidebarOpen((v) => !v)} aria-label={t("stages")}><Icon name="menu" size={18} /></button>
-          <nav className="crumbs">
-            <span className="muted">{t("appTitle")}</span>
-            <span className="crumb-sep">/</span>
-            <span className="crumb-cur">{activeStage.label}</span>
+          <nav className="crumbs" aria-label={t("breadcrumb")}>
+            {trail.map((e, i) => {
+              const last = i === trail.length - 1;
+              const label = e.id ? nameFor(e.id) : stageLabelOf(e.stage);
+              return (
+                <span key={`${e.stage}:${e.id ?? ""}:${i}`} className="crumb-seg">
+                  {i > 0 && <Icon name="chevronRight" size={13} className="crumb-sep" />}
+                  {last ? (
+                    <span className="crumb-cur">{label}</span>
+                  ) : (
+                    <button className="crumb-link" onClick={() => navTo(e.stage, e.id)}>{label}</button>
+                  )}
+                </span>
+              );
+            })}
           </nav>
           <button className="ai-review-top" onClick={() => setShowReview(true)}><Icon name="sparkles" size={15} />{t("aiReviewTitle")}</button>
         </header>
 
-        <div className={`inset-body${selected ? " has-detail" : ""}`}>
+        <div className={`inset-body${hasDetail ? " has-detail" : ""}`}>
         <main className="stage-main">
           <div className="stage-head">
             <div className="stage-title">
@@ -1112,14 +1178,14 @@ export default function App(): React.JSX.Element {
                 </div>
               </div>
             )}
-            {stage === "capabilities" && <div className="map-wrap"><CapabilityMap ir={ir} areaOf={new Map()} selectedId={selected} onSelect={setSelected} /></div>}
-            {stage === "areas" && <AreaDiagram contexts={contextsDoc} caps={activeDoc} colors={AREA_COLORS} onSelectArea={(id) => setSelected(contextNodeId(id))} onSelectCap={setSelected} t={t} />}
-            {stage === "entities" && <EntityDiagram domain={domainDoc} caps={activeDoc} selectedId={selected} onSelect={setSelected} />}
-            {stage === "behaviour" && <BehaviourView domain={behaviourDoc} highlight={selectedAggregate?.id} t={t} />}
-            {stage === "automations" && <AutomationsView domain={flowDoc} highlight={selectedAggregate?.id} t={t} />}
-            {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} highlightCap={selectedAggregate?.owner ?? selected} t={t} />}
+            {stage === "capabilities" && <div className="map-wrap"><CapabilityMap ir={ir} areaOf={new Map()} selectedId={highlightId} onSelect={(id) => navTo("capabilities", id)} /></div>}
+            {stage === "areas" && <AreaDiagram contexts={contextsDoc} caps={activeDoc} colors={AREA_COLORS} onSelectArea={(id) => navTo("areas", contextNodeId(id))} onSelectCap={(id) => navTo("capabilities", id)} t={t} />}
+            {stage === "entities" && <EntityDiagram domain={domainDoc} caps={activeDoc} selectedId={highlightId} onSelect={(id) => navTo("entities", id)} />}
+            {stage === "behaviour" && <BehaviourView domain={behaviourDoc} highlight={selectedAggregate?.id} highlightId={highlightId} t={t} />}
+            {stage === "automations" && <AutomationsView domain={flowDoc} highlight={selectedAggregate?.id} highlightId={highlightId} t={t} />}
+            {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} highlightCap={hovered ?? selectedAggregate?.owner ?? selected} highlightId={highlightId} t={t} />}
             {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} onSetMode={setWorkflowMode} onSetService={setWorkflowService} onBindStep={setWorkflowStepBinding} onClassify={classifyOrchestration} classifyBusy={orchestrationBusy} rationales={orchestrationRationales} services={serviceOptions} />}
-            {stage === "agents" && <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={setSelected} t={t} />}
+            {stage === "agents" && <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={(id) => navTo("capabilities", id)} t={t} />}
             {stage === "code" && (
               <CodePreview
                 caps={activeDoc}
@@ -1159,7 +1225,7 @@ export default function App(): React.JSX.Element {
                     active,
                   )
                 }
-                onClose={() => setStage("capabilities")}
+                onClose={() => navTo("capabilities", null)}
               />
             )}
           </div>
@@ -1167,8 +1233,8 @@ export default function App(): React.JSX.Element {
           {stageFindings[stage] && stageFindings[stage]!.length > 0 && (
             <ul className="findings cap-findings">
               {stageFindings[stage]!.map((f) => {
-                const subj = f.subjects.find((x) => activeDoc.capabilities.some((c) => c.id === x));
-                return <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && setSelected(subj)}><code className={f.severity}>{f.code}</code> {f.message}</li>;
+                const subj = f.subjects.find(isArtifact);
+                return <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && navTo(stage, subj)} onMouseEnter={() => subj && setHovered(subj)} onMouseLeave={() => setHovered(null)}><code className={f.severity}>{f.code}</code> {f.message}</li>;
               })}
             </ul>
           )}
@@ -1177,7 +1243,7 @@ export default function App(): React.JSX.Element {
               <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("aiReviewTitle")}</li>
               {critique[REVIEW_KIND[stage]!]!.length === 0 && <li className="muted">{t("aiReviewOk")}</li>}
               {critique[REVIEW_KIND[stage]!]!.map((f) => (
-                <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)}>
+                <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)}>
                   <code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}
                 </li>
               ))}
@@ -1194,12 +1260,12 @@ export default function App(): React.JSX.Element {
 
         {/* Detail is a slide-in: rendered only when something is selected, so the canvas reflows to
             full width when nothing is (no permanently-reserved empty column). */}
-        {selected && (
+        {hasDetail && selected && (
           <aside className="stage-detail">
             {selectedArea ? (
-              <AreaDetail area={selectedArea} doc={activeDoc} terms={areaTerms(selectedArea)} onEdit={editArea} onRetire={retireArea} onSelectCapability={setSelected} onClose={() => setSelected(null)} />
+              <AreaDetail area={selectedArea} doc={activeDoc} terms={areaTerms(selectedArea)} onEdit={editArea} onRetire={retireArea} onSelectCapability={(id) => navTo("capabilities", id)} onClose={() => navTo(stage, null)} />
             ) : selectedAggregate ? (
-              <EntityTrace entity={selectedAggregate} domain={flowDoc} caps={activeDoc} roles={rolesDoc} onSelectCap={(id) => { setSelected(id); setStage("capabilities"); }} onSelectEntity={(id) => { setSelected(id); setStage("entities"); }} onGo={(s) => setStage(s)} onClose={() => setSelected(null)} t={t} />
+              <EntityTrace entity={selectedAggregate} domain={flowDoc} caps={activeDoc} roles={rolesDoc} onSelectCap={(id) => navTo("capabilities", id)} onSelectEntity={(id) => navTo("entities", id)} onGo={(s) => navTo(s, selected)} onClose={() => navTo(stage, null)} t={t} />
             ) : (
               <NodeDetail
                 doc={activeDoc}
@@ -1217,7 +1283,7 @@ export default function App(): React.JSX.Element {
                 onEditAggregate={editAggregate}
                 onDeleteAggregate={deleteAggregate}
                 onAddAggregate={addAggregate}
-                onClose={() => setSelected(null)}
+                onClose={() => navTo(stage, null)}
               />
             )}
           </aside>

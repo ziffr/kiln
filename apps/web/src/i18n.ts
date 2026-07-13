@@ -7,6 +7,7 @@ const resources = {
   de: {
     translation: {
       appTitle: "Kiln Studio",
+      breadcrumb: "Navigationspfad",
       tagline: "Business-Modell → Capability Map → Review",
       brandTagline: "der Business-Compiler",
       narrative: "Business-Narrativ",
@@ -291,6 +292,7 @@ const resources = {
   en: {
     translation: {
       appTitle: "Kiln Studio",
+      breadcrumb: "Breadcrumb trail",
       tagline: "Business model → Capability Map → review",
       brandTagline: "the business compiler",
       narrative: "Business Narrative",

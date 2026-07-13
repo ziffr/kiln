@@ -557,7 +557,11 @@ textarea {
 .matrix-wrap { overflow-x: auto; }
 .role-matrix { border-collapse: collapse; }
 .role-matrix th, .role-matrix td { border: 1px solid var(--border); padding: 6px 10px; font-size: 13px; }
-.role-matrix th.rot { white-space: nowrap; color: var(--fg); }
+/* Rotated column headers so many roles fit without horizontal scroll. Each header is a fixed-width
+   cell with its label angled up from the bottom-left. */
+.role-matrix th.rot { height: 116px; width: 40px; padding: 0; vertical-align: bottom; border-bottom: none; color: var(--fg); }
+.role-matrix th.rot > span { display: inline-block; width: 1.4em; transform-origin: bottom left; transform: translateX(60%) rotate(-52deg); white-space: nowrap; font-size: 12px; font-weight: 600; line-height: 1; }
+.matrix-corner { border: none !important; background: transparent !important; }
 .matrix-cap { text-align: left; color: var(--fg); }
 .matrix-cell { text-align: center; }
 .matrix-yes { color: var(--ok-fg); }
@@ -575,9 +579,12 @@ textarea {
 .wf-card-head .workflow-name { margin-bottom: 0; }
 .wf-mode-toggle { display: inline-flex; align-items: center; gap: 6px; }
 .wf-mode-label { font-size: 12px; }
-.wf-mode-btn { padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
+.wf-mode-btn { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
 .wf-mode-btn.active { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
-.wf-mode-chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.wf-mode-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.wf-mode-btn svg, .wf-mode-chip svg { flex: none; }
+.agent-title { display: inline-flex; align-items: center; gap: 6px; }
+.agent-title svg, .ag-node-head svg { flex: none; }
 .wf-rationale { font-size: 12px; margin: 0 0 8px; font-style: italic; }
 .wf-mode-note { font-size: 12px; margin: 8px 0 0; color: var(--muted); border-left: 2px solid var(--accent-2); padding-left: 8px; }
 .workflow-card.wf-mode-agent { border-left: 3px solid var(--accent-2); }
@@ -725,7 +732,7 @@ textarea {
 /* Agent graph nodes */
 .react-flow__node-default:has(.ag-node) { padding: 0; text-align: left; }
 .ag-node { padding: 8px 11px; }
-.ag-node-head { font-weight: 600; font-size: 13px; color: var(--accent-2-soft); }
+.ag-node-head { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: var(--accent-2-soft); }
 .ag-node-goal { font-size: 11px; color: #a5b4cf; margin-top: 3px; line-height: 1.35; }
 
 /* Area containment diagram (hand-rolled) */

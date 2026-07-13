@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type WorkflowsDoc, type AgentsDoc, type ContextsDoc } from "@kiln/compiler";
+import { Icon, type IconName } from "./Icon";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 const capName = (caps: CapabilityDoc, id: string): string => caps.capabilities.find((c) => c.id === id)?.name || id;
@@ -86,7 +87,7 @@ export function AutomationsView({ domain, highlight, t }: { domain: DomainDoc; h
   return (
     <div className="wiring" style={{ height: H, minWidth: GAP_X + COL_W }}>
       <svg className="wiring-svg" width={GAP_X + COL_W} height={H}>
-        <defs><marker id="wire-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8" /></marker></defs>
+        <defs><marker id="wire-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke" /></marker></defs>
         {policies.map((p, i) => {
           const y1 = evY[p.on], y2 = cmdY[p.then], x1 = COL_W, x2 = GAP_X;
           const hot = highlight && (evAgg(p.on) === highlight || cmdAgg(p.then) === highlight);
@@ -105,7 +106,7 @@ export function RolesMatrix({ roles, caps, highlightCap, t }: { roles: RolesDoc;
   return (
     <div className="matrix-wrap">
       <table className="role-matrix">
-        <thead><tr><th />{roles.roles.map((r) => <th key={r.id} className="rot">{r.name || r.id}</th>)}</tr></thead>
+        <thead><tr><th className="matrix-corner" />{roles.roles.map((r) => <th key={r.id} className="rot"><span>{r.name || r.id}</span></th>)}</tr></thead>
         <tbody>
           {caps.capabilities.map((c) => (
             <tr key={c.id} className={c.id === highlightCap ? "hot" : ""}>
@@ -126,7 +127,7 @@ export function RolesMatrix({ roles, caps, highlightCap, t }: { roles: RolesDoc;
 // is the model's source of truth (WorkflowInput.mode) and drives what codegen emits. The LLM proposes;
 // the human confirms/flips here.
 type ProcessMode = "workflow" | "agent" | "external";
-const MODE_ICON: Record<ProcessMode, string> = { workflow: "⛓ ", agent: "🤖 ", external: "🌐 " };
+const MODE_ICON: Record<ProcessMode, IconName> = { workflow: "route", agent: "bot", external: "globe" };
 const MODE_KEY: Record<ProcessMode, string> = { workflow: "modeWorkflow", agent: "modeAgent", external: "modeExternal" };
 
 export function WorkflowsView({
@@ -178,13 +179,13 @@ export function WorkflowsView({
                   <span className="muted wf-mode-label">{t("runAs")}</span>
                   {(["workflow", "agent", "external"] as const).map((m) => (
                     <button key={m} className={`wf-mode-btn${mode === m ? " active" : ""}`} aria-pressed={mode === m} onClick={() => onSetMode(w.id, m)}>
-                      {MODE_ICON[m]}
+                      <Icon name={MODE_ICON[m]} size={13} />
                       {t(MODE_KEY[m])}
                     </button>
                   ))}
                 </div>
               ) : (
-                <span className={`wf-mode-chip wf-mode-${mode}`}>{MODE_ICON[mode]}{t(MODE_KEY[mode])}</span>
+                <span className={`wf-mode-chip wf-mode-${mode}`}><Icon name={MODE_ICON[mode]} size={12} />{t(MODE_KEY[mode])}</span>
               )}
             </div>
             {rationale && <p className="wf-rationale muted">{rationale}</p>}
@@ -257,7 +258,7 @@ export function AgentsView({ agents, caps, t }: { agents: AgentsDoc; caps: Capab
     <div className="cards">
       {agents.agents.map((a) => (
         <div key={a.id} className="agent-card">
-          <div className="entity-card-head"><strong>🤖 {a.name || a.id}</strong></div>
+          <div className="entity-card-head"><strong className="agent-title"><Icon name="bot" size={15} />{a.name || a.id}</strong></div>
           {a.goal && <p className="agent-goal">{a.goal}</p>}
           <div className="agent-caps">{(a.capabilities ?? []).map((c) => <span key={c} className="wf-chip">{capName(caps, c)}</span>)}</div>
         </div>

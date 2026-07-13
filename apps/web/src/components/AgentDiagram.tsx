@@ -3,6 +3,7 @@
 // like the automations wiring) — no graph library needed for a two-column relation.
 
 import { type CapabilityDoc, type AgentsDoc } from "@kiln/compiler";
+import { Icon } from "./Icon";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 
@@ -20,7 +21,7 @@ export function AgentDiagram({ agents, caps, onSelect, t }: { agents: AgentsDoc;
   return (
     <div className="wiring agent-graph" style={{ height: H, minWidth: GAP_X + CAP_W }}>
       <svg className="wiring-svg" width={GAP_X + CAP_W} height={H}>
-        <defs><marker id="ag-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#a78bfa" /></marker></defs>
+        <defs><marker id="ag-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke" /></marker></defs>
         {agents.agents.flatMap((a, i) => (a.capabilities ?? []).map((c) => {
           const j = capIndex.get(c); if (j === undefined) return null;
           const y1 = agTop(i) + AG_H / 2, y2 = capTop(j) + CAP_H / 2, x1 = AG_W, x2 = GAP_X;
@@ -29,7 +30,7 @@ export function AgentDiagram({ agents, caps, onSelect, t }: { agents: AgentsDoc;
       </svg>
       {agents.agents.map((a, i) => (
         <div key={a.id} className="ag-box" style={{ top: agTop(i), left: 0, width: AG_W, height: AG_H }}>
-          <div className="ag-node-head">🤖 {a.name || a.id}</div>
+          <div className="ag-node-head"><Icon name="bot" size={14} />{a.name || a.id}</div>
           {a.goal && <div className="ag-node-goal">{a.goal}</div>}
         </div>
       ))}

@@ -94,7 +94,7 @@ export function EntityDiagram({ domain, caps, selectedId, onSelect }: { domain: 
           style: { width: NODE_W, padding: 0, borderRadius: 10, border: "1px solid var(--border)", background: "var(--panel-2)" },
         };
       });
-      const edges: Edge[] = refs.map((e) => ({ id: e.id, source: e.from, target: e.to, markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8" }, style: { stroke: "#94a3b8" } }));
+      const edges: Edge[] = refs.map((e) => ({ id: e.id, source: e.from, target: e.to, markerEnd: { type: MarkerType.ArrowClosed, color: "var(--edge)" }, style: { stroke: "var(--edge)" } }));
       // Bounding box of the laid-out graph, for deterministic fitBounds (see Flow).
       const xs = nodes.map((n) => n.position.x), ys = nodes.map((n) => n.position.y);
       const maxX = Math.max(...nodes.map((n) => n.position.x + NODE_W));

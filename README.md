@@ -14,7 +14,7 @@
 
 <sub>↑ an animation — run Kiln Studio yourself (below) to try it for real</sub>
 
-[**▶ Live demo**](https://demo.kilnstudio.app) · [**Get started**](#get-started) · [What is it?](#what-is-kiln-studio) · [How it works](#how-it-works) · [Docs](#learn-more) · [Contribute](CONTRIBUTING.md)
+[**▶ Live demo**](https://demo.kilnstudio.app) · [**Get started**](#get-started) · [Vision](VISION.md) · [What is it?](#what-is-kiln-studio) · [How it works](#how-it-works) · [Docs](#learn-more) · [Contribute](CONTRIBUTING.md)
 
 </div>
 
@@ -166,6 +166,7 @@ The app opens on a gallery of worked verticals, each demonstrating a different w
 
 | I want to… | Read |
 |---|---|
+| Understand where Kiln is headed (and why) | [`VISION.md`](VISION.md) |
 | Understand the architecture + where to change things | [`DEVELOPER.md`](DEVELOPER.md) |
 | See all specs, ADRs, and design docs | [`docs/INDEX.md`](docs/INDEX.md) |
 | Contribute (setup, invariants, workflow) | [`CONTRIBUTING.md`](CONTRIBUTING.md) |

@@ -166,6 +166,7 @@ The app opens on a gallery of worked verticals, each demonstrating a different w
 
 | I want to… | Read |
 |---|---|
+| Understand the architecture + where to change things | [`DEVELOPER.md`](DEVELOPER.md) |
 | See all specs, ADRs, and design docs | [`docs/INDEX.md`](docs/INDEX.md) |
 | Contribute (setup, invariants, workflow) | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Understand how the project is run (AI-maintained) | [`GOVERNANCE.md`](GOVERNANCE.md) |

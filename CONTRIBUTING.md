@@ -38,6 +38,10 @@ tests — the app ships with an offline mock generator. A key is only needed for
 generation, and it lives **only** in a git-ignored root `.env` (never commit it). See
 [SECURITY.md](SECURITY.md).
 
+New to the codebase? Read [DEVELOPER.md](DEVELOPER.md) — it maps the pipeline to the packages and
+shows exactly *where to attack* for the three common changes (add an LLM provider, add an execution
+engine, add a methodology layer).
+
 ## The check that must pass before you open a PR
 
 ```bash

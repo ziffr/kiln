@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { generateAll, generateApp } from "@vbd/codegen";
+import { generateAll, generateApp, assembleFullStack } from "@vbd/codegen";
 import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
 import type { CodeFinding } from "@vbd/skills";
+import type { ModelDoc } from "../model";
 import { downloadZip } from "../zip";
 
 export interface VerifyVerdict {
@@ -28,6 +29,7 @@ export function CodePreview({
   requestAppComponents,
   requestVerify,
   requestCodeReview,
+  buildModel,
   onClose,
 }: {
   caps: CapabilityDoc;
@@ -40,6 +42,7 @@ export function CodePreview({
   requestAppComponents: () => Promise<{ views: Record<string, unknown>; written: number; skipped: number }>;
   requestVerify: (files: Record<string, string>) => Promise<VerifyVerdict>;
   requestCodeReview: (handlerCode?: Record<string, string>) => Promise<CodeFinding[]>;
+  buildModel: () => ModelDoc; // the COMPLETE model (all layers) — for the full-stack export
   onClose: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
@@ -116,6 +119,44 @@ export function CodePreview({
         setExportNote(t("exportAppAiNote2", { handlers: Object.keys(hc ?? {}).length, screens: Object.keys(vs ?? {}).length }));
       }
       downloadZip(generateApp(caps, domain, contexts, roles, withAI ? hc ?? undefined : undefined, withAI ? (vs as never) ?? undefined : undefined), zipName);
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  // Full-stack export: the COMPLETE multi-backend repo (Postgres/SQLite + spine + n8n + Odoo + shadcn UI +
+  // agents + docker-compose + Dockerfiles + all docs/plumbing) — the same bytes the CLI exporter writes,
+  // assembled in the browser via the pure assembleFullStack(). Includes any AI-drafted handlers already applied.
+  async function exportFullStack(): Promise<void> {
+    setExporting(true);
+    setExportNote(null);
+    try {
+      const m = buildModel();
+      const dialect = m.binding?.defaults?.store === "sqlite" ? "sqlite" : "postgres";
+      const { files, report } = assembleFullStack({
+        version: m.version,
+        capabilities: m.capabilities,
+        contexts: m.contexts,
+        domain: m.domain,
+        roles: m.roles,
+        workflows: m.workflows,
+        agents: m.agents,
+        theme: m.theme,
+        binding: m.binding,
+        dialect,
+        handlers: handlers ?? undefined,
+        comms: m.comms,
+        integrations: m.integrations,
+        triggers: m.triggers,
+        services: m.services,
+        i18n: m.i18n,
+        modelPath: "model.json",
+      });
+      downloadZip(files, `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-fullstack.zip`);
+      setExportNote(t("exportFullStackNote", { files: Object.keys(files).length, dialect }));
+      void report; // the projection report (coverage/validation/gaps) — surfaced in the tabs already
     } catch (e) {
       setExportNote(e instanceof Error ? e.message : String(e));
     } finally {
@@ -210,6 +251,9 @@ export function CodePreview({
           </button>
           <button className="code-export" onClick={() => void exportApp(true)} disabled={busy} title={t("exportAppAiHint")}>
             {exporting ? t("generating") : `✨ ${t("exportAppAi")}`}
+          </button>
+          <button className="code-export" onClick={() => void exportFullStack()} disabled={busy} title={t("exportFullStackHint")}>
+            {exporting ? t("generating") : `📦 ${t("exportFullStack")}`}
           </button>
         </span>
         <button className="nd-close" onClick={onClose} aria-label="close">×</button>

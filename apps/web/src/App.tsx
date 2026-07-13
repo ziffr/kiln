@@ -1106,6 +1106,12 @@ export default function App(): React.JSX.Element {
                   setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
                   return data.findings ?? [];
                 }}
+                buildModel={() =>
+                  assembleModel(
+                    { name: active.name, narrative: text, capabilities: activeDoc, contexts: contextsDoc, domain: flowDoc, roles: rolesDoc, workflows: workflowsDoc, agents: agentsDoc },
+                    active,
+                  )
+                }
                 onClose={() => setStage("capabilities")}
               />
             )}

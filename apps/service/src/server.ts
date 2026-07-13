@@ -51,7 +51,8 @@ import {
 } from "@kiln/skills";
 import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 import { DEFAULT_EFFORT, DEFAULT_MODEL, EFFORTS, MODELS, modelById } from "./models.ts";
-import { deleteProject, listProjects, saveProject, type StoredProject } from "./workspaces.ts";
+import { deleteProject, listProjects, projectDir, saveProject, type StoredProject } from "./workspaces.ts";
+import { commitWorkspace, listVersions, showFileAt } from "./workspaceGit.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const API_KEY = process.env.KILN_ANTHROPIC_API_KEY ?? process.env.VBD_ANTHROPIC_API_KEY; // VBD_ = legacy alias (pre-Kiln); accepted so existing .env / hosting envs keep working
@@ -707,18 +708,32 @@ const server = createServer(async (req, res) => {
       return send(res, 200, { sessionSpendUsd, note: "estimate since service start; not remaining credit" });
     }
 
-    // Project persistence (ADR-006): filesystem workspace store.
+    // Project persistence (ADR-006) + versioned workspaces (SPEC-011 M1: git-backed history).
     if (req.url?.startsWith("/api/projects")) {
-      const m = /^\/api\/projects(?:\/([^/?]+))?$/.exec(req.url);
-      const id = m?.[1];
+      const parts = (req.url.split("?")[0] || "").split("/").filter(Boolean); // [api, projects, id?, sub?, sha?]
+      const id = parts[2];
+      const sub = parts[3];
+      const sha = parts[4];
       if (req.method === "GET" && !id) return send(res, 200, { projects: listProjects() });
-      if (req.method === "PUT" && id) {
-        const p = JSON.parse((await readBody(req)) || "{}") as StoredProject;
-        if (p.id !== id) return send(res, 400, { error: "project id mismatch" });
-        saveProject(p);
-        return send(res, 200, { ok: true });
+      // SPEC-011: a project's version history (newest first).
+      if (req.method === "GET" && id && sub === "versions" && !sha) {
+        return send(res, 200, { versions: await listVersions(projectDir(id)) });
       }
-      if (req.method === "DELETE" && id) {
+      // SPEC-011: the project exactly as it was at a past version.
+      if (req.method === "GET" && id && sub === "versions" && sha) {
+        const raw = await showFileAt(projectDir(id), sha, "project.json");
+        if (raw == null) return send(res, 404, { error: "version not found" });
+        return send(res, 200, { project: JSON.parse(raw) });
+      }
+      if (req.method === "PUT" && id && !sub) {
+        const body = JSON.parse((await readBody(req)) || "{}") as StoredProject & { versionLabel?: string };
+        if (body.id !== id) return send(res, 400, { error: "project id mismatch" });
+        saveProject(body);
+        // Commit the save → this project's git history (SPEC-011). Optional client label; else a default.
+        const newSha = await commitWorkspace(projectDir(id), body.versionLabel?.trim() || `save: ${body.name || id}`);
+        return send(res, 200, { ok: true, version: newSha });
+      }
+      if (req.method === "DELETE" && id && !sub) {
         deleteProject(id);
         return send(res, 200, { ok: true });
       }

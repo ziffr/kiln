@@ -40,6 +40,11 @@ function dir(id: string): string {
   return join(ROOT, safeId(id));
 }
 
+/** The on-disk workspace directory for a project (SPEC-011: the git repo lives here). */
+export function projectDir(id: string): string {
+  return dir(id);
+}
+
 export function listProjects(): StoredProject[] {
   if (!existsSync(ROOT)) return [];
   const out: StoredProject[] = [];

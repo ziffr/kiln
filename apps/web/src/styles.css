@@ -846,3 +846,54 @@ textarea {
   color: var(--fg, #cdd8f5); background: transparent; border: 1px solid transparent; border-radius: 8px;
 }
 .project-desc:hover { border-color: var(--line, #24314f); background: rgba(255,255,255,0.02); }
+
+/* ── Buttons (shared) ─────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 550;
+  padding: 8px 14px; border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, opacity .12s ease;
+}
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.primary { background: var(--accent); color: var(--accent-fg); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.05); }
+.btn.ghost { background: transparent; color: var(--fg); border-color: var(--edge); }
+.btn.ghost:hover:not(:disabled) { background: var(--panel-2); }
+.btn.danger { background: var(--err-fg); color: #fff; }
+.btn.danger:hover:not(:disabled) { filter: brightness(1.05); }
+
+/* ── Modal / dialogs ──────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: rgba(20, 17, 13, .38); backdrop-filter: blur(2px);
+  animation: modal-fade .12s ease;
+}
+@keyframes modal-fade { from { opacity: 0; } to { opacity: 1; } }
+.modal-card {
+  width: 100%; max-width: 440px; background: var(--panel); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 20px 60px rgba(20,17,13,.28);
+  animation: modal-pop .14s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes modal-pop { from { opacity: 0; transform: translateY(6px) scale(.99); } to { opacity: 1; transform: none; } }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 0; }
+.modal-head h3 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+.modal-x { display: inline-flex; padding: 4px; border: none; background: transparent; color: var(--muted); cursor: pointer; border-radius: 6px; }
+.modal-x:hover { background: var(--panel-2); color: var(--fg); }
+.modal-body { padding: 12px 18px 4px; }
+.modal-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.modal-input {
+  width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--edge);
+  border-radius: 8px; padding: 9px 11px; font: inherit; font-size: 14px; resize: vertical;
+}
+.modal-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.modal-message { margin: 0; font-size: 14px; line-height: 1.55; color: var(--fg); }
+.modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 18px; }
+
+/* icon buttons keep their glyph centered */
+.projectbar button, .side-foot-btn, .modal-x { line-height: 0; }
+.projectbar button svg, .side-foot-btn svg { display: block; }
+
+/* icon + label alignment in footer + project buttons */
+.side-foot-btn { display: flex; align-items: center; gap: 8px; }
+.side-foot-btn svg { flex: none; color: var(--muted); }
+.projectbar button { display: inline-flex; align-items: center; justify-content: center; }
+.side-mark svg { display: block; }

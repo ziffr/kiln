@@ -37,6 +37,12 @@ import { EntityTrace } from "./components/EntityTrace";
 import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
 import { CodePreview } from "./components/CodePreview";
+import { InputDialog, ConfirmDialog } from "./components/Modal";
+import { Icon } from "./components/Icon";
+
+type DialogState =
+  | { kind: "input"; title: string; label?: string; initial?: string; multiline?: boolean; submitLabel: string; onSubmit: (value: string) => void }
+  | { kind: "confirm"; title: string; message: string; confirmLabel: string; danger?: boolean; onConfirm: () => void };
 import { ReviewPanel } from "./components/ReviewPanel";
 import { Guide } from "./components/Guide";
 import { NarrativeInput } from "./components/NarrativeInput";
@@ -128,6 +134,7 @@ export default function App(): React.JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<DialogState | null>(null);
   const [spend, setSpend] = useState<{
     estCostUsd: number;
     sessionSpendUsd: number;
@@ -731,34 +738,32 @@ export default function App(): React.JSX.Element {
     setSelected(contextNodeId(id));
   }
 
-  // ---- Project actions ----
+  // ---- Project actions (via in-app dialogs, not native prompt/confirm) ----
   function addProject(): void {
-    const name = window.prompt(t("newProjectPrompt"), "");
-    if (name === null) return;
-    const p = newProject(name);
-    setState((s) => ({ projects: [...s.projects, p], activeId: p.id }));
-    setSelected(null);
+    setDialog({ kind: "input", title: t("newProject"), label: t("newProjectPrompt"), submitLabel: t("createBtn"), onSubmit: (name) => {
+      if (!name.trim()) return;
+      const p = newProject(name.trim());
+      setState((s) => ({ projects: [...s.projects, p], activeId: p.id }));
+      setSelected(null);
+    } });
   }
   function renameProject(): void {
-    const name = window.prompt(t("renamePrompt"), active.name);
-    if (name === null || !name.trim()) return;
-    patchActive({ name: name.trim() });
+    setDialog({ kind: "input", title: t("rename"), label: t("renamePrompt"), initial: active.name, submitLabel: t("save"), onSubmit: (v) => { if (v.trim()) patchActive({ name: v.trim() }); } });
   }
   function editDescription(): void {
-    const d = window.prompt(t("descriptionPrompt"), active.description ?? "");
-    if (d === null) return;
-    patchActive({ description: d.trim() || undefined });
+    setDialog({ kind: "input", title: t("descriptionHint"), label: t("descriptionPrompt"), initial: active.description ?? "", multiline: true, submitLabel: t("save"), onSubmit: (v) => patchActive({ description: v.trim() || undefined }) });
   }
   function deleteProject(): void {
     if (state.projects.length <= 1) return;
-    if (!window.confirm(`${t("deleteConfirm")} "${active.name}"`)) return;
-    const removedId = active.id;
-    setState((s) => {
-      const remaining = s.projects.filter((p) => p.id !== s.activeId);
-      return { projects: remaining, activeId: remaining[0].id };
-    });
-    setSelected(null);
-    if (serverUp) void serverDeleteProject(removedId);
+    setDialog({ kind: "confirm", title: t("del"), message: `${t("deleteConfirm")} "${active.name}"`, confirmLabel: t("del"), danger: true, onConfirm: () => {
+      const removedId = active.id;
+      setState((s) => {
+        const remaining = s.projects.filter((p) => p.id !== s.activeId);
+        return { projects: remaining, activeId: remaining[0].id };
+      });
+      setSelected(null);
+      if (serverUp) void serverDeleteProject(removedId);
+    } });
   }
 
   // ---- The complete model document (recall + iterate + version) ----
@@ -902,6 +907,14 @@ export default function App(): React.JSX.Element {
           your own Anthropic key.
         </div>
       )}
+      {dialog?.kind === "input" && (
+        <InputDialog title={dialog.title} label={dialog.label} initial={dialog.initial} multiline={dialog.multiline}
+          submitLabel={dialog.submitLabel} cancelLabel={t("cancel")} onSubmit={dialog.onSubmit} onClose={() => setDialog(null)} />
+      )}
+      {dialog?.kind === "confirm" && (
+        <ConfirmDialog title={dialog.title} message={dialog.message} confirmLabel={dialog.confirmLabel} cancelLabel={t("cancel")}
+          danger={dialog.danger} onConfirm={dialog.onConfirm} onClose={() => setDialog(null)} />
+      )}
       {showGuide && <Guide onClose={() => setShowGuide(false)} />}
       {showSettings && (
         <SettingsModal
@@ -967,7 +980,7 @@ export default function App(): React.JSX.Element {
       )}
       <aside className="side">
         <div className="side-team">
-          <div className="side-mark">⌘</div>
+          <div className="side-mark"><Icon name="flame" size={17} /></div>
           <div className="side-team-name">
             <div className="side-title">{t("appTitle")}</div>
             <div className="side-sub muted">{active.name}</div>
@@ -986,9 +999,9 @@ export default function App(): React.JSX.Element {
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          <button onClick={addProject} title={t("newProject")}>+</button>
-          <button onClick={renameProject} title={t("rename")}>✎</button>
-          <button onClick={deleteProject} disabled={state.projects.length <= 1} title={t("del")}>🗑</button>
+          <button onClick={addProject} title={t("newProject")} aria-label={t("newProject")}><Icon name="plus" /></button>
+          <button onClick={renameProject} title={t("rename")} aria-label={t("rename")}><Icon name="pencil" /></button>
+          <button onClick={deleteProject} disabled={state.projects.length <= 1} title={t("del")} aria-label={t("del")}><Icon name="trash" /></button>
         </div>
 
         <button className="project-desc" onClick={editDescription} title={t("descriptionHint")}>
@@ -998,11 +1011,11 @@ export default function App(): React.JSX.Element {
         <StageRail stages={stages} active={stage} onSelect={(s) => { setStage(s); setSelected(null); }} t={t} />
 
         <div className="side-foot">
-          <button className="side-foot-btn" onClick={exportModel} title={t("exportModelHint")}>⬇ {t("exportModel")}</button>
-          <button className="side-foot-btn" onClick={() => modelFileRef.current?.click()} title={t("importModelHint")}>⬆ {t("importModel")}</button>
+          <button className="side-foot-btn" onClick={exportModel} title={t("exportModelHint")}><Icon name="download" size={15} /> {t("exportModel")}</button>
+          <button className="side-foot-btn" onClick={() => modelFileRef.current?.click()} title={t("importModelHint")}><Icon name="upload" size={15} /> {t("importModel")}</button>
           <input ref={modelFileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importModel(f); e.target.value = ""; }} />
-          <button className="side-foot-btn" onClick={() => setShowGuide(true)}>{t("guideOpen")}</button>
-          <button className="side-foot-btn" onClick={() => setShowSettings(true)}>⚙︎ {t("settingsOpen")}</button>
+          <button className="side-foot-btn" onClick={() => setShowGuide(true)}><Icon name="book" size={15} /> {t("guideOpen")}</button>
+          <button className="side-foot-btn" onClick={() => setShowSettings(true)}><Icon name="settings" size={15} /> {t("settingsOpen")}</button>
           <div className="lang">
             <span>{t("language")}:</span>
             {(["de", "en"] as const).map((lng) => (

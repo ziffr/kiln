@@ -1,6 +1,6 @@
 # Governance
 
-VerticalBusinessDesigner (VBD) is maintained under a deliberately unusual model. This document
+Kiln is maintained under a deliberately unusual model. This document
 describes it honestly, so that contributors know exactly how decisions get made and how their pull
 requests get reviewed and merged.
 

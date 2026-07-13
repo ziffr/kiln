@@ -17,7 +17,7 @@ interface Step {
 
 const EN: { intro: string[]; steps: Step[]; closing: string[] } = {
   intro: [
-    "VerticalBusinessDesigner turns a plain-language description of your business into a complete, structured picture of how it works — and even into a starting point for software. You do not need to be technical.",
+    "Kiln turns a plain-language description of your business into a complete, structured picture of how it works — and even into a starting point for software. You do not need to be technical.",
     "Think of it as a “business compiler”: you tell the story of your business in normal words, and the app builds the model. The golden rule is simple — your words are the source of truth. Everything you see on screen (the map, the boxes, the generated code) is produced from your description. If something looks wrong, fix your description or edit the box, and the rest updates.",
     "You work top to bottom. Each step adds one more layer of detail, and each layer builds on the one before it. You can stop at any step — even the first few give you a clear map of your business.",
   ],
@@ -97,7 +97,7 @@ const EN: { intro: string[]; steps: Step[]; closing: string[] } = {
 
 const DE: { intro: string[]; steps: Step[]; closing: string[] } = {
   intro: [
-    "Der VerticalBusinessDesigner verwandelt eine Beschreibung Ihres Unternehmens in normaler Sprache in ein vollständiges, strukturiertes Abbild seiner Funktionsweise – und sogar in einen Startpunkt für Software. Sie müssen dafür nicht technisch sein.",
+    "Der Kiln verwandelt eine Beschreibung Ihres Unternehmens in normaler Sprache in ein vollständiges, strukturiertes Abbild seiner Funktionsweise – und sogar in einen Startpunkt für Software. Sie müssen dafür nicht technisch sein.",
     "Stellen Sie es sich wie einen „Business-Compiler“ vor: Sie erzählen die Geschichte Ihres Unternehmens in ganz normalen Worten, und die App baut daraus das Modell. Die goldene Regel ist einfach – Ihre Worte sind die Wahrheit. Alles, was Sie auf dem Bildschirm sehen (die Karte, die Kästchen, der generierte Code), entsteht aus Ihrer Beschreibung. Wirkt etwas falsch, korrigieren Sie Ihre Beschreibung oder das Kästchen – der Rest passt sich an.",
     "Sie arbeiten von oben nach unten. Jeder Schritt fügt eine weitere Detailebene hinzu und baut auf der vorherigen auf. Sie können jederzeit aufhören – schon die ersten Schritte geben Ihnen eine klare Landkarte Ihres Unternehmens.",
   ],

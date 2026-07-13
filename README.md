@@ -1,11 +1,13 @@
-# VerticalBusinessDesigner (VBD)
+# Kiln
 
-An LLM-guided **Business Compiler**: describe a vertical business in structured text, an LLM
-derives a formal model, deterministic validators check it, and it renders as an interactive,
-reviewable **Capability Map**. **Text is the source of truth; the graphic is a projection of it.**
+**The business compiler.** Describe a vertical business in structured text — an LLM derives a formal
+model, deterministic validators check it, it renders as an interactive, reviewable **Capability
+Map**, and codegen projects it into a runnable multi-backend system. **Text is the source of truth;
+everything downstream is a projection of it.**
 
-> Note: the git repository directory is named `VerticalBusinessDesiger` (historical); the
-> product name is **VerticalBusinessDesigner**.
+> Note: **Kiln** is the product name. Internally the code uses the codename **VBD** — the `@vbd/*`
+> workspace packages and the historically-misspelled repo directory (`VerticalBusinessDesiger`) keep
+> that codename; they are not renamed.
 
 ## Status
 

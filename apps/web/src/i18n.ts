@@ -6,7 +6,7 @@ import { initReactI18next } from "react-i18next";
 const resources = {
   de: {
     translation: {
-      appTitle: "VerticalBusinessDesigner",
+      appTitle: "Kiln",
       tagline: "Business-Modell → Capability Map → Review",
       narrative: "Business-Narrativ",
       narrativeHint: "Beschreibe das Unternehmen. Fähigkeiten entstehen daraus.",
@@ -158,7 +158,7 @@ const resources = {
       traceRoles: "Bedient von",
       traceRelated: "Verwandte Entitäten",
       traceNoBehaviour: "Noch kein Verhalten — Kommandos & Ereignisse generieren.",
-      guideTitle: "So funktioniert der VerticalBusinessDesigner",
+      guideTitle: "So funktioniert der Kiln",
       guideWhy: "Warum:",
       guideHow: "So geht's:",
       guideExample: "Beispiel:",
@@ -276,7 +276,7 @@ const resources = {
   },
   en: {
     translation: {
-      appTitle: "VerticalBusinessDesigner",
+      appTitle: "Kiln",
       tagline: "Business model → Capability Map → review",
       narrative: "Business Narrative",
       narrativeHint: "Describe the business. Capabilities are derived from it.",
@@ -428,7 +428,7 @@ const resources = {
       traceRoles: "Operated by",
       traceRelated: "Related entities",
       traceNoBehaviour: "No behaviour yet — generate commands & events.",
-      guideTitle: "How VerticalBusinessDesigner works",
+      guideTitle: "How Kiln works",
       guideWhy: "Why:",
       guideHow: "How:",
       guideExample: "Example:",

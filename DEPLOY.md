@@ -6,7 +6,7 @@ browser (golden invariant #3).
 
 ## One-time import (Vercel dashboard)
 
-1. **Vercel → Add New → Project → Import** `ziffr/vertical-business-designer`.
+1. **Vercel → Add New → Project → Import** `ziffr/kiln`.
 2. **Root Directory:** set to **`apps/web`** (the ⚙️ "Edit" next to Root Directory). This is the
    Vite app; Vercel installs the npm workspaces from the repo root automatically.
 3. **Framework Preset:** Vite (auto-detected). Build/Output are taken from `apps/web/vercel.json`

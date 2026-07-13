@@ -1,7 +1,7 @@
-# Contributing to VerticalBusinessDesigner
+# Contributing to Kiln
 
-Thanks for your interest in VerticalBusinessDesigner (VBD). VBD is an LLM-guided
-**Business Compiler**: you describe a vertical business in structured text, an LLM derives a
+Thanks for your interest in **Kiln** (the code uses the internal codename **VBD** / `@vbd/*`). Kiln is
+an LLM-guided **business compiler**: you describe a vertical business in structured text, an LLM derives a
 formal model, deterministic validators check it, and it renders as a reviewable **Capability
 Map** that deterministic codegen projects into a complete, runnable multi-backend system.
 

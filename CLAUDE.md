@@ -168,9 +168,16 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   the (thin) solar narrative + added 3 rich verticals seeded as example projects, each a different ingestion
   path — Legal office (Zoom transcript), Coffee franchise (agent interview → `coachTranscript`), Funeral
   franchise (owner file); new ones ship description-first (generate in-app). Version 0.0.0→**0.1.0**. 279
-  tests; web build green; Kiln branding verified live in-browser. Still open: release-please + rolling-alpha
-  choice, claude-code-action (needs the `ANTHROPIC_API_KEY` repo secret), launch assets, and baking full
-  models for the 3 new examples (needs an LLM generation run).
+  tests; web build green; Kiln branding verified live in-browser.
+- **Pre-launch: release automation + launch assets DONE.** release-please (auto version + categorized
+  CHANGELOG + GitHub Release from Conventional Commits; `bump-minor-pre-major`) replaces the tag-triggered
+  release.yml; `claude.yml` (claude-code-action@v1) = @claude issue→PR, least-privilege, no auto-merge, gated
+  on the ANTHROPIC_API_KEY env. **README hero** rewritten: badges, an animated **demo GIF** (`docs/assets/
+  kiln-demo.gif`, 760×427 looping describe→model→run, built via an HTML sprite-strip → Playwright → ffmpeg),
+  live-demo link, how-it-works, examples gallery; **social card** `docs/assets/kiln-social.png` (1280×640).
+  Remaining are HUMAN-ONLY GitHub steps (create/push repo as `ziffr/kiln`, make public, branch protection,
+  add ANTHROPIC_API_KEY secret, enable "Actions may create PRs", set description/topics/social-image) + the
+  optional rolling-alpha workflow + baking full models for the 3 new examples (needs an LLM run).
 - **Full-stack export from the app + `vbd.sh` CLI helper BUILT.** (1) The complete multi-backend file-map
   assembly was extracted out of the CLI bin into a pure, isomorphic `assembleFullStack(input) → {files,
   report}` in `@vbd/codegen` (byte-identical to the CLI, both dialects; the bin is now a thin wrapper). The

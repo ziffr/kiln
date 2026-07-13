@@ -22,7 +22,3 @@ workspaces/*/.kiln/
 
 # Playwright MCP scratch output
 .playwright-mcp/
-
-# Vercel serverless-function bundles (build output). NOTE: 25 functions exceed the Vercel plan
-# function cap, so the hosted demo runs client-side/mock only; consolidate to one router to enable /api.
-/apps/web/api/

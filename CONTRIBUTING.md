@@ -1,0 +1,111 @@
+# Contributing to VerticalBusinessDesigner
+
+Thanks for your interest in VerticalBusinessDesigner (VBD). VBD is an LLM-guided
+**Business Compiler**: you describe a vertical business in structured text, an LLM derives a
+formal model, deterministic validators check it, and it renders as a reviewable **Capability
+Map** that deterministic codegen projects into a complete, runnable multi-backend system.
+
+This project is welcoming to contributions of all sizes — from typo fixes to whole new
+execution engines. Please read this guide before opening a pull request.
+
+## How this project is maintained
+
+VBD has an unusual — but deliberate — maintenance model. A non-technical **Product Owner** sets
+the vision and priorities, and an **AI Maintainer** (Claude) does all of the technical work:
+reviewing every pull request, keeping CI green, and cutting releases. This means:
+
+- **Every PR is reviewed and merged by the AI Maintainer.** Reviews are thorough and focus on
+  correctness, tests, the project invariants, and security.
+- **Green CI is required to merge.** No exceptions. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+- **Product and scope questions go to the Owner** (via the `needs-owner-decision` label), who
+  answers in plain language.
+
+For the full picture, read [GOVERNANCE.md](GOVERNANCE.md).
+
+## Getting set up
+
+You need **Node ≥ 20** (the repo develops on newer Node, but 20 is the supported floor). There is
+**no build step** for the packages — Node runs the TypeScript sources directly via type-stripping,
+and `npm install` only links the workspaces (no registry fetch is required to run the tests).
+
+```bash
+./vbd.sh install     # install dependencies (links the npm workspaces; offline)
+./vbd.sh doctor      # verify your environment (node, .env, docker, git)
+```
+
+`./vbd.sh help` lists every command. You do not need an Anthropic API key to develop or run the
+tests — the app ships with an offline mock generator. A key is only needed for real LLM
+generation, and it lives **only** in a git-ignored root `.env` (never commit it). See
+[SECURITY.md](SECURITY.md).
+
+## The check that must pass before you open a PR
+
+```bash
+./vbd.sh check       # runs the test suite + the web build — this is the gate
+```
+
+`./vbd.sh check` is exactly what CI runs: the package tests (`npm test`) and the web build
+(`npm run build --workspace @vbd/web`). If it is green locally, CI should be green too. Please run
+it before pushing. If you touch UI, also verify your change **in the browser** — several of the
+project's invariants are visual, and tests alone will not catch a broken projection.
+
+Every new pure function gets a test under `packages/*/test/*.test.ts` (we use Node's built-in
+`node:test` + `node:assert/strict` — no test framework to install).
+
+## Project invariants (please don't violate these)
+
+These are the rules of the road. The full list lives in [CLAUDE.md](CLAUDE.md); the ones that most
+often trip up new contributors:
+
+1. **Text is the source of truth; the UI/graph is a projection of the model.** Never store truth in
+   the canvas. Node positions are computed, never persisted.
+2. **Every model node/edge is `authored` or `derived`.** Only `authored` elements round-trip to
+   text and are editable; `derived` elements are read-only projections.
+3. **Secrets never reach the browser.** The Anthropic key lives only in `apps/service`; the web app
+   POSTs to the service and never calls the model or holds the key.
+4. **Pure packages are isomorphic and dependency-free.** `@vbd/ir`, `@vbd/compiler`,
+   `@vbd/validation`, `@vbd/narrative`, `@vbd/skills`, and `@vbd/eval` must run in both Node tests
+   and the browser. **Do not import `node:*` builtins in them** (use the isomorphic `sha256` from
+   `@vbd/ir`, not `node:crypto`). Only `@vbd/store` and `apps/service` may be server-only.
+5. **The model proposes; validators + the human decide.** LLM output is coerced, validated, and
+   human-editable. Generated capabilities must carry grounded provenance.
+
+## Change the model, not the generated code
+
+VBD generates systems from a model. If output looks wrong, **fix the projection — change the model
+or the generator, not the generated artifacts**. Hand-editing generated code will be overwritten on
+the next export and is not how this project improves. (The rare exceptions — hand-owned adapters —
+are documented in the ADRs under `docs/`.)
+
+## Working with the LLM code
+
+- The project is TypeScript, so LLM calls use the official **`@anthropic-ai/sdk`**, never raw HTTP,
+  and that SDK usage lives **only** in `apps/service`.
+- **Do not guess the Anthropic API.** Use structured outputs to lock JSON shapes, keep the one-shot
+  repair retry, and wrap user/business text as data (prompt-injection safety).
+
+## Commit messages and PRs
+
+- Use **[Conventional Commits](https://www.conventionalcommits.org/)** for commit messages and PR
+  titles (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, …). This keeps the changelog and
+  release notes readable.
+- Fill out the [pull request template](.github/PULL_REQUEST_TEMPLATE.md) — say what and why, confirm
+  `./vbd.sh check` passes, and note any tests you added.
+- Keep PRs small and focused; a coherent, green unit of work is much easier to review and merge.
+
+## Documentation
+
+All plans, specs, reviews, and decisions live under `docs/` and follow
+[`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) — ID prefixes, required frontmatter, and a status
+lifecycle. If you add or change a governed doc, update `docs/INDEX.md`.
+
+## Good places to start
+
+- Issues labelled **`good first issue`** are scoped for newcomers.
+- Want to add a new execution engine (a store, orchestrator, UI, or platform)? Use the
+  **[new-engine issue template](.github/ISSUE_TEMPLATE/new-engine.md)** to propose it first — it
+  asks the right questions (which tech-capabilities it provides, at what fidelity, its reach, and
+  whether it couples its own store).
+- General questions? Open a **GitHub Discussion** rather than an issue.
+
+Welcome aboard.

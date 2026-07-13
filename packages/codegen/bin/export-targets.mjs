@@ -432,7 +432,32 @@ make ui            # run the front-end (pnpm)
 Package manager: **pnpm** (the UI). Backends run via Docker (\`docker compose\`).
 `));
 written.push(write(".gitignore", "node_modules/\ndist/\n.env\n*.log\n"));
-written.push(write(".env.example", "# Copy to .env. Secrets never go in code.\nPGHOST=localhost\nPGPORT=5432\nPGUSER=app\nPGPASSWORD=app\nPGDATABASE=app\n"));
+// Root .env.example — the single, accurate list of every var the generated components read. Copy to .env
+// (gitignored). Point DATABASE_URL / N8N_BASE_URL at REMOTE hosts to run against managed services.
+written.push(write(".env.example", `# Copy to .env (gitignored). These are the vars the generated components actually read.
+
+# ── Store (the spine → ${useSqlite ? "SQLite" : "Postgres"}) ──
+${useSqlite
+  ? "DB_FILE=data/app.db"
+  : `DATABASE_URL=postgres://app:app@localhost:5432/app
+# managed Postgres (Supabase/Neon/RDS) needs TLS: append ?sslmode=require, or set PGSSL=require (verified).
+# PGSSL=require`}
+
+# ── n8n (the spine POSTs events here; import trigger_*/process_* workflows into it) ──
+N8N_BASE_URL=http://localhost:5678/webhook
+# if a REMOTE n8n secures its webhooks with Header Auth, set the bearer token the spine sends:
+# N8N_WEBHOOK_TOKEN=
+
+# ── Spine API ──
+PORT=3000
+
+# ── UI → the spine base URL (Vite build-time; set in ui/.env or your host's env) ──
+VITE_API_URL=http://localhost:3000
+
+# ── Agents runtime (only if you run agents/) ──
+# ANTHROPIC_API_KEY=sk-ant-...
+# SPINE_URL=http://localhost:3000
+`));
 // The store service + how the spine connects to it — SQLite is embedded (a volume, no db service).
 const pgService = useSqlite ? "" : `  postgres:
     image: postgres:16-alpine
@@ -571,8 +596,26 @@ This system is several bound backends. Deploy each; point them at each other via
 \`\`\`bash
 cd ui && pnpm install && pnpm build   # → ui/dist
 \`\`\`
-Deploy \`ui/dist\` to any static host (Vercel, Netlify, Cloudflare Pages, S3+CDN). Set the API base URL
-(the spine's URL) as a build-time env var and wire it into the UI's fetch calls (currently \`TODO\`).
+Deploy \`ui/dist\` to any static host (Vercel, Netlify, Cloudflare Pages, S3+CDN). Set \`VITE_API_URL\` (the
+spine's URL) as a build-time env var (see \`ui/.env.example\`); the pages read it once you wire the \`TODO\`
+fetches. \`ui/vercel.json\` is included (Vite + SPA fallback so deep links resolve).
+
+## Automatic deployment to Vercel (the UI)
+The UI is the clean Vercel target (static SPA). Two ways to make deploys automatic:
+
+**A) Git integration (simplest — no token in the repo).** In the Vercel dashboard: New Project → import this
+repo → set **Root Directory = \`ui\`** (framework auto-detects Vite) → add env var \`VITE_API_URL\` = your
+deployed spine URL. Every push to the branch now auto-deploys. Vercel pulls from GitHub; you store nothing.
+
+**B) CI-driven (GitHub Actions — needs a Vercel token).** Add three **GitHub Actions secrets** (Settings →
+Secrets → Actions): \`VERCEL_TOKEN\` (Vercel → Account → Tokens), \`VERCEL_ORG_ID\`, \`VERCEL_PROJECT_ID\` (from
+\`.vercel/project.json\` after \`vercel link\`, or the project settings). The included
+\`.github/workflows/deploy-vercel.yml\` then deploys \`ui/\` on every push to \`main\`. The token lives ONLY in
+GitHub secrets — never commit it.
+
+**Backend note:** n8n, Odoo and Postgres are stateful services — NOT Vercel. Host them separately (n8n Cloud,
+Odoo.sh, managed Postgres) and point \`VITE_API_URL\` at wherever the spine runs. The spine (Express) *can* run
+on Vercel via a serverless wrapper, but Fly/Render/a container is the straightforward host.
 
 ## Data — PostgreSQL
 Provision a managed Postgres (Neon, Supabase, RDS, Cloud SQL). Apply the schema once:
@@ -669,6 +712,32 @@ written.push(write("package.json", JSON.stringify(
 written.push(write(".husky/pre-commit", "pnpm exec lint-staged\n"));
 
 // Security: dependency updates + CodeQL SAST.
+// Auto-deploy the UI to Vercel on push (opt-in — the job self-skips unless the Vercel secrets are set).
+// Add secrets VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID in GitHub → Settings → Secrets → Actions.
+written.push(write(".github/workflows/deploy-vercel.yml", `name: Deploy UI to Vercel
+on:
+  push:
+    branches: [main]
+    paths: ["ui/**"]
+concurrency: deploy-ui
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: \${{ secrets.VERCEL_TOKEN != '' }}   # skipped until you add the Vercel secrets
+    defaults: { run: { working-directory: ui } }
+    env:
+      VERCEL_ORG_ID: \${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: \${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm i -g vercel@latest
+      - run: vercel pull --yes --environment=production --token=\${{ secrets.VERCEL_TOKEN }}
+      - run: vercel build --prod --token=\${{ secrets.VERCEL_TOKEN }}
+      - run: vercel deploy --prebuilt --prod --token=\${{ secrets.VERCEL_TOKEN }}
+`));
+
 written.push(write(".github/dependabot.yml", `version: 2
 updates:
   - package-ecosystem: npm

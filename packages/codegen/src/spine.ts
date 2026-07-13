@@ -125,8 +125,8 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
 });
 `,
     ".env.example": sqlite
-      ? "# Copy to .env\nPORT=3000\nDB_FILE=data/app.db\n# optional: POST emitted events to n8n webhooks (on/<event>)\nN8N_BASE_URL=http://localhost:5678/webhook\n"
-      : "# Copy to .env\nPORT=3000\nDATABASE_URL=postgres://app:app@localhost:5432/app\n# optional: POST emitted events to n8n webhooks (on/<event>)\nN8N_BASE_URL=http://localhost:5678/webhook\n",
+      ? "# Copy to .env — the command API's config.\nPORT=3000\nDB_FILE=data/app.db\n\n# optional: POST emitted events to n8n webhooks (on/<event>). Point at a remote n8n by changing the URL.\nN8N_BASE_URL=http://localhost:5678/webhook\n# if the remote n8n webhooks use Header Auth, set the bearer token:\n# N8N_WEBHOOK_TOKEN=\n"
+      : "# Copy to .env — the command API's config.\nPORT=3000\n\n# Postgres — change host/user/password for a REMOTE/managed db. For managed Postgres (Supabase/Neon/RDS),\n# use TLS: append ?sslmode=require to the URL, or set PGSSL=require (verified). PGSSL=no-verify is dev-only.\nDATABASE_URL=postgres://app:app@localhost:5432/app\n# PGSSL=require\n\n# optional: POST emitted events to n8n webhooks (on/<event>). Point at a remote n8n by changing the URL.\nN8N_BASE_URL=http://localhost:5678/webhook\n# if the remote n8n webhooks use Header Auth, set the bearer token:\n# N8N_WEBHOOK_TOKEN=\n",
     "README.md": `# Generated spine (command API)
 
 The \`operate\` engine: one HTTP route per command, backed by Postgres, emitting events (and POSTing them
@@ -185,7 +185,11 @@ export const all = async (table: string): Promise<Record<string, unknown>[]> => 
 export const find = async (table: string, id: string): Promise<Record<string, unknown> | undefined> => db.prepare("SELECT * FROM " + table + " WHERE id=?").get(id) as Record<string, unknown> | undefined;
 `
       : `import pg from "pg";
-export const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL || "postgres://app:app@localhost:5432/app" });
+const DATABASE_URL = process.env.DATABASE_URL || "postgres://app:app@localhost:5432/app";
+// Managed Postgres (Supabase, Neon, RDS…) needs TLS. PGSSL=require (or ?sslmode=require in the URL) →
+// VERIFIED TLS. PGSSL=no-verify skips cert verification (dev/self-signed only — allows MITM; avoid in prod).
+const ssl = process.env.PGSSL === "no-verify" ? { rejectUnauthorized: false } : process.env.PGSSL === "require" || /sslmode=require/.test(DATABASE_URL) ? true : undefined;
+export const pool = new pg.Pool({ connectionString: DATABASE_URL, ssl });
 export function genId(): string { return "r_" + Math.random().toString(36).slice(2, 10); }
 export async function insert(table: string, cols: string[], record: Record<string, unknown>): Promise<Record<string, unknown>> {
   const r: Record<string, unknown> = { ...record };
@@ -205,12 +209,15 @@ export const all = (table: string): Promise<Record<string, unknown>[]> => pool.q
 export const find = (table: string, id: string): Promise<Record<string, unknown> | undefined> => pool.query("SELECT * FROM " + table + " WHERE id=$1", [id]).then((r) => r.rows[0] as Record<string, unknown> | undefined);
 `,
     "src/events.ts": `const N8N = process.env.N8N_BASE_URL;
+const N8N_TOKEN = process.env.N8N_WEBHOOK_TOKEN; // optional — secure a REMOTE n8n's webhook (Header Auth)
 // Emit a domain event: log it, and (if configured) POST to the n8n webhook the generated workflow listens on.
 export async function emit(name: string, payload: Record<string, unknown>): Promise<void> {
   console.log("[event] " + name + " " + (payload && payload.id ? String(payload.id) : ""));
   if (N8N) {
     try {
-      await fetch(N8N + "/on/" + name, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload || {}) });
+      const headers: Record<string, string> = { "content-type": "application/json" };
+      if (N8N_TOKEN) headers.authorization = "Bearer " + N8N_TOKEN;
+      await fetch(N8N + "/on/" + name, { method: "POST", headers, body: JSON.stringify(payload || {}) });
     } catch (e) {
       console.warn("emit->n8n failed: " + (e as Error).message);
     }

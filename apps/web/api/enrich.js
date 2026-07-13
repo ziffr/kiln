@@ -602,7 +602,12 @@ export const SelectValue = ({ placeholder }: { placeholder?: string }) => <span 
 export const SelectContent = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
 export { SelectTrigger };
 `,
-  ".gitignore": "node_modules/\ndist/\n.env\n",
+  ".gitignore": "node_modules/\ndist/\n.env\n.env.local\n",
+  // Vite exposes only VITE_-prefixed vars to the client. VITE_API_URL = the spine base URL the pages fetch
+  // from (data-fetching is a TODO in each page — read import.meta.env.VITE_API_URL when you wire it).
+  ".env.example": "# Copy to .env.local. Only VITE_-prefixed vars reach the browser.\nVITE_API_URL=http://localhost:3000\n",
+  // Vercel deploy config for the UI: Vite build + SPA fallback (react-router deep links resolve to index.html).
+  "vercel.json": JSON.stringify({ $schema: "https://openapi.vercel.sh/vercel.json", framework: "vite", buildCommand: "npm run build", outputDirectory: "dist", rewrites: [{ source: "/(.*)", destination: "/index.html" }] }, null, 2) + "\n",
   "README.md": `# Generated UI (shadcn/ui)
 
 Structure derived from the business model; skin from the Theme in \`src/index.css\`. TypeScript, \`strict\`.

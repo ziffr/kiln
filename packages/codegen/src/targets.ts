@@ -91,6 +91,10 @@ export const ENGINES: Record<string, Engine> = Object.fromEntries(registeredEngi
 export interface Binding {
   defaults: Partial<Record<TechCapability, string>>;
   byArea?: Record<string, Partial<Record<TechCapability, string>>>;
+  /** App-level agent RUNTIME (like serve-ui is app-level, not per-element): where the model's agents run.
+   *  Unset/"node" → the generated Node runtime (Anthropic/OpenRouter); "langdock" → provision into a
+   *  Langdock workspace via its Agent API. Only affects agents; does not change command/store/etc. bindings. */
+  agentRuntime?: string;
 }
 
 /** A sensible multi-backend default for the probe: data in Postgres, orchestration in n8n, rest = spine. */
@@ -618,6 +622,9 @@ export function projectTargets(
   const engCtx: EngineContext = { binding, resolved, dialect, caps, domain, contexts, roles, workflows, agents, theme, handlers, services: servicesDoc, i18n };
   const inPlay = new Set(resolved.map((r) => r.engineId));
   inPlay.add(uiEngine);
+  // App-level agent runtime (like serve-ui): if the binding routes agents to a non-default engine (e.g.
+  // Langdock), bring that engine in-play so it provisions them. Default (unset/"node") = the Node runtime.
+  if (binding.agentRuntime && binding.agentRuntime !== "node" && (agents?.agents?.length ?? 0) > 0) inPlay.add(binding.agentRuntime);
   const engineOutputs: Record<string, EngineOutput> = {};
   for (const id of [...inPlay].sort()) {
     const adapter = getEngineAdapter(id);

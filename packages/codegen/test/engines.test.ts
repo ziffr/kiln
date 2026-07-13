@@ -22,13 +22,16 @@ const fakeAdapter: EngineAdapter = {
   generate: () => ({ files: { "fake_store/schema.sql": "-- fake" } }),
 };
 
-test("the six built-ins register themselves on import (side effect of engines/index.ts)", () => {
+test("the built-ins register themselves on import (side effect of engines/index.ts)", () => {
   const ids = registeredEngines().map((e) => e.id);
-  for (const id of ["postgres", "sqlite", "n8n", "node", "odoo", "shadcn"]) assert.ok(ids.includes(id), `built-in "${id}" registered`);
-  // ENGINES is a DERIVED VIEW of the registry — same six descriptors, keyed by id.
-  assert.equal(Object.keys(ENGINES).length, 6);
+  for (const id of ["postgres", "sqlite", "n8n", "node", "odoo", "shadcn", "langdock"]) assert.ok(ids.includes(id), `built-in "${id}" registered`);
+  // ENGINES is a DERIVED VIEW of the registry — same descriptors, keyed by id.
+  assert.equal(Object.keys(ENGINES).length, 7);
   assert.equal(ENGINES.odoo.couplesStore, true);
   assert.equal(ENGINES.shadcn.provides["serve-ui"], "native");
+  // langdock = an agent-runtime engine: operate native, http reach.
+  assert.equal(ENGINES.langdock.provides.operate, "native");
+  assert.equal(ENGINES.langdock.reach, "http");
 });
 
 test("registeredEngines() is deterministic — sorted by engine id regardless of registration order", () => {

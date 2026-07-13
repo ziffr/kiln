@@ -4258,6 +4258,175 @@ var spineEngineAdapter = {
   generate: (ctx) => ({ files: spineAdapter(ctx.caps, ctx.domain, ctx.handlers, ctx.dialect) })
 };
 
+// ../../packages/codegen/src/langdock.ts
+var CREATE_VERB2 = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+function commandLines(domain, ownedEntities) {
+  const lines = [];
+  for (const c of domain.commands ?? []) {
+    if (!ownedEntities.has(c.aggregate)) continue;
+    const res = `${slug(c.aggregate)}s`;
+    const action = slug(c.name || c.id);
+    const create = CREATE_VERB2.test(`${action}_`);
+    const url = `{SPINE_URL}${create ? `/${res}` : `/${res}/{id}/${action}`}`;
+    lines.push(`- \`POST ${url}\` \u2014 ${c.name || c.id} (on ${c.aggregate})`);
+  }
+  return lines;
+}
+function agentInstructions(caps, domain, a, ownedEntities) {
+  const capNames = (a.capabilities ?? []).map((c) => caps.capabilities.find((x) => x.id === c)?.name ?? c);
+  const cmds = commandLines(domain, ownedEntities);
+  const head = a.instructions?.trim() ? a.instructions.trim() : [
+    `# ${a.name || a.id}`,
+    "",
+    `**Goal.** ${a.goal || `Operate the ${capNames.join(", ")} capabilities.`}`,
+    "",
+    "## How you work",
+    "Work toward the goal with your API. For each item: read the relevant record, decide, then act via",
+    "the right command. Take one action at a time and check the result. When a decision needs human",
+    "judgement, escalate rather than guess. Never fabricate data; stay within your goal and capabilities."
+  ].join("\n");
+  return [
+    head,
+    "",
+    "## Your API (the commands you operate)",
+    "Call these HTTP endpoints (the same command API the app's UI and workflows use). `{SPINE_URL}` and any",
+    "auth are provided by the runtime; substitute `{id}` with the record id.",
+    ...cmds.length ? cmds : ["- (no commands \u2014 this agent has no owned entities)"],
+    ""
+  ].join("\n");
+}
+function langdockAdapter(caps, domain, agentsDoc) {
+  const files = {};
+  const agents = agentsDoc?.agents ?? [];
+  if (!agents.length) return files;
+  const specs = [];
+  for (const a of agents) {
+    const id = slug(a.id);
+    const ownedEntities = new Set(domain.aggregates.filter((x) => (a.capabilities ?? []).includes(x.owner)).map((x) => x.id));
+    const knowledge = domain.aggregates.filter((x) => ownedEntities.has(x.id)).map((x) => `## ${x.name || x.id}
+${attributeSpecs(x).map((f) => `- ${f.name}: ${f.type}`).join("\n") || "- (no attributes)"}`).join("\n\n");
+    const spec = {
+      name: a.name || a.id,
+      model: a.model || "claude-sonnet-5",
+      instructions: agentInstructions(caps, domain, a, ownedEntities),
+      knowledge: knowledge || void 0,
+      metadata: { kilnAgentId: a.id, capabilities: a.capabilities ?? [] }
+    };
+    files[`langdock/agents/${id}.json`] = JSON.stringify(spec, null, 2);
+    specs.push({ id, name: a.name || a.id });
+  }
+  files["langdock/provision.mjs"] = PROVISION;
+  files["langdock/invoke.mjs"] = INVOKE;
+  files["langdock/.env.example"] = ENV_EXAMPLE;
+  files["langdock/README.md"] = readme2(specs);
+  return files;
+}
+var PROVISION = `// Provision this model's agents into your Langdock workspace (POST /agent/v1/create), then record the
+// returned agent ids into agents.lock.json. Re-run to (re)create; edit agents/<id>.json to change one.
+//   LANGDOCK_API_KEY=... node provision.mjs
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const KEY = process.env.LANGDOCK_API_KEY;
+const BASE = process.env.LANGDOCK_BASE_URL || "https://api.langdock.com";
+if (!KEY) { console.error("Set LANGDOCK_API_KEY"); process.exit(1); }
+
+const lock = {};
+for (const file of readdirSync(join(here, "agents")).filter((f) => f.endsWith(".json"))) {
+  const spec = JSON.parse(readFileSync(join(here, "agents", file), "utf8"));
+  const res = await fetch(BASE + "/agent/v1/create", {
+    method: "POST",
+    headers: { authorization: "Bearer " + KEY, "content-type": "application/json" },
+    body: JSON.stringify(spec),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) { console.error("x " + spec.name + ": " + res.status + " " + JSON.stringify(body)); continue; }
+  const agentId = body.id || body.agentId || body.agent_id;
+  lock[file.replace(/\\.json$/, "")] = { agentId, name: spec.name };
+  console.log("ok " + spec.name + " -> " + agentId);
+}
+writeFileSync(join(here, "agents.lock.json"), JSON.stringify(lock, null, 2));
+console.log("wrote agents.lock.json - invoke with:  node invoke.mjs <agent-key> \\"<task>\\"");
+`;
+var INVOKE = `// Wake a provisioned agent (POST /agent/v1/chat/completions). The agent runs in YOUR Langdock workspace.
+//   LANGDOCK_API_KEY=... node invoke.mjs <agent-key> "qualify the newest lead"
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const KEY = process.env.LANGDOCK_API_KEY;
+const BASE = process.env.LANGDOCK_BASE_URL || "https://api.langdock.com";
+const [agentKey, ...taskParts] = process.argv.slice(2);
+if (!KEY || !agentKey) { console.error("usage: LANGDOCK_API_KEY=... node invoke.mjs <agent-key> <task...>"); process.exit(1); }
+
+const lock = JSON.parse(readFileSync(join(here, "agents.lock.json"), "utf8"));
+const agentId = lock[agentKey]?.agentId;
+if (!agentId) { console.error("unknown agent-key " + agentKey + " (see agents.lock.json)"); process.exit(1); }
+
+const res = await fetch(BASE + "/agent/v1/chat/completions", {
+  method: "POST",
+  headers: { authorization: "Bearer " + KEY, "content-type": "application/json" },
+  body: JSON.stringify({ agentId, messages: [{ role: "user", parts: [{ type: "text", text: taskParts.join(" ") }] }] }),
+});
+console.log(JSON.stringify(await res.json(), null, 2));
+`;
+var ENV_EXAMPLE = `# Provision + invoke agents in your Langdock workspace.
+LANGDOCK_API_KEY=            # a workspace API key with the AGENT_API scope
+# LANGDOCK_BASE_URL=https://api.langdock.com   # or your dedicated deployment
+# SPINE_URL=http://localhost:3000              # the command API the agents operate (substituted into instructions at run time)
+`;
+function readme2(specs) {
+  return `# Agents on Langdock - run your Kiln agents in a governed workspace
+
+This is an **alternative agent runtime** to the generated Node runtime in \`../agents\` (Anthropic/OpenRouter).
+Same agents - but instead of a container you run, they live in **your Langdock workspace**: EU-resident,
+audited, governed, with a shared model gateway. Scoped to agents only; **workflows stay on n8n** (Langdock
+workflows are a visual builder with no importable definition, so they aren't a codegen target).
+
+## What's here
+- \`agents/<id>.json\` - one Langdock **Agent Create** payload per agent (name, model, instructions =
+  the agent's playbook + its command API, knowledge = the entities it works on).
+- \`provision.mjs\` - creates each agent in your workspace (POST \`/agent/v1/create\`) -> \`agents.lock.json\`.
+- \`invoke.mjs\` - wakes one (POST \`/agent/v1/chat/completions\`).
+
+## Run
+\`\`\`bash
+cp .env.example .env    # set LANGDOCK_API_KEY (AGENT_API scope)
+node provision.mjs      # -> agents.lock.json
+node invoke.mjs ${specs[0]?.id ?? "<agent-key>"} "qualify the newest lead"
+\`\`\`
+
+## Wiring the agents to your command API
+The instructions tell each agent its command endpoints (\`{SPINE_URL}/...\`), the same API the UI and n8n use.
+Letting the agent actually *call* them is the integration step: expose the spine to Langdock as **custom
+tools** (your orchestrator executes the call and returns the result over the session) or via an **MCP
+server** in front of the spine, then attach it to the agent. Until then the agent reasons about the API
+but you execute the calls. See docs.langdock.com -> Agents / Integrations.
+
+## Agents
+${specs.map((s) => `- **${s.name}** (\`${s.id}\`)`).join("\n")}
+`;
+}
+
+// ../../packages/codegen/src/engines/langdock.ts
+var LANGDOCK = {
+  id: "langdock",
+  name: "Langdock",
+  reach: "http",
+  // operate = native (its Agent API runs goal-directed operators); react/sequence = partial (agents can be
+  // woken by a webhook trigger, but Langdock workflows aren't a codegen target — n8n owns those).
+  provides: { operate: "native", react: "partial", sequence: "partial", emit: "partial", store: "none", authorize: "none", "serve-ui": "none" }
+};
+var langdockEngineAdapter = {
+  engine: LANGDOCK,
+  // App-level agent runtime: emit only when the binding selects Langdock AND the model has agents.
+  applies: (ctx) => ctx.binding.agentRuntime === "langdock" && !!ctx.agents?.agents?.length,
+  generate: (ctx) => ({ files: langdockAdapter(ctx.caps, ctx.domain, ctx.agents) })
+};
+
 // ../../packages/codegen/src/engines/index.ts
 registerEngine(postgresEngineAdapter);
 registerEngine(sqliteEngineAdapter);
@@ -4265,6 +4434,7 @@ registerEngine(n8nEngineAdapter);
 registerEngine(odooEngineAdapter);
 registerEngine(shadcnEngineAdapter);
 registerEngine(spineEngineAdapter);
+registerEngine(langdockEngineAdapter);
 
 // ../../packages/codegen/src/targets.ts
 var ENGINES = Object.fromEntries(registeredEngines().map((e) => [e.id, e]));
@@ -4324,11 +4494,11 @@ function postgresAdapter(resolved, domain, roles) {
   }
   return L.join("\n").trim();
 }
-var CREATE_VERB2 = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+var CREATE_VERB3 = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 function commandEndpoint(cmd) {
   const res = `${slug(cmd.aggregate)}s`;
   const action = slug(cmd.name || cmd.id);
-  if (CREATE_VERB2.test(`${action}_`)) return { method: "POST", path: `/${res}` };
+  if (CREATE_VERB3.test(`${action}_`)) return { method: "POST", path: `/${res}` };
   return { method: "POST", path: `/${res}/{id}/${action}` };
 }
 function n8nAdapter(resolved, domain, workflows, baseUrl = "http://spine.local/api", services) {

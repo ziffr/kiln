@@ -517,7 +517,8 @@ textarea {
 .narrative-summary { grid-template-columns: 1fr 1fr 1fr; }
 
 /* Right: the detail / edit panel */
-.stage-detail { border-left: 1px solid var(--border, var(--border)); padding: 14px; overflow-y: auto; background: var(--bg); }
+.stage-detail { border-left: 1px solid var(--border, var(--border)); padding: 14px; overflow-y: auto; background: var(--bg); animation: detail-slide-in .2s ease; }
+@keyframes detail-slide-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 .detail-hint { padding: 24px 8px; text-align: center; font-size: 13px; }
 .critique-inline .major { color: var(--err-fg); } .critique-inline .minor { color: var(--accent-2); }
 
@@ -595,7 +596,6 @@ textarea {
 @media (max-width: 900px) {
   .workspace { grid-template-columns: 64px 1fr; }
   .stage-label, .stage-desc { display: none; }
-  .stage-detail { display: none; }
 }
 
 /* ER diagram nodes (React Flow custom node) */
@@ -807,11 +807,15 @@ textarea {
 .ai-review-top { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 550; cursor: pointer; }
 .ai-review-top:hover { background: var(--panel-2); }
 .ai-review-top svg { color: var(--accent); }
-.inset-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 320px; border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; min-height: 0; background: var(--panel); }
+/* Two tracks always (so the width animates smoothly); the detail track is 0 until something is
+   selected, then it opens to 340px and the canvas reflows to make room. */
+.inset-body { position: relative; flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 0px; transition: grid-template-columns .22s ease; border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; min-height: 0; background: var(--panel); }
+.inset-body.has-detail { grid-template-columns: minmax(0, 1fr) 340px; }
 
 @media (max-width: 920px) {
-  .inset-body { grid-template-columns: 1fr; }
-  .inset-body .stage-detail { display: none; }
+  /* No room to reflow — overlay the detail as a right-hand drawer instead of hiding it. */
+  .inset-body, .inset-body.has-detail { grid-template-columns: 1fr; }
+  .inset-body.has-detail .stage-detail { position: absolute; top: 0; right: 0; bottom: 0; width: min(360px, 92%); z-index: 20; box-shadow: -10px 0 28px rgba(0, 0, 0, 0.18); }
 }
 
 /* The sidebar is a fixed 250px pane, not the old collapsing rail — always show stage labels there

@@ -1054,7 +1054,7 @@ export default function App(): React.JSX.Element {
           <button className="ai-review-top" onClick={() => setShowReview(true)}><Icon name="sparkles" size={15} />{t("aiReviewTitle")}</button>
         </header>
 
-        <div className="inset-body">
+        <div className={`inset-body${selected ? " has-detail" : ""}`}>
         <main className="stage-main">
           <div className="stage-head">
             <div className="stage-title">
@@ -1184,34 +1184,36 @@ export default function App(): React.JSX.Element {
           )}
         </main>
 
-        <aside className="stage-detail">
-          {selectedArea ? (
-            <AreaDetail area={selectedArea} doc={activeDoc} terms={areaTerms(selectedArea)} onEdit={editArea} onRetire={retireArea} onSelectCapability={setSelected} onClose={() => setSelected(null)} />
-          ) : selectedAggregate ? (
-            <EntityTrace entity={selectedAggregate} domain={flowDoc} caps={activeDoc} roles={rolesDoc} onSelectCap={(id) => { setSelected(id); setStage("capabilities"); }} onSelectEntity={(id) => { setSelected(id); setStage("entities"); }} onGo={(s) => setStage(s)} onClose={() => setSelected(null)} t={t} />
-          ) : selected ? (
-            <NodeDetail
-              doc={activeDoc}
-              aggregates={domainDoc.aggregates}
-              commands={behaviourDoc.commands ?? []}
-              events={behaviourDoc.events ?? []}
-              policies={flowDoc.policies ?? []}
-              capRoles={selected ? rolesForCap(selected) : []}
-              areas={contextsDoc.contexts.map((c) => ({ id: c.id, name: c.name }))}
-              capAreaId={selected ? areaOf.get(selected)?.id : undefined}
-              onReassignArea={reassignCapabilityArea}
-              selectedId={selected}
-              onEdit={editCapability}
-              onDelete={deleteCapability}
-              onEditAggregate={editAggregate}
-              onDeleteAggregate={deleteAggregate}
-              onAddAggregate={addAggregate}
-              onClose={() => setSelected(null)}
-            />
-          ) : (
-            <div className="detail-hint muted">{t("ndHint")}</div>
-          )}
-        </aside>
+        {/* Detail is a slide-in: rendered only when something is selected, so the canvas reflows to
+            full width when nothing is (no permanently-reserved empty column). */}
+        {selected && (
+          <aside className="stage-detail">
+            {selectedArea ? (
+              <AreaDetail area={selectedArea} doc={activeDoc} terms={areaTerms(selectedArea)} onEdit={editArea} onRetire={retireArea} onSelectCapability={setSelected} onClose={() => setSelected(null)} />
+            ) : selectedAggregate ? (
+              <EntityTrace entity={selectedAggregate} domain={flowDoc} caps={activeDoc} roles={rolesDoc} onSelectCap={(id) => { setSelected(id); setStage("capabilities"); }} onSelectEntity={(id) => { setSelected(id); setStage("entities"); }} onGo={(s) => setStage(s)} onClose={() => setSelected(null)} t={t} />
+            ) : (
+              <NodeDetail
+                doc={activeDoc}
+                aggregates={domainDoc.aggregates}
+                commands={behaviourDoc.commands ?? []}
+                events={behaviourDoc.events ?? []}
+                policies={flowDoc.policies ?? []}
+                capRoles={rolesForCap(selected)}
+                areas={contextsDoc.contexts.map((c) => ({ id: c.id, name: c.name }))}
+                capAreaId={areaOf.get(selected)?.id}
+                onReassignArea={reassignCapabilityArea}
+                selectedId={selected}
+                onEdit={editCapability}
+                onDelete={deleteCapability}
+                onEditAggregate={editAggregate}
+                onDeleteAggregate={deleteAggregate}
+                onAddAggregate={addAggregate}
+                onClose={() => setSelected(null)}
+              />
+            )}
+          </aside>
+        )}
         </div>
       </div>
     </div>

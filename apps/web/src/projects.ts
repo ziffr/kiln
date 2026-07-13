@@ -12,6 +12,10 @@ import { narrativeMd } from "./data/solar";
 // diagram is rich and the entity connections trace works out of the box. Regenerate with the
 // generation script; it's a curated snapshot, editable like any project.
 import solarModel from "./data/solar-model.json";
+// Three more rich verticals, each demonstrating a DIFFERENT ingestion path (a legal office from a
+// Zoom transcript, a coffee franchise from an agent interview, a funeral franchise from owner-entered
+// files). They ship description-first — open one and "Generate with LLM" to derive the full model.
+import { legalNarrative, baristaNarrative, baristaInterview, funeralNarrative } from "./data/examples";
 
 export interface Project {
   id: string;
@@ -92,7 +96,8 @@ function uid(): string {
 
 function seed(): ProjectState {
   const m = solarModel as unknown as Pick<Project, "capabilities" | "contexts" | "domain" | "roles" | "workflows" | "agents">;
-  const p: Project = {
+  // The showcase: solar ships with a fully-baked model so every diagram is rich out of the box.
+  const solar: Project = {
     id: uid(),
     name: "Sonnenkraft Solar (example)",
     narrative: narrativeMd,
@@ -107,7 +112,25 @@ function seed(): ProjectState {
     provider: "example (generated)",
     updatedAt: 0,
   };
-  return { projects: [p], activeId: p.id };
+  // A gallery entry: a rich narrative, ready to "Generate with LLM". `provider` notes the ingestion path.
+  const example = (name: string, narrative: string, provider: string, extra?: Partial<Project>): Project => ({
+    id: uid(),
+    name,
+    narrative,
+    model: "claude-sonnet-5",
+    effort: "medium",
+    capabilities: null, // description-first — derive the model in-app
+    provider,
+    updatedAt: 0,
+    ...extra,
+  });
+  const projects: Project[] = [
+    solar,
+    example("Kanzlei Berger (law firm, example)", legalNarrative, "example (from a Zoom transcript)"),
+    example("Röstwerk Coffee (franchise, example)", baristaNarrative, "example (from an agent interview)", { coachTranscript: baristaInterview }),
+    example("Abschied & Würde (funeral franchise, example)", funeralNarrative, "example (owner-entered)"),
+  ];
+  return { projects, activeId: solar.id };
 }
 
 export function loadProjects(): ProjectState {

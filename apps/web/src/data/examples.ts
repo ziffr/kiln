@@ -1,0 +1,271 @@
+/**
+ * Bundled example businesses — a small gallery of rich verticals so the app opens with breadth and each
+ * demonstrates a DIFFERENT way content enters Kiln:
+ *
+ *   • Solar installer (see ./solar) — owner-entered structured narrative (a FILE). Ships a baked model.
+ *   • Legal office            — an uploaded ZOOM CALL TRANSCRIPT (raw, messy) → structured into a narrative.
+ *   • Coffee (barista) franchise — a STRUCTURED INTERVIEW conducted by our agent (a Q&A transcript).
+ *   • Funeral service franchise — owner-entered content (a FILE), like solar.
+ *
+ * Each narrative is deliberately rich at the high level, so the derived model (capabilities → entities →
+ * behaviour → …) comes out rich too. The new three ship description-first (capabilities: null) — open one
+ * and click "Generate with LLM" to derive the full model, or paste the raw source artifact below into the
+ * "From text/transcript" tab to watch the ingestion path itself.
+ */
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// 1) LEGAL OFFICE — provenance: an uploaded Zoom-call discovery interview.
+//    `legalZoomTranscript` is the RAW source; `legalNarrative` is what structuring it yields.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+export const legalZoomTranscript = `[Zoom meeting — "Kanzlei Discovery Call" — 2026-07-13, 41 min]
+
+Kiln agent: Thanks for the time. Just talk me through the firm — what you do, who you serve. I'll take it from there.
+
+Dr. Berger (Managing Partner): Sure. We're a mid-size law firm, twelve lawyers, three offices. We do
+commercial litigation, employment law, and a fair bit of M&A and contract work for mid-market companies.
+Some private-client work too — wills, real estate — but that's smaller.
+
+Kiln agent: How does a new matter start? Walk me from the first contact.
+
+Dr. Berger: A prospective client calls or emails, or a partner brings them in. First thing is a conflict
+check — we can't act against an existing client, so before we do anything we run the parties against our
+client and matter database. If it's clear, we do an intake: what's the issue, who's involved, deadlines.
+Then we decide whether to take it, agree an engagement — the letter, the fee arrangement, hourly or fixed
+or a retainer — and open a matter. Every matter gets a file, a responsible partner, and a team.
+
+Kiln agent: And then the work itself?
+
+Dr. Berger: Depends on the practice. Litigation is deadline-driven — court dates, filing deadlines, statute
+of limitations. Miss one and it's malpractice, so deadlines are sacred; we double-diary everything. There's
+document work — drafting pleadings, contracts, reviewing the other side's documents, discovery. Lawyers log
+their time against the matter, in six-minute units, because that's what we bill. Associates draft, partners
+review and sign off.
+
+Paralegal (Frau Klein): And I manage the documents and the deadlines. Every matter has a document folder —
+versions everywhere, so who-has-the-latest matters a lot. And client communication has to be logged; if a
+client says "you never told me," we need the record.
+
+Kiln agent: How do you bill and get paid?
+
+Dr. Berger: Monthly, mostly. We pull the logged time, a partner reviews the draft bill — writes off what we
+can't justify — then it goes out. Trust accounting is strict: client money and retainers sit in a separate
+trust account, and we can only draw against it as we bill. Regulators audit that. Payment comes in, we
+reconcile, chase the late ones.
+
+Kiln agent: Anything that keeps you up at night — the risks?
+
+Dr. Berger: Missed deadlines, conflicts we didn't catch, and confidentiality — privilege is everything, a
+leak is catastrophic. And the trust-account rules; get those wrong and you lose your licence. Everything is
+confidential by default; access to a matter is need-to-know.
+
+Kiln agent: Roles? Who does what?
+
+Dr. Berger: Partners own client relationships and sign off work and bills. Associates do the legal work.
+Paralegals run documents, deadlines, filings. Office manager handles billing and trust reconciliation. And
+a conflicts/records function, which for us is the office manager plus the database.
+
+Kiln agent: Great, that's plenty to start. I'll turn this into a structured model and you review it.
+`;
+
+export const legalNarrative = `# Kanzlei Berger & Partner (law firm)
+
+## Purpose
+A mid-size commercial law firm (twelve lawyers, three offices) that represents mid-market companies and
+private clients. Core practices: commercial litigation, employment law, M&A and contract work, plus a
+smaller private-client practice (wills, real estate). The firm earns fees from legal work — billed hourly,
+fixed-fee, or on retainer — and lives or dies by three things: never missing a deadline, never acting under
+a conflict of interest, and never breaching client confidentiality.
+
+## Customers
+- **Mid-market companies** — the core: litigation, employment disputes, deals, and contracts.
+- **Private clients** — individuals needing wills, real-estate, and personal legal matters.
+- **Referring parties** — other firms, accountants, and partners who bring matters in.
+
+## Business Outcomes
+- Take on the right matters (conflict-cleared, properly engaged) and decline the rest.
+- Deliver legal work that meets every court and statutory deadline.
+- Bill accurately for the time and value delivered, and collect it.
+- Keep client money safe and compliant in trust.
+- Protect confidentiality and privilege absolutely.
+
+## Core Activities
+- **Conflict check** — screen new parties against the client and matter database before any work begins.
+- **Client intake** — capture the issue, parties, deadlines, and decision-maker; decide whether to act.
+- **Engagement** — agree the letter and fee arrangement (hourly / fixed / retainer); open the matter with a
+  responsible partner and a team.
+- **Matter work** — draft pleadings and contracts, review the other side's documents, run discovery.
+- **Deadline management** — diary (and double-diary) court dates, filing deadlines, and limitation periods.
+- **Time recording** — lawyers log time to the matter in six-minute units (the basis for billing).
+- **Document management** — versioned matter files; know who holds the latest.
+- **Client communication** — log every material client interaction to the matter.
+- **Billing** — assemble monthly bills from logged time; a partner reviews and writes off; issue and collect.
+- **Trust accounting** — hold retainers and client funds in a separate trust account; draw only as billed;
+  reconcile for regulatory audit.
+
+## Roles
+- **Partner** — owns the client relationship; reviews and signs off work and bills.
+- **Associate** — does the legal work; drafts and researches.
+- **Paralegal** — runs documents, deadlines, and filings.
+- **Office manager** — owns billing, collections, trust reconciliation, and the conflicts/records function.
+
+## Channels
+- Email and phone with clients; a secure client portal for documents and status.
+- Court e-filing systems; the trust-account bank; time-and-billing.
+
+## Constraints
+- **Deadlines are absolute** — a missed court or limitation deadline is malpractice.
+- **Conflicts of interest** — the firm may not act against an existing client; every matter is screened.
+- **Confidentiality & privilege** — need-to-know access per matter; a leak is catastrophic.
+- **Trust-account rules** — client money is segregated and regulator-audited; violations risk the licence.
+`;
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// 2) COFFEE (BARISTA) FRANCHISE — provenance: a structured interview our agent (NarrativeCoach) ran.
+//    `baristaInterview` is the Q&A transcript (seeds coachTranscript); `baristaNarrative` is the result.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+export const baristaInterview: { role: "user" | "assistant"; content: string }[] = [
+  { role: "assistant", content: "Let's map your business. In a sentence or two — what is it, and how does it make money?" },
+  { role: "user", content: "We're a specialty coffee franchise — 'Röstwerk'. We franchise cafés: we own the brand, the recipes, the supply chain, and the app; franchisees own and run individual cafés. We make money from franchise fees, a cut of each café's sales (royalty), and by selling them roasted beans and supplies." },
+  { role: "assistant", content: "So there are two sides — the franchisor (you) and the franchisees. Let's start with growth: how does a new café come to exist?" },
+  { role: "user", content: "Someone applies to be a franchisee. We qualify them — capital, experience, the location they propose. If they're a fit, we sign a franchise agreement, help them find and fit out the site to brand standard, train them and their first baristas, and then do a grand opening. After that they're operating." },
+  { role: "assistant", content: "Once a café is open, what happens day to day — from your side and theirs?" },
+  { role: "user", content: "Their side: open the café, take orders (in-store and via our app for pickup), make drinks, manage staff shifts, count stock, reorder beans and milk and cups from us, bank the takings. Our side: we ship their supply orders, collect the royalty on their sales, run the loyalty program and app, push seasonal menus and promotions to every café, and check quality — mystery shoppers, audits, ratings." },
+  { role: "assistant", content: "You mentioned beans and supply — tell me about the product and supply chain." },
+  { role: "user", content: "We roast centrally. Green coffee comes in, we roast to our recipes, and we distribute to cafés on a standing order plus top-ups. Milk, cups, syrups, food — some we supply, some they source from approved vendors. Freshness matters, so it's just-in-time; a café running out of the house blend is a real problem." },
+  { role: "assistant", content: "How do you keep quality and the brand consistent across cafés you don't directly run?" },
+  { role: "user", content: "Standards and inspection. Every café follows the same recipes, layout, and service standards. We audit — announced and mystery-shopper visits — and score them. Customers rate via the app. A café that slips gets a corrective plan; persistent failure can cost them the franchise. Training is ongoing, not just at opening." },
+  { role: "assistant", content: "And the money flows — franchisee to you and customer to franchisee?" },
+  { role: "user", content: "Customers pay the café (POS in-store, or prepaid in the app). We invoice each franchisee monthly: the royalty (a % of their reported sales) plus what they ordered in supplies. Loyalty points are funded centrally but redeemed at any café, so there's a settlement there too. Late royalty payment is something we watch closely." },
+  { role: "assistant", content: "Last one — what keeps you up at night? The constraints and risks." },
+  { role: "user", content: "Brand consistency across independent owners. Perishable supply and stockouts. Franchisees who under-report sales (royalty is on the honour of their POS data, so we reconcile). Food safety and licensing per location. And app/loyalty being reliable — it's how customers experience us." },
+  { role: "assistant", content: "That's a rich picture — franchisor operations, café operations, central roasting/supply, and the loyalty layer. I'll structure it into a model for you to review." },
+];
+
+export const baristaNarrative = `# Röstwerk (specialty coffee franchise)
+
+## Purpose
+Röstwerk is a specialty-coffee **franchise**. The franchisor owns the brand, recipes, central roastery,
+supply chain, and the customer app; **franchisees** own and operate individual cafés under the brand.
+Röstwerk earns from franchise fees, a **royalty** on each café's sales, and by supplying roasted beans and
+café supplies. The whole model rests on **consistency** — every café must deliver the same product and
+experience even though owners are independent.
+
+## Customers
+- **Franchisees** — the independent owner-operators who buy in, run cafés, pay royalties, and order supply.
+- **Café customers** — the coffee drinkers, in-store and via the app (pickup, loyalty).
+- **Approved vendors** — third parties franchisees may source non-core supplies from.
+
+## Business Outcomes
+- Grow the network with franchisees who fit and succeed.
+- Keep every café on-brand — same recipes, layout, and service, consistently.
+- Keep cafés supplied with fresh product, just-in-time, without stockouts.
+- Collect royalties and supply revenue accurately and on time.
+- Make the app + loyalty a reliable, loved part of the customer experience.
+
+## Core Activities
+### Franchisor (central)
+- **Recruit & qualify franchisees** — application, capital/experience/location screening, franchise agreement.
+- **Open cafés** — site selection, fit-out to brand standard, staff training, grand opening.
+- **Roast & distribute** — roast green coffee centrally to recipe; fulfil standing orders + top-ups.
+- **Supply orders** — receive, pick, ship each café's bean/milk/cup/food orders.
+- **Royalty & billing** — invoice franchisees monthly (royalty on reported sales + supplies ordered); collect.
+- **Brand & marketing** — push seasonal menus and promotions to every café; run the loyalty program.
+- **Quality assurance** — announced audits + mystery shoppers; score cafés; corrective plans; app ratings.
+
+### Café (franchisee)
+- **Serve** — take orders in-store and via the app; make drinks; run the counter.
+- **Staff** — hire and schedule baristas; manage shifts.
+- **Inventory** — count stock; reorder from the roastery/approved vendors; manage freshness.
+- **Cash & sales** — take payment (POS / prepaid app); report sales; bank takings.
+
+## Roles
+- **Franchise development manager** — recruits, qualifies, and onboards franchisees.
+- **Roastery / supply lead** — owns roasting, stock, and fulfilment to cafés.
+- **Brand & app manager** — owns menus, promotions, loyalty, and the app.
+- **Field quality auditor** — owns café audits, scoring, and corrective plans.
+- **Franchisee / café owner** — owns their café's operations and results.
+- **Barista / shift lead** — owns service and the counter.
+
+## Channels
+- The customer app (ordering, prepay, loyalty) and in-store POS.
+- Franchisee ordering portal to the roastery; audit/field app for inspectors.
+- Email/phone with franchisees; supplier links for green coffee and approved vendors.
+
+## Constraints
+- **Consistency across independent owners** — the core tension of any franchise.
+- **Perishable, just-in-time supply** — a stockout of the house blend is a real failure.
+- **Royalty integrity** — royalties ride on franchisees' reported POS sales; reported figures are reconciled.
+- **Food safety & licensing** — per-location health and licensing rules.
+- **App/loyalty reliability** — it's how customers experience the brand.
+`;
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// 3) FUNERAL SERVICE FRANCHISE — provenance: owner-entered content (a file), like solar.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+export const funeralNarrative = `# Abschied & Würde (funeral service franchise)
+
+## Purpose
+A franchised network of funeral homes. The franchisor owns the brand, the operating standards, central
+supply (caskets, urns, printed materials), and the case-management system; **franchisees** own and run local
+funeral homes under the brand. We help bereaved families arrange dignified funerals — handling the deceased,
+the ceremony, the paperwork, and the logistics — at one of the hardest moments of their lives. Revenue is
+per-service (the arrangement families choose), pre-need plans (funerals paid for in advance), franchise
+fees, and a royalty on each home's services. Everything is bound by law, dignity, and time-sensitivity: a
+death triggers a tightly regulated, emotionally charged, non-repeatable process that cannot go wrong.
+
+## Customers
+- **Bereaved families** — the primary customer, arranging an at-need funeral, usually within days.
+- **Pre-need clients** — people arranging (and often pre-paying) their own funeral in advance.
+- **Institutions** — hospitals, care homes, hospices, and coroners that call the home when a death occurs.
+- **Franchisees** — the local funeral-home owner-operators in the network.
+
+## Business Outcomes
+- Respond immediately and compassionately when a death is reported — any hour.
+- Arrange and deliver each funeral exactly to the family's wishes, faith, and budget.
+- Meet every legal and documentary requirement (death registration, permits, transport, burial/cremation).
+- Honour pre-need plans decades later, with the funds safely held.
+- Keep every home on-brand for dignity and compliance; collect royalties and supply revenue.
+
+## Core Activities
+### At-need service
+- **First call** — receive the notification of a death (family, hospital, coroner) 24/7; open a case.
+- **Transfer & care** — bring the deceased into care; identification; preparation (embalming, cosmetics, dressing).
+- **Arrangement conference** — meet the family; choose service type, casket/urn, ceremony, dates, and options.
+- **Documentation** — register the death; obtain permits; coordinate burial or cremation authorization.
+- **Logistics** — schedule the venue, celebrant/clergy, hearse and cars, flowers, printed order-of-service,
+  cremation or grave, catering.
+- **Ceremony** — conduct the viewing/wake and the funeral service; the committal.
+- **After-care** — return ashes/keepsakes; grief resources; final account and settlement.
+
+### Franchisor (central)
+- **Recruit & license franchisees**; open new homes to brand and regulatory standard.
+- **Supply** caskets, urns, and printed materials to homes.
+- **Pre-need administration** — sell and safeguard pre-paid plans (trust/insurance-backed); fulfil at need.
+- **Compliance & quality** — audit homes for regulatory and dignity standards; training.
+- **Royalty & billing** — royalty on services + supply revenue from each home.
+
+## Roles
+- **Funeral director** — owns the family relationship and the arrangement; runs the service.
+- **Mortuary technician / embalmer** — owns care and preparation of the deceased.
+- **Arranger / coordinator** — owns documentation, permits, and logistics scheduling.
+- **Celebrant liaison** — coordinates clergy/celebrants and the ceremony.
+- **Pre-need advisor** — sells and administers pre-paid plans.
+- **Franchisor compliance/field manager** — owns audits, standards, and onboarding.
+- **Office / finance** — owns invoicing, pre-need funds, and royalty settlement.
+
+## Channels
+- 24/7 phone for first-call; in-person arrangement conferences; an online obituary/tribute page.
+- Institutional referrers (hospitals, hospices, coroners); the registry and cremation/cemetery authorities.
+- Franchisee supply ordering; the case-management system shared with the franchisor.
+
+## Constraints
+- **Time-critical & non-repeatable** — a death cannot wait and a funeral happens once; there is no retry.
+- **Heavily regulated** — death registration, transport, embalming, burial/cremation permits, and pre-need
+  fund safeguarding are all strictly governed and audited.
+- **Dignity and grief** — every interaction is with people at their most vulnerable; tone is everything.
+- **Pre-need liability** — funds collected today must be safe and honoured decades later.
+- **24/7 readiness** — first-call and transfer cannot close for the night.
+`;

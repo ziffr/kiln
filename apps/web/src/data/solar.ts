@@ -9,35 +9,59 @@ import type { CapabilityDoc } from "@vbd/compiler";
 export const narrativeMd = `# Sonnenkraft Solar GmbH
 
 ## Purpose
-A solar installer helps residential and commercial customers design, purchase, install,
-and maintain renewable energy systems (PV, battery storage, and related electrical work).
+Sonnenkraft Solar is a regional solar installer. We help homeowners and commercial building owners
+move to renewable energy end-to-end: we win the customer, survey the roof, engineer the system,
+quote it, procure the hardware, install and commission it, then monitor and service it for years.
+Photovoltaic (PV) panels are the core, but most jobs also involve battery storage, inverters,
+electrical work, and — increasingly — EV chargers and heat-pump tie-ins. We make money by selling
+projects, delivering them on time and on budget, and keeping the installed fleet healthy under
+service contracts.
 
 ## Customers
-- Homeowners
-- Commercial building owners
+- **Homeowners** — a single roof, a few weeks of decision-making, price- and trust-sensitive; the
+  bulk of our volume.
+- **Commercial building owners** — warehouses, farms, small industry; larger systems, longer sales
+  cycles, formal tenders, and stricter grid-connection requirements.
+- **Housing cooperatives / landlords** — multi-unit buildings where the tenant and the bill-payer
+  differ (tenant-electricity models).
 
 ## Business Outcomes
-- Sell projects
-- Install systems
-- Maintain systems
+- Win profitable projects (a signed contract from a qualified lead).
+- Design systems that are safe, permit-able, and match the customer's energy goal.
+- Deliver installations that pass commissioning and grid connection the first time.
+- Get paid on schedule (deposit, milestone, final invoice).
+- Keep systems producing — catch faults early and honour service-level promises.
 
 ## Core Activities
-- Acquire leads
-- Qualify customers
-- Survey roofs
-- Create technical design
-- Create commercial offer
-- Purchase equipment
-- Schedule installation
-- Install
-- Commission
-- Invoice
-- Monitor
-- Maintain
+- **Acquire leads** from the website, referrals, trade fairs, and partner electricians; log and route them.
+- **Qualify** the lead: energy use, roof suitability, budget, timeline, decision-maker.
+- **Survey the site** — roof geometry, shading, structure, electrical panel; on-site or remote.
+- **Design the system** — panel layout, string sizing, inverter/battery selection, a bill of materials.
+- **Produce a commercial offer** from the design; negotiate; capture the signed contract.
+- **Procure** components against the bill of materials; track supplier lead times and stock.
+- **Schedule** the installation crew around weather, permits, and grid-connection appointments.
+- **Install and commission** — mount, wire, test, and hand over; file the grid-connection paperwork.
+- **Invoice** across milestones and reconcile payments.
+- **Monitor** production remotely; **maintain** under service contracts; handle warranty claims.
+
+## Roles
+- **Sales** — owns leads, offers, and contracts.
+- **Planner / Engineer** — owns surveys, designs, and the bill of materials.
+- **Procurement** — owns purchase orders and supplier relationships.
+- **Installer / Crew lead** — owns on-site delivery and commissioning.
+- **Service technician** — owns monitoring alerts and maintenance visits.
+- **Office / Finance** — owns invoicing, payments, and permitting paperwork.
+
+## Channels
+- Email and phone with customers; a customer portal for offer acceptance and system status.
+- Supplier ordering (some via spreadsheets/EDI); the grid operator's connection portal.
+- Field app for crews (checklists, photos, sign-off).
 
 ## Constraints
-- Seasonal installation capacity
-- Regional grid-connection and permitting rules
+- **Seasonal capacity** — installs peak in spring/summer; crews and scaffolding are the bottleneck.
+- **Regulation** — regional permitting, grid-connection rules, and electrical safety codes vary by area.
+- **Supply lead times** — panels, inverters, and batteries can slip weeks; procurement must de-risk dates.
+- **Safety & liability** — roof work and high-voltage DC demand strict, auditable procedures.
 `;
 
 export const solarCapabilities: CapabilityDoc = {

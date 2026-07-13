@@ -12,21 +12,50 @@
 
 ![Kiln: describe → model → run](docs/assets/kiln-demo.gif)
 
-**[▶ Try it live](https://vertical-business-designer-web.vercel.app)** · [Quickstart](#run-the-app) · [How it works](#how-it-works) · [Add an engine](docs/good-first-issues/README.md) · [Contribute](CONTRIBUTING.md)
+<sub>↑ an animation — run Kiln yourself (below) to try it for real</sub>
+
+[**Get started**](#get-started) · [What is Kiln?](#what-is-kiln) · [How it works](#how-it-works) · [Docs](#learn-more) · [Add an engine](docs/good-first-issues/README.md) · [Contribute](CONTRIBUTING.md)
 
 </div>
 
-Kiln is an LLM-guided **"business compiler."** You describe a vertical business in plain, structured
-text; an LLM derives a formal **model** (capabilities, entities, behaviour, policies, roles, workflows,
-agents); deterministic validators check it; it renders as an interactive, reviewable **Capability
-Map**; and codegen **projects the model into a runnable multi-backend system** — a PostgreSQL/SQLite
-schema, a command API, n8n automations, an Odoo module, a shadcn/ui front-end, and an agent runtime —
-exportable as a complete, docker-ready repo. **Text is the source of truth; everything downstream is a
-projection of it, and a human reviews the AI's work at every step.**
+## What is Kiln?
 
-> 🤖 **Kiln is designed, built, and maintained end-to-end by [Claude](https://claude.com/claude-code)**
-> (Anthropic's AI), working with a non-technical product owner. We're open about that on purpose — Kiln
-> is itself a demonstration of the thesis. See [Built and maintained by Claude](#built-and-maintained-by-claude).
+**Kiln turns a written description of a business into a working software starter kit.**
+
+You describe how a business actually runs — in plain, structured language, the way you'd explain it to a
+new colleague. Take a solar installer: it captures leads, surveys roofs, sends quotes, orders parts,
+schedules installations, invoices, and services what it sold. You just write that down.
+
+Kiln's AI reads it and turns it into a precise **model** of the business: the things it keeps track of
+(leads, offers, work orders), the actions it takes (qualify a lead, approve an order), the events those
+cause, who is allowed to do what, and which steps happen automatically. Deterministic checkers catch gaps
+and contradictions along the way — and **you review and correct the AI at every step**. The AI proposes;
+you decide.
+
+Crucially, **the written description stays the single source of truth.** The diagrams and the generated
+code are just *views* of it — change the words, regenerate the views. Nothing important lives in the
+picture.
+
+Then, with one click, Kiln **generates the actual software scaffolding** for that business: a database, a
+web admin interface, automation workflows, connectors to tools like Excel, an agent runtime, and
+documentation — a real, runnable, docker-ready project that a developer (or a coding AI) can pick up and
+finish.
+
+Think of it as **compiling a business the way you compile source code**: you write the high-level intent
+once, and it produces the technical foundation — instead of a developer hand-translating a specification
+into code, guessing at the details, and drifting from what the business people actually meant.
+
+## Why "Kiln"?
+
+A **kiln** (pronounced *"kill"*, the *n* often silent) is the oven a potter fires raw clay in to turn it
+into something solid and permanent — pottery, bricks, porcelain. You put in something soft and shapeless;
+heat transforms it into something hard and real.
+
+That is the whole metaphor: you put in **soft raw material** (a plain-language description of a business)
+and Kiln **fires it into something solid** (running software). It is the same idea as a *compiler* — raw
+input becomes a finished artifact — with a craftsman's feel to it. (A nice accident: a kiln fires *clay*,
+and [Claude](https://claude.com/claude-code) — which designs and maintains Kiln — has a clay-colored
+brand.)
 
 ## How it works
 
@@ -43,6 +72,62 @@ directly — and the same pipeline derives the model. The projection is determin
 pluggable** (add a store, orchestrator, UI, or platform by registering one adapter — see
 [SPEC-010](docs/specs/SPEC-010-engine-plugin-seam.md)).
 
+## Get started
+
+Set up your own Kiln in a couple of minutes. **It works fully offline in "mock" mode with no API key** —
+add a key only when you want real AI generation.
+
+**Prerequisites:** [Node ≥ 20](https://nodejs.org) and `git`. *(Optional: [Docker](https://www.docker.com)
+to run a generated system; an [Anthropic API key](https://console.anthropic.com) for real AI generation.)*
+
+**1 — Clone & install**
+
+```bash
+git clone https://github.com/ziffr/kiln.git
+cd kiln
+./kiln.sh install      # links the workspaces (offline; no registry fetch needed)
+./kiln.sh doctor       # checks Node, .env, Docker, git
+```
+
+**2 — Run it (offline mock mode — no key needed)**
+
+```bash
+./kiln.sh dev          # service on :8787 + web app on http://localhost:5188
+```
+
+Open **http://localhost:5188**. Explore the example businesses, walk every stage (capabilities → entities
+→ behaviour → … → code), preview the generated code, and export a full-stack repo — all without an API key.
+
+**3 — Turn on real AI generation (optional — spends *your* Anthropic credits)**
+
+Create a git-ignored `.env` in the repo root with your key, then restart:
+
+```bash
+echo 'KILN_ANTHROPIC_API_KEY=sk-ant-...' > .env
+./kiln.sh dev
+```
+
+Now **Generate with LLM** derives a real model from your own text. Each call runs on *your* Anthropic
+account; the app shows a per-call cost estimate. (No key? Everything above still works in mock mode.)
+
+**4 — Generate & run a real system (optional — needs Docker)**
+
+```bash
+./kiln.sh export       # project the model → a complete multi-backend repo in ./out/targets
+./kiln.sh app:up       # build + run it: Postgres + n8n + Odoo + the API + the UI (docker compose)
+```
+
+**Tests & every command**
+
+```bash
+./kiln.sh check        # the CI gate: package tests + web build
+./kiln.sh help         # every command, documented
+```
+
+> **Is there a hosted demo?** Not a public one — on purpose. A hosted instance holds an Anthropic key, and
+> every "Generate" would spend the operator's credits, so we don't expose a public token-spending demo.
+> Run your own (above): it's a two-minute setup and needs no key to explore.
+
 ## Built and maintained by Claude
 
 Kiln is **designed, written, tested, documented, and maintained end-to-end by [Claude](https://claude.com/claude-code)**
@@ -57,9 +142,9 @@ That's true of the ongoing project too, not just the initial build:
 - **Releases** are cut automatically ([release-please](RELEASING.md)); you can even mention **`@claude`**
   on an issue to have the AI draft a fix as a normal, reviewed PR.
 
-We're deliberately open about this. Kiln's whole premise is that you can describe intent in plain
-language and get real, working software — so it would be strange to hide that Kiln itself is made that
-way. It's the thesis, applied to itself.
+We're deliberately open about this. Kiln's whole premise is that you can describe intent in plain language
+and get real, working software — so it would be strange to hide that Kiln itself is made that way. It's
+the thesis, applied to itself.
 
 ## Examples
 
@@ -72,71 +157,43 @@ The app opens on a gallery of worked verticals, each demonstrating a different w
 | ☕ **Röstwerk** — specialty-coffee **franchise** | a **structured interview** run by the agent |
 | ⚰️ **Abschied & Würde** — funeral-service **franchise** | owner-entered content |
 
-> **Naming:** everything is **Kiln** — the product, the `@kiln/*` packages, and the `kiln.sh` CLI. The only
-> pre-Kiln remnants are the local git-directory name (`VerticalBusinessDesiger`, kept for history; the public
-> repo is `kiln`) and an accepted legacy `VBD_ANTHROPIC_API_KEY` env alias, so existing setups keep working.
+## Learn more
+
+| I want to… | Read |
+|---|---|
+| See all specs, ADRs, and design docs | [`docs/INDEX.md`](docs/INDEX.md) |
+| Contribute (setup, invariants, workflow) | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Understand how the project is run (AI-maintained) | [`GOVERNANCE.md`](GOVERNANCE.md) |
+| Add a new backend engine (store / orchestrator / UI / platform) | [`SPEC-010`](docs/specs/SPEC-010-engine-plugin-seam.md) · [good first issues](docs/good-first-issues/README.md) |
+| Deploy a *generated* system | [`DEPLOY.md`](DEPLOY.md) |
+| Report a security issue | [`SECURITY.md`](SECURITY.md) |
+| Read the deep internal operating manual | [`CLAUDE.md`](CLAUDE.md) |
+| See every CLI command | `./kiln.sh help` |
 
 ## Repository layout
 
 ```
 docs/                 governed plans, specs, reviews, ADRs (see docs/CONVENTIONS.md)
 packages/
-  ir/                 @kiln/ir — IR types + isomorphic SHA-256 hashing (the spine)
-  schema/             @kiln/schema — JSON Schemas (capability.schema.json)
-  compiler/           @kiln/compiler — authored artifacts → IR (+ computeBuildHash)
-  validation/         @kiln/validation — deterministic validators V1–V2 (V3–V8 in M3)
-  store/              @kiln/store — .kiln/ derived cache with buildHash-on-load (ADR-002)
-  eval/               @kiln/eval — seeded-defect corpus + recall/precision scorer
-  narrative/          @kiln/narrative — Business Narrative parser + completeness validators (M1)
-  skills/             @kiln/skills — LLM skill runtime; CapabilityGenerator + MockProvider (M2)
+  ir/                 @kiln/ir — IR types + isomorphic hashing (the spine)
+  schema/             @kiln/schema — JSON Schemas
+  compiler/           @kiln/compiler — authored artifacts → IR
+  validation/         @kiln/validation — deterministic validators
+  narrative/          @kiln/narrative — Business Narrative parser
+  skills/             @kiln/skills — LLM skill runtime (generators, prompts, mock provider)
+  codegen/            @kiln/codegen — model → multi-backend code (engines, exporter, full-stack)
+  eval/               @kiln/eval — seeded-defect + generation-coverage scoring
+  store/              @kiln/store — server-only derived cache (ADR-002)
 apps/
-  web/                @kiln/web — React + Vite SPA (narrative editor + Capability Map, DE/EN)
-  service/            @kiln/service — server-side API (holds the LLM key; @anthropic-ai/sdk)
-workspaces/
-  solar-example/      reference solar-installer narrative + capabilities
+  web/                @kiln/web — React + Vite SPA (the interactive Capability Map + stages)
+  service/            @kiln/service — server-side API that holds the LLM key (@anthropic-ai/sdk)
+workspaces/           reference example data
 ```
 
-## Run the app
+> **Naming.** Everything is **Kiln** — the product, the `@kiln/*` packages, and the `kiln.sh` CLI. The only
+> pre-Kiln remnants are the local git-directory name (`VerticalBusinessDesiger`, kept for history) and an
+> accepted legacy `VBD_ANTHROPIC_API_KEY` env alias, so existing setups keep working.
 
-The web app runs standalone with an **offline mock** generator. For **real LLM generation**,
-also run the service (it holds the Anthropic key). Put your key in a git-ignored `.env` at the
-repo root: `KILN_ANTHROPIC_API_KEY=sk-ant-...`
+## License
 
-The easiest entrypoint is the **`kiln.sh`** helper — one script wrapping every CLI task
-(`./kiln.sh help` lists them all; `./kiln.sh doctor` checks your environment):
-
-```bash
-./kiln.sh install     # install deps (links workspaces)
-./kiln.sh dev         # run the service (:8787) + web app (:5188) together
-./kiln.sh export      # project the model → a complete multi-backend system in ./out/targets
-./kiln.sh app:up      # build + run that generated system (docker compose + schema)
-```
-
-Or drive the underlying tools directly:
-
-```bash
-npm install                          # links workspaces + installs deps
-npm run dev --workspace @kiln/web     # web (Vite) on http://localhost:5188
-npm run dev --workspace @kiln/service # API on http://localhost:8787 (loads .env)
-```
-
-Then open the web app, pick a model (default **Sonnet 5 / medium**), and click **Generate with
-LLM**. The key never reaches the browser — the app POSTs the narrative to the service, which calls
-Anthropic via the official SDK. The pure packages (`ir`/`compiler`/`validation`/`narrative`) run
-in Node (tests), the browser (live mock), and the service (real generation).
-
-## Develop
-
-Requires **Node ≥ 20** (tests run on Node's native TypeScript — no build, no external deps).
-
-```bash
-npm install     # links workspaces only; no registry fetch needed
-npm test        # runs the M0 test suite (node --test on .ts sources)
-```
-
-Optional type-checking:
-
-```bash
-npm i -D typescript @types/node
-npm run typecheck
-```
+[Apache-2.0](LICENSE) · © 2026 Stefan Sonntag and the Kiln contributors.

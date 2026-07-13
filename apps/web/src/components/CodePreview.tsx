@@ -153,6 +153,7 @@ export function CodePreview({
         services: m.services,
         i18n: m.i18n,
         modelPath: "model.json",
+        gitInitialized: false, // a browser zip isn't a git repo — the README tells the user to run `git init`
       });
       downloadZip(files, `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-fullstack.zip`);
       setExportNote(t("exportFullStackNote", { files: Object.keys(files).length, dialect }));

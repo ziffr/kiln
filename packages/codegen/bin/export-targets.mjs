@@ -127,6 +127,7 @@ const { files, report } = assembleFullStack({
   services: m.services,
   i18n: i18nOpt,
   modelPath,
+  gitInitialized: !process.argv.includes("--no-git"), // the bin git-inits below unless --no-git
 });
 
 // fresh output dir

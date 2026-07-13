@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import "./studio-auth"; // installs the fetch wrapper for the optional studio passphrase lock
 import "./i18n";
 import "./styles.css";
 import App from "./App";

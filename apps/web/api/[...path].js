@@ -4864,11 +4864,21 @@ function readBody(req) {
   if (!req.body) return {};
   return typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body;
 }
+function studioLocked(req, res) {
+  const gate = process.env.KILN_STUDIO_TOKEN;
+  if (!gate) return false;
+  const sent = req.headers?.["x-kiln-token"];
+  const token = Array.isArray(sent) ? sent[0] : sent;
+  if (token === gate) return false;
+  res.status(401).json({ error: "This Kiln studio is locked \u2014 enter the passphrase.", locked: true });
+  return true;
+}
 function requireClient(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "method not allowed" });
     return null;
   }
+  if (studioLocked(req, res)) return null;
   const client = anthropicClient();
   if (!client) {
     res.status(500).json({ error: "KILN_ANTHROPIC_API_KEY is not set on the server" });

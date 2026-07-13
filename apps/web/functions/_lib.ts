@@ -84,6 +84,7 @@ export function anthropicProvider(client: Anthropic, model: string, effort: stri
 export interface Req {
   method?: string;
   body?: unknown;
+  headers?: Record<string, string | string[] | undefined>;
 }
 export interface Res {
   status: (code: number) => Res;
@@ -96,12 +97,28 @@ export function readBody<T>(req: Req): T {
   return (typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body) as T;
 }
 
-/** Guard used by every LLM function: require POST + a configured key. Returns the client or null. */
+/**
+ * Optional "studio" lock. If KILN_STUDIO_TOKEN is set on the server (a hosted, keyed instance you don't
+ * want the public spending), every LLM call must carry a matching `x-kiln-token` header — otherwise 401.
+ * Unset (local dev, or the public keyless demo) → no lock. Keeps a keyed hosted Kiln safe on any plan.
+ */
+function studioLocked(req: Req, res: Res): boolean {
+  const gate = process.env.KILN_STUDIO_TOKEN;
+  if (!gate) return false;
+  const sent = req.headers?.["x-kiln-token"];
+  const token = Array.isArray(sent) ? sent[0] : sent;
+  if (token === gate) return false;
+  res.status(401).json({ error: "This Kiln studio is locked — enter the passphrase.", locked: true });
+  return true;
+}
+
+/** Guard used by every LLM function: require POST + (optional) the studio token + a configured key. */
 export function requireClient(req: Req, res: Res): Anthropic | null {
   if (req.method !== "POST") {
     res.status(405).json({ error: "method not allowed" });
     return null;
   }
+  if (studioLocked(req, res)) return null;
   const client = anthropicClient();
   if (!client) {
     res.status(500).json({ error: "KILN_ANTHROPIC_API_KEY is not set on the server" });

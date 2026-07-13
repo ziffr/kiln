@@ -992,33 +992,40 @@ export default function App(): React.JSX.Element {
           </div>
         </div>
 
-        <div className="projectbar">
-          <select
-            value={active.id}
-            onChange={(e) => {
-              setState((s) => ({ ...s, activeId: e.target.value }));
-              setSelected(null);
-            }}
-          >
-            {state.projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <button onClick={addProject} title={t("newProject")} aria-label={t("newProject")}><Icon name="plus" /></button>
-          <button onClick={renameProject} title={t("rename")} aria-label={t("rename")}><Icon name="pencil" /></button>
-          <button onClick={deleteProject} disabled={state.projects.length <= 1} title={t("del")} aria-label={t("del")}><Icon name="trash" /></button>
+        {/* One Project cluster: switch/create (top), then manage (rename/delete) + file save/load
+            (export/import the whole model.json) in a single tool row — so "open a project" and "save a
+            project" live together, instead of being split between this bar and the footer. */}
+        <div className="side-project">
+          <div className="projectbar">
+            <select
+              value={active.id}
+              onChange={(e) => {
+                setState((s) => ({ ...s, activeId: e.target.value }));
+                setSelected(null);
+              }}
+            >
+              {state.projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <button onClick={addProject} title={t("newProject")} aria-label={t("newProject")}><Icon name="plus" /></button>
+          </div>
+          <div className="project-tools">
+            <button onClick={renameProject} title={t("rename")} aria-label={t("rename")}><Icon name="pencil" size={15} /></button>
+            <button onClick={deleteProject} disabled={state.projects.length <= 1} title={t("del")} aria-label={t("del")}><Icon name="trash" size={15} /></button>
+            <span className="pt-spacer" />
+            <button onClick={() => modelFileRef.current?.click()} title={t("importModelHint")} aria-label={t("importModel")}><Icon name="upload" size={15} /></button>
+            <button onClick={exportModel} title={t("exportModelHint")} aria-label={t("exportModel")}><Icon name="download" size={15} /></button>
+            <input ref={modelFileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importModel(f); e.target.value = ""; }} />
+          </div>
+          <button className="project-desc" onClick={editDescription} title={t("descriptionHint")}>
+            {active.description || <span className="muted">+ {t("addDescription")}</span>}
+          </button>
         </div>
-
-        <button className="project-desc" onClick={editDescription} title={t("descriptionHint")}>
-          {active.description || <span className="muted">+ {t("addDescription")}</span>}
-        </button>
 
         <StageRail stages={stages} active={stage} onSelect={(s) => { setStage(s); setSelected(null); }} t={t} />
 
         <div className="side-foot">
-          <button className="side-foot-btn" onClick={exportModel} title={t("exportModelHint")}><Icon name="download" size={15} /> {t("exportModel")}</button>
-          <button className="side-foot-btn" onClick={() => modelFileRef.current?.click()} title={t("importModelHint")}><Icon name="upload" size={15} /> {t("importModel")}</button>
-          <input ref={modelFileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importModel(f); e.target.value = ""; }} />
           <button className="side-foot-btn" onClick={() => setShowGuide(true)}><Icon name="book" size={15} /> {t("guideOpen")}</button>
           <button className="side-foot-btn" onClick={() => setShowSettings(true)}><Icon name="settings" size={15} /> {t("settingsOpen")}</button>
           <div className="lang">

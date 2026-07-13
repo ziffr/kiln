@@ -502,7 +502,8 @@ textarea {
 .dot-empty { background: var(--border); }
 .dot-mock { background: var(--warn-fg); }
 .dot-ready { background: var(--ok-fg); }
-.stage-badge { flex: none; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); font-size: 11px; display: grid; place-items: center; }
+.stage-badge { flex: none; height: 16px; padding: 0 5px 0 4px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
+.stage-badge svg { flex: none; }
 
 /* Center: the active stage */
 .stage-main { display: flex; flex-direction: column; padding: 16px 20px; overflow-y: auto; min-width: 0; }
@@ -778,8 +779,15 @@ textarea {
 .side-team-name { min-width: 0; }
 .side-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-sub { font-size: 11px; }
-.side .projectbar { flex-wrap: wrap; padding: 0 6px 4px; }
+.side-project { display: flex; flex-direction: column; gap: 5px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.side .projectbar { flex-wrap: nowrap; padding: 0 6px; }
 .side .projectbar select { flex: 1; min-width: 0; }
+.project-tools { display: flex; align-items: center; gap: 3px; padding: 0 6px; }
+.project-tools .pt-spacer { flex: 1; }
+.project-tools button { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--muted); cursor: pointer; }
+.project-tools button svg { display: block; }
+.project-tools button:hover:not(:disabled) { background: var(--panel); color: var(--fg); border-color: var(--border); }
+.project-tools button:disabled { opacity: 0.4; cursor: default; }
 .side .stage-rail { flex: 1; min-height: 0; border-right: none; background: transparent; padding: 4px; }
 .side-foot { border-top: 1px solid var(--border); padding-top: 6px; display: flex; flex-direction: column; gap: 4px; }
 .side-foot-btn { text-align: left; background: transparent; border: none; color: var(--muted); font-size: 13px; padding: 5px 8px; border-radius: 6px; cursor: pointer; }

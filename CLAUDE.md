@@ -1,8 +1,9 @@
-# CLAUDE.md — operating manual for VerticalBusinessDesigner (VBD)
+# CLAUDE.md — operating manual for Kiln (codename VBD)
 
 This file is loaded into context every session. It is the rules of the road. Read it, follow it,
-and update it when a rule changes. Product name: **VerticalBusinessDesigner**; the repo dir is
-`VerticalBusinessDesiger` (historical misspelling — don't rename it).
+and update it when a rule changes. **Product name: Kiln** (public/user-facing, tagline "the business
+compiler"). **Internal codename: VBD** — the `@vbd/*` workspace packages and the repo dir
+`VerticalBusinessDesiger` (historical misspelling) keep the codename; don't rename them.
 
 ## What this is
 An LLM-guided **"Business Compiler"**: describe a vertical business in structured text → an LLM
@@ -156,10 +157,20 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   **OSS prep shipped:** Apache-2.0 LICENSE + governance (GOVERNANCE = non-technical owner + AI maintainer
   does all review/merge/release; CONTRIBUTING/SECURITY/CODE_OF_CONDUCT/RELEASING/CHANGELOG), CI (test+build)
   + release/dependabot workflows + PR/issue templates, `docs/good-first-issues/` (3 engines), and
-  `docs/specs/SPEC-010`. Open decisions: repo NAME (current mouthful; consider Kiln/Millwright), versioning
-  tooling (recommend SemVer + release-please), and launch assets (README hero/demo/examples). Still TODO:
-  security CI (invariant checks/CodeQL/dep-review/gitleaks/CODEOWNERS/prompt-safety test), release-please,
-  claude-code-action for issue→PR, version bump 0.0.0→0.1.0.
+  `docs/specs/SPEC-010`.
+- **Rebranded to Kiln + security CI + example gallery (v0.1.0).** Product name is now **Kiln** ("the
+  business compiler"); internal codename VBD (`@vbd/*` packages + repo dir keep it). Renamed user-facing
+  surface + generated-app attribution + repo URL (`github.com/ziffr/kiln`). **Security CI shipped:** an
+  invariant-check test (pure-package isomorphism + secret-never-client-side), a prompt-safety test (enforces
+  the DATA-wrapping anti-injection convention on all 20 shipped prompts), a schema-version test; CodeQL +
+  dependency-review + gitleaks workflows; `.github/CODEOWNERS` (gates prompts/service/engine-contract/
+  schema/governance → @ziffr); `MODEL_SCHEMA_VERSION` constant in `@vbd/ir`. **Example gallery:** enriched
+  the (thin) solar narrative + added 3 rich verticals seeded as example projects, each a different ingestion
+  path — Legal office (Zoom transcript), Coffee franchise (agent interview → `coachTranscript`), Funeral
+  franchise (owner file); new ones ship description-first (generate in-app). Version 0.0.0→**0.1.0**. 279
+  tests; web build green; Kiln branding verified live in-browser. Still open: release-please + rolling-alpha
+  choice, claude-code-action (needs the `ANTHROPIC_API_KEY` repo secret), launch assets, and baking full
+  models for the 3 new examples (needs an LLM generation run).
 - **Full-stack export from the app + `vbd.sh` CLI helper BUILT.** (1) The complete multi-backend file-map
   assembly was extracted out of the CLI bin into a pure, isomorphic `assembleFullStack(input) → {files,
   report}` in `@vbd/codegen` (byte-identical to the CLI, both dialects; the bin is now a thin wrapper). The

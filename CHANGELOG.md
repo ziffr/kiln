@@ -28,5 +28,5 @@ First public release.
 - **Docker-ready generated repositories.** Each export ships with docker-compose and a Makefile so a
   generated system builds and runs as a stack out of the box.
 
-[Unreleased]: https://github.com/ziffr/vertical-business-designer/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/ziffr/vertical-business-designer/releases/tag/v0.1.0
+[Unreleased]: https://github.com/ziffr/kiln/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/ziffr/kiln/releases/tag/v0.1.0

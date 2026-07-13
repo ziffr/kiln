@@ -38,6 +38,7 @@ import { NodeDetail } from "./components/NodeDetail";
 import { AreaDetail } from "./components/AreaDetail";
 import { CodePreview } from "./components/CodePreview";
 import { InputDialog, ConfirmDialog } from "./components/Modal";
+import { STUDIO_TOKEN_KEY } from "./studio-auth";
 import { Icon } from "./components/Icon";
 
 type DialogState =
@@ -90,6 +91,11 @@ export default function App(): React.JSX.Element {
   const [state, setState] = useState<ProjectState>(() => loadProjects()); // instant local render
   const [serverUp, setServerUp] = useState(false);
   useEffect(() => saveProjects(state), [state]); // always mirror to localStorage (+ activeId pref)
+  useEffect(() => { // studio lock: studio-auth.ts signals a locked /api; ask for the passphrase in-app
+    const onLocked = () => setStudioLocked(true);
+    window.addEventListener("kiln:studio-locked", onLocked);
+    return () => window.removeEventListener("kiln:studio-locked", onLocked);
+  }, []);
   const active = state.projects.find((p) => p.id === state.activeId) ?? state.projects[0];
 
   // On load: adopt the server's projects; if the server is empty, migrate local projects up once.
@@ -135,6 +141,7 @@ export default function App(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
+  const [studioLocked, setStudioLocked] = useState(false);
   const [spend, setSpend] = useState<{
     estCostUsd: number;
     sessionSpendUsd: number;
@@ -904,6 +911,12 @@ export default function App(): React.JSX.Element {
       {dialog?.kind === "confirm" && (
         <ConfirmDialog title={dialog.title} message={dialog.message} confirmLabel={dialog.confirmLabel} cancelLabel={t("cancel")}
           danger={dialog.danger} onConfirm={dialog.onConfirm} onClose={() => setDialog(null)} />
+      )}
+      {studioLocked && (
+        <InputDialog title={t("studioLockTitle")} label={t("studioLockLabel")} placeholder={t("studioLockPlaceholder")} password
+          submitLabel={t("save")} cancelLabel={t("cancel")}
+          onSubmit={(v) => { if (v.trim()) localStorage.setItem(STUDIO_TOKEN_KEY, v.trim()); }}
+          onClose={() => setStudioLocked(false)} />
       )}
       {showGuide && <Guide onClose={() => setShowGuide(false)} />}
       {showSettings && (

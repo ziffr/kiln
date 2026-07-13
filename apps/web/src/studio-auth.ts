@@ -1,11 +1,12 @@
 /**
  * Studio lock (client side). When a hosted, keyed Kiln sets `KILN_STUDIO_TOKEN`, its `/api` endpoints
  * return `401 {locked:true}` unless the request carries a matching `x-kiln-token` header. This wraps
- * `window.fetch` to (a) attach the stored passphrase to same-origin `/api` calls, and (b) prompt for it
- * once when the studio is locked. On the public keyless demo and in local dev there's no token to send —
- * this is a transparent no-op.
+ * `window.fetch` to (a) attach the stored passphrase to same-origin `/api` calls, and (b) signal the app
+ * (via a `kiln:studio-locked` event) to ask for it when the studio is locked — the app shows its own modal
+ * (no native prompt). On the public keyless demo and in local dev there's no token to send — a no-op.
  */
-const KEY = "kiln.studioToken";
+export const STUDIO_TOKEN_KEY = "kiln.studioToken";
+const KEY = STUDIO_TOKEN_KEY;
 const orig = window.fetch.bind(window);
 
 window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -21,11 +22,9 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (isApi && res.status === 401) {
     const body = await res.clone().json().catch(() => null);
     if (body && (body as { locked?: boolean }).locked) {
-      const entered = window.prompt("🔒 This Kiln studio is password-protected.\nEnter the passphrase to enable AI generation:");
-      if (entered) {
-        localStorage.setItem(KEY, entered.trim());
-        window.alert("Passphrase saved. Click the action again to run it.");
-      }
+      // A stored token that still gets 401 was rejected — drop it so the app re-asks.
+      if (localStorage.getItem(KEY)) localStorage.removeItem(KEY);
+      window.dispatchEvent(new CustomEvent("kiln:studio-locked"));
     }
   }
   return res;

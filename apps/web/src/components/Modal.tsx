@@ -25,8 +25,8 @@ export function Modal({ title, onClose, children, footer }: { title: string; onC
   );
 }
 
-export function InputDialog({ title, label, initial = "", placeholder, multiline, submitLabel, cancelLabel, onSubmit, onClose }: {
-  title: string; label?: string; initial?: string; placeholder?: string; multiline?: boolean;
+export function InputDialog({ title, label, initial = "", placeholder, multiline, password, submitLabel, cancelLabel, onSubmit, onClose }: {
+  title: string; label?: string; initial?: string; placeholder?: string; multiline?: boolean; password?: boolean;
   submitLabel: string; cancelLabel: string; onSubmit: (value: string) => void; onClose: () => void;
 }): JSX.Element {
   const [value, setValue] = useState(initial);
@@ -44,7 +44,7 @@ export function InputDialog({ title, label, initial = "", placeholder, multiline
         <textarea ref={ref as React.RefObject<HTMLTextAreaElement>} className="modal-input" rows={3} value={value} placeholder={placeholder}
           onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }} />
       ) : (
-        <input ref={ref as React.RefObject<HTMLInputElement>} className="modal-input" value={value} placeholder={placeholder}
+        <input ref={ref as React.RefObject<HTMLInputElement>} className="modal-input" type={password ? "password" : "text"} value={value} placeholder={placeholder}
           onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} />
       )}
     </Modal>

@@ -935,6 +935,7 @@ export default function App(): React.JSX.Element {
     const agg = domainDoc.aggregates.find((a) => a.id === id); if (agg) return agg.name || id;
     const cmd = (behaviourDoc.commands ?? []).find((c) => c.id === id); if (cmd) return cmd.name || id;
     const ev = (behaviourDoc.events ?? []).find((e) => e.id === id); if (ev) return ev.name || id;
+    const pol = (flowDoc.policies ?? []).find((p) => p.id === id); if (pol) return pol.name || id;
     const role = rolesDoc.roles.find((r) => r.id === id); if (role) return role.name || id;
     const agent = agentsDoc.agents.find((a) => a.id === id); if (agent) return agent.name || id;
     return id;
@@ -948,6 +949,7 @@ export default function App(): React.JSX.Element {
     domainDoc.aggregates.some((a) => a.id === id) ||
     (behaviourDoc.commands ?? []).some((c) => c.id === id) ||
     (behaviourDoc.events ?? []).some((e) => e.id === id) ||
+    (flowDoc.policies ?? []).some((p) => p.id === id) ||
     rolesDoc.roles.some((r) => r.id === id) ||
     agentsDoc.agents.some((a) => a.id === id);
   // What the diagrams should glow: a hovered finding wins over the sticky selection.

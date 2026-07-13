@@ -79,6 +79,10 @@ export function AutomationsView({ domain, highlight, highlightId, t }: { domain:
   const cmdAgg = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.aggregate;
   const events = [...new Set(policies.map((p) => p.on))];
   const commands = [...new Set(policies.map((p) => p.then))];
+  // A policy IS a wire (event → command); when a policy finding is highlighted, glow its wire and the
+  // two boxes it connects (policies have no box of their own).
+  const hotPolicy = policies.find((p) => p.id === highlightId);
+  const hotEvent = hotPolicy?.on, hotCmd = hotPolicy?.then;
   const GAP = 54, PADY = 12, BOX_H = 34, COL_W = 190, GAP_X = 300;
   const H = Math.max(events.length, commands.length) * GAP + PADY;
   const cy = (i: number) => i * GAP + PADY + BOX_H / 2;
@@ -90,12 +94,12 @@ export function AutomationsView({ domain, highlight, highlightId, t }: { domain:
         <defs><marker id="wire-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke" /></marker></defs>
         {policies.map((p, i) => {
           const y1 = evY[p.on], y2 = cmdY[p.then], x1 = COL_W, x2 = GAP_X;
-          const hot = highlight && (evAgg(p.on) === highlight || cmdAgg(p.then) === highlight);
+          const hot = (highlight && (evAgg(p.on) === highlight || cmdAgg(p.then) === highlight)) || p.id === highlightId;
           return <path key={i} d={`M ${x1} ${y1} C ${x1 + 70} ${y1}, ${x2 - 70} ${y2}, ${x2} ${y2}`} className={`wire${hot ? " hot" : ""}`} markerEnd="url(#wire-arrow)" />;
         })}
       </svg>
-      {events.map((e, i) => <div key={e} className={`storm event wire-box${(highlight && evAgg(e) === highlight) || e === highlightId ? " hot" : ""}`} style={{ top: i * GAP + PADY, left: 0, width: COL_W }}>{evName(e)}</div>)}
-      {commands.map((c, i) => <div key={c} className={`storm command wire-box${(highlight && cmdAgg(c) === highlight) || c === highlightId ? " hot" : ""}`} style={{ top: i * GAP + PADY, left: GAP_X, width: COL_W }}>{cmdName(c)}</div>)}
+      {events.map((e, i) => <div key={e} className={`storm event wire-box${(highlight && evAgg(e) === highlight) || e === highlightId || e === hotEvent ? " hot" : ""}`} style={{ top: i * GAP + PADY, left: 0, width: COL_W }}>{evName(e)}</div>)}
+      {commands.map((c, i) => <div key={c} className={`storm command wire-box${(highlight && cmdAgg(c) === highlight) || c === highlightId || c === hotCmd ? " hot" : ""}`} style={{ top: i * GAP + PADY, left: GAP_X, width: COL_W }}>{cmdName(c)}</div>)}
     </div>
   );
 }

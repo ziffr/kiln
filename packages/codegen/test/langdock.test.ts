@@ -54,3 +54,25 @@ test("assembleFullStack writes the langdock/ bundle end-to-end (third-party engi
   // the Node agents runtime is still emitted alongside (Langdock is additive, not a replacement).
   assert.ok(Object.keys(files).some((f) => f.startsWith("agents/")), "Node agents runtime still present");
 });
+
+test("managed-agents engine emits an Agent-Create bundle with commands as custom tools", () => {
+  const off = withAgents(DEFAULT_BINDING);
+  assert.equal(off.artifacts.engines["managed-agents"], undefined, "not in play by default");
+
+  const on = projectTargets({ ...DEFAULT_BINDING, agentRuntime: "managed-agents" }, caps, domain, undefined, undefined, undefined, undefined, undefined, undefined, undefined, agents);
+  const out = on.artifacts.engines["managed-agents"];
+  assert.ok(out, "in play when binding.agentRuntime = managed-agents");
+  assert.ok(out.files["managed-agents/agents/sales_agent.agent.json"], "per-agent Agent-Create spec");
+  assert.ok(out.files["managed-agents/provision.sh"].includes("ant beta:agents create"), "provisions via the ant CLI");
+  assert.ok(out.files["managed-agents/run.mjs"].includes("sessions.create"), "runs via a Session");
+  for (const rel of Object.keys(out.files)) assert.ok(rel.startsWith("managed-agents/"), `${rel} owns its prefix`);
+
+  const spec = JSON.parse(out.files["managed-agents/agents/sales_agent.agent.json"]);
+  assert.equal(spec.model, "claude-sonnet-5");
+  assert.ok(spec.tools.some((t) => t.type === "agent_toolset_20260401"), "built-in toolset");
+  const cmdTool = spec.tools.find((t) => t.type === "custom" && t.name === "qualify_lead");
+  assert.ok(cmdTool, "the owned command is a custom tool");
+  // commands.json maps each command tool to its spine endpoint (run.mjs executes host-side).
+  const endpoints = JSON.parse(out.files["managed-agents/commands.json"]);
+  assert.ok(endpoints.qualify_lead?.url?.includes("/leads/"), "command → spine endpoint");
+})

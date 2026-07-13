@@ -170,12 +170,13 @@ test("a whole Area bound to Odoo is coherent (no TB5) and produces the module", 
 });
 
 test("connector registry: engines are declared descriptors (postgres, sqlite, n8n, node, odoo, shadcn, langdock)", () => {
-  assert.equal(Object.keys(ENGINES).length, 7);
+  assert.equal(Object.keys(ENGINES).length, 8);
   assert.equal(ENGINES.odoo.couplesStore, true);
   assert.equal(ENGINES.shadcn.provides["serve-ui"], "native");
   assert.equal(ENGINES.postgres.provides["serve-ui"], "none");
   assert.equal(ENGINES.sqlite.provides.store, "native"); // the embedded store engine
-  assert.equal(ENGINES.langdock.provides.operate, "native"); // the agent-runtime engine
+  assert.equal(ENGINES.langdock.provides.operate, "native"); // agent-runtime engines (Langdock + Managed Agents)
+  assert.equal(ENGINES["managed-agents"].provides.operate, "native");
 });
 
 test("projectTargets returns a coherent report with coverage and gaps", () => {

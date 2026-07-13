@@ -24,14 +24,15 @@ const fakeAdapter: EngineAdapter = {
 
 test("the built-ins register themselves on import (side effect of engines/index.ts)", () => {
   const ids = registeredEngines().map((e) => e.id);
-  for (const id of ["postgres", "sqlite", "n8n", "node", "odoo", "shadcn", "langdock"]) assert.ok(ids.includes(id), `built-in "${id}" registered`);
+  for (const id of ["postgres", "sqlite", "n8n", "node", "odoo", "shadcn", "langdock", "managed-agents"]) assert.ok(ids.includes(id), `built-in "${id}" registered`);
   // ENGINES is a DERIVED VIEW of the registry — same descriptors, keyed by id.
-  assert.equal(Object.keys(ENGINES).length, 7);
+  assert.equal(Object.keys(ENGINES).length, 8);
   assert.equal(ENGINES.odoo.couplesStore, true);
   assert.equal(ENGINES.shadcn.provides["serve-ui"], "native");
-  // langdock = an agent-runtime engine: operate native, http reach.
+  // the two agent-runtime engines: operate native, http reach.
   assert.equal(ENGINES.langdock.provides.operate, "native");
   assert.equal(ENGINES.langdock.reach, "http");
+  assert.equal(ENGINES["managed-agents"].provides.operate, "native");
 });
 
 test("registeredEngines() is deterministic — sorted by engine id regardless of registration order", () => {

@@ -20,6 +20,7 @@ import { odooEngineAdapter } from "./odoo.ts";
 import { shadcnEngineAdapter } from "./shadcn.ts";
 import { spineEngineAdapter } from "./spine.ts";
 import { langdockEngineAdapter } from "./langdock.ts";
+import { managedAgentsEngineAdapter } from "./managed-agents.ts";
 
 // Side-effect registration of the built-ins (the descriptors that were the literal `ENGINES` map).
 registerEngine(postgresEngineAdapter);
@@ -29,6 +30,7 @@ registerEngine(odooEngineAdapter);
 registerEngine(shadcnEngineAdapter);
 registerEngine(spineEngineAdapter);
 registerEngine(langdockEngineAdapter); // agent-runtime target (SPEC-010); opt-in via binding.agentRuntime
+registerEngine(managedAgentsEngineAdapter); // first-party agent-runtime target; opt-in via binding.agentRuntime
 
 // Re-export the registry API + the contract types (the public seam).
 export { registerEngine, getEngineAdapter, registeredEngines } from "./registry.ts";

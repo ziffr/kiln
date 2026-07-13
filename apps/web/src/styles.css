@@ -573,7 +573,9 @@ textarea {
 
 /* Findings/hints panel — top of the stage, collapsible, height-capped so a long list scrolls
    instead of pushing the diagram off-screen. */
-.stage-issues { flex: none; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); overflow: hidden; }
+/* Sticky so it stays reachable while the diagram scrolls (auto-scroll-to-artifact would otherwise
+   push the findings out of view — they share the stage-main scroll container). */
+.stage-issues { position: sticky; top: 0; z-index: 5; flex: none; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); box-shadow: 0 2px 10px rgb(0 0 0 / 0.05); overflow: hidden; }
 .stage-issues-head { display: flex; align-items: center; gap: 7px; width: 100%; padding: 8px 12px; background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--fg); }
 .stage-issues-head .si-alert { color: var(--warn-fg); }
 .stage-issues-head:hover { background: var(--panel); }

@@ -46,7 +46,7 @@ export function BehaviourView({ domain, highlight, highlightId, t }: { domain: D
   return (
     <div className="behaviour-view">
       {[...byAgg].filter(([, v]) => v.cmds.length || v.evs.length).map(([agg, v]) => (
-        <div key={agg} className={`behaviour-agg${agg === highlight ? " hot" : ""}`}>
+        <div key={agg} className={`behaviour-agg${agg === highlight || agg === highlightId ? " hot" : ""}`}>
           <div className="behaviour-agg-name">{domain.aggregates.find((a) => a.id === agg)?.name || agg}</div>
           <div className="behaviour-flow">
             {v.cmds.map((c) => (

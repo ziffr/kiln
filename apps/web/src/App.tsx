@@ -243,6 +243,14 @@ export default function App(): React.JSX.Element {
     setSelected(null);
     setTrail([{ stage: nextStage, id: null }]);
   }
+  // When a finding is hovered/selected, scroll its now-glowing artifact into view — on tall stages the
+  // match is often far below the fold, so highlighting alone isn't visible. Runs after the .hot class
+  // lands (post-render). Only the hand-rolled scrolling diagrams mark boxes with .hot/.hot-col.
+  useEffect(() => {
+    if (!(hovered ?? selected)) return;
+    const el = document.querySelector(".stage-body .hot, .stage-body .hot-col");
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [hovered, selected, stage]);
   // The map IR carries every layer: domain + contexts + behaviour/policies + roles + workflows + agents.
   const ir = useMemo(
     () => compileCapabilities(activeDoc, flowDoc, contextsDoc, rolesDoc, workflowsDoc, agentsDoc),

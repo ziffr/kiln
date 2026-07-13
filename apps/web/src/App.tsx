@@ -220,6 +220,7 @@ export default function App(): React.JSX.Element {
   const [agentsBusy, setAgentsBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
+  const [showIssues, setShowIssues] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showReview, setShowReview] = useState(false);
@@ -1158,6 +1159,47 @@ export default function App(): React.JSX.Element {
 
           {error && <p className="err-line"><code>{error}</code> &mdash; {t("serviceHint")}</p>}
 
+          {/* Findings live at the TOP (below the header) so they're visible on entry regardless of how
+              tall the diagram is; a collapsible, height-capped panel keeps a long list from dominating. */}
+          {(() => {
+            const det = stageFindings[stage] ?? [];
+            const crit = REVIEW_KIND[stage] ? critique[REVIEW_KIND[stage]!] : undefined;
+            const total = det.length + (crit?.length ?? 0);
+            if (total === 0 && !crit) return null;
+            return (
+              <div className="stage-issues">
+                <button className="stage-issues-head" onClick={() => setShowIssues((v) => !v)} aria-expanded={showIssues}>
+                  <Icon name={showIssues ? "chevronDown" : "chevronRight"} size={14} />
+                  <Icon name="alert" size={13} className="si-alert" />
+                  <span>{t("issuesCount", { count: total })}</span>
+                </button>
+                {showIssues && (
+                  <div className="stage-issues-body">
+                    {det.length > 0 && (
+                      <ul className="findings cap-findings">
+                        {det.map((f) => {
+                          const subj = f.subjects.find(isArtifact);
+                          return <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && navTo(stage, subj)} onMouseEnter={() => subj && setHovered(subj)} onMouseLeave={() => setHovered(null)}><code className={f.severity}>{f.code}</code> {f.message}</li>;
+                        })}
+                      </ul>
+                    )}
+                    {crit && (
+                      <ul className="findings cap-findings critique-inline">
+                        <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("aiReviewTitle")}</li>
+                        {crit.length === 0 && <li className="muted">{t("aiReviewOk")}</li>}
+                        {crit.map((f) => (
+                          <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)}>
+                            <code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           <div className="stage-body">
             {stage === "narrative" && (
               <div className="narrative-stage">
@@ -1231,26 +1273,6 @@ export default function App(): React.JSX.Element {
               />
             )}
           </div>
-
-          {stageFindings[stage] && stageFindings[stage]!.length > 0 && (
-            <ul className="findings cap-findings">
-              {stageFindings[stage]!.map((f) => {
-                const subj = f.subjects.find(isArtifact);
-                return <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && navTo(stage, subj)} onMouseEnter={() => subj && setHovered(subj)} onMouseLeave={() => setHovered(null)}><code className={f.severity}>{f.code}</code> {f.message}</li>;
-              })}
-            </ul>
-          )}
-          {REVIEW_KIND[stage] && critique[REVIEW_KIND[stage]!] && (
-            <ul className="findings cap-findings critique-inline">
-              <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("aiReviewTitle")}</li>
-              {critique[REVIEW_KIND[stage]!]!.length === 0 && <li className="muted">{t("aiReviewOk")}</li>}
-              {critique[REVIEW_KIND[stage]!]!.map((f) => (
-                <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)}>
-                  <code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}
-                </li>
-              ))}
-            </ul>
-          )}
 
           {spend && (
             <p className="spend" title={t("creditNote")}>

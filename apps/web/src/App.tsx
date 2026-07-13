@@ -1152,6 +1152,7 @@ export default function App(): React.JSX.Element {
           <div className="side-user">
             <div className="side-ava" />
             <div className="leading"><div className="side-user-name">Local</div><div className="side-sub muted">workspace</div></div>
+            <span className="side-version muted" title={t("versionHint")}>v{__APP_VERSION__}<span className="side-version-sha"> · {__APP_COMMIT__}</span></span>
           </div>
         </div>
       </aside>

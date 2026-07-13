@@ -1149,9 +1149,14 @@ export default function App(): React.JSX.Element {
               </button>
             ))}
           </div>
-          <div className="side-user">
-            <div className="side-ava" />
-            <div className="leading"><div className="side-user-name">Local</div><div className="side-sub muted">workspace</div></div>
+          {/* Storage-mode indicator: are projects persisted server-side (ADR-006) or only in this
+              browser? Replaces the dashboard-shell's placeholder "user/team" slot with something true. */}
+          <div className="side-user" title={t(serverUp ? "storeServerHint" : "storeLocalHint")}>
+            <div className={`side-ava${serverUp ? " on" : ""}`} />
+            <div className="leading">
+              <div className="side-user-name">{t(serverUp ? "storeServer" : "storeLocal")}</div>
+              <div className="side-sub muted">{t(serverUp ? "storeServerSub" : "storeLocalSub")}</div>
+            </div>
             <span className="side-version muted" title={t("versionHint")}>v{__APP_VERSION__}<span className="side-version-sha"> · {__APP_COMMIT__}</span></span>
           </div>
         </div>

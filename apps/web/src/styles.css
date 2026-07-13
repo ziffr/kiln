@@ -873,6 +873,15 @@ textarea {
 .side-ava.on::after { background: #6a8f5f; }
 .side-user-name { font-size: 13px; font-weight: 500; }
 .side-version { margin-left: auto; font-size: 10px; text-align: right; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Version history (SPEC-011) */
+.versions-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 52vh; overflow-y: auto; }
+.version-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: 8px; border: 1px solid transparent; }
+.version-row:hover { background: var(--panel-2); border-color: var(--border); }
+.version-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.version-label { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 7px; }
+.version-current { flex: none; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; color: var(--accent); background: var(--accent-soft); padding: 1px 6px; border-radius: 999px; }
+.version-meta { font-size: 11px; font-variant-numeric: tabular-nums; }
+.btn.btn-sm { padding: 4px 10px; font-size: 12px; flex: none; }
 .side-version-sha { opacity: .65; }
 
 .inset { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 8px; }

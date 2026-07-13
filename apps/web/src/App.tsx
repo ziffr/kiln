@@ -48,6 +48,7 @@ type DialogState =
 import { ReviewPanel } from "./components/ReviewPanel";
 import { Guide } from "./components/Guide";
 import { Home } from "./components/Home";
+import { VersionsModal } from "./components/VersionsModal";
 import { ExamplesModal } from "./components/ExamplesModal";
 import { findingFix } from "./findingFix";
 import { NarrativeInput } from "./components/NarrativeInput";
@@ -223,6 +224,7 @@ export default function App(): React.JSX.Element {
   const [agentsBusy, setAgentsBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
+  const [showVersions, setShowVersions] = useState(false);
   // The welcome screen is the default landing so a newcomer gets oriented before the mid-pipeline map.
   const [showHome, setShowHome] = useState(true);
   const [showIssues, setShowIssues] = useState(true);
@@ -1033,6 +1035,18 @@ export default function App(): React.JSX.Element {
       )}
       {showGuide && <Guide onClose={() => setShowGuide(false)} />}
       {showExamples && <ExamplesModal onPick={pickExample} onClose={() => setShowExamples(false)} t={t} />}
+      {showVersions && (
+        <VersionsModal
+          projectId={active.id}
+          onRestored={(p) => {
+            // Replace the active project with the restored content; reset to a clean root view.
+            setState((s) => ({ ...s, projects: s.projects.map((x) => (x.id === p.id ? p : x)) }));
+            navRoot("capabilities");
+          }}
+          onClose={() => setShowVersions(false)}
+          t={t}
+        />
+      )}
       {showSettings && (
         <SettingsModal
           layers={reviewLayers.map((r) => ({ kind: r.kind, label: r.label }))}
@@ -1140,6 +1154,8 @@ export default function App(): React.JSX.Element {
 
         <div className="side-foot">
           <button className="side-foot-btn" onClick={() => setShowGuide(true)}><Icon name="book" size={15} /> {t("guideOpen")}</button>
+          {/* Version history is git-backed → only when a persistent workspace backend is reachable (SPEC-011). */}
+          {serverUp && <button className="side-foot-btn" onClick={() => setShowVersions(true)}><Icon name="refresh" size={15} /> {t("versionsOpen")}</button>}
           <button className="side-foot-btn" onClick={() => setShowSettings(true)}><Icon name="settings" size={15} /> {t("settingsOpen")}</button>
           <div className="lang">
             <span>{t("language")}:</span>

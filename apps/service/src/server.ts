@@ -725,6 +725,19 @@ const server = createServer(async (req, res) => {
         if (raw == null) return send(res, 404, { error: "version not found" });
         return send(res, 200, { project: JSON.parse(raw) });
       }
+      // SPEC-011 M2: restore a past version → write it back as the working copy + a "restore" commit
+      // (non-destructive: the state restored-over stays in history).
+      if (req.method === "POST" && id && sub === "restore") {
+        const body = JSON.parse((await readBody(req)) || "{}") as { sha?: string };
+        if (!body.sha) return send(res, 400, { error: "sha is required" });
+        const raw = await showFileAt(projectDir(id), body.sha, "project.json");
+        if (raw == null) return send(res, 404, { error: "version not found" });
+        const restored = JSON.parse(raw) as StoredProject;
+        restored.updatedAt = Date.now(); // the restored content becomes the current working copy
+        saveProject(restored);
+        const newSha = await commitWorkspace(projectDir(id), `restore: ${body.sha.slice(0, 7)}`);
+        return send(res, 200, { ok: true, project: restored, version: newSha });
+      }
       if (req.method === "PUT" && id && !sub) {
         const body = JSON.parse((await readBody(req)) || "{}") as StoredProject & { versionLabel?: string };
         if (body.id !== id) return send(res, 400, { error: "project id mismatch" });

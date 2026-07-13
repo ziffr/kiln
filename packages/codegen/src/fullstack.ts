@@ -136,6 +136,21 @@ for (const [rel, content] of Object.entries(rep.artifacts.ui)) written.push(writ
 // Spine → the runnable command API (Express + pg); LLM-drafted handlers, pass-through defaults.
 for (const [rel, content] of Object.entries(rep.artifacts.spine)) written.push(write(`spine/${rel}`, content));
 
+// SPEC-010 generic engine channel: a THIRD-PARTY engine (registered via registerEngine, not one of the
+// six built-ins above) rides `artifacts.engines`. Write its files verbatim (it owns its path prefix) and
+// its workflows as n8n/<slug>.json (the same slug convention as every other n8n writer here). The six
+// built-ins already emitted via their NAMED slots, so we SKIP them to avoid double-emitting — that is
+// what keeps today's output byte-identical while a hypothetical seventh engine flows through here.
+const BUILTIN_ENGINE_IDS = new Set(["postgres", "sqlite", "n8n", "odoo", "shadcn", "node", "spine"]);
+for (const [id, out] of Object.entries(rep.artifacts.engines)) {
+  if (BUILTIN_ENGINE_IDS.has(id)) continue;
+  for (const [rel, content] of Object.entries(out.files)) written.push(write(rel, content));
+  for (const wf of out.workflows ?? []) {
+    const safe = wf.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+    written.push(write(`n8n/${safe}.json`, JSON.stringify(wf, null, 2)));
+  }
+}
+
 // Agents → goal + concrete tools (commands + notify + comm actions) an agent runtime loads.
 for (const [rel, content] of Object.entries(rep.artifacts.agents)) written.push(write(rel, content));
 

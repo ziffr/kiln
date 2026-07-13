@@ -146,6 +146,20 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   details}` before any handler/DB work. Env-driven (no new exporter flag; matches the `N8N_WEBHOOK_TOKEN`/`PGSSL`
   idiom). Verified: generated `validate()` executed against good/bad/partial/null/unknown inputs; app.ts +
   validate.ts esbuild-parse. RLS + observability remain the open deploy gaps. 265 tests.
+- **Engine plugin seam BUILT (SPEC-010 Phase 1) + OSS prep.** Contributors can now add an execution
+  engine (store/orchestrator/UI/platform) by registering ONE `EngineAdapter` — no edits to core dispatch.
+  `packages/codegen/src/engines/` = a registry (`registerEngine`/`getEngineAdapter`/`registeredEngines`,
+  sorted→deterministic) + the six built-ins wrapping the existing adapters; `ENGINES` is now a derived view;
+  `projectTargets` dispatches through it + exposes an additive `artifacts.engines` channel; `assembleFullStack`
+  flattens it for third-party engines. Dispatch-only: byte-identical export both dialects; 273 tests; engines/
+  has no `node:*`; end-to-end probe (a fake mysql engine → `mysql/schema.sql` with zero core edits) passes.
+  **OSS prep shipped:** Apache-2.0 LICENSE + governance (GOVERNANCE = non-technical owner + AI maintainer
+  does all review/merge/release; CONTRIBUTING/SECURITY/CODE_OF_CONDUCT/RELEASING/CHANGELOG), CI (test+build)
+  + release/dependabot workflows + PR/issue templates, `docs/good-first-issues/` (3 engines), and
+  `docs/specs/SPEC-010`. Open decisions: repo NAME (current mouthful; consider Kiln/Millwright), versioning
+  tooling (recommend SemVer + release-please), and launch assets (README hero/demo/examples). Still TODO:
+  security CI (invariant checks/CodeQL/dep-review/gitleaks/CODEOWNERS/prompt-safety test), release-please,
+  claude-code-action for issue→PR, version bump 0.0.0→0.1.0.
 - **Full-stack export from the app + `vbd.sh` CLI helper BUILT.** (1) The complete multi-backend file-map
   assembly was extracted out of the CLI bin into a pure, isomorphic `assembleFullStack(input) → {files,
   report}` in `@vbd/codegen` (byte-identical to the CLI, both dialects; the bin is now a thin wrapper). The

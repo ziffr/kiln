@@ -235,5 +235,18 @@ and the byte-identical guarantee.
 
 ## 9. Review & closure
 
-_(to be completed on review — record each lens's verdict and the disposition of any
-Approve-with-changes items here before moving to `Approved`.)_
+**Phase 1 implemented & verified (2026-07-13).** The contract (`EngineContext` / `EngineOutput` /
+`EngineAdapter`), the registry (`registerEngine` / `getEngineAdapter` / `registeredEngines`, sorted →
+deterministic), and the six built-in engines wrapping the existing adapters all landed as a
+**dispatch-only** change. `ENGINES` is now a derived view of the registry; `projectTargets` dispatches
+through it and exposes the additive `artifacts.engines` channel; `assembleFullStack` flattens that
+channel for third-party engines. **Acceptance met:** the solar export is byte-identical to the
+pre-change baseline for BOTH dialects; 273 tests pass; `engines/` has no `node:*`; the web build
+passes; and an end-to-end probe (a fake `mysql` store engine registered with one object, bound to the
+store role) emits `mysql/schema.sql` through the browser assembly path with **no edits to core
+dispatch** — confirming §4.4. One implementation note for engine authors: put the `Engine` descriptor
+literal *in the engine file* (not in `targets.ts`) — it's the single-source-of-truth convention and it
+keeps the registration import order TDZ-safe.
+
+Phase 2 (normalize built-ins onto the generic channel; per-engine docker-compose + docs stanzas)
+remains future work. Formal multi-lens review not yet run — status stays `Draft` pending that.

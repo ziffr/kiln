@@ -16,14 +16,18 @@
 
 import { slug } from "@vbd/ir";
 import { attributeSpecs, type AttrType, type CapabilityDoc, type DomainDoc, type ContextsDoc, type RolesDoc, type WorkflowsDoc } from "@vbd/compiler";
-import { shadcnAdapter, DEFAULT_THEME, type Theme } from "./ui.ts";
-import { spineAdapter } from "./spine.ts";
+import { DEFAULT_THEME, type Theme } from "./ui.ts";
 import { mockCommunications, communicationsAdapter, type CommunicationsDoc } from "./comms.ts";
 import { mockIntegrations, integrationsAdapter, type IntegrationsDoc } from "./integrations.ts";
 import { agentsAdapter } from "./agents.ts";
 import { mockTriggers, triggersAdapter, type TriggersDoc } from "./triggers.ts";
 import { mockExternalServices, externalServicesAdapter, type ExternalServicesDoc } from "./services.ts";
 import type { AgentsDoc } from "@vbd/compiler";
+// SPEC-010 engine plugin seam: the registry the built-ins register into. Importing engines/index.ts
+// REGISTERS the six built-ins as a side effect, so `ENGINES` below (derived from the registry) is
+// populated before it is read. NODE_SPINE is imported for `engineFor`'s spine fallback.
+import { registeredEngines, getEngineAdapter, type EngineContext, type EngineOutput } from "./engines/index.ts";
+import { NODE_SPINE } from "./engines/spine.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. The technical-capability taxonomy — the pivot table between model and engines.
@@ -58,60 +62,22 @@ export interface Engine {
   couplesStore?: boolean;
 }
 
-/** Postgres: a first-class store + row-level authz; can emit via LISTEN/NOTIFY; not an orchestrator. */
-export const POSTGRES: Engine = {
-  id: "postgres",
-  name: "PostgreSQL",
-  reach: "sql",
-  provides: { store: "native", authorize: "native", emit: "partial", operate: "partial", react: "none", sequence: "none", "serve-ui": "none" },
-};
+// The engine DESCRIPTORS now live with their adapters under `engines/` (SPEC-010: one source of truth
+// per engine — descriptor + adapter + gating in a single file). Re-exported here so existing importers
+// (`import { POSTGRES } from "@vbd/codegen"`) keep working unchanged.
+export { POSTGRES } from "./engines/postgres.ts";
+export { SQLITE } from "./engines/sqlite.ts";
+export { N8N } from "./engines/n8n.ts";
+export { NODE_SPINE } from "./engines/spine.ts";
+export { ODOO } from "./engines/odoo.ts";
+export { SHADCN } from "./engines/shadcn.ts";
 
-/** n8n: a cross-system orchestrator — its whole point is reacting + sequencing across services. */
-export const N8N: Engine = {
-  id: "n8n",
-  name: "n8n",
-  reach: "http",
-  provides: { react: "native", sequence: "native", emit: "partial", operate: "partial", store: "none", authorize: "none", "serve-ui": "none" },
-};
-
-/** The generated spine (Node): the fallback that fills whatever no external engine covers, and the
- *  hub the others call. Deliberately hand-owned business logic (ADR-002); codegen emits the skeleton. */
-export const NODE_SPINE: Engine = {
-  id: "node",
-  name: "Generated spine (Node)",
-  reach: "http",
-  provides: { operate: "native", emit: "native", react: "native", sequence: "native", store: "partial", authorize: "partial", "serve-ui": "partial" },
-};
-
-/** shadcn/ui: a UI-only engine — a generated Vite/React/shadcn front-end. Serves the app's screens;
- *  provides nothing else. The first `serve-ui` adapter (structure derived; skin = a Theme). */
-export const SHADCN: Engine = {
-  id: "shadcn",
-  name: "shadcn/ui (React)",
-  reach: "http",
-  provides: { "serve-ui": "native", store: "none", operate: "none", emit: "none", react: "none", sequence: "none", authorize: "none" },
-};
-
-/** Odoo: a full business platform — owns a whole vertical slice (store + operate + authz + react),
- *  so it couples to its own store. The engine that shrinks the spine the most. */
-export const ODOO: Engine = {
-  id: "odoo",
-  name: "Odoo",
-  reach: "http",
-  couplesStore: true,
-  provides: { store: "native", operate: "native", emit: "native", react: "native", sequence: "partial", authorize: "native", "serve-ui": "native" },
-};
-
-/** SQLite: an embedded, file-based store — a single-container store (no separate db service). Same
- *  `store` role as Postgres, minus server features (no RLS). Great for small/self-contained deployments. */
-export const SQLITE: Engine = {
-  id: "sqlite",
-  name: "SQLite (embedded)",
-  reach: "in-process",
-  provides: { store: "native", authorize: "none", emit: "partial", operate: "partial", react: "none", sequence: "none", "serve-ui": "none" },
-};
-
-export const ENGINES: Record<string, Engine> = { postgres: POSTGRES, sqlite: SQLITE, n8n: N8N, node: NODE_SPINE, odoo: ODOO, shadcn: SHADCN };
+/**
+ * `ENGINES` is now a DERIVED VIEW of the registry, not a second literal (SPEC-010 §4.2 / §7 risk:
+ * "two sources of truth"). Registering an adapter (engines/index.ts) makes its descriptor visible to
+ * the binding + validators here — no second edit. `registeredEngines()` sorts by id for determinism.
+ */
+export const ENGINES: Record<string, Engine> = Object.fromEntries(registeredEngines().map((e) => [e.id, e]));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. The Binding — the AUTHORED topology (which engine serves which capability, per area).
@@ -583,7 +549,25 @@ export interface TargetsReport {
   binding: Binding;
   resolved: ResolvedElement[];
   validation: BindingFinding[];
-  artifacts: { postgres: string; sqlite: string; n8n: N8nWorkflow[]; odoo: Record<string, string>; ui: Record<string, string>; spine: Record<string, string>; comms: { templates: Record<string, string>; n8n: N8nWorkflow[] }; integrations: { mappings: Record<string, string>; n8n: N8nWorkflow[] }; agents: Record<string, string>; triggers: { doc: TriggersDoc; n8n: N8nWorkflow[] }; services: { doc: ExternalServicesDoc; descriptors: Record<string, string>; n8n: N8nWorkflow[] } };
+  artifacts: {
+    postgres: string;
+    sqlite: string;
+    n8n: N8nWorkflow[];
+    odoo: Record<string, string>;
+    ui: Record<string, string>;
+    spine: Record<string, string>;
+    /**
+     * SPEC-010 additive channel: EVERY engine that ran, by id, as its uniform `EngineOutput`. The six
+     * built-ins ALSO appear in the named slots above (unchanged) — this is where THIRD-PARTY engines
+     * (registered via `registerEngine`) land, and `assembleFullStack` flattens them generically.
+     */
+    engines: Record<string, EngineOutput>;
+    comms: { templates: Record<string, string>; n8n: N8nWorkflow[] };
+    integrations: { mappings: Record<string, string>; n8n: N8nWorkflow[] };
+    agents: Record<string, string>;
+    triggers: { doc: TriggersDoc; n8n: N8nWorkflow[] };
+    services: { doc: ExternalServicesDoc; descriptors: Record<string, string>; n8n: N8nWorkflow[] };
+  };
   /** which engine serves the UI (serve-ui binding), and whether we generated it or it's engine-native. */
   ui: { engineId: string; generated: boolean; note: string };
   seams: Seam[];
@@ -623,19 +607,35 @@ export function projectTargets(
         ? "Odoo serves its own UI (auto-rendered list/form views) — no custom UI generated"
         : `UI bound to ${ENGINES[uiEngine]?.name ?? uiEngine} — no generator for it yet`,
   };
-  // the spine hosts commands bound to the node engine (the `operate` hub the others call).
-  const spineHosted = resolved.some((r) => r.kind === "command" && r.engineId === "node");
   // the store dialect: SQLite when the store role is bound to the embedded engine, else Postgres.
   const dialect = (binding.defaults["store"] === "sqlite" ? "sqlite" : "postgres") as "postgres" | "sqlite";
   const commsDoc = comms ?? mockCommunications(caps, domain); // shared by the comms adapter + agent tools
   const servicesDoc = services ?? mockExternalServices(caps, domain, workflows, agents); // shared by the services adapter + agent tools
+
+  // SPEC-010 engine dispatch: instead of hardcoding each engine by name, run the REGISTERED adapters.
+  // The engines "in play" = those hosting a resolved element, PLUS the app-level serve-ui engine
+  // (serve-ui is app-level, not per-element, so it never appears in `resolved`). Sorted for determinism.
+  const engCtx: EngineContext = { binding, resolved, dialect, caps, domain, contexts, roles, workflows, agents, theme, handlers, services: servicesDoc, i18n };
+  const inPlay = new Set(resolved.map((r) => r.engineId));
+  inPlay.add(uiEngine);
+  const engineOutputs: Record<string, EngineOutput> = {};
+  for (const id of [...inPlay].sort()) {
+    const adapter = getEngineAdapter(id);
+    if (!adapter) continue; // an unknown engine id (a binding error) — validation reports it (TB1).
+    if (adapter.applies && !adapter.applies(engCtx)) continue; // gated out (wrong dialect, UI not us, …).
+    engineOutputs[id] = adapter.generate(engCtx);
+  }
+
+  // Assemble the SAME `artifacts` shape as before, now SOURCED FROM the engine outputs (Phase 1 keeps
+  // the named slots byte-identical; third-party engines ride the additive `engines` channel below).
   const artifacts = {
-    postgres: dialect === "postgres" ? postgresAdapter(resolved, domain, roles) : "",
-    sqlite: dialect === "sqlite" ? sqliteAdapter(resolved, domain) : "",
-    n8n: n8nAdapter(resolved, domain, workflows, undefined, servicesDoc),
-    odoo: odooAdapter(resolved, caps, domain, roles),
-    ui: uiGenerated ? shadcnAdapter(caps, domain, contexts, theme, workflows, roles, i18n) : {},
-    spine: spineHosted ? spineAdapter(caps, domain, handlers, dialect) : {},
+    postgres: engineOutputs["postgres"]?.files["postgres/schema.sql"] ?? "",
+    sqlite: engineOutputs["sqlite"]?.files["sqlite/schema.sql"] ?? "",
+    n8n: engineOutputs["n8n"]?.workflows ?? [],
+    odoo: engineOutputs["odoo"]?.files ?? {},
+    ui: engineOutputs["shadcn"]?.files ?? {},
+    spine: engineOutputs["node"]?.files ?? {},
+    engines: engineOutputs,
     comms: communicationsAdapter(commsDoc),
     integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain),
     agents: agentsAdapter(caps, domain, agents, commsDoc, workflows, servicesDoc),

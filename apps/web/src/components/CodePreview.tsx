@@ -267,7 +267,7 @@ export function CodePreview({
       {verdict && (
         <div className="code-review">
           <div className="code-review-head">
-            🧪 {t("verifyTitle")}
+            <Icon name="beaker" size={15} /> {t("verifyTitle")}
             {verdict.configured === false ? <span className="muted"> — {t("verifyNotConfigured")}</span>
               : verdict.ok ? <span className="cr-pass"> — {t("verifyPass")}</span>
                 : <span className="cr-fail"> — {t("verifyFail")}</span>}
@@ -287,11 +287,11 @@ export function CodePreview({
       {review && (
         <div className="code-review">
           <div className="code-review-head">
-            🔍 {t("codeReviewTitle")}
+            <Icon name="search" size={15} /> {t("codeReviewTitle")}
             {review.length === 0 && <span className="muted"> — {t("codeReviewClean")}</span>}
             {review.length > 0 && (
               <button className="code-export refine" onClick={() => void applyFixes()} disabled={busy}>
-                {fixing ? t("generating") : `🔧 ${t("codeReviewFix", { count: review.length })}`}
+                {fixing ? t("generating") : <><Icon name="wrench" size={13} /> {t("codeReviewFix", { count: review.length })}</>}
               </button>
             )}
             <button className="nd-close" onClick={() => setReview(null)} aria-label="close">×</button>

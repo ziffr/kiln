@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { CritiqueFinding, LayerKind } from "@kiln/skills";
+import { Icon } from "./Icon";
 
 // The Review panel — a "closure dashboard" for the model. Each layer shows a status (○ not reviewed ·
 // ⚠ N suggestions · ✓ reviewed-clean) and the Review → (pick/amend proposals) → Apply → re-review
@@ -36,7 +37,7 @@ export function ReviewPanel({ layers, critique, busy, refinable, effortFor, mode
   return (
     <div className="review-panel">
       <div className="review-head">
-        ✨ {t("aiReviewTitle")}
+        <Icon name="sparkles" size={15} /> {t("aiReviewTitle")}
         <span className="review-auto">
           {autoRunning ? (
             <>
@@ -45,8 +46,8 @@ export function ReviewPanel({ layers, critique, busy, refinable, effortFor, mode
             </>
           ) : (
             <>
-              <button className="review-btn auto" onClick={onAuto} title={t("aiAutoHint")}>⚡ {t("aiAuto")}</button>
-              <button className="review-btn" onClick={onSettings} title={t("settingsOpen")} aria-label={t("settingsOpen")}>⚙︎</button>
+              <button className="review-btn auto" onClick={onAuto} title={t("aiAutoHint")}><Icon name="zap" size={13} /> {t("aiAuto")}</button>
+              <button className="review-btn" onClick={onSettings} title={t("settingsOpen")} aria-label={t("settingsOpen")}><Icon name="settings" size={14} /></button>
             </>
           )}
         </span>

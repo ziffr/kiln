@@ -1023,7 +1023,7 @@ export default function App(): React.JSX.Element {
 
       <div className="inset">
         <header className="inset-top">
-          <button className="side-toggle" onClick={() => setSidebarOpen((v) => !v)} aria-label={t("stages")}>☰</button>
+          <button className="side-toggle" onClick={() => setSidebarOpen((v) => !v)} aria-label={t("stages")}><Icon name="menu" size={18} /></button>
           <nav className="crumbs">
             <span className="muted">{t("appTitle")}</span>
             <span className="crumb-sep">/</span>
@@ -1144,7 +1144,7 @@ export default function App(): React.JSX.Element {
           )}
           {REVIEW_KIND[stage] && critique[REVIEW_KIND[stage]!] && (
             <ul className="findings cap-findings critique-inline">
-              <li className="findings-head muted">{`✨ ${t("aiReviewTitle")}`}</li>
+              <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("aiReviewTitle")}</li>
               {critique[REVIEW_KIND[stage]!]!.length === 0 && <li className="muted">{t("aiReviewOk")}</li>}
               {critique[REVIEW_KIND[stage]!]!.map((f) => (
                 <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)}>

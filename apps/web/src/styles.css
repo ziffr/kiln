@@ -511,7 +511,10 @@ textarea {
 .stage-title h2 { margin: 0; font-size: 20px; }
 .stage-desc { margin: 2px 0 0; font-size: 13px; max-width: 60ch; }
 .stage-actions { display: flex; gap: 8px; flex-wrap: wrap; flex: none; }
-.stage-body { flex: 1; min-height: 0; }
+/* Grow to content (never shrink below it) so tall list stages push the findings list DOWN and the
+   whole stage-main scrolls — instead of the content overflowing and colliding with the findings.
+   Diagram stages keep their explicit heights (map-wrap/area-scroll below), so they still fill. */
+.stage-body { flex: 1 0 auto; min-height: 0; }
 .stage-empty { padding: 40px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: 12px; }
 .narrative-stage { display: flex; flex-direction: column; gap: 14px; }
 .narrative-summary { grid-template-columns: 1fr 1fr 1fr; }

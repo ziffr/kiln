@@ -47,6 +47,7 @@ type DialogState =
   | { kind: "confirm"; title: string; message: string; confirmLabel: string; danger?: boolean; onConfirm: () => void };
 import { ReviewPanel } from "./components/ReviewPanel";
 import { Guide } from "./components/Guide";
+import { Home } from "./components/Home";
 import { ExamplesModal } from "./components/ExamplesModal";
 import { findingFix } from "./findingFix";
 import { NarrativeInput } from "./components/NarrativeInput";
@@ -222,6 +223,8 @@ export default function App(): React.JSX.Element {
   const [agentsBusy, setAgentsBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
+  // The welcome screen is the default landing so a newcomer gets oriented before the mid-pipeline map.
+  const [showHome, setShowHome] = useState(true);
   const [showIssues, setShowIssues] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -232,6 +235,7 @@ export default function App(): React.JSX.Element {
   const [trail, setTrail] = useState<{ stage: StageId; id: string | null }[]>([{ stage: "capabilities", id: null }]);
   // Central navigation: the ONE way to change stage+selection so the trail stays honest.
   function navTo(nextStage: StageId, id: string | null = null): void {
+    setShowHome(false);
     setStage(nextStage);
     setSelected(id);
     setTrail((prev) => {
@@ -241,6 +245,7 @@ export default function App(): React.JSX.Element {
   }
   // A top-level jump (left rail / project switch): start a fresh trail rooted at this stage.
   function navRoot(nextStage: StageId): void {
+    setShowHome(false);
     setStage(nextStage);
     setSelected(null);
     setTrail([{ stage: nextStage, id: null }]);
@@ -1091,13 +1096,13 @@ export default function App(): React.JSX.Element {
         </div>
       )}
       <aside className="side">
-        <div className="side-team">
+        <button className="side-team" onClick={() => setShowHome(true)} title={t("homeOpen")} aria-label={t("homeOpen")}>
           <div className="side-mark"><Icon name="flame" size={17} /></div>
           <div className="side-team-name">
             <div className="side-title">{t("appTitle")}</div>
             <div className="side-sub muted">{t("brandTagline")}</div>
           </div>
-        </div>
+        </button>
 
         {/* One Project cluster: switch/create (top), then manage (rename/delete) + file save/load
             (export/import the whole model.json) in a single tool row — so "open a project" and "save a
@@ -1131,7 +1136,7 @@ export default function App(): React.JSX.Element {
           </button>
         </div>
 
-        <StageRail stages={stages} active={stage} onSelect={(s) => navRoot(s)} t={t} />
+        <StageRail stages={stages} active={showHome ? ("" as StageId) : stage} onSelect={(s) => navRoot(s)} t={t} />
 
         <div className="side-foot">
           <button className="side-foot-btn" onClick={() => setShowGuide(true)}><Icon name="book" size={15} /> {t("guideOpen")}</button>
@@ -1152,6 +1157,17 @@ export default function App(): React.JSX.Element {
       </aside>
 
       <div className="inset">
+        {showHome ? (
+          <Home
+            stages={stages}
+            onStart={() => navRoot("narrative")}
+            onExample={() => { setShowHome(false); setShowExamples(true); }}
+            onGuide={() => setShowGuide(true)}
+            onPickStage={(s) => navRoot(s)}
+            t={t}
+          />
+        ) : (
+        <>
         <header className="inset-top">
           <button className="side-toggle" onClick={() => setSidebarOpen((v) => !v)} aria-label={t("stages")}><Icon name="menu" size={18} /></button>
           <nav className="crumbs" aria-label={t("breadcrumb")}>
@@ -1383,6 +1399,8 @@ export default function App(): React.JSX.Element {
           </aside>
         )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

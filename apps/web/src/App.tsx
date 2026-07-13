@@ -229,7 +229,9 @@ export default function App(): React.JSX.Element {
   const rolesForCap = (capId: string): string[] => rolesDoc.roles.filter((r) => (r.capabilities ?? []).includes(capId)).map((r) => r.name || r.id);
 
   // Colour each capability by its area for the map backdrop + legend (REV-016 F1: one surface).
-  const AREA_COLORS = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa", "#fb923c", "#22d3ee", "#f87171"];
+  // A muted, earthy categorical palette harmonised with the brand (fired-clay ember + quiet indigo,
+  // both echoed below) — mid-tone chroma so each hue stays legible on warm paper AND warm charcoal.
+  const AREA_COLORS = ["#c2683c", "#3f8f83", "#b0842f", "#6b62cf", "#7f9350", "#b25d76", "#5f7cae", "#8f6aa8"];
   const areaOf = useMemo(() => {
     const m = new Map<string, { id: string; name: string; color: string }>();
     contextsDoc.contexts.forEach((c, i) => {

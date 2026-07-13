@@ -728,7 +728,8 @@ textarea {
 .ag-node-goal { font-size: 11px; color: #a5b4cf; margin-top: 3px; line-height: 1.35; }
 
 /* Area containment diagram (hand-rolled) */
-.area-containment { position: relative; margin: 4px 0; }
+.area-scroll { flex: 1; min-height: 0; overflow: auto; padding: 4px 2px; }
+.area-containment { position: relative; margin: 0 auto; }
 .area-box { position: absolute; border: 1.5px solid var(--area-color, var(--accent-2)); border-radius: 12px; background: color-mix(in srgb, var(--area-color, var(--accent-2)) 8%, transparent); }
 .area-box-head { position: absolute; top: 0; left: 0; right: 0; padding: 9px 12px; font-weight: 700; font-size: 13px; color: var(--area-color, var(--accent-2)); background: none; border: none; text-align: left; cursor: pointer; }
 .area-cap { position: absolute; display: flex; align-items: center; justify-content: center; padding: 0 8px; text-align: center; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--fg); cursor: pointer; z-index: 2; }

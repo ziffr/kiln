@@ -355,7 +355,7 @@ textarea {
 .guide-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px; z-index: 100; overflow: auto; }
 .guide { background: var(--card); border: 1px solid var(--edge); border-radius: 14px; max-width: 780px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
 .guide-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-bottom: 1px solid var(--edge); position: sticky; top: 0; background: var(--card); border-radius: 14px 14px 0 0; }
-.guide-head h2 { margin: 0; font-size: 18px; }
+.guide-head h2 { margin: 0; font-size: 18px; display: inline-flex; align-items: center; gap: 8px; }
 .guide-body { padding: 8px 22px 24px; }
 .guide-intro { color: var(--fg); font-size: 14px; line-height: 1.65; margin: 12px 0; }
 .guide-steps { list-style: none; margin: 18px 0 0; padding: 0; counter-reset: none; }
@@ -791,8 +791,9 @@ textarea {
 .crumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .crumb-sep { color: var(--muted); }
 .crumb-cur { font-weight: 600; color: var(--fg); }
-.ai-review-top { margin-left: auto; background: var(--accent); color: var(--accent-fg); border: none; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.ai-review-top:hover { filter: brightness(1.06); }
+.ai-review-top { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 550; cursor: pointer; }
+.ai-review-top:hover { background: var(--panel-2); }
+.ai-review-top svg { color: var(--accent); }
 .inset-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 320px; border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; min-height: 0; background: var(--panel); }
 
 @media (max-width: 920px) {

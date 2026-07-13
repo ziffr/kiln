@@ -813,16 +813,6 @@ export default function App(): React.JSX.Element {
     setEnrichLayer(layer);
     setEnrichProps(flattenLayerItems(layer, groundedLayerItems(layer, existingIds(layer)), existingIds(layer), validCaps(), capNameOf, "grounded"));
   }
-  // Auto mode: run the grounded enrichment for this stage's layer and apply every proposal (no review).
-  function autoEnrich(layer: "entities" | EnrichLayer): void {
-    if (layer === "entities") {
-      const props = flattenEnrichment(mockEnrichDomain(activeDoc, flowDoc, "standard"), flowDoc, "grounded");
-      if (props.length) patchActive({ domain: applyEnrichment(flowDoc, rebuildEnrichment(props)) });
-    } else {
-      const props = flattenLayerItems(layer, groundedLayerItems(layer, existingIds(layer)), existingIds(layer), validCaps(), capNameOf, "grounded");
-      if (props.length) patchActive(applyLayerItems(layer, activeDoc, rolesDoc, agentsDoc, props));
-    }
-  }
   function toggleEnrich(id: string): void {
     setEnrichProps((ps) => (ps ? ps.map((p) => (p.id === id ? { ...p, accepted: !p.accepted } : p)) : ps));
   }
@@ -954,7 +944,7 @@ export default function App(): React.JSX.Element {
       {showReview && (
         <div className="guide-overlay" onClick={() => setShowReview(false)}>
           <div className="guide review-overlay" onClick={(e) => e.stopPropagation()}>
-            <div className="guide-head"><h2>✨ {t("aiReviewTitle")}</h2><button className="nd-close" onClick={() => setShowReview(false)} aria-label="close">×</button></div>
+            <div className="guide-head"><h2><Icon name="sparkles" size={18} />{t("aiReviewTitle")}</h2><button className="nd-close" onClick={() => setShowReview(false)} aria-label="close"><Icon name="x" size={16} /></button></div>
             <div className="guide-body">
               <ReviewPanel
                 layers={reviewLayers}
@@ -1039,7 +1029,7 @@ export default function App(): React.JSX.Element {
             <span className="crumb-sep">/</span>
             <span className="crumb-cur">{activeStage.label}</span>
           </nav>
-          <button className="ai-review-top" onClick={() => setShowReview(true)}>✨ {t("aiReviewTitle")}</button>
+          <button className="ai-review-top" onClick={() => setShowReview(true)}><Icon name="sparkles" size={15} />{t("aiReviewTitle")}</button>
         </header>
 
         <div className="inset-body">
@@ -1049,23 +1039,20 @@ export default function App(): React.JSX.Element {
               <h2>{activeStage.label}</h2>
               <p className="stage-desc muted">{t(`stageDesc_${stage}`)}</p>
             </div>
+            {/* Grouped by intent: manual "add" (structural) and "enrich" (AI-adds) on the left, the
+                primary "generate" on the right. Review lives in ONE place — the top-right AI-review
+                panel (which already runs per layer); Auto is folded into Enrich (Apply = apply all). */}
             <div className="stage-actions">
-              {stageGen[stage] && (
-                <button className="generate" onClick={stageGen[stage]!.run} disabled={stageGen[stage]!.busy}>
-                  {stageGen[stage]!.busy ? t("generating") : stageGen[stage]!.label}
+              {stage === "capabilities" && <button className="btn ghost" onClick={addCapability}><Icon name="plus" />{t("addCap")}</button>}
+              {stage === "areas" && <button className="btn ghost" onClick={addArea}><Icon name="plus" />{t("addArea")}</button>}
+              {(["entities", "capabilities", "roles", "agents"] as const).includes(stage as never) && (
+                <button className="btn ghost" onClick={() => (stage === "entities" ? runEnrichGrounded() : runLayerEnrich(stage as EnrichLayer))} title={t("enrichHint")}>
+                  <Icon name="sparkles" />{t("enrich")}
                 </button>
               )}
-              {stage === "capabilities" && <button className="addcap" onClick={addCapability}>{t("addCap")}</button>}
-              {stage === "areas" && <button className="addcap" onClick={addArea}>{t("addArea")}</button>}
-              {(["entities", "capabilities", "roles", "agents"] as const).includes(stage as never) && (
-                <>
-                  <button className="addcap" onClick={() => (stage === "entities" ? runEnrichGrounded() : runLayerEnrich(stage as EnrichLayer))}>✨ {t("enrich")}</button>
-                  <button className="addcap" onClick={() => autoEnrich(stage === "entities" ? "entities" : (stage as EnrichLayer))} title={t("enrichAutoHint")}>⚡ {t("enrichAuto")}</button>
-                </>
-              )}
-              {REVIEW_KIND[stage] && (
-                <button className="addcap" onClick={() => void reviewLayer(REVIEW_KIND[stage]!)} disabled={reviewBusy === REVIEW_KIND[stage]}>
-                  {reviewBusy === REVIEW_KIND[stage] ? t("generating") : `✨ ${t("aiReviewGo")}`}
+              {stageGen[stage] && (
+                <button className="btn primary" onClick={stageGen[stage]!.run} disabled={stageGen[stage]!.busy}>
+                  <Icon name="sparkles" />{stageGen[stage]!.busy ? t("generating") : stageGen[stage]!.label}
                 </button>
               )}
             </div>

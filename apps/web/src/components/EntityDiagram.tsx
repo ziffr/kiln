@@ -41,10 +41,21 @@ function Flow({ nodes, edges, bounds, paneRef, onSelect }: { nodes: Node[]; edge
       if (!el) return;
       const pw = el.clientWidth, ph = el.clientHeight;
       if (pw < 2 || ph < 2) return;
-      const pad = 0.14;
-      const zoom = Math.min(3, Math.max(0.15, Math.min((pw * (1 - pad)) / bounds.width, (ph * (1 - pad)) / bounds.height)));
-      const x = pw / 2 - (bounds.x + bounds.width / 2) * zoom;
-      const y = ph / 2 - (bounds.y + bounds.height / 2) * zoom;
+      // Zoom for READABILITY, not to cram the whole (often tall) graph into the pane: fit to width, but
+      // never shrink nodes below a legible floor and never blow them up past a cap. When the graph fits
+      // both dimensions at a readable size, centre it; when it's too tall, anchor to the TOP (so you start
+      // at the first entities) and pan down — squashing 16 stacked entities to fit height made them
+      // unreadable. React Flow's own zoom controls still let you zoom out to see everything.
+      const pad = 0.08;
+      const READABLE = 0.6, MAXZ = 1.15;
+      const widthFit = (pw * (1 - pad)) / bounds.width;
+      const heightFit = (ph * (1 - pad)) / bounds.height;
+      const fitsReadably = Math.min(widthFit, heightFit) >= READABLE;
+      const zoom = fitsReadably ? Math.min(widthFit, heightFit, MAXZ) : Math.min(MAXZ, Math.max(READABLE, widthFit));
+      const x = pw / 2 - (bounds.x + bounds.width / 2) * zoom; // always centre horizontally
+      const y = fitsReadably
+        ? ph / 2 - (bounds.y + bounds.height / 2) * zoom // fits → centre vertically too
+        : (pad * ph) / 2 - bounds.y * zoom; // too tall → anchor near the top, pan down for the rest
       rf.setViewport({ x, y, zoom });
       // Fallback: if React Flow's pane never got measured (ResizeObserver un-fired), setViewport is a
       // no-op — write the transform straight onto the viewport element so the graph still fits.

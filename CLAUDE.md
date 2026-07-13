@@ -146,7 +146,14 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   details}` before any handler/DB work. Env-driven (no new exporter flag; matches the `N8N_WEBHOOK_TOKEN`/`PGSSL`
   idiom). Verified: generated `validate()` executed against good/bad/partial/null/unknown inputs; app.ts +
   validate.ts esbuild-parse. RLS + observability remain the open deploy gaps. 265 tests.
-- **SQLite store engine + dialect-aware migrations BUILT** — SQLite = an embedded, file-based store → a
+- **Repo hygiene: env templates were never committed (FIXED).** The `.gitignore` `.env.*` rule silently
+  shadowed every `.env.example`, so a fresh clone shipped with NO env docs — despite the required
+  `VBD_ANTHROPIC_API_KEY`. (The earlier "root `.env.example` rewritten" note was doubly wrong: the file was
+  never in git, and it listed generated-app vars incl. `VITE_API_URL`, which VBD's web app doesn't read — it
+  reads `VITE_SERVICE_URL`.) Fix: `!.env.example` / `!*/.env.example` negation + a correct root `.env.example`
+  (VBD_ANTHROPIC_API_KEY, PORT, VITE_SERVICE_URL, optional VBD_VERIFY_*) + tracked `verifier/.env.example`;
+  real `.env` stays ignored (verified). Generated-app env templates still live with the artifacts (spine/
+  agents/ui adapters → `/out`, correctly ignored). — SQLite = an embedded, file-based store → a
   single-container generated app (no db service). `SQLITE` engine + `sqliteAdapter` (SQLite affinities,
   `PRAGMA foreign_keys`, `CREATE TABLE IF NOT EXISTS`, no RLS); `spineAdapter(dialect)` emits a
   `better-sqlite3` db.ts (same async interface as pg; booleans→0/1, objects→JSON; `DB_FILE`); `migrate(old,

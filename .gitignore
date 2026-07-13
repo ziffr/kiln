@@ -11,9 +11,11 @@ workspaces/*/.vbd/
 # Root-anchored so it ignores only the server's /data — NOT apps/web/src/data (real source).
 /data/
 
-# Local env / secrets
+# Local env / secrets — but DO commit the .env.example templates (onboarding docs).
 .env
 .env.*
+!.env.example
+!*/.env.example
 
 # Generated execution-engine artifacts (RES-002 export) — not source
 /out/

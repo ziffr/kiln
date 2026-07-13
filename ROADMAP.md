@@ -4,6 +4,11 @@ A living, directional view of where Kiln is headed — not a dated commitment. I
 [vision](VISION.md): Kiln is the design-time surface that compiles a *distributed* business landscape
 from a description, and the model stays the single source of truth. Sizes are rough (S / M / L / XL).
 
+> **🗳️ Vote & comment:** every item below is an open post in
+> [Discussions → 🗺️ Roadmap](https://github.com/ziffr/kiln/discussions/categories/ideas). **👍 the
+> ones you want** and comment to shape them — items with traction graduate to `roadmap` issues and get
+> built.
+
 ## Recently shipped
 
 - The full modeling arc: narrative → capabilities → business areas → entities → behaviour →

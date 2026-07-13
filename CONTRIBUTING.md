@@ -99,6 +99,17 @@ All plans, specs, reviews, and decisions live under `docs/` and follow
 [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) — ID prefixes, required frontmatter, and a status
 lifecycle. If you add or change a governed doc, update `docs/INDEX.md`.
 
+## Automation
+
+A couple of things happen automatically. **Releases are cut by
+[release-please](https://github.com/googleapis/release-please)**: because commits follow
+Conventional Commits, it keeps a standing "Release PR" that bumps the version and updates
+`CHANGELOG.md`, and merging that PR tags the release and publishes it (see
+[RELEASING.md](RELEASING.md)) — so you never hand-edit the changelog. You can also mention
+**`@claude`** on an issue (or in a PR comment) to ask the **AI Maintainer** to draft a fix as a pull
+request. Anything it produces is a normal PR: it still runs through CI and review before merge, and
+nothing auto-merges.
+
 ## Good places to start
 
 - Issues labelled **`good first issue`** are scoped for newcomers.

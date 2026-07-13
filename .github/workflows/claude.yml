@@ -1,0 +1,49 @@
+# Claude Code — automated issue→PR and PR review (AI Maintainer helper).
+#
+# Requirements & safety notes:
+#   - Needs the `ANTHROPIC_API_KEY` repository secret. Until it is set, the job
+#     no-ops gracefully: the secret is mapped to a job env var and the step is
+#     gated on it (the `secrets` context is not usable in an `if:`), so the
+#     workflow is safe to merge now and simply does nothing until the key exists.
+#   - This action runs on UNTRUSTED text from issues, comments, and PRs. It is
+#     therefore least-privilege (only contents/pull-requests/issues: write) and it
+#     NEVER auto-merges — anything it produces lands as a normal PR that still goes
+#     through CI + the AI Maintainer's review, exactly like a human contribution
+#     (see GOVERNANCE.md).
+#   - It is triggered by mentioning `@claude` in an issue or PR comment/review, or
+#     by opening/assigning an issue.
+name: claude
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  claude:
+    name: claude
+    runs-on: ubuntu-latest
+    # The secrets context cannot be used in an `if:`; expose it as an env var so
+    # the step below can no-op when the key is absent.
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - name: Checkout
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude Code
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -76,6 +76,12 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
   is GA on Sonnet 5 / Opus 4.x but **errors on Haiku 4.5** → effort is coupled per-model.
 - Use **structured outputs** (`output_config.format`) to lock JSON shapes; keep a one-shot repair
   retry; wrap user/business text as DATA (prompt-injection safety).
+- **Provider seam (Langdock option):** set `KILN_LANGDOCK_API_KEY` to route the SAME SDK through
+  Langdock's Anthropic-native endpoint (EU-resident, governed, multi-provider gateway) — Bearer
+  `authToken` + `KILN_LANGDOCK_BASE_URL` (default `.../anthropic/eu/v1`), no request-code change. It
+  takes precedence over `KILN_ANTHROPIC_API_KEY`. Both the service and hosted functions honor it.
+  Unverified against a live key: whether the gateway forwards the newest `output_config` fields
+  (effort + structured `format`); `tools` are confirmed.
 
 ## Docs & process discipline
 - All plans/specs/reviews/ADRs go under `docs/` per **`docs/CONVENTIONS.md`** (ID prefixes, frontmatter,

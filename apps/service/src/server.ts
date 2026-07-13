@@ -55,6 +55,12 @@ import { deleteProject, listProjects, saveProject, type StoredProject } from "./
 
 const PORT = Number(process.env.PORT ?? 8787);
 const API_KEY = process.env.KILN_ANTHROPIC_API_KEY ?? process.env.VBD_ANTHROPIC_API_KEY; // VBD_ = legacy alias (pre-Kiln); accepted so existing .env / hosting envs keep working
+// Optional LLM provider: Langdock (an EU-resident, governed, multi-provider gateway) exposes an
+// Anthropic-NATIVE Messages endpoint, so the same @anthropic-ai/sdk works by swapping the base URL +
+// Bearer auth — no request-code change (same messages.create, tools, output_config). Set the key to
+// route generation through it instead of the Anthropic API directly. See docs/ADR/LLM-provider.
+const LANGDOCK_KEY = process.env.KILN_LANGDOCK_API_KEY;
+const LANGDOCK_BASE_URL = process.env.KILN_LANGDOCK_BASE_URL ?? "https://api.langdock.com/anthropic/eu/v1";
 
 // Structured-output schemas now live in @kiln/skills (CAPABILITY_SCHEMA / DOMAIN_SCHEMA) and travel
 // on each LlmRequest's `schema` field; the provider reads req.schema.
@@ -80,7 +86,7 @@ function anthropicProvider(
   usage: UsageAcc,
 ): LlmProvider {
   return {
-    name: `anthropic:${model}`,
+    name: `${PROVIDER_LABEL}:${model}`,
     async complete(req: LlmRequest) {
       const outputConfig: Record<string, unknown> = {};
       // The request carries its own structured-output schema (capability vs domain vs …).
@@ -109,7 +115,7 @@ function anthropicProvider(
         .map((b) => b.text)
         .join("")
         .trim();
-      return { json: safeParseJson(text), raw: text, provider: `anthropic:${model}` };
+      return { json: safeParseJson(text), raw: text, provider: `${PROVIDER_LABEL}:${model}` };
     },
   };
 }
@@ -134,7 +140,15 @@ function readBody(req: IncomingMessage): Promise<string> {
   });
 }
 
-const client = API_KEY ? new Anthropic({ apiKey: API_KEY }) : null;
+// Provider seam: Langdock (Bearer + its Anthropic-native base URL) if configured, else Anthropic direct
+// (x-api-key). Same SDK, same call surface either way; PROVIDER_LABEL tags usage/spend for visibility.
+const PROVIDER_LABEL = LANGDOCK_KEY ? "langdock" : "anthropic";
+const client = LANGDOCK_KEY
+  ? new Anthropic({ authToken: LANGDOCK_KEY, baseURL: LANGDOCK_BASE_URL })
+  : API_KEY
+    ? new Anthropic({ apiKey: API_KEY })
+    : null;
+if (LANGDOCK_KEY) console.log(`[kiln] LLM provider: Langdock (${LANGDOCK_BASE_URL})`);
 
 const server = createServer(async (req, res) => {
   try {
@@ -152,7 +166,7 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/api/generate") {
       if (!client) {
-        return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+        return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       }
       const body = JSON.parse((await readBody(req)) || "{}") as {
         narrative?: string;
@@ -189,7 +203,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/domain") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         capabilities?: CapabilityDoc;
         model?: string;
@@ -214,7 +228,7 @@ const server = createServer(async (req, res) => {
 
     // Domain enrichment: propose realistic attributes + child entities for the current model (review-first).
     if (req.method === "POST" && req.url === "/api/enrich") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         capabilities?: CapabilityDoc;
         domain?: DomainDoc;
@@ -242,7 +256,7 @@ const server = createServer(async (req, res) => {
 
     // Communications / integrations — the LLM refines the "external effects" layer for this business.
     if (req.method === "POST" && (req.url === "/api/communications" || req.url === "/api/integrations")) {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: DomainDoc; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain?.aggregates?.length) {
         return send(res, 400, { error: "capabilities and a domain model are required" });
@@ -264,7 +278,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-003 BC-M3: partition capabilities into business areas with the real LLM (server-side).
     if (req.method === "POST" && req.url === "/api/contexts") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         capabilities?: CapabilityDoc;
         model?: string;
@@ -290,7 +304,7 @@ const server = createServer(async (req, res) => {
     // Semantic critic: the LLM reviews a generated business-area partition (advisory). Higher effort
     // by default — this is a hard reasoning task, and it's where "using the LLM better" pays off.
     if (req.method === "POST" && req.url === "/api/context-critique") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; contexts?: unknown; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.contexts) return send(res, 400, { error: "capabilities and contexts are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -307,7 +321,7 @@ const server = createServer(async (req, res) => {
     // Generic semantic critic: the LLM reviews ANY layer of its own output (advisory). Run at higher
     // effort — critique is a hard reasoning task, and this is where "using the LLM better" pays off.
     if (req.method === "POST" && req.url === "/api/critique") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         layer?: LayerKind;
         capabilities?: CapabilityDoc;
@@ -343,7 +357,7 @@ const server = createServer(async (req, res) => {
 
     // Executable-code target: the LLM writes the business-logic handler bodies for the generated app.
     if (req.method === "POST" && req.url === "/api/app-logic") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: unknown; contexts?: unknown; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -377,7 +391,7 @@ const server = createServer(async (req, res) => {
 
     // The LLM designs a per-entity screen (a validated view spec — data, never JSX, so it's build-safe).
     if (req.method === "POST" && req.url === "/api/app-components") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: unknown; contexts?: unknown; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -393,7 +407,7 @@ const server = createServer(async (req, res) => {
 
     // Multi-lens AI review of the GENERATED code (security/correctness/maintainability). Higher effort.
     if (req.method === "POST" && req.url === "/api/code-review") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: unknown; contexts?: unknown; roles?: unknown; handlerCode?: Record<string, string>; model?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -409,7 +423,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-004 CE-M3: model behaviour (commands/events) on the entities, per-aggregate, server-side.
     if (req.method === "POST" && req.url === "/api/events") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         domain?: { aggregates?: unknown[] };
         capabilities?: CapabilityDoc;
@@ -434,7 +448,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-005 PL-M3: model reactions (policies) wiring events → downstream commands, server-side.
     if (req.method === "POST" && req.url === "/api/policies") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         domain?: { events?: unknown[]; commands?: unknown[] };
         capabilities?: CapabilityDoc;
@@ -461,7 +475,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-006: model the roles/personas that operate the capabilities, server-side.
     if (req.method === "POST" && req.url === "/api/roles") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -477,7 +491,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-007: model the end-to-end workflows (ordered command sequences), server-side.
     if (req.method === "POST" && req.url === "/api/workflows") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { domain?: { commands?: unknown[] }; model?: string; effort?: string };
       if (!body.domain?.commands?.length) return send(res, 400, { error: "domain with commands is required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -493,7 +507,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-009: route each process → workflow (fixed) or agent (judgement). Drives conditional codegen.
     if (req.method === "POST" && req.url === "/api/orchestration") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { workflows?: { workflows?: unknown[] }; domain?: unknown; model?: string; effort?: string };
       if (!body.workflows?.workflows?.length) return send(res, 400, { error: "workflows are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -510,7 +524,7 @@ const server = createServer(async (req, res) => {
     // Enrich from industry web research: the model searches the web for standard records/fields this
     // vertical has that the model lacks, and returns cited additions (reviewed accept/decline in-app).
     if (req.method === "POST" && req.url === "/api/enrich-web") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: { aggregates?: unknown[] }; model?: string; effort?: string };
       if (!body.domain?.aggregates?.length) return send(res, 400, { error: "domain with aggregates is required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -533,7 +547,7 @@ const server = createServer(async (req, res) => {
 
     // Enrich a named-item layer (capabilities|roles|agents) from industry web research → cited items.
     if (req.method === "POST" && req.url === "/api/enrich-layer") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { layer?: string; capabilities?: CapabilityDoc; roles?: unknown; agents?: unknown; model?: string };
       const layer = body.layer === "roles" || body.layer === "agents" ? body.layer : "capabilities";
       if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
@@ -556,7 +570,7 @@ const server = createServer(async (req, res) => {
 
     // Ingest: turn a RAW business description (transcript, notes) into the structured Business Narrative.
     if (req.method === "POST" && req.url === "/api/structure") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { raw?: string; model?: string; effort?: string };
       if (!body.raw || !body.raw.trim()) return send(res, 400, { error: "raw text is required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -572,7 +586,7 @@ const server = createServer(async (req, res) => {
 
     // i18n: translate the generated app's UI string bundle into a target language (automated LLM).
     if (req.method === "POST" && req.url === "/api/translate") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { bundle?: Record<string, string>; targetLang?: string; model?: string; effort?: string };
       if (!body.bundle || !Object.keys(body.bundle).length || !body.targetLang) return send(res, 400, { error: "bundle and targetLang are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -588,7 +602,7 @@ const server = createServer(async (req, res) => {
 
     // External services (delegation): which existing external workflows/agents to delegate to.
     if (req.method === "POST" && req.url === "/api/external-services") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: { aggregates?: unknown[] }; agentIds?: string[]; model?: string; effort?: string };
       if (!body.domain?.aggregates?.length) return send(res, 400, { error: "domain with aggregates is required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -604,7 +618,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-008: model the autonomous agents that operate the capabilities, server-side.
     if (req.method === "POST" && req.url === "/api/agents") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -619,7 +633,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/coach") {
-      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         messages?: Array<{ role: "user" | "assistant"; content: string }>;
         model?: string;
@@ -703,5 +717,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`[kiln/service] listening on http://localhost:${PORT}  (anthropic key ${client ? "loaded" : "MISSING"})`);
+  console.log(`[kiln/service] listening on http://localhost:${PORT}  (${PROVIDER_LABEL} key ${client ? "loaded" : "MISSING"})`);
 });

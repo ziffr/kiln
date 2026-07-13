@@ -4832,12 +4832,21 @@ function estCost(usage, model) {
   return round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1e6);
 }
 function anthropicClient() {
+  const langdock = process.env.KILN_LANGDOCK_API_KEY;
+  if (langdock) {
+    const baseURL = process.env.KILN_LANGDOCK_BASE_URL ?? "https://api.langdock.com/anthropic/eu/v1";
+    return new Anthropic({ authToken: langdock, baseURL });
+  }
   const key = process.env.KILN_ANTHROPIC_API_KEY ?? process.env.VBD_ANTHROPIC_API_KEY;
   return key ? new Anthropic({ apiKey: key }) : null;
 }
+function providerLabel() {
+  return process.env.KILN_LANGDOCK_API_KEY ? "langdock" : "anthropic";
+}
 function anthropicProvider(client, model, effort, supportsEffort, usage) {
+  const label = providerLabel();
   return {
-    name: `anthropic:${model}`,
+    name: `${label}:${model}`,
     async complete(req) {
       const outputConfig = {};
       if (req.schema) outputConfig.format = { type: "json_schema", schema: req.schema };
@@ -4856,7 +4865,7 @@ function anthropicProvider(client, model, effort, supportsEffort, usage) {
       usage.cacheRead += u.cache_read_input_tokens ?? 0;
       usage.cacheCreate += u.cache_creation_input_tokens ?? 0;
       const text = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-      return { json: safeParseJson(text), raw: text, provider: `anthropic:${model}` };
+      return { json: safeParseJson(text), raw: text, provider: `${label}:${model}` };
     }
   };
 }

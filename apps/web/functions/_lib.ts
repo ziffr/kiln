@@ -43,16 +43,27 @@ export function estCost(usage: UsageAcc, model: ModelOption): number {
   return round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
 }
 
-/** The Anthropic client, or null when the key is not configured on the server. */
+/** The LLM client, or null when no key is configured. Langdock (Bearer + its Anthropic-native base URL)
+ *  takes precedence when set — same SDK, EU-resident governed gateway; else Anthropic direct (x-api-key). */
 export function anthropicClient(): Anthropic | null {
+  const langdock = process.env.KILN_LANGDOCK_API_KEY;
+  if (langdock) {
+    const baseURL = process.env.KILN_LANGDOCK_BASE_URL ?? "https://api.langdock.com/anthropic/eu/v1";
+    return new Anthropic({ authToken: langdock, baseURL });
+  }
   const key = process.env.KILN_ANTHROPIC_API_KEY ?? process.env.VBD_ANTHROPIC_API_KEY; // VBD_ = legacy alias; keeps existing hosting env working
   return key ? new Anthropic({ apiKey: key }) : null;
+}
+/** Which provider the client is pointed at — tags usage/spend for visibility. */
+export function providerLabel(): string {
+  return process.env.KILN_LANGDOCK_API_KEY ? "langdock" : "anthropic";
 }
 
 /** Build an LlmProvider backed by the Anthropic SDK; accumulates token usage into `usage`. */
 export function anthropicProvider(client: Anthropic, model: string, effort: string, supportsEffort: boolean, usage: UsageAcc): LlmProvider {
+  const label = providerLabel();
   return {
-    name: `anthropic:${model}`,
+    name: `${label}:${model}`,
     async complete(req: LlmRequest) {
       const outputConfig: Record<string, unknown> = {};
       if (req.schema) outputConfig.format = { type: "json_schema", schema: req.schema };
@@ -75,7 +86,7 @@ export function anthropicProvider(client: Anthropic, model: string, effort: stri
         .map((b) => b.text)
         .join("")
         .trim();
-      return { json: safeParseJson(text), raw: text, provider: `anthropic:${model}` };
+      return { json: safeParseJson(text), raw: text, provider: `${label}:${model}` };
     },
   };
 }

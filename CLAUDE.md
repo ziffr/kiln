@@ -128,6 +128,14 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   transcript/notes/brief or upload a .txt/.md; `@vbd/skills structureNarrative` (prompt `structure.md` +
   `/api/structure`) projects it into the heading-anchored Business Narrative → the existing derive pipeline.
   (Fixed NarrativeInput to use the config `SERVICE_URL` — was hardcoded localhost.) 256 tests.
+- **Generated-app config/env + Vercel auto-deploy scaffold BUILT** — root `.env.example` rewritten to the
+  vars the code ACTUALLY reads (mode-aware `DATABASE_URL`/`DB_FILE`, `N8N_BASE_URL`, `N8N_WEBHOOK_TOKEN`,
+  `PORT`, `VITE_API_URL`, agent `ANTHROPIC_API_KEY`; was stale PG*). Remote-ready: spine pg driver honors TLS
+  (`PGSSL=require` verified; `no-verify` = documented dev-only), events.ts sends `N8N_WEBHOOK_TOKEN` bearer for
+  secured remote n8n. `ui/.env.example` (`VITE_API_URL`) + `ui/vercel.json` (Vite+SPA fallback) +
+  `.github/workflows/deploy-vercel.yml` (deploys ui/ on push, self-skips until `VERCEL_TOKEN`/`ORG`/`PROJECT`
+  secrets set). DEPLOY.md: Git-integration (no token) vs CI (token=GH secret); n8n/Odoo/Postgres hosted apart.
+  Open (rock-solid gaps): spine has NO API auth + RLS is `USING(true)`; input validation; observability. 262 tests.
 - **SQLite store engine + dialect-aware migrations BUILT** — SQLite = an embedded, file-based store → a
   single-container generated app (no db service). `SQLITE` engine + `sqliteAdapter` (SQLite affinities,
   `PRAGMA foreign_keys`, `CREATE TABLE IF NOT EXISTS`, no RLS); `spineAdapter(dialect)` emits a

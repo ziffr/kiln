@@ -5,6 +5,7 @@ import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, Age
 import type { CodeFinding } from "@kiln/skills";
 import type { ModelDoc } from "../model";
 import { downloadZip } from "../zip";
+import { Icon } from "./Icon";
 
 export interface VerifyVerdict {
   ok?: boolean;
@@ -233,28 +234,31 @@ export function CodePreview({
             <button key={k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>{t(`code_${k}`)}</button>
           ))}
         </div>
+        {/* Two clusters: Check (review/verify + their auto-fix pairs) | Export (increasing completeness,
+            full-stack is the single primary). Icons over emoji; one accent CTA, the rest ghost. */}
         <span className="code-export-group">
           {exportNote && <span className="code-export-note muted">{exportNote}</span>}
           <button className="code-export ghost" onClick={() => void reviewCode()} disabled={busy} title={t("codeReviewHint")}>
-            {reviewing ? t("generating") : `🔍 ${t("codeReview")}`}
+            <Icon name="search" size={14} />{reviewing ? t("generating") : t("codeReview")}
           </button>
           <button className="code-export ghost" onClick={() => void autoFix()} disabled={busy} title={t("codeReviewAutoHint")}>
-            {auto ? t("generating") : `⚡ ${t("codeReviewAuto")}`}
+            <Icon name="wrench" size={14} />{auto ? t("generating") : t("codeReviewAuto")}
           </button>
           <button className="code-export ghost" onClick={() => void verifyApp()} disabled={busy} title={t("verifyHint")}>
-            {verifying ? t("verifyBusy") : `🧪 ${t("verifyApp")}`}
+            <Icon name="beaker" size={14} />{verifying ? t("verifyBusy") : t("verifyApp")}
           </button>
           <button className="code-export ghost" onClick={() => void autoVerify()} disabled={busy} title={t("verifyAutoHint")}>
-            {autoVerifying ? t("generating") : `🔁 ${t("verifyAuto")}`}
+            <Icon name="refresh" size={14} />{autoVerifying ? t("generating") : t("verifyAuto")}
           </button>
+          <span className="code-export-sep" aria-hidden="true" />
           <button className="code-export ghost" onClick={() => void exportApp(false)} disabled={busy} title={t("exportAppHint")}>
-            ⬇ {t("exportApp")}
+            <Icon name="download" size={14} />{t("exportApp")}
           </button>
-          <button className="code-export" onClick={() => void exportApp(true)} disabled={busy} title={t("exportAppAiHint")}>
-            {exporting ? t("generating") : `✨ ${t("exportAppAi")}`}
+          <button className="code-export ghost" onClick={() => void exportApp(true)} disabled={busy} title={t("exportAppAiHint")}>
+            <Icon name="sparkles" size={14} />{exporting ? t("generating") : t("exportAppAi")}
           </button>
           <button className="code-export" onClick={() => void exportFullStack()} disabled={busy} title={t("exportFullStackHint")}>
-            {exporting ? t("generating") : `📦 ${t("exportFullStack")}`}
+            <Icon name="package" size={14} />{exporting ? t("generating") : t("exportFullStack")}
           </button>
         </span>
         <button className="nd-close" onClick={onClose} aria-label="close">×</button>

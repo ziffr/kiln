@@ -135,7 +135,17 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   secured remote n8n. `ui/.env.example` (`VITE_API_URL`) + `ui/vercel.json` (Vite+SPA fallback) +
   `.github/workflows/deploy-vercel.yml` (deploys ui/ on push, self-skips until `VERCEL_TOKEN`/`ORG`/`PROJECT`
   secrets set). DEPLOY.md: Git-integration (no token) vs CI (token=GH secret); n8n/Odoo/Postgres hosted apart.
-  Open (rock-solid gaps): spine has NO API auth + RLS is `USING(true)`; input validation; observability. 262 tests.
+  Open (rock-solid gaps): RLS is `USING(true)` (needs a subject/tenant model); observability. 262 tests.
+- **Spine API auth + input validation BUILT** — closed two of the deploy-hardening gaps at the command API's
+  request boundary. **Auth**: opt-in shared bearer — set `API_TOKEN` → `Authorization: Bearer <token>` required
+  on every command route (unset = OPEN, boot warns; `/health` stays open; constant-time compare via
+  `node:crypto`). Internal callers wired to send it: the agents runtime (`tools.ts` command POST) + documented
+  for the UI/n8n HTTP nodes. **Validation**: generated `src/validate.ts` (from `entityFieldTypes(domain)` —
+  pure, unit-tested) type-checks each request body against the model's typed attributes; only fields PRESENT
+  are checked (partial updates stay valid), unknown/untyped pass, non-object body rejected → `400 {error,
+  details}` before any handler/DB work. Env-driven (no new exporter flag; matches the `N8N_WEBHOOK_TOKEN`/`PGSSL`
+  idiom). Verified: generated `validate()` executed against good/bad/partial/null/unknown inputs; app.ts +
+  validate.ts esbuild-parse. RLS + observability remain the open deploy gaps. 265 tests.
 - **SQLite store engine + dialect-aware migrations BUILT** — SQLite = an embedded, file-based store → a
   single-container generated app (no db service). `SQLITE` engine + `sqliteAdapter` (SQLite affinities,
   `PRAGMA foreign_keys`, `CREATE TABLE IF NOT EXISTS`, no RLS); `spineAdapter(dialect)` emits a

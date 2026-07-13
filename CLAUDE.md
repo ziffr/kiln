@@ -89,6 +89,7 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
 - `.env`, `node_modules/`, `.kiln/`, `dist/` are gitignored — never commit them.
 
 ## Status (keep current)
+- **LAUNCH-STAGED (private): renamed to Kiln, reviewed, deployed.** Repo is `github.com/ziffr/kiln` (PRIVATE, owner chose to hold the public flip). Full VBD→Kiln rename done (packages/CLI/env/IDs/prose; legacy `VBD_ANTHROPIC_API_KEY` + storage-key aliases kept for back-compat). Launch-readiness review: no blockers, no committed secrets. Live on Vercel (auto-deploy via git integration) serving Kiln; hosted demo is client-side (baked examples + all stages + code preview + full-stack export) � real-LLM `/api` blocked by a PRE-EXISTING Vercel function cap (25 fns > plan limit; needs consolidating to one router = follow-up). To go public (owner's word): flip visibility, enable Discussions, add `ANTHROPIC_API_KEY` secret, enable "Actions may create PRs", branch-protect main, set description/topics/social image; optionally rename the Vercel project off the old URL.
 - **Building the FULL methodology stack** (user: "the whole enchilada"): policies ✅ → roles ✅ →
   workflows ✅ → agents ✅ → application/implementation blueprints ✅ → execution codegen MCP/React ✅ (adapters hand-owned per ADR-002). FULL STACK BUILT.
 - **SPEC-009 orchestration (workflow-vs-agent router) BUILT** — each process carries an authored

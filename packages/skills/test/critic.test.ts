@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { critiqueLayer, critiqueToFeedback, resolveTarget, generateContexts, type LlmProvider, type ReviewModel } from "../src/index.ts";
-import type { CapabilityDoc } from "@vbd/compiler";
+import type { CapabilityDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = {
   version: "0.2", domain: "solar",

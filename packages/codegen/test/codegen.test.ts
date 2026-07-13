@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { generateTypes, generateOpenApi, generateModuleMap, generateEventCatalog, detectGaps, generateAll } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = {
   version: "0.2",

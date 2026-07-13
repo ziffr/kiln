@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { ENRICH_WEB_SYSTEM_PROMPT, renderEnrichWebUserPrompt, coerceEnrichment, extractJsonObject } from "@vbd/skills";
+import { ENRICH_WEB_SYSTEM_PROMPT, renderEnrichWebUserPrompt, coerceEnrichment, extractJsonObject } from "@kiln/skills";
 import { requireClient, readBody, estCost, modelById, DEFAULT_MODEL, type Req, type Res } from "./_lib.ts";
 
 export default async function handler(req: Req, res: Res): Promise<void> {

@@ -7,8 +7,8 @@
  * the Review → Refine → Re-review → Clean loop, layer by layer, to closure.
  */
 
-import { slug, sha256 } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
+import { slug, sha256 } from "@kiln/ir";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 export type LayerKind = "capabilities" | "areas" | "entities" | "behaviour" | "automations" | "roles" | "workflows" | "agents" | "holistic";

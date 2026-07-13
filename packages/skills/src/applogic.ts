@@ -6,9 +6,9 @@ import { PROMPTS } from "./prompts.generated.ts";
  * generateApp() wires these in; anything invalid or missing falls back to a generic pass-through.
  */
 
-import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@kiln/compiler";
 import type { LlmProvider } from "./types.ts";
-import { projectAppModel, type AppModel } from "@vbd/codegen";
+import { projectAppModel, type AppModel } from "@kiln/codegen";
 
 // One handler at a time — the fan-out gives each command its own focused agent call.
 export const APP_LOGIC_SCHEMA = {

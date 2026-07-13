@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockGenerateDomain, generateDomain, type LlmProvider } from "../src/index.ts";
-import { validateDomain } from "@vbd/validation";
-import type { CapabilityDoc } from "@vbd/compiler";
+import { validateDomain } from "@kiln/validation";
+import type { CapabilityDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = {
   version: "0.2",

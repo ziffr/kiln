@@ -213,7 +213,7 @@ demonstrated live, not just asserted.
 - **`couplesStore` + `TB5`**: full-platform engines (Odoo) own a vertical slice; their operate/react
   only work on their own store. This is a first-class engine property, and it is why the binding unit is
   the **Area**.
-- Kept in `@vbd/codegen` (the RES-001 yardstick) rather than a new package — this is codegen v2, same
+- Kept in `@kiln/codegen` (the RES-001 yardstick) rather than a new package — this is codegen v2, same
   "text is truth; artifacts are a projection" stance.
 
 ## Review & closure

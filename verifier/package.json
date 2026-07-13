@@ -1,12 +1,12 @@
 {
-  "name": "@vbd/verifier",
+  "name": "@kiln/verifier",
   "private": true,
   "type": "module",
-  "description": "Sandboxed build-and-run verifier for generated VBD apps (Docker, env-driven).",
+  "description": "Sandboxed build-and-run verifier for generated Kiln apps (Docker, env-driven).",
   "scripts": {
     "start": "bash run.sh",
     "rebuild": "bash run.sh --rebuild",
-    "build:image": "docker build -t ${VERIFY_IMAGE:-vbd-verifier} .",
+    "build:image": "docker build -t ${VERIFY_IMAGE:-kiln-verifier} .",
     "sample": "node probe.mjs",
     "probe": "node --env-file=.env probe.mjs http://localhost:${PORT:-8900}/verify"
   }

@@ -7,9 +7,9 @@
  * Runs client-side and in tests: no key, no network, fully reproducible.
  */
 
-import { sha256, slug } from "@vbd/ir";
-import type { CapabilityDoc, CapabilityInput } from "@vbd/compiler";
-import { anchorize, coreActivities, type NarrativeDoc } from "@vbd/narrative";
+import { sha256, slug } from "@kiln/ir";
+import type { CapabilityDoc, CapabilityInput } from "@kiln/compiler";
+import { anchorize, coreActivities, type NarrativeDoc } from "@kiln/narrative";
 import type { LlmProvider, LlmRequest, LlmResult } from "./types.ts";
 
 interface Rule {

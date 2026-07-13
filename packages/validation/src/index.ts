@@ -1,5 +1,5 @@
 /**
- * @vbd/validation — deterministic validators over authored capabilities (SPEC-001 §5).
+ * @kiln/validation — deterministic validators over authored capabilities (SPEC-001 §5).
  *
  * Pure functions, independent of the LLM. They OWN the objective checks so the fuzzy
  * remainder (boundary/naming) is all that's left to the model (SPEC-001 §5.1).
@@ -9,8 +9,8 @@
  * recompiles and re-runs.
  */
 
-import { sha256 } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
+import { sha256 } from "@kiln/ir";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
 
 const isGroundedAnchor = (meta: unknown): boolean => {
   const derived = (meta as { derivedFrom?: Array<Record<string, unknown>> } | undefined)?.derivedFrom ?? [];
@@ -35,7 +35,7 @@ export function findingId(code: string, subjects: string[]): string {
   return sha256(`${code}|${[...subjects].sort().join(",")}`).slice(0, 16);
 }
 
-/** Finding factory shared by all validators (including narrative validators in @vbd/narrative). */
+/** Finding factory shared by all validators (including narrative validators in @kiln/narrative). */
 export function finding(code: string, severity: Severity, message: string, subjects: string[]): Finding {
   return { id: findingId(code, subjects), code, severity, message, subjects };
 }

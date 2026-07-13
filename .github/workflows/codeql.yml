@@ -1,6 +1,6 @@
 name: CodeQL
 
-# Static analysis (SAST) for the VBD repo itself. Scans on every push and PR to any branch, plus a
+# Static analysis (SAST) for the Kiln repo itself. Scans on every push and PR to any branch, plus a
 # weekly scheduled run so newly-disclosed query packs re-examine the default branch.
 on:
   push:

@@ -4,9 +4,9 @@
  * rebuilds an EnrichmentResult from the ones the human kept. The model proposes; the human decides.
  */
 
-import { slug } from "@vbd/ir";
-import { attributeSpecs, type AttributeSpec, type AggregateInput, type DomainDoc } from "@vbd/compiler";
-import type { EnrichmentResult } from "@vbd/skills";
+import { slug } from "@kiln/ir";
+import { attributeSpecs, type AttributeSpec, type AggregateInput, type DomainDoc } from "@kiln/compiler";
+import type { EnrichmentResult } from "@kiln/skills";
 
 export type EnrichSource = "grounded" | "web";
 

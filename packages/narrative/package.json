@@ -1,5 +1,5 @@
 {
-  "name": "@vbd/narrative",
+  "name": "@kiln/narrative",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@vbd/ir": "*",
-    "@vbd/validation": "*"
+    "@kiln/ir": "*",
+    "@kiln/validation": "*"
   }
 }

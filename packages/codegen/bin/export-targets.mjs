@@ -10,7 +10,7 @@
  * output to ./out/targets. Pass a --binding JSON ({defaults, byArea}) to place areas on other engines.
  *
  * This is a THIN wrapper (server-side, uses node:fs). The actual full-stack file-map assembly is the PURE,
- * isomorphic `assembleFullStack` (@vbd/codegen/src/fullstack.ts) — so the browser can produce the same map.
+ * isomorphic `assembleFullStack` (@kiln/codegen/src/fullstack.ts) — so the browser can produce the same map.
  * The bin's job: parse args → load + splice the model → call assembleFullStack → write the files to disk →
  * the (bin-only) `--since` migration → `git init`. Console logging reads the returned projection `report`.
  */
@@ -19,7 +19,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { assembleFullStack, DEFAULT_BINDING, migrate } from "../src/index.ts";
-import { mockEnrichDomain, applyEnrichment } from "@vbd/skills";
+import { mockEnrichDomain, applyEnrichment } from "@kiln/skills";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../../..");
@@ -104,7 +104,7 @@ let translations;
 const i18nOpt = m.i18n ? { sourceLang: m.i18n.sourceLang ?? sourceLang, translations: m.i18n.translations ?? translations } : { sourceLang, translations };
 
 const domainName = m.capabilities?.domain || "Business";
-const mod = (m.capabilities?.domain || "vbd").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+const mod = (m.capabilities?.domain || "app").toLowerCase().replace(/[^a-z0-9]+/g, "_");
 
 // The PURE assembly: model + resolved options → the COMPLETE file map + the projection report. The SPEC-009
 // orchestration mode-defaulting, projectTargets call, artifact flattening, and every doc/plumbing template
@@ -172,7 +172,7 @@ if (!process.argv.includes("--no-git")) {
     const init = git("init", "-q");
     git("add", "-A");
     const hasIdentity = git("config", "user.email").stdout.trim();
-    const idArgs = hasIdentity ? [] : ["-c", "user.name=Kiln", "-c", "user.email=codegen@vbd.local"];
+    const idArgs = hasIdentity ? [] : ["-c", "user.name=Kiln", "-c", "user.email=codegen@kiln.local"];
     const commit = git(...idArgs, "commit", "-q", "-m", msg);
     if (init.status === 0 && commit.status === 0) {
       git("branch", "-M", "main"); // normalize the default branch name across git versions

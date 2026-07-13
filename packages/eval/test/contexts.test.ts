@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseNarrative } from "@vbd/narrative";
-import { mockGenerateCapabilities, mockGroupContexts } from "@vbd/skills";
+import { parseNarrative } from "@kiln/narrative";
+import { mockGenerateCapabilities, mockGroupContexts } from "@kiln/skills";
 import { scoreContextsCase, aggregateContextsRecall, scoreContextCoverage, partitionAgreement } from "../src/index.ts";
 import { solarContextsCorpus, solarReferencePartition } from "../src/contexts.solar.ts";
 import { solarNarrativeMd } from "../src/generation.solar.ts";

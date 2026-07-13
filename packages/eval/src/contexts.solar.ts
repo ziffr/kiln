@@ -4,7 +4,7 @@
  * partition is the one-time human judgment `partitionAgreement` scores generated partitions against.
  */
 
-import type { CapabilityDoc } from "@vbd/compiler";
+import type { CapabilityDoc } from "@kiln/compiler";
 import type { ContextsEvalCase } from "./contexts.ts";
 
 const caps: CapabilityDoc = {

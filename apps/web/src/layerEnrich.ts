@@ -4,8 +4,8 @@
  * works offline; the web-research source makes them industry-specific. Items merge into the layer doc.
  */
 
-import { slug } from "@vbd/ir";
-import type { CapabilityDoc, RolesDoc, AgentsDoc } from "@vbd/compiler";
+import { slug } from "@kiln/ir";
+import type { CapabilityDoc, RolesDoc, AgentsDoc } from "@kiln/compiler";
 import type { EnrichProposal, EnrichSource } from "./enrichReview";
 
 export type EnrichLayer = "capabilities" | "roles" | "agents";

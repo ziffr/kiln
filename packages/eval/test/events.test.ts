@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mockGenerateEvents } from "@vbd/skills";
+import { mockGenerateEvents } from "@kiln/skills";
 import { scoreEventsCase, aggregateEventsRecall, scoreBehaviourCoverage, commandRecall } from "../src/index.ts";
 import { solarEventsCorpus, solarBehaviourReference } from "../src/events.solar.ts";
-import type { DomainDoc } from "@vbd/compiler";
+import type { DomainDoc } from "@kiln/compiler";
 
 test("the behaviour corpus has ≥5 seeded cases", () => {
   assert.ok(solarEventsCorpus.length >= 5);

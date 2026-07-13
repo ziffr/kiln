@@ -1,5 +1,5 @@
 /**
- * @vbd/narrative — the Business Narrative parser & validators (SPEC-001 §3.1, M1).
+ * @kiln/narrative — the Business Narrative parser & validators (SPEC-001 §3.1, M1).
  *
  * The narrative is authored markdown (the source of truth). We parse it into a structured
  * `NarrativeDoc` whose sections carry **heading-path anchors + content hashes** (NOT line
@@ -7,8 +7,8 @@
  * reference them stably across edits.
  */
 
-import { sha256 } from "@vbd/ir";
-import { finding, type Finding } from "@vbd/validation";
+import { sha256 } from "@kiln/ir";
+import { finding, type Finding } from "@kiln/validation";
 
 export interface NarrativeSection {
   heading: string;

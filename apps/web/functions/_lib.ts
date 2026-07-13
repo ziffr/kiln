@@ -1,12 +1,12 @@
 /**
  * Shared server-only helpers for the Vercel serverless functions (deployment path). Mirrors
  * apps/service (the local dev server) but as stateless functions. The Anthropic key lives ONLY here,
- * read from the VBD_ANTHROPIC_API_KEY env var — it never reaches the browser (golden invariant #3).
+ * read from the KILN_ANTHROPIC_API_KEY env var — it never reaches the browser (golden invariant #3).
  * Files prefixed `_` are NOT routed by Vercel.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { safeParseJson, type LlmProvider, type LlmRequest } from "@vbd/skills";
+import { safeParseJson, type LlmProvider, type LlmRequest } from "@kiln/skills";
 
 export interface ModelOption {
   id: string;
@@ -45,7 +45,7 @@ export function estCost(usage: UsageAcc, model: ModelOption): number {
 
 /** The Anthropic client, or null when the key is not configured on the server. */
 export function anthropicClient(): Anthropic | null {
-  const key = process.env.VBD_ANTHROPIC_API_KEY;
+  const key = process.env.KILN_ANTHROPIC_API_KEY ?? process.env.VBD_ANTHROPIC_API_KEY; // VBD_ = legacy alias; keeps existing hosting env working
   return key ? new Anthropic({ apiKey: key }) : null;
 }
 
@@ -104,7 +104,7 @@ export function requireClient(req: Req, res: Res): Anthropic | null {
   }
   const client = anthropicClient();
   if (!client) {
-    res.status(500).json({ error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+    res.status(500).json({ error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
     return null;
   }
   return client;

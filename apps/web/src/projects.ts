@@ -4,9 +4,9 @@
  * last-generated capabilities, and model/effort prefs.
  */
 
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
-import type { CommunicationsDoc, IntegrationsDoc, ExternalServicesDoc, TriggersDoc, Binding, Theme } from "@vbd/codegen";
-import type { CoachConfig } from "@vbd/skills";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
+import type { CommunicationsDoc, IntegrationsDoc, ExternalServicesDoc, TriggersDoc, Binding, Theme } from "@kiln/codegen";
+import type { CoachConfig } from "@kiln/skills";
 import { narrativeMd } from "./data/solar";
 // A fully-generated solar model (all layers) baked in, so the example opens populated — every
 // diagram is rich and the entity connections trace works out of the box. Regenerate with the
@@ -69,7 +69,8 @@ export interface ProjectState {
   activeId: string;
 }
 
-const KEY = "vbd.projects";
+const KEY = "kiln.projects";
+const LEGACY_KEY = "vbd.projects"; // pre-Kiln storage key — migrated on load so existing users keep their projects
 
 /** Empty narrative scaffold for a brand-new project (sections the parser expects). */
 export const NARRATIVE_TEMPLATE = `# New Business
@@ -135,7 +136,11 @@ function seed(): ProjectState {
 
 export function loadProjects(): ProjectState {
   try {
-    const raw = localStorage.getItem(KEY);
+    let raw = localStorage.getItem(KEY);
+    if (!raw) {
+      const legacy = localStorage.getItem(LEGACY_KEY); // one-time migration from the pre-Kiln key
+      if (legacy) { raw = legacy; localStorage.setItem(KEY, legacy); }
+    }
     if (!raw) return seed();
     const parsed = JSON.parse(raw) as ProjectState;
     if (!parsed.projects?.length) return seed();

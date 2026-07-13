@@ -1,7 +1,7 @@
-/** @vbd/eval — ROLE (permissions) evaluation (SPEC-006). Defect detection + authorization coverage. */
+/** @kiln/eval — ROLE (permissions) evaluation (SPEC-006). Defect detection + authorization coverage. */
 
-import type { CapabilityDoc, RolesDoc } from "@vbd/compiler";
-import { validateRoles, type Finding } from "@vbd/validation";
+import type { CapabilityDoc, RolesDoc } from "@kiln/compiler";
+import { validateRoles, type Finding } from "@kiln/validation";
 import type { ExpectedDefect } from "./index.ts";
 
 export interface RolesEvalCase {

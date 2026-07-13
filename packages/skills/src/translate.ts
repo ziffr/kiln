@@ -1,7 +1,7 @@
 import { PROMPTS } from "./prompts.generated.ts";
 /**
  * Translate the generated app's UI string bundle into a target language. The base bundle (keys → source
- * text) comes from `@vbd/codegen`'s appMessages (the source language = the language the business was
+ * text) comes from `@kiln/codegen`'s appMessages (the source language = the language the business was
  * described in). This is the "automated translation via LLM" pass — one call per target language.
  */
 

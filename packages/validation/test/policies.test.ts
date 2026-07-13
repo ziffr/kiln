@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validatePolicies } from "../src/index.ts";
-import type { DomainDoc } from "@vbd/compiler";
+import type { DomainDoc } from "@kiln/compiler";
 
 const grounded = { origin: "llm", derivedFrom: [{ anchor: "flow" }] };
 const base: DomainDoc = {

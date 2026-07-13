@@ -1,5 +1,5 @@
 /**
- * @vbd/codegen/integrations — the INTEGRATION layer (acquire + transfer).
+ * @kiln/codegen/integrations — the INTEGRATION layer (acquire + transfer).
  *
  * Business apps don't live alone: they pull data in from existing systems and push data/events out.
  * Same shape as communications — external EFFECTS triggered by the same machinery, driven by a FIELD
@@ -11,8 +11,8 @@
  * refines. Pure and isomorphic. `mockIntegrations` derives defaults; an LLM pass can refine them.
  */
 
-import { slug } from "@vbd/ir";
-import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@vbd/compiler";
+import { slug } from "@kiln/ir";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@kiln/compiler";
 import type { N8nWorkflow } from "./targets.ts";
 
 export type IntegrationDirection = "inbound" | "outbound";
@@ -119,7 +119,7 @@ export function integrationsAdapter(integrations: IntegrationsDoc, domain: Domai
         nodes = [trigger, read, call];
         connections = { [trigger.name]: { main: [[{ node: read.name as string, type: "main", index: 0 }]] }, [read.name as string]: { main: [[{ node: call.name, type: "main", index: 0 }]] } };
       }
-      n8n.push({ id: `vbd_${a.id}`, name: `Integration (in): ${a.name}`, nodes, connections, active: false, settings: { executionOrder: "v1" } });
+      n8n.push({ id: `kiln_${a.id}`, name: `Integration (in): ${a.name}`, nodes, connections, active: false, settings: { executionOrder: "v1" } });
     } else {
       // model event → webhook → map → external system's API or spreadsheet append.
       const trigger = { parameters: { httpMethod: "POST", path: `on/${slug(a.trigger)}` }, name: `On ${a.trigger}`, type: "n8n-nodes-base.webhook", typeVersion: 2, position: [240, 300] };
@@ -127,7 +127,7 @@ export function integrationsAdapter(integrations: IntegrationsDoc, domain: Domai
         transport === "api"
           ? { parameters: { method: "POST", url: `https://${a.system.toLowerCase()}.example.com/api/${slug(a.entity)}`, sendBody: true, note: "TODO: real endpoint + auth + apply mapping" }, name: `Push to ${a.system}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [520, 300] }
           : sheetNode(transport, "append", a.entity, 520, 300);
-      n8n.push({ id: `vbd_${a.id}`, name: `Integration (out): ${a.name}`, nodes: [trigger, action], connections: { [trigger.name]: { main: [[{ node: action.name as string, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
+      n8n.push({ id: `kiln_${a.id}`, name: `Integration (out): ${a.name}`, nodes: [trigger, action], connections: { [trigger.name]: { main: [[{ node: action.name as string, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
     }
   }
   return { mappings, n8n };

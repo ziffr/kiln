@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { CritiqueFinding, LayerKind } from "@vbd/skills";
+import type { CritiqueFinding, LayerKind } from "@kiln/skills";
 
 // The Review panel — a "closure dashboard" for the model. Each layer shows a status (○ not reviewed ·
 // ⚠ N suggestions · ✓ reviewed-clean) and the Review → (pick/amend proposals) → Apply → re-review

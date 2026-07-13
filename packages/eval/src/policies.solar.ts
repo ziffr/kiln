@@ -1,6 +1,6 @@
 /** Seeded-defect corpus + human-blessed reference reactions for solar (SPEC-005 §8). */
 
-import type { DomainDoc } from "@vbd/compiler";
+import type { DomainDoc } from "@kiln/compiler";
 import type { PoliciesEvalCase, PolicyReference } from "./policies.ts";
 
 const grounded = { origin: "llm", derivedFrom: [{ anchor: "flow" }] };

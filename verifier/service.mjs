@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join, dirname, normalize } from "node:path";
 
 const PORT = Number(process.env.PORT || 8900);
-const IMAGE = process.env.VERIFY_IMAGE || "vbd-verifier";
+const IMAGE = process.env.VERIFY_IMAGE || "kiln-verifier";
 const SECRET = process.env.VERIFY_SECRET || "";
 const TIMEOUT_MS = Number(process.env.VERIFY_TIMEOUT_MS || 90_000);
 
@@ -68,7 +68,7 @@ createServer(async (req, res) => {
   const files = body && body.files;
   if (!files || typeof files !== "object" || !files["server.mjs"]) return send(res, 400, { error: "files map with server.mjs required" });
 
-  const dir = mkdtempSync(join(tmpdir(), "vbd-verify-"));
+  const dir = mkdtempSync(join(tmpdir(), "kiln-verify-"));
   try {
     safeWrite(dir, files);
     const verdict = await runContainer(dir);

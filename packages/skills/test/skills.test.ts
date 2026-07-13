@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseNarrative } from "@vbd/narrative";
-import { compileCapabilities } from "@vbd/compiler";
-import { validateAll } from "@vbd/validation";
+import { parseNarrative } from "@kiln/narrative";
+import { compileCapabilities } from "@kiln/compiler";
+import { validateAll } from "@kiln/validation";
 import {
   mockGenerateCapabilities,
   MockProvider,

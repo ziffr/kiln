@@ -34,11 +34,11 @@ is testable without a live model (REV-003 F2), and enforces structured output + 
 3. **Real provider — the official `@anthropic-ai/sdk`, server-side, in `apps/service`.** The
    project is TypeScript, so per the claude-api guidance the real call uses the **official SDK**
    (not raw HTTP), and it runs **server-side only** (`apps/service`); the key comes from server env
-   (`VBD_ANTHROPIC_API_KEY`, loaded via `node --env-file`) and **never reaches the browser**
+   (`KILN_ANTHROPIC_API_KEY`, loaded via `node --env-file`) and **never reaches the browser**
    (REV-005). The client POSTs the narrative to `POST /api/generate`; it does not call the model
-   directly. `@vbd/skills` stays **SDK-free/isomorphic** (mock + prompt + parsing only); the SDK
+   directly. `@kiln/skills` stays **SDK-free/isomorphic** (mock + prompt + parsing only); the SDK
    dependency lives solely in the service. *(v1.0.0 proposed a dependency-free `fetch` client in
-   `@vbd/skills`; superseded to avoid mixing SDK + raw HTTP in one project.)*
+   `@kiln/skills`; superseded to avoid mixing SDK + raw HTTP in one project.)*
 4. **Model & effort are user-selectable in-app.** Default is **`claude-sonnet-5` at
    `output_config.effort: "medium"`** ("sonnet medium"). Effort is GA (no beta header) on Sonnet 5
    / Opus 4.x but **errors on Haiku 4.5**, so effort is coupled to the model in the catalog
@@ -49,12 +49,12 @@ is testable without a live model (REV-003 F2), and enforces structured output + 
    **one repair retry**, then surfaces a soft error (SPEC-001 §4.4, REV-003 F7).
 5. **Prompt-injection posture:** the narrative is wrapped as explicit DATA, not instructions;
    every generated capability must cite `meta.derivedFrom` anchors (evidence), and deterministic
-   validators (`@vbd/validation`) are the backstop for all objective claims (REV-005 F3).
+   validators (`@kiln/validation`) are the backstop for all objective claims (REV-005 F3).
 6. **Provenance & reproducibility:** generated capabilities record `meta.origin`, `skillVersion`,
    and (for the real provider) `modelId`; generation is attributable (REV-005 F6).
 
 ## Alternatives considered
-- **Anthropic SDK dependency** — deferred; a `fetch` client keeps `@vbd/skills` dependency-free
+- **Anthropic SDK dependency** — deferred; a `fetch` client keeps `@kiln/skills` dependency-free
   and browser/Node-isomorphic. Revisit if we need streaming/tool-use ergonomics.
 - **Client-side real LLM calls** — rejected: would expose the API key in the browser (REV-005).
 - **No mock (require a key to run generation)** — rejected: blocks all M2 dev/test on G-DP + a key.
@@ -68,6 +68,6 @@ is testable without a live model (REV-003 F2), and enforces structured output + 
 - (−) The real provider path needs `apps/service` (later milestone) before it can run.
 
 ## Follow-ups
-- `@vbd/skills`: `LlmProvider`, `MockProvider`, `AnthropicProvider` (stub), `CapabilityGenerator`.
+- `@kiln/skills`: `LlmProvider`, `MockProvider`, `AnthropicProvider` (stub), `CapabilityGenerator`.
 - `apps/service`: server route that runs `AnthropicProvider` with the env key.
-- Wire the eval harness (`@vbd/eval`) to score generator output (REV-006 F2).
+- Wire the eval harness (`@kiln/eval`) to score generator output (REV-006 F2).

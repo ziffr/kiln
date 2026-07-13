@@ -67,7 +67,7 @@ the Majors before this becomes a work order.
 
 **M1 — §0 / §Framing: "empirically the next codegen gap" is overstated and partly post-hoc; it is a
 codegen-*completeness* signal, not demonstrated user demand.**
-*Location:* §0 lead-in ("empirically the next codegen gap"), §Framing (line 22–24: "`@vbd/codegen`
+*Location:* §0 lead-in ("empirically the next codegen gap"), §Framing (line 22–24: "`@kiln/codegen`
 already reports that command operations generate but 'events trigger no downstream commands'"), G7, A6.
 *Issue:* This is the pivotal claim of the whole spec, and it does real work in retiring the recurring
 Blocker — so it must be exactly right, and it is not. Two problems. (a) **The "report" is a
@@ -121,7 +121,7 @@ satisfaction rating not a demand action.**
 *Issue:* This is the best value-instrumented §8 in the arc — A5 (reactionRecall + over-wiring
 guardrail), A6 (codegen advances), and A7 (partner value) are three value-adjacent criteria, versus the
 "five-correctness-plus-one-soft" pattern flagged as a Blocker in REV-008/012/017. Credit that. But two
-gaps remain. (a) **A6 gates emission, not usefulness.** "`@vbd/codegen` emits event-handler stubs and
+gaps remain. (a) **A6 gates emission, not usefulness.** "`@kiln/codegen` emits event-handler stubs and
 the 'no reactions' gap is closed" passes the moment the code compiles and the `detectGaps` string stops
 firing — i.e. when the *build* is done, not when the *scaffold is useful*. Given N0/N1/N4, the emitted
 handler is a near-empty one-liner stub with no data flow; "the gap string no longer prints" is a

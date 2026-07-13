@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockGenerateEvents, generateEvents, coerceAggregateBehaviour, type LlmProvider } from "../src/index.ts";
-import { validateEvents } from "@vbd/validation";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+import { validateEvents } from "@kiln/validation";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = {
   version: "0.2",

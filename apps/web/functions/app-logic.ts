@@ -1,5 +1,5 @@
-import { generateAppLogic } from "@vbd/skills";
-import type { CapabilityDoc } from "@vbd/compiler";
+import { generateAppLogic } from "@kiln/skills";
+import type { CapabilityDoc } from "@kiln/compiler";
 import { requireClient, readBody, newUsage, estCost, anthropicProvider, modelById, pickEffort, DEFAULT_MODEL, type Req, type Res } from "./_lib.ts";
 
 // Executable-code target: the LLM writes the business-logic handler bodies for the generated app.

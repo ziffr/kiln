@@ -3,7 +3,7 @@
 // as cohesion, one that crosses a boundary (orange, dashed) is an integration point. Hand-rolled
 // HTML boxes + an SVG dependency overlay (reliable; positions are fully under our control).
 
-import { type CapabilityDoc, type ContextsDoc } from "@vbd/compiler";
+import { type CapabilityDoc, type ContextsDoc } from "@kiln/compiler";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 const CAP_W = 176, CAP_H = 40, GAP_Y = 12, HEAD = 40, PAD_X = 14, PAD_B = 14, AREA_W = CAP_W + 28, AREA_GAP = 48;

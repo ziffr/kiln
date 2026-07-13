@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { generateAll, generateApp, assembleFullStack } from "@vbd/codegen";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
-import type { CodeFinding } from "@vbd/skills";
+import { generateAll, generateApp, assembleFullStack } from "@kiln/codegen";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
+import type { CodeFinding } from "@kiln/skills";
 import type { ModelDoc } from "../model";
 import { downloadZip } from "../zip";
 

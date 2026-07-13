@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { ENRICH_LAYER_SYSTEM_PROMPT, renderEnrichLayerUserPrompt, extractJsonObject } from "@vbd/skills";
+import { ENRICH_LAYER_SYSTEM_PROMPT, renderEnrichLayerUserPrompt, extractJsonObject } from "@kiln/skills";
 import { requireClient, readBody, estCost, modelById, DEFAULT_MODEL, type Req, type Res } from "./_lib.ts";
 
 export default async function handler(req: Req, res: Res): Promise<void> {

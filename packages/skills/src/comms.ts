@@ -3,13 +3,13 @@ import { PROMPTS } from "./prompts.generated.ts";
  * generateCommunications — the LLM refines the communication layer. Given the model's entities + events,
  * it proposes the RIGHT notify/render actions for THIS business: channel (email/Slack/pdf), a recipient
  * binding, a subject, and a template with {{field}} placeholders. Better than the heuristic default
- * (`mockCommunications` in @vbd/codegen), which a human can also start from. Coerced + validated here.
+ * (`mockCommunications` in @kiln/codegen), which a human can also start from. Coerced + validated here.
  */
 
-import { slug } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
-import { attributeSpecs } from "@vbd/compiler";
-import type { CommunicationsDoc, CommAction } from "@vbd/codegen";
+import { slug } from "@kiln/ir";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
+import { attributeSpecs } from "@kiln/compiler";
+import type { CommunicationsDoc, CommAction } from "@kiln/codegen";
 import type { LlmProvider } from "./types.ts";
 
 export const COMMS_SYSTEM_PROMPT = PROMPTS["communications"];

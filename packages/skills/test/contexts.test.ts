@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockGroupContexts, generateContexts, coerceContextsDoc, fingerprintId, type LlmProvider } from "../src/index.ts";
-import { validateContexts } from "@vbd/validation";
-import type { CapabilityDoc } from "@vbd/compiler";
+import { validateContexts } from "@kiln/validation";
+import type { CapabilityDoc } from "@kiln/compiler";
 
 // A solar-like value chain: a depends_on chain + shared entities. The mock must NOT collapse to one area.
 const caps: CapabilityDoc = {

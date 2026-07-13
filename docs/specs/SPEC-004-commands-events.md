@@ -106,7 +106,7 @@ Required: command `id/name/aggregate/capability`; event `id/name/aggregate`. Ids
 namespaced in the IR (`command:` / `event:`). LLM-authored elements carry grounded provenance (CE6).
 
 ## 4. IR extension
-Add node types `command | event` and edge types `handles | changes | emits | on` to `@vbd/ir`
+Add node types `command | event` and edge types `handles | changes | emits | on` to `@kiln/ir`
 (**union growth** — unlike SPEC-003, these are NOT yet reserved; the arch review should confirm the
 addition is clean). Compose:
 - one authored `command:<id>` node per command; `handles` edge `capability → command`; `changes` edge
@@ -130,7 +130,7 @@ addition is clean). Compose:
   capability. Exercises the layer without a key.
 
 ## 6. Deterministic validators (`validateEvents`, isomorphic)
-Pure over the domain doc (+ capability ids), added to `@vbd/validation`:
+Pure over the domain doc (+ capability ids), added to `@kiln/validation`:
 | Code | Sev | Rule |
 |---|---|---|
 | CE1.required | blocker/major | command id/name/aggregate/capability; event id/name/aggregate present |
@@ -234,7 +234,7 @@ spec so it is build-ready.
 | Invalidation wrong both ways — blanket domain:null wipes authored; no reconcile on aggregate edit | arch M1 | Major | **Fixed** — reconcile-not-clear + named App wiring | §4 |
 | "domain schema-version" lever doesn't exist (global SCHEMA_VERSION only) | arch M2 | Major | **Fixed** — add a per-artifact domain schema-version to the hash (also pays REV-010 M5/REV-015 M2) | §4 |
 | "Generate behaviour" must MERGE into domain, not replace it | arch M3 | Major | **Fixed** — patch merges commands/events, preserves aggregates | §5, §7 |
-| `@vbd/store` cache hash omits domain → commands/events can't invalidate it | arch M4 | Major | **Fixed** — store passes domain to computeBuildHash/compile | §4 |
+| `@kiln/store` cache hash omits domain → commands/events can't invalidate it | arch M4 | Major | **Fixed** — store passes domain to computeBuildHash/compile | §4 |
 
 Minors/Nits (per-namespace CE5 uniqueness to avoid silent addNode drop; optional `commands?/events?`
 for back-compat coerce; creation-command coverage smell; exempt reference-only aggregates from CE7;
@@ -258,7 +258,7 @@ what behaviour must contain. Re-open to build (then `Approved` on its own §8 ga
 
 The codegen probe ([[RES-001]]) cleared: model→scaffolding works and **CRUD-only was the last codegen
 gap → SPEC-004 was empirically justified**, so it was un-shelved and built (CE-M0…M4). The gold-free
-harness (`@vbd/eval/events`) adds the quality instrument REV-019 CE-F1 demanded. Results:
+harness (`@kiln/eval/events`) adds the quality instrument REV-019 CE-F1 demanded. Results:
 
 | Criterion | Metric | Result | Verdict |
 |---|---|---|---|

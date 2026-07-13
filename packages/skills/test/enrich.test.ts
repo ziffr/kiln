@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockEnrichDomain, applyEnrichment } from "../src/index.ts";
-import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@vbd/compiler";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { domain: "Solar", capabilities: [{ id: "billing", name: "Billing", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
 

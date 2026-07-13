@@ -10,7 +10,7 @@ Please use a Conventional Commit style for the PR title (e.g. "feat: ...", "fix:
 
 ## Checklist
 
-- [ ] `./vbd.sh check` passes locally (package tests + web build — the CI gate)
+- [ ] `./kiln.sh check` passes locally (package tests + web build — the CI gate)
 - [ ] Tests added or updated for the change (`packages/*/test/*.test.ts`)
 - [ ] Follows the project [invariants](../CLAUDE.md) — text is the source of truth; `authored` vs
       `derived`; secrets stay server-side; pure packages stay isomorphic and free of `node:*` imports

@@ -120,7 +120,7 @@ re-generate replaces or appends existing authored commands/events (recommend: re
 generating behaviour twice, with a hand-edit in between, does not clobber the authored edit or the
 aggregates.
 
-**M4 — The `@vbd/store` cache never mixes the domain, so commands/events cannot invalidate it
+**M4 — The `@kiln/store` cache never mixes the domain, so commands/events cannot invalidate it
 (§4, A3).**
 `loadIR` computes `expected = computeBuildHash(doc)` and recompiles via `compileCapabilities(doc)` with
 **capabilities only** — no `domain`, no `contexts` (`store/src/index.ts:38,52`); `isCacheFresh` does the
@@ -130,7 +130,7 @@ buildHash and a stale `ir.json` is served. A3's "buildHash distinguishes domain 
 false precisely at the buildHash-on-load boundary (ADR-002). The store may be dormant on today's
 localStorage path (ADR-005), but it is governed and is where A3 is meant to hold. *Fix:* either extend
 `loadIR`/`isCacheFresh` to take `domain?`/`contexts?` and pass them to `computeBuildHash`/
-`compileCapabilities`, or state explicitly in §4 that `@vbd/store` is out of the M2 live path and this
+`compileCapabilities`, or state explicitly in §4 that `@kiln/store` is out of the M2 live path and this
 is tracked debt (with a pointer to REV-015 M2). Do not let A3 assert a guarantee the store code
 contradicts.
 
@@ -225,7 +225,7 @@ extending the domain doc is the right, cheaper call. Address **M1** (reconcile-n
 commands/events on aggregate/capability mutation, with named App wiring — the REV-015 M1 recurrence),
 **M2** (state the *real* buildHash lever — `canonical(domain)` content and/or the global `SCHEMA_VERSION`
 bump — not a phantom per-artifact "domain schema-version"; the REV-010 M5 / REV-015 M2 debt), **M3**
-(merge behaviour generation into the existing domain rather than replacing it), and **M4** (the `@vbd/store`
+(merge behaviour generation into the existing domain rather than replacing it), and **M4** (the `@kiln/store`
 buildHash-on-load never sees the domain, so A3 fails at the cache boundary) in the spec text and
 milestones before CE-M0. The Minor items (per-namespace CE5 + `addNode` hard-error, optional-field
 coerce/typing, CE6 resolution semantics, additive-union `default` guards) strengthen determinism and the

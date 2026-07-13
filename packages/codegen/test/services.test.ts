@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockExternalServices, externalServicesAdapter, agentsAdapter, projectTargets, DEFAULT_BINDING } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { domain: "Solar", capabilities: [{ id: "sales", name: "Sales", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
 const domain: DomainDoc = {

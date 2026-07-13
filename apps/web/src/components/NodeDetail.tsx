@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { attributeSpecs, type AggregateInput, type AttributeSpec, type AttrType, type CapabilityDoc, type CapabilityInput, type CommandInput, type EventInput, type PolicyInput } from "@vbd/compiler";
+import { attributeSpecs, type AggregateInput, type AttributeSpec, type AttrType, type CapabilityDoc, type CapabilityInput, type CommandInput, type EventInput, type PolicyInput } from "@kiln/compiler";
 
 const ATTR_TYPES: AttrType[] = ["text", "number", "boolean", "date", "money", "reference"];
 

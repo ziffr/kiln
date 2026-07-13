@@ -1,5 +1,5 @@
 /**
- * @vbd/codegen/services — the EXTERNAL SERVICES (delegation) layer.
+ * @kiln/codegen/services — the EXTERNAL SERVICES (delegation) layer.
  *
  * Not every workflow or agent is one we generate and run. Some already EXIST — a commercial lead
  * qualifier, a legal contract reviewer, an existing workflow in another system. You don't generate those;
@@ -10,12 +10,12 @@
  *             a webhook — i.e. a Trigger — that lands the result: record it via a command, or wake an agent.
  *
  * This declares such services (contract + request/response mapping) and projects the connectors to n8n.
- * Pure + isomorphic; deterministic mock here, an LLM propose pass in @vbd/skills. Endpoints/auth are
+ * Pure + isomorphic; deterministic mock here, an LLM propose pass in @kiln/skills. Endpoints/auth are
  * hand-owned (we generate the skeleton + mapping + the callback wiring, not the vendor's credentials).
  */
 
-import { slug } from "@vbd/ir";
-import { attributeSpecs, type CapabilityDoc, type DomainDoc, type WorkflowsDoc, type AgentsDoc } from "@vbd/compiler";
+import { slug } from "@kiln/ir";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc, type WorkflowsDoc, type AgentsDoc } from "@kiln/compiler";
 import { commandEndpoint, type N8nWorkflow } from "./targets.ts";
 
 export type ServiceKind = "workflow" | "agent";
@@ -125,16 +125,16 @@ export function externalServicesAdapter(services: ExternalServicesDoc, domain: D
       const nodes = record ? [start, call, record] : [start, call];
       const connections: Record<string, unknown> = { [start.name]: { main: [[{ node: call.name, type: "main", index: 0 }]] } };
       if (record) connections[call.name] = { main: [[{ node: record.name as string, type: "main", index: 0 }]] };
-      n8n.push({ id: `vbd_service_${s.id}`, name: `Service (sync): ${s.name}`, nodes, connections, active: false, settings: { executionOrder: "v1" } });
+      n8n.push({ id: `kiln_service_${s.id}`, name: `Service (sync): ${s.name}`, nodes, connections, active: false, settings: { executionOrder: "v1" } });
     } else {
       // fire: kick off the vendor with a callback URL, don't wait.
       const start = { parameters: {}, name: "Fire", type: "n8n-nodes-base.manualTrigger", typeVersion: 1, position: [240, 300] };
       const fire = { parameters: { method: "POST", url: s.endpoint, sendBody: true, note: "TODO: auth; body = requestMapping + callbackUrl → the callback webhook below" }, name: `Start ${s.name}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [480, 300] };
-      n8n.push({ id: `vbd_service_${s.id}_start`, name: `Service (async start): ${s.name}`, nodes: [start, fire], connections: { [start.name]: { main: [[{ node: fire.name, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
+      n8n.push({ id: `kiln_service_${s.id}_start`, name: `Service (async start): ${s.name}`, nodes: [start, fire], connections: { [start.name]: { main: [[{ node: fire.name, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
       // callback: the vendor POSTs the result → a Trigger that records it / wakes an agent.
       const hook = { parameters: { httpMethod: "POST", path: `callback/${s.id}` }, name: `Callback ${s.name}`, type: "n8n-nodes-base.webhook", typeVersion: 2, position: [240, 300] };
       const record = recordNode(s.resultTarget, 520, 300) ?? { parameters: { values: { string: [{ name: "result", value: `${s.name} result received` }] } }, name: "Log result", type: "n8n-nodes-base.set", typeVersion: 3, position: [520, 300] };
-      n8n.push({ id: `vbd_service_${s.id}_callback`, name: `Service (async callback): ${s.name}`, nodes: [hook, record], connections: { [hook.name]: { main: [[{ node: record.name as string, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
+      n8n.push({ id: `kiln_service_${s.id}_callback`, name: `Service (async callback): ${s.name}`, nodes: [hook, record], connections: { [hook.name]: { main: [[{ node: record.name as string, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
     }
   }
   return { descriptors, n8n };

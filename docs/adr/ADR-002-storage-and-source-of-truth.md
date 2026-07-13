@@ -58,5 +58,5 @@ needed; how to prevent derived state from silently becoming authoritative.
 - (−) SQLite adds a (rebuildable) moving part; kept out of the truth path to bound risk.
 
 ## Follow-ups
-- `@vbd/store` package: git read/write + `.vbd/` cache management + buildHash verification.
+- `@kiln/store` package: git read/write + `.vbd/` cache management + buildHash verification.
 - Migration registry keyed on `capabilities.yaml` `version`.

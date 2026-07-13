@@ -4,8 +4,8 @@ dist/
 .DS_Store
 
 # Derived cache — never source of truth (ADR-002)
-.vbd/
-workspaces/*/.vbd/
+.kiln/
+workspaces/*/.kiln/
 
 # Server-side project data (ADR-006) — user workspaces, not versioned in this repo.
 # Root-anchored so it ignores only the server's /data — NOT apps/web/src/data (real source).

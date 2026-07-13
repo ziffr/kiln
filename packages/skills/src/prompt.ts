@@ -4,7 +4,7 @@ import { PROMPTS } from "./prompts.generated.ts";
  * (REV-005 F3). Every capability must cite provenance anchors back into the narrative.
  */
 
-import { businessOutcomes, coreActivities, customers, type NarrativeDoc } from "@vbd/narrative";
+import { businessOutcomes, coreActivities, customers, type NarrativeDoc } from "@kiln/narrative";
 import type { LlmRequest } from "./types.ts";
 
 export const CAPABILITY_SYSTEM_PROMPT = PROMPTS["capability"];

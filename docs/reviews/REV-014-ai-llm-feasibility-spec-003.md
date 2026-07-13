@@ -109,7 +109,7 @@ That asymmetry drives F2, F3, and the Q4 answer.
   1. **Adopt a partition-agreement metric.** The standard way to score two partitions of the *same*
      set is **Adjusted Rand Index** (or normalized mutual information). Produce **one human-blessed
      reference partition** of the solar capabilities (the A1 reviewer signs it once as a byproduct of
-     A1), and report ARI(generated, reference) in `@vbd/eval` alongside the existing coverage
+     A1), and report ARI(generated, reference) in `@kiln/eval` alongside the existing coverage
      metrics. This is the missing analog of REV-009's Corpus B "aggregate recall/precision."
   2. **Add deterministic count/size guardrails** (cheaper than ARI, no reference needed): flag
      `contextCount ∉ [2..6]` and a context that groups `> K%` of all capabilities (the "giant"
@@ -124,7 +124,7 @@ That asymmetry drives F2, F3, and the Q4 answer.
   string. So the same partition, re-run, can yield `sales_onboarding` one run and
   `customer_acquisition` the next → a different `bctx:` id → churn that breaks (a) BC7's stable-slug
   premise across regenerations, (b) any finding-dismissal identity keyed on the context id (the
-  content-addressed `findingId` in `@vbd/validation` hashes `subjects`, which will be the context
+  content-addressed `findingId` in `@kiln/validation` hashes `subjects`, which will be the context
   id), and (c) provenance chip stability. Slugifying an unstable name yields an unstable id; the
   mitigation does nothing.
 - **Recommendation:** key context *identity* on a **content fingerprint = the sorted set of member

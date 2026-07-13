@@ -13,12 +13,12 @@ Please use the "New execution engine" template instead — it asks the right que
 
 ## The problem
 
-<!-- What are you trying to do, and where does VBD fall short today? -->
+<!-- What are you trying to do, and where does Kiln fall short today? -->
 
 ## Proposed solution
 
-<!-- What should VBD do? If it touches the model, describe the model change, not generated code —
-     VBD generates systems from the model; the model is the source of truth. -->
+<!-- What should Kiln do? If it touches the model, describe the model change, not generated code —
+     Kiln generates systems from the model; the model is the source of truth. -->
 
 ## Which layer / area
 

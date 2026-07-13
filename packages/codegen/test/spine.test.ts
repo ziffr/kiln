@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spineAdapter, entityFieldTypes } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { domain: "Test", capabilities: [{ id: "sales", name: "Sales", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
 

@@ -8,7 +8,7 @@ requests get reviewed and merged.
 
 ### Product Owner — Stefan Sonntag ([@ziffr](https://github.com/ziffr))
 
-The Owner holds the **product vision**. He decides what VBD is for, what belongs in it, and what
+The Owner holds the **product vision**. He decides what Kiln is for, what belongs in it, and what
 does not. Concretely, the Owner:
 
 - sets direction, priorities, and the roadmap;
@@ -52,7 +52,7 @@ AI Maintainer merges, then releases when appropriate
 The rules that make this safe:
 
 1. **Green CI is required to merge.** CI runs the exact local gate — the package tests and the web
-   build (`./vbd.sh check`). See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+   build (`./kiln.sh check`). See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 2. **The AI Maintainer reviews and approves before merge.** No change lands unreviewed.
 3. **The Owner is consulted only on product/scope**, never on code, and answers in plain language.
 

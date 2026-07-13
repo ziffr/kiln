@@ -8,8 +8,8 @@ import { PROMPTS } from "./prompts.generated.ts";
  * recommendation the app surfaces; the model, not a runtime coin-flip, decides what fires.
  */
 
-import { slug } from "@vbd/ir";
-import type { DomainDoc, ProcessMode, WorkflowsDoc } from "@vbd/compiler";
+import { slug } from "@kiln/ir";
+import type { DomainDoc, ProcessMode, WorkflowsDoc } from "@kiln/compiler";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 export interface OrchestrationDecision {

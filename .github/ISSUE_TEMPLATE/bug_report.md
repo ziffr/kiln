@@ -22,15 +22,15 @@ assignees: ''
 
 ## Scope
 
-<!-- Which part of VBD? e.g. the web app, the service, a package (ir/compiler/validation/…),
+<!-- Which part of Kiln? e.g. the web app, the service, a package (ir/compiler/validation/…),
      the codegen exporter, or a generated app (which engine — Postgres/SQLite/n8n/Odoo/spine/UI)? -->
 
 ## Environment
 
-- VBD version / commit:
+- Kiln version / commit:
 - Node version (`node -v`, must be ≥ 20):
 - OS:
-- Ran `./vbd.sh doctor`? Paste anything notable:
+- Ran `./kiln.sh doctor`? Paste anything notable:
 
 ## Logs / screenshots
 

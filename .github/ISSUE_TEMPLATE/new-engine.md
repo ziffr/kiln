@@ -7,7 +7,7 @@ assignees: ''
 ---
 
 <!--
-VBD projects a reviewed business model onto execution ENGINES via a fixed tech-capability taxonomy.
+Kiln projects a reviewed business model onto execution ENGINES via a fixed tech-capability taxonomy.
 Existing engines include Postgres and SQLite (store), the spine (command API), n8n (orchestration),
 Odoo (platform), a shadcn UI, and agent runtimes. Use this template to propose a new one.
 -->
@@ -18,7 +18,7 @@ Odoo (platform), a shadcn UI, and agent runtimes. Use this template to propose a
 - **Kind:** <!-- store / orchestrator / UI / platform / other -->
 - **What it is / link:**
 
-## Why VBD should support it
+## Why Kiln should support it
 
 <!-- What does it unlock that existing engines don't? -->
 

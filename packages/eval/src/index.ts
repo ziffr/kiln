@@ -1,5 +1,5 @@
 /**
- * @vbd/eval — the gold-free evaluation harness (SPEC-001 §8; REV-006 F1/F2).
+ * @kiln/eval — the gold-free evaluation harness (SPEC-001 §8; REV-006 F1/F2).
  *
  * A case is a business model seeded with KNOWN defects that a correct check must catch.
  * We score recall (did we catch the seeded defects?) and precision (were our findings
@@ -8,8 +8,8 @@
  * V3/V7-class defects live in `pendingCorpus` until those validators land in M3.
  */
 
-import type { CapabilityDoc } from "@vbd/compiler";
-import { validateAll, type Finding } from "@vbd/validation";
+import type { CapabilityDoc } from "@kiln/compiler";
+import { validateAll, type Finding } from "@kiln/validation";
 
 export { scoreGenerationCoverage, type GenerationCoverage } from "./generation.ts";
 export {

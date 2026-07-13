@@ -9,9 +9,9 @@ import { PROMPTS } from "./prompts.generated.ts";
  * hand-offs. Ids are fingerprints of the (on, then) pair (REV-024) so identity is stable.
  */
 
-import { slug, sha256 } from "@vbd/ir";
-import type { DomainDoc, PolicyInput } from "@vbd/compiler";
-import { validatePolicies, type Finding } from "@vbd/validation";
+import { slug, sha256 } from "@kiln/ir";
+import type { DomainDoc, PolicyInput } from "@kiln/compiler";
+import { validatePolicies, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }] });

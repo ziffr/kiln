@@ -21,7 +21,7 @@ reviewers: [technical-architecture]
 SPEC-003 adds the bounded-context layer the way SPEC-002 added the domain layer: **same loop, one
 layer up**, reusing the IR spine, the pure validators, grounded provenance, and human-in-the-loop
 editing. The core moves are architecturally right and — unlike SPEC-002 — mostly *lower*-risk here:
-`bounded_context` (NodeType) and `groups` (EdgeType) **already exist** in `@vbd/ir`
+`bounded_context` (NodeType) and `groups` (EdgeType) **already exist** in `@kiln/ir`
 (`packages/ir/src/index.ts:16,25`), so there is **no union growth** and none of the additive-union /
 exhaustive-`switch` risk REV-010 m1 raised. The `bctx:<slug>` namespacing directly reuses the
 `aggregate:` fix from REV-010 M1 and cleanly avoids collision with bare capability ids and the

@@ -1,4 +1,4 @@
-import type { LayerKind, Tier } from "@vbd/skills";
+import type { LayerKind, Tier } from "@kiln/skills";
 
 // Settings for the AI stages: transparency + control over which MODEL and EFFORT each step runs at.
 // Two independent knobs, both opt-in-friendly:

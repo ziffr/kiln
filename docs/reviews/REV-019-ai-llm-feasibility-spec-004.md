@@ -104,7 +104,7 @@ because there are more id spaces and two symmetric degenerate failure modes inst
   2. **Deterministic guardrails (cheaper, no reference):** a commands-per-aggregate /
      events-per-aggregate distribution with a storm flag (aggregate with `> K` commands — REV-009 F3's
      over-generation metric), **and** a "trivial-triple" smell (every command matches `create_*`/
-     `update_*` and every event `*_changed` → degenerate CRUD). Both belong in `@vbd/eval` and gate
+     `update_*` and every event `*_changed` → degenerate CRUD). Both belong in `@kiln/eval` and gate
      A4 so neither degenerate extreme can pass green.
 
 ### CE-F2 — Repair trigger as worded will not fire; CE2/CE3/CE4 are *major*, and "dangling target" omits CE3 [Major]

@@ -1,9 +1,10 @@
-# CLAUDE.md — operating manual for Kiln (codename VBD)
+# CLAUDE.md — operating manual for Kiln
 
 This file is loaded into context every session. It is the rules of the road. Read it, follow it,
-and update it when a rule changes. **Product name: Kiln** (public/user-facing, tagline "the business
-compiler"). **Internal codename: VBD** — the `@vbd/*` workspace packages and the repo dir
-`VerticalBusinessDesiger` (historical misspelling) keep the codename; don't rename them.
+and update it when a rule changes. **Product name: Kiln** (tagline "the business compiler"); the
+`@kiln/*` packages and `kiln.sh` carry the name too. Pre-Kiln remnants kept on purpose: the local
+git-directory name `VerticalBusinessDesiger` (historical; the public repo is `kiln`), and a legacy
+`VBD_ANTHROPIC_API_KEY` env alias accepted alongside `KILN_ANTHROPIC_API_KEY` for back-compat.
 
 ## What this is
 An LLM-guided **"Business Compiler"**: describe a vertical business in structured text → an LLM
@@ -15,12 +16,12 @@ reviewable **Capability Map**. Text is the source of truth; the graphic is a pro
    the canvas. Node positions are computed (elk), never persisted.
 2. **Every IR node/edge is `authored` or `derived`.** Only `authored` elements round-trip to text
    and are editable; `derived` elements are read-only projections.
-3. **Secrets never reach the browser.** The Anthropic key (`VBD_ANTHROPIC_API_KEY`, in the
+3. **Secrets never reach the browser.** The Anthropic key (`KILN_ANTHROPIC_API_KEY`, in the
    gitignored root `.env`) lives only in `apps/service`. The web app POSTs to the service; it
    never calls the model or holds the key.
-4. **Pure packages are isomorphic + dependency-free.** `@vbd/ir|compiler|validation|narrative|skills|eval`
+4. **Pure packages are isomorphic + dependency-free.** `@kiln/ir|compiler|validation|narrative|skills|eval`
    run in Node tests AND the browser. No `node:*` builtins in them (use the isomorphic `sha256`
-   from `@vbd/ir`, not `node:crypto`). `@vbd/store` and `apps/service` are the server-only exception.
+   from `@kiln/ir`, not `node:crypto`). `@kiln/store` and `apps/service` are the server-only exception.
 5. **The model proposes; validators + the human decide.** LLM output is coerced, validated, and
    human-editable. Generated capabilities must carry grounded provenance (`meta.derivedFrom`,
    enforced by validator V8).
@@ -33,7 +34,7 @@ packages/
   compiler/    authored artifacts → IR (+ computeBuildHash)
   validation/  deterministic validators over the CapabilityDoc/IR (V1–V2, V8; V3–V7 WIP)
   narrative/   Business Narrative parser (heading-anchored) + completeness validators (NV1–NV4)
-  store/       .vbd/ derived cache with buildHash-on-load (server-only; ADR-002)
+  store/       .kiln/ derived cache with buildHash-on-load (server-only; ADR-002)
   eval/        seeded-defect + generation-coverage scoring (gold-free)
   skills/      LLM skill runtime: CapabilityGenerator, MockProvider, NarrativeCoach prompt
 apps/
@@ -50,19 +51,19 @@ The **IR is the contract**: every view and validator reads it. Validators are pu
   shows "cannot find module 'node:*'" squiggles — harmless; runtime is fine.
 - **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **134** passing). Every
   new pure function gets a test in `packages/*/test/*.test.ts`.
-- **Web:** Vite. `npm run build --workspace @vbd/web` must pass. Verify UI changes **in the browser**
+- **Web:** Vite. `npm run build --workspace @kiln/web` must pass. Verify UI changes **in the browser**
   (the preview tools), not just tests — the invariants are visual.
 - **Storage:** git for authored docs (ADR-002); the web app persists projects to **localStorage**
-  (`vbd.projects`, ADR-005 — interim until a git-backed workspace API).
+  (`kiln.projects`, ADR-005 — interim until a git-backed workspace API).
 
 ## Running it
 ```
 npm install                          # links workspaces only (offline; no registry fetch for pkgs)
-npm run dev --workspace @vbd/web      # http://localhost:5188
-npm run dev --workspace @vbd/service  # http://localhost:8787 (loads root .env)
+npm run dev --workspace @kiln/web      # http://localhost:5188
+npm run dev --workspace @kiln/service  # http://localhost:8787 (loads root .env)
 npm test                              # all package tests
 ```
-Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gitignored root `.env`.
+Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the gitignored root `.env`.
 
 ## LLM rules
 - The project is TypeScript → use the **official `@anthropic-ai/sdk`**, never raw HTTP. SDK usage
@@ -85,20 +86,20 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   often; small, clear messages.
 - End every commit message with:
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
-- `.env`, `node_modules/`, `.vbd/`, `dist/` are gitignored — never commit them.
+- `.env`, `node_modules/`, `.kiln/`, `dist/` are gitignored — never commit them.
 
 ## Status (keep current)
 - **Building the FULL methodology stack** (user: "the whole enchilada"): policies ✅ → roles ✅ →
   workflows ✅ → agents ✅ → application/implementation blueprints ✅ → execution codegen MCP/React ✅ (adapters hand-owned per ADR-002). FULL STACK BUILT.
 - **SPEC-009 orchestration (workflow-vs-agent router) BUILT** — each process carries an authored
-  `WorkflowInput.mode` (`workflow`|`agent`). `@vbd/skills` orchestration skill (mock heuristic +
+  `WorkflowInput.mode` (`workflow`|`agent`). `@kiln/skills` orchestration skill (mock heuristic +
   `generateOrchestration` LLM + `/api/orchestration`, prompt `orchestration.md`) proposes; the app's
   **Workflows stage is the review/override screen** (per-process "Run as" toggle + Auto-classify).
   Mode-DRIVES codegen: workflow-mode → n8n `process_*`; agent-mode → folded into the covering agent's
   `behaviours/<id>.md` ("Processes you own"). Exporter emits `ORCHESTRATION.md`. Solar: 4 workflow, 1 agent.
 - **Excel + External-services (delegation) + 3-way orchestration BUILT** — Excel = an integration
   `transport` (xlsx|gsheet → n8n Sheets/Excel nodes) + a comms `spreadsheet` channel (rendered .xlsx,
-  like pdf). External services (`@vbd/codegen` services.ts): delegate to EXISTING workflows/agents —
+  like pdf). External services (`@kiln/codegen` services.ts): delegate to EXISTING workflows/agents —
   `sync` (call & record via a command) or `async` (fire + a CALLBACK webhook = a trigger → command / wake
   agent); agents get them as `external` tools; `--external-services`/`/api/external-services`;
   EXTERNAL-SERVICES.md. `ProcessMode` is now `workflow|agent|external` — the Workflows review screen's
@@ -126,7 +127,7 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   in-browser (entities 12→16; roles 7→10, one declined excluded). Remaining stages (behaviour/automations/
   workflows/areas) are cross-ref-heavy → still generate+AI-review. 257 tests.
 - **Ingest raw text/transcript BUILT** — the Narrative stage has a "From text/transcript" tab: paste a
-  transcript/notes/brief or upload a .txt/.md; `@vbd/skills structureNarrative` (prompt `structure.md` +
+  transcript/notes/brief or upload a .txt/.md; `@kiln/skills structureNarrative` (prompt `structure.md` +
   `/api/structure`) projects it into the heading-anchored Business Narrative → the existing derive pipeline.
   (Fixed NarrativeInput to use the config `SERVICE_URL` — was hardcoded localhost.) 256 tests.
 - **Generated-app config/env + Vercel auto-deploy scaffold BUILT** — root `.env.example` rewritten to the
@@ -159,12 +160,12 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   + release/dependabot workflows + PR/issue templates, `docs/good-first-issues/` (3 engines), and
   `docs/specs/SPEC-010`.
 - **Rebranded to Kiln + security CI + example gallery (v0.1.0).** Product name is now **Kiln** ("the
-  business compiler"); internal codename VBD (`@vbd/*` packages + repo dir keep it). Renamed user-facing
+  business compiler"); internal codename VBD (`@kiln/*` packages + repo dir keep it). Renamed user-facing
   surface + generated-app attribution + repo URL (`github.com/ziffr/kiln`). **Security CI shipped:** an
   invariant-check test (pure-package isomorphism + secret-never-client-side), a prompt-safety test (enforces
   the DATA-wrapping anti-injection convention on all 20 shipped prompts), a schema-version test; CodeQL +
   dependency-review + gitleaks workflows; `.github/CODEOWNERS` (gates prompts/service/engine-contract/
-  schema/governance → @ziffr); `MODEL_SCHEMA_VERSION` constant in `@vbd/ir`. **Example gallery:** enriched
+  schema/governance → @ziffr); `MODEL_SCHEMA_VERSION` constant in `@kiln/ir`. **Example gallery:** enriched
   the (thin) solar narrative + added 3 rich verticals seeded as example projects, each a different ingestion
   path — Legal office (Zoom transcript), Coffee franchise (agent interview → `coachTranscript`), Funeral
   franchise (owner file); new ones ship description-first (generate in-app). Version 0.0.0→**0.1.0**. 279
@@ -178,22 +179,22 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   Remaining are HUMAN-ONLY GitHub steps (create/push repo as `ziffr/kiln`, make public, branch protection,
   add ANTHROPIC_API_KEY secret, enable "Actions may create PRs", set description/topics/social-image) + the
   optional rolling-alpha workflow + baking full models for the 3 new examples (needs an LLM run).
-- **Full-stack export from the app + `vbd.sh` CLI helper BUILT.** (1) The complete multi-backend file-map
+- **Full-stack export from the app + `kiln.sh` CLI helper BUILT.** (1) The complete multi-backend file-map
   assembly was extracted out of the CLI bin into a pure, isomorphic `assembleFullStack(input) → {files,
-  report}` in `@vbd/codegen` (byte-identical to the CLI, both dialects; the bin is now a thin wrapper). The
+  report}` in `@kiln/codegen` (byte-identical to the CLI, both dialects; the bin is now a thin wrapper). The
   web app's **View code** stage gained a **📦 Full-stack** button that assembles the whole repo in the browser
   and downloads it as a `.zip` (dialect auto-detected from the store binding; AI-drafted handlers included) —
   previously only the self-contained single-process app (`generateApp`) could be exported in-app. Verified
-  in-browser: 660 KB zip, 199 files, no errors. (2) **`vbd.sh`** (repo root, documented, `./vbd.sh help`):
+  in-browser: 660 KB zip, 199 files, no errors. (2) **`kiln.sh`** (repo root, documented, `./kiln.sh help`):
   one entrypoint for every CLI task — `install`/`doctor`/`dev`/`web`/`service`/`test`/`build`/`check`,
   `export [flags]` (the codegen exporter), and `app:up|down|ui|spine|logs` (run a GENERATED system via its
   Makefile) + `verify:up`. 268 tests.
 - **Repo hygiene: env templates were never committed (FIXED).** The `.gitignore` `.env.*` rule silently
   shadowed every `.env.example`, so a fresh clone shipped with NO env docs — despite the required
-  `VBD_ANTHROPIC_API_KEY`. (The earlier "root `.env.example` rewritten" note was doubly wrong: the file was
+  `KILN_ANTHROPIC_API_KEY`. (The earlier "root `.env.example` rewritten" note was doubly wrong: the file was
   never in git, and it listed generated-app vars incl. `VITE_API_URL`, which VBD's web app doesn't read — it
   reads `VITE_SERVICE_URL`.) Fix: `!.env.example` / `!*/.env.example` negation + a correct root `.env.example`
-  (VBD_ANTHROPIC_API_KEY, PORT, VITE_SERVICE_URL, optional VBD_VERIFY_*) + tracked `verifier/.env.example`;
+  (KILN_ANTHROPIC_API_KEY, PORT, VITE_SERVICE_URL, optional KILN_VERIFY_*) + tracked `verifier/.env.example`;
   real `.env` stays ignored (verified). Generated-app env templates still live with the artifacts (spine/
   agents/ui adapters → `/out`, correctly ignored).
 - **VBD-repo hygiene: gitignore `apps/web/api/` + drop the committed bundles (FIXED).** `api/*.js` are
@@ -217,7 +218,7 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   docker-compose (node:20-slim spine + a data volume, NO postgres service) + dialect-aware Makefile. Verified
   both modes export; sqlite spine db.ts esbuild-parses; --sqlite --since = SQLite migration. 262 tests.
 - **Postgres model-diff migration generator BUILT** — incremental update story (grow a LIVE db, don't drop
-  it). `@vbd/codegen/migrate.ts` `migratePostgres(oldDomain,newDomain)`: additive-by-default (new attr → ADD
+  it). `@kiln/codegen/migrate.ts` `migratePostgres(oldDomain,newDomain)`: additive-by-default (new attr → ADD
   COLUMN, new entity → CREATE TABLE, new ref → ADD COLUMN…REFERENCES = live SQL); drops/type-changes = BREAKING
   → emitted COMMENTED with the reason (human decides on data). Mirrors postgresAdapter naming/types. Exporter
   `--since <deployed model.json>` → `postgres/migrations/<version>.sql` + logs additive/breaking counts;
@@ -245,7 +246,7 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   roles; automations = policies; field hints from types). `shadcnAdapter` emits `src/help.ts` + a `/help`
   page + a dependency-light "ⓘ Help" drawer per screen (route+nav wired). Regenerated with the app → never
   stale. Solar: 12 entities/5 processes/7 roles/9 automations. 254 tests.
-- **Triggers layer + agent HTTP mode BUILT** — `@vbd/codegen` triggers.ts: external signals in
+- **Triggers layer + agent HTTP mode BUILT** — `@kiln/codegen` triggers.ts: external signals in
   (webhook|schedule → command|workflow|agent|notify), grounded in the model's external/time events, →
   importable n8n `trigger_*` workflows + `TRIGGERS.md`. The generated agents runtime gained an HTTP mode
   (`pnpm serve` → `POST /run {agent,task}`) so a webhook can WAKE an agent; a webhook→agent trigger POSTs it.
@@ -255,7 +256,7 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   **Workflows** stubs, in-context "Automations" UI. Verified: 7 cross-entity hand-offs on solar.
 - **Deployed on Vercel** (SPA + serverless functions, key server-side): https://vertical-business-designer-web.vercel.app
 - **Full modeling arc built + partner-validated (SPEC-001…004 Approved).** narrative → capabilities →
-  business areas → entities (typed attributes) → commands/events. `@vbd/codegen` projects it to TS
+  business areas → entities (typed attributes) → commands/events. `@kiln/codegen` projects it to TS
   types + OpenAPI (real command operations, not just CRUD) + event catalog + area-module map; visible
   in-app via the **"View code"** panel.
 - **SPEC-005 (policies/reactions) reviewed to closure (REV-022…026) but BUILD DEFERRED.** No strategic
@@ -281,10 +282,10 @@ Real LLM generation/interview needs `VBD_ANTHROPIC_API_KEY=sk-ant-...` in the gi
   PASSED** (dental, no code change); A5 ARI a qualified pass (LLM over-segments vs a coarse single
   reference); **HOLD** on `Approved` pending A6 partner value check.
 - **Design partner validated capabilities + entities + areas** → **SPEC-002 & SPEC-003 `Approved`** (v1.0.0).
-- **RES-001 codegen probe done** — `@vbd/codegen` (deterministic model→code projection: TS types +
+- **RES-001 codegen probe done** — `@kiln/codegen` (deterministic model→code projection: TS types +
   OpenAPI + area-module map + gap report). **Thesis holds for scaffolding** (solar → 8 TS interfaces,
   16 OpenAPI paths, 3 area modules, no LLM). Two gaps named the next work, both now CLOSED: typed
-  attributes + commands/events. `@vbd/codegen` is the yardstick for future layers.
+  attributes + commands/events. `@kiln/codegen` is the yardstick for future layers.
 - **Typed entity attributes** — `AttributeSpec {name, type}` (text/number/boolean/date/money/reference);
   codegen emits real TS/OpenAPI types; LLM + human editor both set types. The codegen "untyped" gap is
   closed.

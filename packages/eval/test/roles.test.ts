@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mockGenerateRoles } from "@vbd/skills";
+import { mockGenerateRoles } from "@kiln/skills";
 import { scoreRoleCoverage } from "../src/index.ts";
-import type { CapabilityDoc } from "@vbd/compiler";
+import type { CapabilityDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { version: "0.2", domain: "solar", capabilities: [{ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }] };
 

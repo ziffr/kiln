@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseNarrative } from "@vbd/narrative";
-import { mockGenerateCapabilities, mockGenerateDomain } from "@vbd/skills";
+import { parseNarrative } from "@kiln/narrative";
+import { mockGenerateCapabilities, mockGenerateDomain } from "@kiln/skills";
 import { scoreDomainCase, aggregateDomainRecall, scoreDomainCoverage } from "../src/index.ts";
 import { solarDomainCorpus } from "../src/domain.solar.ts";
 import { solarNarrativeMd } from "../src/generation.solar.ts";

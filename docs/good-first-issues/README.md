@@ -9,7 +9,7 @@ When the repo is public, the maintainer files these as GitHub issues labelled `g
 
 ## What an engine is
 
-VBD projects a business model onto **execution engines**. Each engine declares — in a small data
+Kiln projects a business model onto **execution engines**. Each engine declares — in a small data
 descriptor — which of the seven **tech-capabilities** it provides and how well:
 
 `store` · `operate` · `emit` · `react` · `sequence` · `authorize` · `serve-ui` → each `native` / `partial` / `none`.

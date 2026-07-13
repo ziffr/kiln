@@ -114,7 +114,7 @@ boundary evidence (BC8). The document is a **partition**: every capability in ex
 `capabilities`, except those explicitly in a `shared_kernel` (BC2).
 
 ## 4. IR extension
-`bounded_context` (NodeType) and `groups` (EdgeType) **already exist** in `@vbd/ir`. This spec makes
+`bounded_context` (NodeType) and `groups` (EdgeType) **already exist** in `@kiln/ir`. This spec makes
 them load-bearing:
 - Compiler composes `contexts` into the IR: one authored `bounded_context` node per area (namespaced
   id `bctx:<id>`, mirroring SPEC-002's `aggregate:`), + an authored `groups` edge
@@ -154,7 +154,7 @@ them load-bearing:
   template names/intents. Exercises the whole layer without a key.
 
 ## 6. Deterministic validators (`validateContexts`, isomorphic)
-Pure over the contexts doc + capability ids (+ entities for cohesion), added to `@vbd/validation`:
+Pure over the contexts doc + capability ids (+ entities for cohesion), added to `@kiln/validation`:
 | Code | Sev | Rule |
 |---|---|---|
 | BC1.id / BC1.name | blocker / major | area has an id (blocker) and a name (major) |
@@ -299,7 +299,7 @@ value check + second-domain smoke clear (§8 A5–A7).
 
 The business-areas layer is engineering-complete: IR compose (BC-M0), mock partitioner (BC-M1), DM
 validators (BC-M2), `ContextGrouper` + `/api/contexts` (BC-M3), the backdrop UI (BC-M4). The gold-free
-harness (`@vbd/eval/contexts`) is the instrument REV-014 BC-F2 demanded. Results:
+harness (`@kiln/eval/contexts`) is the instrument REV-014 BC-F2 demanded. Results:
 
 | Criterion | Metric | Result | Verdict |
 |---|---|---|---|

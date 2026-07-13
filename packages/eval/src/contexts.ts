@@ -1,5 +1,5 @@
 /**
- * @vbd/eval — BUSINESS-AREAS (subdomain) evaluation (SPEC-003 BC-M2/§8 exit gate).
+ * @kiln/eval — BUSINESS-AREAS (subdomain) evaluation (SPEC-003 BC-M2/§8 exit gate).
  *
  * Mirrors the DM eval, gold-free, with one addition the AI review demanded (REV-014 BC-F2): a
  * partition-QUALITY metric, so a degenerate partition (one blob, or one-area-per-capability) FAILS
@@ -15,8 +15,8 @@
  *     the degenerate partitions that coverage alone can't catch.
  */
 
-import type { CapabilityDoc, ContextsDoc } from "@vbd/compiler";
-import { validateContexts, type Finding } from "@vbd/validation";
+import type { CapabilityDoc, ContextsDoc } from "@kiln/compiler";
+import { validateContexts, type Finding } from "@kiln/validation";
 import type { ExpectedDefect } from "./index.ts";
 
 export interface ContextsEvalCase {

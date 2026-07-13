@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validateEvents } from "../src/index.ts";
-import type { DomainDoc } from "@vbd/compiler";
+import type { DomainDoc } from "@kiln/compiler";
 
 const capIds = ["lead_management", "billing"];
 const base: DomainDoc = {

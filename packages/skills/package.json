@@ -1,5 +1,5 @@
 {
-  "name": "@vbd/skills",
+  "name": "@kiln/skills",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,10 +8,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@vbd/codegen": "*",
-    "@vbd/compiler": "*",
-    "@vbd/ir": "*",
-    "@vbd/narrative": "*",
-    "@vbd/validation": "*"
+    "@kiln/codegen": "*",
+    "@kiln/compiler": "*",
+    "@kiln/ir": "*",
+    "@kiln/narrative": "*",
+    "@kiln/validation": "*"
   }
 }

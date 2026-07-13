@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockIntegrations, integrationsAdapter } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { domain: "Solar", capabilities: [{ id: "sales", name: "Sales", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
 
@@ -48,7 +48,7 @@ test("Excel is first-class: an xlsx import routes rows through a spreadsheet nod
   const i = mockIntegrations(caps, domain);
   const excel = i.actions.find((a) => a.transport === "xlsx");
   assert.ok(excel && excel.system === "Excel" && excel.direction === "inbound", "an Excel import is seeded");
-  const wf = integrationsAdapter(i, domain).n8n.find((w) => w.id === `vbd_${excel!.id}`)!;
+  const wf = integrationsAdapter(i, domain).n8n.find((w) => w.id === `kiln_${excel!.id}`)!;
   const types = wf.nodes.map((n) => n.type);
   // poll on a schedule → read the Excel workbook → POST the create command
   assert.deepEqual(types, ["n8n-nodes-base.scheduleTrigger", "n8n-nodes-base.microsoftExcel", "n8n-nodes-base.httpRequest"]);

@@ -95,7 +95,7 @@ LLM-authored elements carry grounded provenance (as in SPEC-001; enforced by V-D
 
 ## 4. IR extension
 Add node types `aggregate | command | event` and edge types `owns | handles | emits` to
-`@vbd/ir` (the enums already reserve room). Origin tagging unchanged: aggregates/commands/events
+`@kiln/ir` (the enums already reserve room). Origin tagging unchanged: aggregates/commands/events
 authored in `domain_model.yaml` are `authored`; anything purely derived (e.g. an aggregate implied
 by a capability's `produces` but not yet authored) is `derived`. `buildHash` includes the new
 artifact. The compiler composes capabilities.yaml + domain_model.yaml into one IR graph.
@@ -208,8 +208,8 @@ partner. Re-review to `Approved` when the gate clears and the aggregates-first s
 ## 13. Exit gate — DM eval + go/no-go (aggregates-first increment)
 
 The aggregates-first increment (DM1 mock → DM2 `DomainGenerator` → DM validators in UI → editable
-entities → DM eval) is engineering-complete. The gold-free DM harness (`@vbd/eval/domain`,
-`@vbd/eval/domain.solar`) is the measurement instrument the review asked for (REV-009, A1/A2 had "no
+entities → DM eval) is engineering-complete. The gold-free DM harness (`@kiln/eval/domain`,
+`@kiln/eval/domain.solar`) is the measurement instrument the review asked for (REV-009, A1/A2 had "no
 matching function"). Two scorers, run on the solar reference:
 
 | Metric | Instrument | Result | Criterion |

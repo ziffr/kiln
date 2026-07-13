@@ -10,7 +10,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import ELK from "elkjs/lib/elk.bundled.js";
-import type { IR } from "@vbd/ir";
+import type { IR } from "@kiln/ir";
 import { useTranslation } from "react-i18next";
 
 const elk = new ELK();

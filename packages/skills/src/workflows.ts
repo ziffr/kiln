@@ -4,9 +4,9 @@ import { PROMPTS } from "./prompts.generated.ts";
  * business process — an ordered sequence of existing commands (Order-to-Cash, Onboarding, …).
  */
 
-import { slug } from "@vbd/ir";
-import type { DomainDoc, WorkflowInput, WorkflowsDoc } from "@vbd/compiler";
-import { validateWorkflows, type Finding } from "@vbd/validation";
+import { slug } from "@kiln/ir";
+import type { DomainDoc, WorkflowInput, WorkflowsDoc } from "@kiln/compiler";
+import { validateWorkflows, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }] });

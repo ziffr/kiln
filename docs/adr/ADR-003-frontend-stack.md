@@ -26,7 +26,7 @@ The MVP (SPEC-001) needs a graphical app: a guided Business Narrative editor, an
 - Users are (often non-technical) business people: **structured forms, not raw YAML**
   (REV-004 F1); mandatory **diff-before-apply**; glossary/tooltips (REV-004 F2/F3).
 - Model/LLM/narrative strings are untrusted: **text-not-HTML**, sanitized markdown (REV-005 F4).
-- Shared `@vbd/ir` TypeScript types must flow into the client unchanged (ADR-001).
+- Shared `@kiln/ir` TypeScript types must flow into the client unchanged (ADR-001).
 
 ## Decision
 
@@ -45,8 +45,8 @@ The MVP (SPEC-001) needs a graphical app: a guided Business Narrative editor, an
    (users author in any language); only chrome is translated. Default locale DE, switchable EN.
 
 ### Defaults (this ADR)
-4. **Compute boundary (strategic):** the pure, deterministic packages — `@vbd/compiler`,
-   `@vbd/validation`, `@vbd/narrative` — run **client-side** for instant feedback (parse →
+4. **Compute boundary (strategic):** the pure, deterministic packages — `@kiln/compiler`,
+   `@kiln/validation`, `@kiln/narrative` — run **client-side** for instant feedback (parse →
    compile → validate → render as you type). The **service owns** git I/O, the `.vbd`/SQLite
    cache, LLM calls, and all secrets. The IR the browser computes is advisory; the service's
    compiled+cached IR (ADR-002) is authoritative on save.
@@ -65,7 +65,7 @@ The MVP (SPEC-001) needs a graphical app: a guided Business Narrative editor, an
 10. **Testing:** **Vitest + React Testing Library** for units; **Playwright** for one E2E of the
     core loop (narrative → generate → review → apply), mapping to acceptance A1/A3/A6.
 11. **Package layout:** `apps/web` (SPA) and `apps/service` (TS API) join the npm workspace and
-    import `@vbd/*` directly. Vite resolves the workspace TS packages; the service reuses the
+    import `@kiln/*` directly. Vite resolves the workspace TS packages; the service reuses the
     same packages server-side.
 
 ## Alternatives considered
@@ -91,5 +91,5 @@ The MVP (SPEC-001) needs a graphical app: a guided Business Narrative editor, an
 ## Follow-ups
 - ADR-00x (later): LLM provider/skill-runtime + the local-LLM path for a Tauri build.
 - Scaffold `apps/web` (Vite+React+i18n+Tailwind+xyflow) and `apps/service` (TS API over
-  `@vbd/store`/`@vbd/compiler`); wire the narrative editor to `@vbd/narrative`.
+  `@kiln/store`/`@kiln/compiler`); wire the narrative editor to `@kiln/narrative`.
 - Parity test: Zod capability schema ↔ `capability.schema.json`.

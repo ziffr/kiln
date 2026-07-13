@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { assembleFullStack, DEFAULT_BINDING } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
 import solar from "../../../apps/web/src/data/solar-model.json" with { type: "json" };
 
 // The full-stack assembly is PURE + isomorphic (no node:* / fs / process) — this is what lets the browser

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadIR, isCacheFresh, VBD_DIR } from "../src/index.ts";
-import type { CapabilityDoc } from "@vbd/compiler";
+import { loadIR, isCacheFresh, KILN_DIR } from "../src/index.ts";
+import type { CapabilityDoc } from "@kiln/compiler";
 
 const doc: CapabilityDoc = {
   version: "0.2",
@@ -15,7 +15,7 @@ const doc: CapabilityDoc = {
 };
 
 function ws(): string {
-  return mkdtempSync(join(tmpdir(), "vbd-store-"));
+  return mkdtempSync(join(tmpdir(), "kiln-store-"));
 }
 
 test("first load compiles and writes the cache (miss)", () => {
@@ -23,8 +23,8 @@ test("first load compiles and writes the cache (miss)", () => {
   try {
     const r = loadIR(dir, doc);
     assert.equal(r.fromCache, false);
-    assert.ok(existsSync(join(dir, VBD_DIR, "ir.json")));
-    assert.ok(existsSync(join(dir, VBD_DIR, "build.meta.json")));
+    assert.ok(existsSync(join(dir, KILN_DIR, "ir.json")));
+    assert.ok(existsSync(join(dir, KILN_DIR, "build.meta.json")));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -60,7 +60,7 @@ test("a corrupt cache falls back to recompile", () => {
   const dir = ws();
   try {
     loadIR(dir, doc);
-    writeFileSync(join(dir, VBD_DIR, "ir.json"), "{ not valid json");
+    writeFileSync(join(dir, KILN_DIR, "ir.json"), "{ not valid json");
     assert.equal(loadIR(dir, doc).fromCache, false);
   } finally {
     rmSync(dir, { recursive: true, force: true });

@@ -6,8 +6,8 @@
  * offending file:line, so a community PR that breaks an invariant can never merge green.
  *
  *   #4  Pure packages are isomorphic: no `node:*` import (nor bare `process.` / `require(`) in the
- *       browser-loaded sources of @vbd/{ir,compiler,validation,narrative,skills,eval} or the pure
- *       @vbd/codegen engines dir.
+ *       browser-loaded sources of @kiln/{ir,compiler,validation,narrative,skills,eval} or the pure
+ *       @kiln/codegen engines dir.
  *   #3  Secrets never reach the browser: apps/web/src must never reference the Anthropic key.
  */
 import { test } from "node:test";
@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, "..", "..", ".."); // packages/codegen/test → repo root
 
-/** Recursively collect *.ts / *.tsx files under a dir (skips node_modules, dist, .vbd). */
+/** Recursively collect *.ts / *.tsx files under a dir (skips node_modules, dist, .kiln). */
 function collectSources(dir: string): string[] {
   const out: string[] = [];
   let entries: string[];
@@ -29,7 +29,7 @@ function collectSources(dir: string): string[] {
     return out; // dir may not exist in a given tree
   }
   for (const name of entries) {
-    if (name === "node_modules" || name === "dist" || name === ".vbd") continue;
+    if (name === "node_modules" || name === "dist" || name === ".kiln") continue;
     const full = join(dir, name);
     const st = statSync(full);
     if (st.isDirectory()) out.push(...collectSources(full));
@@ -98,7 +98,7 @@ function lineOf(src: string, index: number): number {
 
 // ── Invariant #4: pure packages have no node:* / bare process. / require( ──────────────────────
 //
-// Scanned dirs = every browser-loaded pure source tree. The @vbd/codegen ENGINES dir is pure too.
+// Scanned dirs = every browser-loaded pure source tree. The @kiln/codegen ENGINES dir is pure too.
 const pureDirs = [
   "packages/ir/src",
   "packages/compiler/src",
@@ -111,7 +111,7 @@ const pureDirs = [
 
 /**
  * Allowlist — files that are Node-only by design and NOT part of the isomorphic surface:
- *   *.solar.ts (in @vbd/eval)  — reference-corpus loaders that read the on-disk workspace fixture
+ *   *.solar.ts (in @kiln/eval)  — reference-corpus loaders that read the on-disk workspace fixture
  *                                (a subpath export like ./generation.solar, never re-exported from
  *                                the isomorphic index.ts). They are Node-only, analogous to tests.
  * Keep this list TIGHT — every entry is an escape hatch from the isomorphism guarantee.
@@ -136,7 +136,7 @@ test("invariant #4: pure package sources import no node:* builtin", () => {
   assert.equal(
     violations.length,
     0,
-    `pure packages must not import node:* builtins (use the isomorphic sha256 from @vbd/ir, not node:crypto):\n  ${violations.join("\n  ")}`,
+    `pure packages must not import node:* builtins (use the isomorphic sha256 from @kiln/ir, not node:crypto):\n  ${violations.join("\n  ")}`,
   );
 });
 
@@ -164,7 +164,7 @@ test("invariant #4: pure package sources use no bare process. / require(", () =>
 // apps/web/src is the browser bundle. It POSTs to the service; it never names the key. (The literal
 // forms below are the ways a leak would show up: the env var names, or an api_key/apiKey binding.)
 test("invariant #3: apps/web/src never references the Anthropic API key", () => {
-  const SECRET = /\bVBD_ANTHROPIC_API_KEY\b|\bANTHROPIC_API_KEY\b|\bapi_?[Kk]ey\b/;
+  const SECRET = /\bKILN_ANTHROPIC_API_KEY\b|\bANTHROPIC_API_KEY\b|\bapi_?[Kk]ey\b/;
   const violations: string[] = [];
   for (const file of collectSources(join(repoRoot, "apps/web/src"))) {
     const src = readFileSync(file, "utf8");

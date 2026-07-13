@@ -1,6 +1,6 @@
 # Contributing to Kiln
 
-Thanks for your interest in **Kiln** (the code uses the internal codename **VBD** / `@vbd/*`). Kiln is
+Thanks for your interest in **Kiln**. Kiln is
 an LLM-guided **business compiler**: you describe a vertical business in structured text, an LLM derives a
 formal model, deterministic validators check it, and it renders as a reviewable **Capability
 Map** that deterministic codegen projects into a complete, runnable multi-backend system.
@@ -10,7 +10,7 @@ execution engines. Please read this guide before opening a pull request.
 
 ## How this project is maintained
 
-VBD has an unusual — but deliberate — maintenance model. A non-technical **Product Owner** sets
+Kiln has an unusual — but deliberate — maintenance model. A non-technical **Product Owner** sets
 the vision and priorities, and an **AI Maintainer** (Claude) does all of the technical work:
 reviewing every pull request, keeping CI green, and cutting releases. This means:
 
@@ -29,11 +29,11 @@ You need **Node ≥ 20** (the repo develops on newer Node, but 20 is the support
 and `npm install` only links the workspaces (no registry fetch is required to run the tests).
 
 ```bash
-./vbd.sh install     # install dependencies (links the npm workspaces; offline)
-./vbd.sh doctor      # verify your environment (node, .env, docker, git)
+./kiln.sh install     # install dependencies (links the npm workspaces; offline)
+./kiln.sh doctor      # verify your environment (node, .env, docker, git)
 ```
 
-`./vbd.sh help` lists every command. You do not need an Anthropic API key to develop or run the
+`./kiln.sh help` lists every command. You do not need an Anthropic API key to develop or run the
 tests — the app ships with an offline mock generator. A key is only needed for real LLM
 generation, and it lives **only** in a git-ignored root `.env` (never commit it). See
 [SECURITY.md](SECURITY.md).
@@ -41,11 +41,11 @@ generation, and it lives **only** in a git-ignored root `.env` (never commit it)
 ## The check that must pass before you open a PR
 
 ```bash
-./vbd.sh check       # runs the test suite + the web build — this is the gate
+./kiln.sh check       # runs the test suite + the web build — this is the gate
 ```
 
-`./vbd.sh check` is exactly what CI runs: the package tests (`npm test`) and the web build
-(`npm run build --workspace @vbd/web`). If it is green locally, CI should be green too. Please run
+`./kiln.sh check` is exactly what CI runs: the package tests (`npm test`) and the web build
+(`npm run build --workspace @kiln/web`). If it is green locally, CI should be green too. Please run
 it before pushing. If you touch UI, also verify your change **in the browser** — several of the
 project's invariants are visual, and tests alone will not catch a broken projection.
 
@@ -63,16 +63,16 @@ often trip up new contributors:
    text and are editable; `derived` elements are read-only projections.
 3. **Secrets never reach the browser.** The Anthropic key lives only in `apps/service`; the web app
    POSTs to the service and never calls the model or holds the key.
-4. **Pure packages are isomorphic and dependency-free.** `@vbd/ir`, `@vbd/compiler`,
-   `@vbd/validation`, `@vbd/narrative`, `@vbd/skills`, and `@vbd/eval` must run in both Node tests
+4. **Pure packages are isomorphic and dependency-free.** `@kiln/ir`, `@kiln/compiler`,
+   `@kiln/validation`, `@kiln/narrative`, `@kiln/skills`, and `@kiln/eval` must run in both Node tests
    and the browser. **Do not import `node:*` builtins in them** (use the isomorphic `sha256` from
-   `@vbd/ir`, not `node:crypto`). Only `@vbd/store` and `apps/service` may be server-only.
+   `@kiln/ir`, not `node:crypto`). Only `@kiln/store` and `apps/service` may be server-only.
 5. **The model proposes; validators + the human decide.** LLM output is coerced, validated, and
    human-editable. Generated capabilities must carry grounded provenance.
 
 ## Change the model, not the generated code
 
-VBD generates systems from a model. If output looks wrong, **fix the projection — change the model
+Kiln generates systems from a model. If output looks wrong, **fix the projection — change the model
 or the generator, not the generated artifacts**. Hand-editing generated code will be overwritten on
 the next export and is not how this project improves. (The rare exceptions — hand-owned adapters —
 are documented in the ADRs under `docs/`.)
@@ -90,7 +90,7 @@ are documented in the ADRs under `docs/`.)
   titles (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, …). This keeps the changelog and
   release notes readable.
 - Fill out the [pull request template](.github/PULL_REQUEST_TEMPLATE.md) — say what and why, confirm
-  `./vbd.sh check` passes, and note any tests you added.
+  `./kiln.sh check` passes, and note any tests you added.
 - Keep PRs small and focused; a coherent, green unit of work is much easier to review and merge.
 
 ## Documentation

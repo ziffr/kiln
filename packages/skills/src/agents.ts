@@ -4,9 +4,9 @@ import { PROMPTS } from "./prompts.generated.ts";
  * runs a set of capabilities toward a goal (a "Sales Assistant", "Dispatch Coordinator").
  */
 
-import { slug } from "@vbd/ir";
-import type { CapabilityDoc, AgentInput, AgentsDoc } from "@vbd/compiler";
-import { validateAgents, type Finding } from "@vbd/validation";
+import { slug } from "@kiln/ir";
+import type { CapabilityDoc, AgentInput, AgentsDoc } from "@kiln/compiler";
+import { validateAgents, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }] });

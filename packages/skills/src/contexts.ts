@@ -10,9 +10,9 @@ import { PROMPTS } from "./prompts.generated.ts";
  * identity is stable across runs regardless of the name.
  */
 
-import { slug, sha256 } from "@vbd/ir";
-import type { CapabilityDoc, ContextInput, ContextsDoc } from "@vbd/compiler";
-import { validateContexts, type Finding } from "@vbd/validation";
+import { slug, sha256 } from "@kiln/ir";
+import type { CapabilityDoc, ContextInput, ContextsDoc } from "@kiln/compiler";
+import { validateContexts, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 const norm = (s: string): string => s.toLowerCase().replace(/\s+/g, "_");

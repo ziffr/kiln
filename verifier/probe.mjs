@@ -1,6 +1,6 @@
 /**
- * probe.mjs — generate a real VBD app and either (a) POST it to a running verifier service, or
- * (b) with no URL, write it to ./sample-app so you can `docker run -v $PWD/sample-app:/work vbd-verifier`.
+ * probe.mjs — generate a real Kiln app and either (a) POST it to a running verifier service, or
+ * (b) with no URL, write it to ./sample-app so you can `docker run -v $PWD/sample-app:/work kiln-verifier`.
  *
  *   node probe.mjs                              # writes ./sample-app
  *   node probe.mjs http://localhost:8900/verify # posts to the service, prints the verdict
@@ -28,7 +28,7 @@ if (!url) {
   rmSync(root, { recursive: true, force: true });
   for (const [p, c] of Object.entries(files)) { const fp = join(root, p); mkdirSync(dirname(fp), { recursive: true }); writeFileSync(fp, c); }
   console.log(`wrote ${Object.keys(files).length} files → ${root}`);
-  console.log(`test it in the sandbox:\n  docker run --rm --network none --memory 512m --cpus 1 -v ${root}:/work vbd-verifier`);
+  console.log(`test it in the sandbox:\n  docker run --rm --network none --memory 512m --cpus 1 -v ${root}:/work kiln-verifier`);
 } else {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json", ...(process.env.VERIFY_SECRET ? { "x-verify-secret": process.env.VERIFY_SECRET } : {}) }, body: JSON.stringify({ files }) });
   const verdict = await res.json();

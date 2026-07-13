@@ -3,13 +3,13 @@ import { PROMPTS } from "./prompts.generated.ts";
  * generateIntegrations — the LLM refines the integration layer. Given the entities, create-commands, and
  * events, it proposes the RIGHT inbound (acquire → a create command) and outbound (event → external
  * system) integrations for THIS business, with a field mapping. Better than the heuristic default
- * (`mockIntegrations` in @vbd/codegen). Coerced + validated here.
+ * (`mockIntegrations` in @kiln/codegen). Coerced + validated here.
  */
 
-import { slug } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
-import { attributeSpecs } from "@vbd/compiler";
-import type { IntegrationsDoc, IntegrationAction } from "@vbd/codegen";
+import { slug } from "@kiln/ir";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
+import { attributeSpecs } from "@kiln/compiler";
+import type { IntegrationsDoc, IntegrationAction } from "@kiln/codegen";
 import type { LlmProvider } from "./types.ts";
 
 export const INTEGRATIONS_SYSTEM_PROMPT = PROMPTS["integrations"];

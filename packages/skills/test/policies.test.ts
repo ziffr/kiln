@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockGeneratePolicies, generatePolicies, coercePolicies, type LlmProvider } from "../src/index.ts";
-import { validatePolicies } from "@vbd/validation";
-import type { DomainDoc } from "@vbd/compiler";
+import { validatePolicies } from "@kiln/validation";
+import type { DomainDoc } from "@kiln/compiler";
 
 const domain: DomainDoc = {
   version: "0.3",

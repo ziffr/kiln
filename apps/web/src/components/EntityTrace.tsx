@@ -3,7 +3,7 @@
 // downstream commands they run, often on OTHER entities), the roles that operate it, and the related
 // entities it references / is referenced by. The one place the siloed layers are wired together.
 
-import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type AggregateInput } from "@vbd/compiler";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type AggregateInput } from "@kiln/compiler";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 type Stage = "capabilities" | "areas" | "entities" | "behaviour" | "automations" | "roles" | "workflows" | "agents";

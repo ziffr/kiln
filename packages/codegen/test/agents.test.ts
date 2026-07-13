@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { agentsAdapter } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@kiln/compiler";
 import type { CommunicationsDoc } from "../src/comms.ts";
 
 const caps: CapabilityDoc = { domain: "Solar", capabilities: [{ id: "leads", name: "Lead Management", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
@@ -65,14 +65,14 @@ test("agent-mode processes fold into the covering agent's behaviour (SPEC-009)",
       { id: "qualify_lead", name: "Qualify Lead", aggregate: "lead", capability: "leads", emits: ["lead_qualified"] },
       { id: "capture_lead", name: "Capture Lead", aggregate: "lead", capability: "leads", emits: ["lead_captured"] },
     ],
-  } as unknown as import("@vbd/compiler").DomainDoc;
+  } as unknown as import("@kiln/compiler").DomainDoc;
   const workflows = {
     version: "0.1",
     workflows: [
       { id: "triage_lead", name: "Triage Lead", steps: ["capture_lead", "qualify_lead"], mode: "agent" },
       { id: "fixed_flow", name: "Fixed Flow", steps: ["capture_lead"], mode: "workflow" },
     ],
-  } as unknown as import("@vbd/compiler").WorkflowsDoc;
+  } as unknown as import("@kiln/compiler").WorkflowsDoc;
   const files = agentsAdapter(caps, domainWithCap, agents, comms, workflows);
   const behaviour = files["agents/behaviours/lead_agent.md"];
   assert.match(behaviour, /## Processes you own/);

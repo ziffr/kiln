@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { CapabilityDoc, ContextInput } from "@vbd/compiler";
+import type { CapabilityDoc, ContextInput } from "@kiln/compiler";
 
 /**
  * Area (business-area / subdomain) detail — an editable form for one area (SPEC-003 §7). Rename,

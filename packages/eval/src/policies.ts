@@ -1,5 +1,5 @@
 /**
- * @vbd/eval — POLICY (reactions) evaluation (SPEC-005 PL-M2/§8 gate).
+ * @kiln/eval — POLICY (reactions) evaluation (SPEC-005 PL-M2/§8 gate).
  *
  * Defect detection + coverage + the quality instrument the review demanded (REV-022 M4 / REV-024
  * PF-F1): reactions have no conservation law, so coverage is satisfiable by an over-wired blob.
@@ -7,8 +7,8 @@
  * did we over-wire?) so precision, not just recall, gates the layer.
  */
 
-import type { DomainDoc } from "@vbd/compiler";
-import { validatePolicies, type Finding } from "@vbd/validation";
+import type { DomainDoc } from "@kiln/compiler";
+import { validatePolicies, type Finding } from "@kiln/validation";
 import type { ExpectedDefect } from "./index.ts";
 
 export interface PoliciesEvalCase {

@@ -5,9 +5,9 @@ import { PROMPTS } from "./prompts.generated.ts";
  * Every capability should be authorized by ≥1 role (RO5). Ids are stable slugs.
  */
 
-import { slug } from "@vbd/ir";
-import type { CapabilityDoc, RoleInput, RolesDoc } from "@vbd/compiler";
-import { validateRoles, type Finding } from "@vbd/validation";
+import { slug } from "@kiln/ir";
+import type { CapabilityDoc, RoleInput, RolesDoc } from "@kiln/compiler";
+import { validateRoles, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }] });

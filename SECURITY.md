@@ -27,15 +27,15 @@ issue against an older version.
 
 ## Sensitive surface — what to know
 
-VBD has a few security-relevant areas. Contributors and deployers should keep these in mind:
+Kiln has a few security-relevant areas. Contributors and deployers should keep these in mind:
 
-- **The Anthropic API key is server-side only.** `VBD_ANTHROPIC_API_KEY` is read by `apps/service`
+- **The Anthropic API key is server-side only.** `KILN_ANTHROPIC_API_KEY` is read by `apps/service`
   (and the serverless functions in the deployed web app). It lives in a git-ignored root `.env` and
   **must never be committed** or exposed to the browser. The web app POSTs to the service; it never
   holds the key. If you ever see a path where the key could reach the client, treat it as a
   vulnerability and report it.
 
-- **Generated apps ship with auth OFF by default.** A system exported by VBD's codegen does **not**
+- **Generated apps ship with auth OFF by default.** A system exported by Kiln's codegen does **not**
   enforce API authentication out of the box — auth is **opt-in** via an `API_TOKEN`. Likewise, the
   generated Postgres Row-Level Security policies are permissive (`USING (true)`) as a scaffold, not a
   production control. **Deployers are responsible for hardening a generated app before exposing it**:

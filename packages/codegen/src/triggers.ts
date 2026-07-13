@@ -1,16 +1,16 @@
 /**
- * @vbd/codegen/triggers — the TRIGGERS layer: external signals INTO the system.
+ * @kiln/codegen/triggers — the TRIGGERS layer: external signals INTO the system.
  *
  * A business doesn't only act when a user clicks. It reacts to inbound signals — a webhook from another
  * system, or a schedule (a nightly run) — and routes each to the right actor: run a COMMAND, start a
  * WORKFLOW, wake an AGENT, or NOTIFY a human. This projects such triggers to n8n workflows: a source node
  * (webhook | schedule/cron) wired to an action node (spine command | execute-workflow | agent /run |
  * notify). It closes the loop with the generated agents' HTTP mode — a webhook can now WAKE an agent.
- * Pure + isomorphic; deterministic mock defaults here, an LLM refine pass in @vbd/skills.
+ * Pure + isomorphic; deterministic mock defaults here, an LLM refine pass in @kiln/skills.
  */
 
-import { slug } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
+import { slug } from "@kiln/ir";
+import type { CapabilityDoc, DomainDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
 import { commandEndpoint, type N8nWorkflow } from "./targets.ts";
 
 export type TriggerSource = "webhook" | "schedule";
@@ -78,14 +78,14 @@ export function triggersAdapter(triggers: TriggersDoc, domain: DomainDoc, spineU
       // wake the agent over HTTP — POST /run { agent, task } to the generated agents runtime (pnpm serve).
       action = { parameters: { method: "POST", url: `${agentUrl}/run`, sendBody: true, specifyBody: "json", jsonBody: JSON.stringify({ agent: tgt.ref, task: tgt.task || "Handle the inbound signal." }) }, name: `Agent: ${tgt.ref}`, type: "n8n-nodes-base.httpRequest", typeVersion: 4, position: [520, 300] };
     } else if (tgt.kind === "workflow") {
-      // start a generated process workflow (its n8n id is vbd_process_<id>). executeWorkflow is the n8n
+      // start a generated process workflow (its n8n id is kiln_process_<id>). executeWorkflow is the n8n
       // primitive for this — structurally faithful (not yet round-tripped through a live import).
-      action = { parameters: { source: "database", workflowId: `vbd_process_${slug(tgt.ref)}` }, name: `Workflow: ${tgt.ref}`, type: "n8n-nodes-base.executeWorkflow", typeVersion: 1, position: [520, 300] };
+      action = { parameters: { source: "database", workflowId: `kiln_process_${slug(tgt.ref)}` }, name: `Workflow: ${tgt.ref}`, type: "n8n-nodes-base.executeWorkflow", typeVersion: 1, position: [520, 300] };
     } else {
       // notify → a placeholder Set node capturing the message (wire to email/Slack like the comms layer).
       action = { parameters: { values: { string: [{ name: "notify", value: `route ${t.name} to ${tgt.ref}` }] } }, name: `Notify: ${tgt.ref}`, type: "n8n-nodes-base.set", typeVersion: 3, position: [520, 300] };
     }
-    out.push({ id: `vbd_trigger_${slug(t.id)}`, name: `Trigger: ${t.name}`, nodes: [source, action], connections: { [t.name]: { main: [[{ node: action.name as string, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
+    out.push({ id: `kiln_trigger_${slug(t.id)}`, name: `Trigger: ${t.name}`, nodes: [source, action], connections: { [t.name]: { main: [[{ node: action.name as string, type: "main", index: 0 }]] } }, active: false, settings: { executionOrder: "v1" } });
   }
   return out;
 }

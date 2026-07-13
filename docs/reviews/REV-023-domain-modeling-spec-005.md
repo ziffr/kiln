@@ -240,7 +240,7 @@ question, and the stateless-thinness question are answered inline and collected 
   is exactly `whenever event → issue command`. But the word is heavily overloaded (authorization
   policies, governance policies, business-rule/invariant "policies"), and the artifact here is more
   precisely an **event subscription / reactive rule / process-manager step**. Two consequences worth a
-  cheap decision *before the node type is minted permanently in `@vbd/ir`* (the REV-018 CE-C9 argument —
+  cheap decision *before the node type is minted permanently in `@kiln/ir`* (the REV-018 CE-C9 argument —
   edge/node names are a semi-public contract): (a) the spec has already, correctly, chosen the *surface*
   term **"Automations / Wenn… dann…"** (§7, Q5), so the user is protected regardless; (b) internally,
   `reaction` would be less overloaded than `policy`, matches the spec's own leading prose ("reaction"),
@@ -252,7 +252,7 @@ question, and the stateless-thinness question are answered inline and collected 
   caveat).
 - **Recommendation:** Keep the surface term "Automations." Consider renaming the IR node type
   `policy → reaction` (and optionally `then → reacts_with`, `when → triggers`) before it is written into
-  `@vbd/ir`; if `policy` is kept, add a sentence noting it is the event-storming reactive-Policy sense
+  `@kiln/ir`; if `policy` is kept, add a sentence noting it is the event-storming reactive-Policy sense
   and reserving "business rule/invariant" for a later layer. Note in §5 that the mock's suffix heuristic
   is an English dev aid, not a general matcher.
 

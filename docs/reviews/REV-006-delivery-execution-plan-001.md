@@ -131,14 +131,14 @@ actionability signal it is meant to secure. All are fixable by resequencing/scop
 - **Recommendation:** Put A3's determinism unit tests in **M4 DoD** (edit→write-back→recompile is
   hash-stable; dirty flag toggles correctly). M5 then only confirms, not builds, A3.
 
-### F9 — @vbd/store missing from M0 scope though buildHash is an M0 DoD
+### F9 — @kiln/store missing from M0 scope though buildHash is an M0 DoD
 - **Severity:** Minor
 - **Location:** §3 M0 Scope/DoD; §6 workstreams
 - **Issue:** M0 DoD requires "buildHash stable across recompiles," and buildHash =
   hash(authored files ⊕ compilerVersion ⊕ schemaVersion) — reading authored files and managing the
-  `.vbd/` cache is `@vbd/store` territory (ADR-002). §6 lists Store/infra in "(M0, M4)," but M0's
-  scope bullet omits `@vbd/store` entirely. The scope and DoD disagree.
-- **Recommendation:** Add a minimal `@vbd/store` (authored-file read + buildHash + `.vbd/` cache
+  `.vbd/` cache is `@kiln/store` territory (ADR-002). §6 lists Store/infra in "(M0, M4)," but M0's
+  scope bullet omits `@kiln/store` entirely. The scope and DoD disagree.
+- **Recommendation:** Add a minimal `@kiln/store` (authored-file read + buildHash + `.vbd/` cache
   verify) to **M0 scope**, matching the DoD and the §6 workstream assignment.
 
 ### F10 — G-EVAL is unenforceable until the harness exists

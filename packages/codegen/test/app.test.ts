@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { generateApp, projectAppModel } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { version: "0.2", domain: "solar", capabilities: [
   { id: "lead_management", name: "Lead Management" }, { id: "installation", name: "Installation" },

@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockGenerateRoles, generateRoles, coerceRoles, type LlmProvider } from "../src/index.ts";
-import { validateRoles } from "@vbd/validation";
-import type { CapabilityDoc } from "@vbd/compiler";
+import { validateRoles } from "@kiln/validation";
+import type { CapabilityDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { version: "0.2", domain: "solar", capabilities: [{ id: "lead_management", name: "Lead" }, { id: "billing", name: "Billing" }] };
 

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validateRoles } from "../src/index.ts";
-import type { RolesDoc } from "@vbd/compiler";
+import type { RolesDoc } from "@kiln/compiler";
 
 const caps = ["lead_management", "billing"];
 const grounded = { origin: "llm", derivedFrom: [{ anchor: "sales team" }] };

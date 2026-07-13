@@ -13,7 +13,7 @@ import {
   TECH_CAPABILITIES,
   type Binding,
 } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc } from "@kiln/compiler";
 
 // A tiny two-entity model with behaviour, one reaction, one workflow, one role.
 const caps: CapabilityDoc = {

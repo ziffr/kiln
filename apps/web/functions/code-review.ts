@@ -1,5 +1,5 @@
-import { reviewGeneratedCode } from "@vbd/skills";
-import type { CapabilityDoc } from "@vbd/compiler";
+import { reviewGeneratedCode } from "@kiln/skills";
+import type { CapabilityDoc } from "@kiln/compiler";
 import { requireClient, readBody, newUsage, estCost, anthropicProvider, modelById, DEFAULT_MODEL, DEFAULT_EFFORT, type Req, type Res } from "./_lib.ts";
 
 // Multi-lens AI review of the generated app code (security / correctness / maintainability).

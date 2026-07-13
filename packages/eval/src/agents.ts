@@ -1,6 +1,6 @@
-/** @vbd/eval — AGENT evaluation (SPEC-008). Defect detection + capability-coverage. */
-import type { CapabilityDoc, AgentsDoc } from "@vbd/compiler";
-import { validateAgents, type Finding } from "@vbd/validation";
+/** @kiln/eval — AGENT evaluation (SPEC-008). Defect detection + capability-coverage. */
+import type { CapabilityDoc, AgentsDoc } from "@kiln/compiler";
+import { validateAgents, type Finding } from "@kiln/validation";
 import type { ExpectedDefect } from "./index.ts";
 
 export interface AgentsEvalCase { id: string; description: string; agents: AgentsDoc; capabilityIds: string[]; expected: ExpectedDefect[] }

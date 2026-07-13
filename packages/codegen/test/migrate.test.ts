@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { migratePostgres, migrate } from "../src/index.ts";
-import type { DomainDoc } from "@vbd/compiler";
+import type { DomainDoc } from "@kiln/compiler";
 
 const dom = (aggregates: unknown[]): DomainDoc => ({ version: "1", aggregates } as unknown as DomainDoc);
 const lead = (attrs: unknown[], refs: string[] = []) => ({ id: "lead", name: "Lead", owner: "sales", attributes: attrs, references: refs });

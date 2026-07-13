@@ -1,5 +1,5 @@
 {
-  "name": "@vbd/compiler",
+  "name": "@kiln/compiler",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,6 +8,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@vbd/ir": "*"
+    "@kiln/ir": "*"
   }
 }

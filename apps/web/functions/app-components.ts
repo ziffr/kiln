@@ -1,5 +1,5 @@
-import { generateComponents } from "@vbd/skills";
-import type { CapabilityDoc } from "@vbd/compiler";
+import { generateComponents } from "@kiln/skills";
+import type { CapabilityDoc } from "@kiln/compiler";
 import { requireClient, readBody, newUsage, estCost, anthropicProvider, modelById, pickEffort, DEFAULT_MODEL, type Req, type Res } from "./_lib.ts";
 
 // The LLM designs a per-entity screen (a validated view spec — data, never JSX, so it's build-safe).

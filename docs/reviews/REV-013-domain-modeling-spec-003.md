@@ -21,7 +21,7 @@ reviewers: [domain-modeling]
 SPEC-003 adds the missing rung — a capability-grouping layer — and as a *mechanism* it is the
 cleanest reuse in the series: partition + deterministic validators + grounded provenance +
 authored/derived tagging + a mock, all one layer up from SPEC-002. The IR already reserves the
-`bounded_context` node and `groups` edge (verified in `@vbd/ir`), the `bctx:` namespacing mirrors
+`bounded_context` node and `groups` edge (verified in `@kiln/ir`), the `bctx:` namespacing mirrors
 SPEC-002's `aggregate:` correctly, and the derived entity→context projection walk (§4) is sound as
 written. I have no quarrel with the loop.
 
@@ -208,7 +208,7 @@ answered inline and collected in "Open questions."
   unassigned projects to a synthetic **"Unassigned"** area (read-only), mirroring how the map already
   drops dangling edges gracefully (SPEC-002 R4). State this in §4 so the projection is total.
 
-### C9 — IR compose / provenance consistency nits (verified against `@vbd/compiler`)
+### C9 — IR compose / provenance consistency nits (verified against `@kiln/compiler`)
 - **Severity:** Nit
 - **Location:** §3 (`derivedFrom` shape), §4 (compose + buildHash)
 - **Issues & changes:**

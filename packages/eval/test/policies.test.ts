@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mockGeneratePolicies } from "@vbd/skills";
+import { mockGeneratePolicies } from "@kiln/skills";
 import { scorePoliciesCase, aggregatePoliciesRecall, scorePolicyCoverage, reactionRecall, spuriousRate } from "../src/index.ts";
 import { solarPoliciesCorpus, solarPolicyReference, solarBehaviourForPolicies } from "../src/policies.solar.ts";
 

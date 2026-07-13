@@ -228,7 +228,7 @@ the events-first / command-always-changes questions) are answered inline and col
   aggregate); the capability **issues / invokes** it (§0 itself says "invoked within a capability").
   The command→aggregate edge (`changes`) is effectively the handled-by relation. REV-007 D9 already
   flagged `handles` as ambiguous in SPEC-002; since these edge names are now being permanently written
-  into `@vbd/ir` as a semi-public contract, it is worth getting the verb right rather than carrying the
+  into `@kiln/ir` as a semi-public contract, it is worth getting the verb right rather than carrying the
   ambiguity forward.
 - **Recommendation:** Rename the capability→command edge to `issues` (or `invokes`). Reserve
   "handling" for the aggregate — which `changes` already expresses. Nothing else changes.

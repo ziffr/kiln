@@ -1,13 +1,13 @@
 /**
  * reviewGeneratedCode — the multi-lens AI code reviewer for the EXPORTED app (the one QA layer that
- * needs the model; lint/docs/security-hardening are deterministic in @vbd/codegen). Reviews the
+ * needs the model; lint/docs/security-hardening are deterministic in @kiln/codegen). Reviews the
  * runtime code (server + handlers) across security, correctness and maintainability lenses and
  * returns advisory findings — the same Review→findings→fix discipline the model layers already use.
  */
 
-import { sha256 } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc } from "@vbd/compiler";
-import { generateApp } from "@vbd/codegen";
+import { sha256 } from "@kiln/ir";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc } from "@kiln/compiler";
+import { generateApp } from "@kiln/codegen";
 import type { LlmProvider } from "./types.ts";
 
 export type CodeLens = "security" | "correctness" | "maintainability";

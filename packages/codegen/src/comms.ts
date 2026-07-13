@@ -1,5 +1,5 @@
 /**
- * @vbd/codegen/comms — the COMMUNICATION layer (notify + render).
+ * @kiln/codegen/comms — the COMMUNICATION layer (notify + render).
  *
  * Every business app sends things: emails, Slack/Teams messages, PDF/Word documents. These are a new
  * class of action — EFFECTS that communicate/produce rather than change domain state — and they fit the
@@ -13,8 +13,8 @@
  * Pure and isomorphic. `mockCommunications` derives sensible defaults; an LLM pass can refine them.
  */
 
-import { slug } from "@vbd/ir";
-import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@vbd/compiler";
+import { slug } from "@kiln/ir";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@kiln/compiler";
 import type { N8nWorkflow } from "./targets.ts";
 
 export type CommChannel = "email" | "slack" | "pdf" | "spreadsheet";
@@ -91,7 +91,7 @@ export function communicationsAdapter(comms: CommunicationsDoc, baseUrl = "http:
         ? { parameters: { toEmail: a.recipient, subject: a.subject, text: a.template, options: {} }, name: "Send Email", type: "n8n-nodes-base.emailSend", typeVersion: 2, position: [520, 300] }
         : { parameters: { select: "channel", channelId: a.recipient, text: a.template }, name: "Post to Slack", type: "n8n-nodes-base.slack", typeVersion: 2, position: [520, 300] };
     n8n.push({
-      id: `vbd_comm_${a.id}`,
+      id: `kiln_comm_${a.id}`,
       name: `Comm: ${a.name}`,
       nodes: [trigger, action],
       connections: { [trigger.name]: { main: [[{ node: action.name, type: "main", index: 0 }]] } },

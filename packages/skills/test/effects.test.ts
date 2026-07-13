@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { coerceCommunications, coerceIntegrations } from "../src/index.ts";
-import type { DomainDoc } from "@vbd/compiler";
+import type { DomainDoc } from "@kiln/compiler";
 
 const domain: DomainDoc = {
   aggregates: [

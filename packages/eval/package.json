@@ -1,5 +1,5 @@
 {
-  "name": "@vbd/eval",
+  "name": "@kiln/eval",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -21,10 +21,10 @@
     "./agents": "./src/agents.ts"
   },
   "dependencies": {
-    "@vbd/compiler": "*",
-    "@vbd/ir": "*",
-    "@vbd/narrative": "*",
-    "@vbd/skills": "*",
-    "@vbd/validation": "*"
+    "@kiln/compiler": "*",
+    "@kiln/ir": "*",
+    "@kiln/narrative": "*",
+    "@kiln/skills": "*",
+    "@kiln/validation": "*"
   }
 }

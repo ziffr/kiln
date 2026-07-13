@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validateContexts } from "../src/index.ts";
-import type { CapabilityDoc, ContextsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, ContextsDoc } from "@kiln/compiler";
 
 const doc: CapabilityDoc = {
   version: "0.2",

@@ -1,5 +1,5 @@
 {
-  "name": "@vbd/ir",
+  "name": "@kiln/ir",
   "version": "0.0.0",
   "private": true,
   "type": "module",

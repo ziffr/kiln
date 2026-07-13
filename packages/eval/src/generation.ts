@@ -1,5 +1,5 @@
 /**
- * @vbd/eval — GENERATION-coverage scoring (SPEC-001 §8; REV-006 F2).
+ * @kiln/eval — GENERATION-coverage scoring (SPEC-001 §8; REV-006 F2).
  *
  * The defect-detection scorer (index.ts) asks "did we catch the seeded defects?". This scorer
  * asks the complementary question for the M2 generator: "did the generated capabilities actually
@@ -7,7 +7,7 @@
  *
  *   activityCoverage — fraction of the narrative's Core Activities cited by at least one
  *                      capability's `meta.derivedFrom` anchors (provenance-based recall over the
- *                      input). Uses the SAME hyphenated anchor scheme as @vbd/narrative `anchorize`
+ *                      input). Uses the SAME hyphenated anchor scheme as @kiln/narrative `anchorize`
  *                      so a cited anchor matches the section/item it was derived from.
  *   expectedCoverage — fraction of a reference capability-id set present in the generated doc
  *                      (recall over an expected shape). Only meaningful when a reference set exists.
@@ -15,8 +15,8 @@
  * Pure and deterministic — this scores the MOCK generator with no LLM call, key, or cost.
  */
 
-import type { CapabilityDoc } from "@vbd/compiler";
-import { anchorize } from "@vbd/narrative";
+import type { CapabilityDoc } from "@kiln/compiler";
+import { anchorize } from "@kiln/narrative";
 
 export interface GenerationCoverage {
   /** cited Core Activities / total Core Activities (1 when there are no activities). */

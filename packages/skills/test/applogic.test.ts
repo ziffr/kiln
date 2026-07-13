@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { generateAppLogic } from "../src/index.ts";
-import { generateApp } from "@vbd/codegen";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+import { generateApp } from "@kiln/codegen";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { version: "0.2", domain: "solar", capabilities: [{ id: "sales", name: "Sales" }] };
 const domain: DomainDoc = {

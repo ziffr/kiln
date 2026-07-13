@@ -1,5 +1,5 @@
 /**
- * @vbd/codegen/agents — wire agents to concrete TOOLS and emit a RUNNABLE, provider-flexible runtime.
+ * @kiln/codegen/agents — wire agents to concrete TOOLS and emit a RUNNABLE, provider-flexible runtime.
  *
  * An agent (SPEC-008) is a goal + the capabilities it operates. This resolves, per agent, the tools it
  * can use — commands (the spine endpoints), a `notify` tool (human-in-the-loop router), the pre-built
@@ -9,8 +9,8 @@
  * the UI clicks them, workflows sequence them, agents choose them. Pure and isomorphic.
  */
 
-import { slug } from "@vbd/ir";
-import { attributeSpecs, type CapabilityDoc, type DomainDoc, type AgentsDoc, type WorkflowsDoc } from "@vbd/compiler";
+import { slug } from "@kiln/ir";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc, type AgentsDoc, type WorkflowsDoc } from "@kiln/compiler";
 import type { CommunicationsDoc } from "./comms.ts";
 import type { ExternalServicesDoc } from "./services.ts";
 

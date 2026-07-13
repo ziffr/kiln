@@ -3,7 +3,7 @@
  *
  * `solarNarrativeMd` — the authored solar narrative, read from the workspace so the scorer runs
  *                      against the real source of truth (same fs/fileURLToPath approach as the
- *                      @vbd/narrative test).
+ *                      @kiln/narrative test).
  * `solarExpectedCapabilityIds` — the capability shape a correct generation must recover for solar:
  *                      the end-to-end value chain from lead through service. This mirrors what the
  *                      mock's keyword rules actually derive from the 12 Core Activities, and is the

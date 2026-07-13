@@ -9,9 +9,9 @@ import { PROMPTS } from "./prompts.generated.ts";
  * validated; a broken batch (CE2/CE3/CE4/emit-boundary) repairs once (REV-019 CE-F2).
  */
 
-import { slug } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc, CommandInput, EventInput, AggregateInput } from "@vbd/compiler";
-import { validateEvents, type Finding } from "@vbd/validation";
+import { slug } from "@kiln/ir";
+import type { CapabilityDoc, DomainDoc, CommandInput, EventInput, AggregateInput } from "@kiln/compiler";
+import { validateEvents, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }] });

@@ -2,7 +2,7 @@
 // forcing everything through one graph. Compact by design; the map stays for capabilities/areas.
 
 import { useState } from "react";
-import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type WorkflowsDoc, type AgentsDoc, type ContextsDoc } from "@vbd/compiler";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type WorkflowsDoc, type AgentsDoc, type ContextsDoc } from "@kiln/compiler";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 const capName = (caps: CapabilityDoc, id: string): string => caps.capabilities.find((c) => c.id === id)?.name || id;

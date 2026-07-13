@@ -24,4 +24,4 @@ jobs:
         run: npm test
 
       - name: Build web app
-        run: npm run build --workspace @vbd/web
+        run: npm run build --workspace @kiln/web

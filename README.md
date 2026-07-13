@@ -49,25 +49,26 @@ The app opens on a gallery of worked verticals, each demonstrating a different w
 | ☕ **Röstwerk** — specialty-coffee **franchise** | a **structured interview** run by the agent |
 | ⚰️ **Abschied & Würde** — funeral-service **franchise** | owner-entered content |
 
-> **Naming:** **Kiln** is the product; the code uses the internal codename **VBD** (`@vbd/*` packages +
-> the historically-misspelled repo dir), which are not renamed.
+> **Naming:** everything is **Kiln** — the product, the `@kiln/*` packages, and the `kiln.sh` CLI. The only
+> pre-Kiln remnants are the local git-directory name (`VerticalBusinessDesiger`, kept for history; the public
+> repo is `kiln`) and an accepted legacy `VBD_ANTHROPIC_API_KEY` env alias, so existing setups keep working.
 
 ## Repository layout
 
 ```
 docs/                 governed plans, specs, reviews, ADRs (see docs/CONVENTIONS.md)
 packages/
-  ir/                 @vbd/ir — IR types + isomorphic SHA-256 hashing (the spine)
-  schema/             @vbd/schema — JSON Schemas (capability.schema.json)
-  compiler/           @vbd/compiler — authored artifacts → IR (+ computeBuildHash)
-  validation/         @vbd/validation — deterministic validators V1–V2 (V3–V8 in M3)
-  store/              @vbd/store — .vbd/ derived cache with buildHash-on-load (ADR-002)
-  eval/               @vbd/eval — seeded-defect corpus + recall/precision scorer
-  narrative/          @vbd/narrative — Business Narrative parser + completeness validators (M1)
-  skills/             @vbd/skills — LLM skill runtime; CapabilityGenerator + MockProvider (M2)
+  ir/                 @kiln/ir — IR types + isomorphic SHA-256 hashing (the spine)
+  schema/             @kiln/schema — JSON Schemas (capability.schema.json)
+  compiler/           @kiln/compiler — authored artifacts → IR (+ computeBuildHash)
+  validation/         @kiln/validation — deterministic validators V1–V2 (V3–V8 in M3)
+  store/              @kiln/store — .kiln/ derived cache with buildHash-on-load (ADR-002)
+  eval/               @kiln/eval — seeded-defect corpus + recall/precision scorer
+  narrative/          @kiln/narrative — Business Narrative parser + completeness validators (M1)
+  skills/             @kiln/skills — LLM skill runtime; CapabilityGenerator + MockProvider (M2)
 apps/
-  web/                @vbd/web — React + Vite SPA (narrative editor + Capability Map, DE/EN)
-  service/            @vbd/service — server-side API (holds the LLM key; @anthropic-ai/sdk)
+  web/                @kiln/web — React + Vite SPA (narrative editor + Capability Map, DE/EN)
+  service/            @kiln/service — server-side API (holds the LLM key; @anthropic-ai/sdk)
 workspaces/
   solar-example/      reference solar-installer narrative + capabilities
 ```
@@ -76,24 +77,24 @@ workspaces/
 
 The web app runs standalone with an **offline mock** generator. For **real LLM generation**,
 also run the service (it holds the Anthropic key). Put your key in a git-ignored `.env` at the
-repo root: `VBD_ANTHROPIC_API_KEY=sk-ant-...`
+repo root: `KILN_ANTHROPIC_API_KEY=sk-ant-...`
 
-The easiest entrypoint is the **`vbd.sh`** helper — one script wrapping every CLI task
-(`./vbd.sh help` lists them all; `./vbd.sh doctor` checks your environment):
+The easiest entrypoint is the **`kiln.sh`** helper — one script wrapping every CLI task
+(`./kiln.sh help` lists them all; `./kiln.sh doctor` checks your environment):
 
 ```bash
-./vbd.sh install     # install deps (links workspaces)
-./vbd.sh dev         # run the service (:8787) + web app (:5188) together
-./vbd.sh export      # project the model → a complete multi-backend system in ./out/targets
-./vbd.sh app:up      # build + run that generated system (docker compose + schema)
+./kiln.sh install     # install deps (links workspaces)
+./kiln.sh dev         # run the service (:8787) + web app (:5188) together
+./kiln.sh export      # project the model → a complete multi-backend system in ./out/targets
+./kiln.sh app:up      # build + run that generated system (docker compose + schema)
 ```
 
 Or drive the underlying tools directly:
 
 ```bash
 npm install                          # links workspaces + installs deps
-npm run dev --workspace @vbd/web     # web (Vite) on http://localhost:5188
-npm run dev --workspace @vbd/service # API on http://localhost:8787 (loads .env)
+npm run dev --workspace @kiln/web     # web (Vite) on http://localhost:5188
+npm run dev --workspace @kiln/service # API on http://localhost:8787 (loads .env)
 ```
 
 Then open the web app, pick a model (default **Sonnet 5 / medium**), and click **Generate with

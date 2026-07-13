@@ -14,7 +14,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error): void {
     // eslint-disable-next-line no-console
-    console.error("VBD render error:", error);
+    console.error("Kiln render error:", error);
   }
 
   render(): ReactNode {
@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button
               className="addcap"
               onClick={() => {
-                try { localStorage.removeItem("vbd.projects"); } catch { /* ignore */ }
+                try { localStorage.removeItem("kiln.projects"); localStorage.removeItem("vbd.projects"); } catch { /* ignore */ }
                 this.props.onReset?.();
                 this.setState({ error: null });
               }}

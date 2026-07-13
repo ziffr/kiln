@@ -1,9 +1,9 @@
 {
-  "name": "vbd",
+  "name": "kiln",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "VerticalBusinessDesigner (VBD) — an LLM-guided Business Compiler",
+  "description": "Kiln (VBD) — an LLM-guided Business Compiler",
   "workspaces": [
     "packages/*",
     "apps/*"

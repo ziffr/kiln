@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { buildCoachSystemPrompt, COACH_SCHEMA, safeParseJson, type CoachConfig } from "@vbd/skills";
+import { buildCoachSystemPrompt, COACH_SCHEMA, safeParseJson, type CoachConfig } from "@kiln/skills";
 import { requireClient, readBody, newUsage, round, modelById, pickEffort, DEFAULT_MODEL, type Req, type Res } from "./_lib.ts";
 
 export default async function handler(req: Req, res: Res): Promise<void> {

@@ -1,6 +1,6 @@
-/** @vbd/eval — WORKFLOW evaluation (SPEC-007). Defect detection + step-coverage. */
-import type { DomainDoc, WorkflowsDoc } from "@vbd/compiler";
-import { validateWorkflows, type Finding } from "@vbd/validation";
+/** @kiln/eval — WORKFLOW evaluation (SPEC-007). Defect detection + step-coverage. */
+import type { DomainDoc, WorkflowsDoc } from "@kiln/compiler";
+import { validateWorkflows, type Finding } from "@kiln/validation";
 import type { ExpectedDefect } from "./index.ts";
 
 export interface WorkflowsEvalCase { id: string; description: string; workflows: WorkflowsDoc; commandIds: string[]; expected: ExpectedDefect[] }

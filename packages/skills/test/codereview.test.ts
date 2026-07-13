@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { reviewGeneratedCode } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { version: "0.2", domain: "solar", capabilities: [{ id: "sales", name: "Sales" }] };
 const domain: DomainDoc = { version: "0.1", aggregates: [{ id: "offer", name: "Offer", owner: "sales", attributes: [{ name: "amount", type: "money" }] }], commands: [{ id: "make_offer", name: "Make Offer", aggregate: "offer", capability: "sales", emits: [] }], events: [], policies: [] } as any;

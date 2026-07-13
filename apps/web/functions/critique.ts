@@ -1,5 +1,5 @@
-import { critiqueLayer, CRITIQUE_EFFORT, type LayerKind, type ReviewModel } from "@vbd/skills";
-import type { CapabilityDoc } from "@vbd/compiler";
+import { critiqueLayer, CRITIQUE_EFFORT, type LayerKind, type ReviewModel } from "@kiln/skills";
+import type { CapabilityDoc } from "@kiln/compiler";
 import { requireClient, readBody, newUsage, estCost, anthropicProvider, modelById, DEFAULT_MODEL, DEFAULT_EFFORT, EFFORTS, type Req, type Res } from "./_lib.ts";
 
 // Generic semantic critic: the LLM reviews ANY layer of its own output (advisory). Higher effort —

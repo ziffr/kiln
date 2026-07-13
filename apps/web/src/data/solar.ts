@@ -1,4 +1,4 @@
-import type { CapabilityDoc } from "@vbd/compiler";
+import type { CapabilityDoc } from "@kiln/compiler";
 
 /**
  * Bundled solar reference data for the MVP shell (mirrors workspaces/solar-example).

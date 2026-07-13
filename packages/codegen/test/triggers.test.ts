@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockTriggers, triggersAdapter } from "../src/triggers.ts";
 import { projectTargets, DEFAULT_BINDING } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { domain: "Solar", capabilities: [{ id: "leads", name: "Lead Management", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
 const domain: DomainDoc = {
@@ -41,7 +41,7 @@ test("triggersAdapter emits an importable n8n workflow per trigger (source → a
   const wfs = triggersAdapter(doc, domain);
   assert.equal(wfs.length, doc.triggers.length);
   for (const w of wfs) {
-    assert.ok(w.id.startsWith("vbd_trigger_"), "stable id (n8n NOT NULL)");
+    assert.ok(w.id.startsWith("kiln_trigger_"), "stable id (n8n NOT NULL)");
     assert.equal(w.nodes.length, 2, "source + action");
     assert.ok(w.settings && w.active === false);
     // the connection references the action node by name
@@ -65,11 +65,11 @@ test("command / workflow / notify targets each map to the right node type", () =
     ],
   };
   const wfs = triggersAdapter(doc, domain);
-  const action = (id: string) => wfs.find((w) => w.id === `vbd_trigger_${id}`)!.nodes[1];
+  const action = (id: string) => wfs.find((w) => w.id === `kiln_trigger_${id}`)!.nodes[1];
   assert.equal(action("t_cmd").type, "n8n-nodes-base.httpRequest");
   assert.match(String((action("t_cmd").parameters as { url: string }).url), /\/leads/); // create endpoint
   assert.equal(action("t_wf").type, "n8n-nodes-base.executeWorkflow");
-  assert.match(String((action("t_wf").parameters as { workflowId: string }).workflowId), /vbd_process_onboard/);
+  assert.match(String((action("t_wf").parameters as { workflowId: string }).workflowId), /kiln_process_onboard/);
   assert.equal(action("t_notify").type, "n8n-nodes-base.set");
 });
 

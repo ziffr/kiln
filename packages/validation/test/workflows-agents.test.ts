@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validateWorkflows, validateAgents } from "../src/index.ts";
-import type { WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
+import type { WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
 
 const g = { origin: "llm", derivedFrom: [{ anchor: "process" }] };
 test("clean workflow (≥2 known steps) has no major findings", () => {

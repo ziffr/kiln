@@ -7,7 +7,7 @@ review and merge, not to tag by hand.
 
 ## Versioning
 
-VBD is versioned at the **repository level** using [Semantic Versioning](https://semver.org/). VBD
+Kiln is versioned at the **repository level** using [Semantic Versioning](https://semver.org/). Kiln
 is an application and monorepo, **not** a set of npm packages published to a registry — so the
 version describes the product as a whole, not individual packages. The version lives in the root
 [`package.json`](package.json) (release-please reads and bumps it there).

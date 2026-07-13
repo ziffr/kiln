@@ -8,8 +8,8 @@
  * (generateAppLogic) rewrites the command handler + component bodies with real domain logic on top.
  */
 
-import { slug } from "@vbd/ir";
-import { attributeSpecs, type CapabilityDoc, type DomainDoc, type ContextsDoc, type RolesDoc } from "@vbd/compiler";
+import { slug } from "@kiln/ir";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc, type ContextsDoc, type RolesDoc } from "@kiln/compiler";
 
 export interface AppModel {
   domain: string;

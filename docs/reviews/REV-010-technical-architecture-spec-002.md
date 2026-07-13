@@ -19,7 +19,7 @@ related: [SPEC-002]
 
 SPEC-002 extends the SPEC-001 substrate the way it should: same loop, one layer deeper,
 reusing the IR, validators, provenance, and human-in-the-loop editing. The core moves —
-adding `aggregate|command|event` nodes + `owns|handles|emits` edges to `@vbd/ir`, composing
+adding `aggregate|command|event` nodes + `owns|handles|emits` edges to `@kiln/ir`, composing
 a second authored artifact into one IR, and adding pure validators DM1–DM8 — are the right
 shape and preserve the "text is truth" invariant. The validator placement is sound and the
 authored/derived tagging generalizes cleanly.

@@ -32,7 +32,7 @@ Forces:
 
 ## Decision
 **Use TypeScript end-to-end** for client and service. The IR and all artifact types are
-defined once in a shared `@vbd/ir` package and imported by every other package. No Python
+defined once in a shared `@kiln/ir` package and imported by every other package. No Python
 service in the MVP.
 
 ## Alternatives considered
@@ -51,5 +51,5 @@ service in the MVP.
 - Node ≥ 20 (dev env is Node 26). Package manager: npm workspaces (monorepo).
 
 ## Follow-ups
-- `@vbd/ir` package owns `IR`, `IRNode`, `IREdge`, `SourceRef`, `Origin` (SPEC-001 §3.4).
+- `@kiln/ir` package owns `IR`, `IRNode`, `IREdge`, `SourceRef`, `Origin` (SPEC-001 §3.4).
 - Codegen ADR (later) will specify how target-language text is emitted and tested.

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockOrchestration, applyOrchestration, coerceOrchestration, generateOrchestration } from "../src/orchestration.ts";
 import type { LlmProvider, LlmRequest, LlmResult } from "../src/types.ts";
-import type { WorkflowsDoc } from "@vbd/compiler";
+import type { WorkflowsDoc } from "@kiln/compiler";
 
 const workflows: WorkflowsDoc = {
   version: "0.1",

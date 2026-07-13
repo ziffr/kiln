@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Fully automated: creates .env (+ a fresh secret), builds the Docker image if missing, wires the
-# repo-root .env so VBD can reach the verifier, and starts the service. No manual Docker needed.
+# repo-root .env so Kiln can reach the verifier, and starts the service. No manual Docker needed.
 #
 #   bash verifier/run.sh              # first run does everything, then starts the service
 #   bash verifier/run.sh --rebuild    # force-rebuild the image
 #
-# Cut-over to a VPS: run this same script there, then set VBD_VERIFY_URL in the repo-root .env to the
-# VPS URL (and VBD_VERIFY_SECRET to that box's VERIFY_SECRET). Nothing else changes.
+# Cut-over to a VPS: run this same script there, then set KILN_VERIFY_URL in the repo-root .env to the
+# VPS URL (and KILN_VERIFY_SECRET to that box's VERIFY_SECRET). Nothing else changes.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -21,18 +21,18 @@ fi
 
 # Load .env into this shell.
 set -a; . ./.env; set +a
-: "${PORT:=8900}"; : "${VERIFY_IMAGE:=vbd-verifier}"
+: "${PORT:=8900}"; : "${VERIFY_IMAGE:=kiln-verifier}"
 
-# 2) Wire the repo-root .env so VBD reaches this verifier (idempotent — only adds if missing).
+# 2) Wire the repo-root .env so Kiln reaches this verifier (idempotent — only adds if missing).
 ROOT_ENV="../.env"
-if [ -f "$ROOT_ENV" ] && ! grep -q "^VBD_VERIFY_URL=" "$ROOT_ENV"; then
+if [ -f "$ROOT_ENV" ] && ! grep -q "^KILN_VERIFY_URL=" "$ROOT_ENV"; then
   {
     echo ""
     echo "# --- app verifier (added by verifier/run.sh) ---"
-    echo "VBD_VERIFY_URL=http://localhost:${PORT}"
-    echo "VBD_VERIFY_SECRET=${VERIFY_SECRET}"
+    echo "KILN_VERIFY_URL=http://localhost:${PORT}"
+    echo "KILN_VERIFY_SECRET=${VERIFY_SECRET}"
   } >> "$ROOT_ENV"
-  echo "→ wired VBD_VERIFY_URL + VBD_VERIFY_SECRET into repo-root .env"
+  echo "→ wired KILN_VERIFY_URL + KILN_VERIFY_SECRET into repo-root .env"
 fi
 
 # 3) Build the image if it's missing (or --rebuild).

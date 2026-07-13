@@ -4,13 +4,13 @@
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace", "@vbd/web"],
+      "runtimeArgs": ["run", "dev", "--workspace", "@kiln/web"],
       "port": 5188
     },
     {
       "name": "service",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace", "@vbd/service"],
+      "runtimeArgs": ["run", "dev", "--workspace", "@kiln/service"],
       "port": 8787
     }
   ]

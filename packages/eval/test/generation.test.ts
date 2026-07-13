@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseNarrative, coreActivities } from "@vbd/narrative";
-import { mockGenerateCapabilities } from "@vbd/skills";
+import { parseNarrative, coreActivities } from "@kiln/narrative";
+import { mockGenerateCapabilities } from "@kiln/skills";
 import { scoreGenerationCoverage } from "../src/index.ts";
 import { solarNarrativeMd, solarExpectedCapabilityIds } from "../src/generation.solar.ts";
 

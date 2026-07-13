@@ -32,13 +32,13 @@ Monorepo, npm workspaces (ADR-001):
 ├── package.json               # workspaces root
 ├── tsconfig.base.json
 ├── packages/
-│   ├── ir/                    # @vbd/ir — IR types (SPEC-001 §3.4) + origin tagging
-│   ├── schema/                # @vbd/schema — JSON Schemas (capability, narrative, ir)
-│   ├── compiler/              # @vbd/compiler — authored text → IR
-│   ├── validation/            # @vbd/validation — validators V1–V8 (pure fns over IR)
-│   ├── skills/                # @vbd/skills — LLM skill contracts + prompts (later milestones)
-│   ├── store/                 # @vbd/store — git + .vbd cache + buildHash (ADR-002)
-│   └── eval/                  # @vbd/eval — seeded-defect corpus + harness (§8)
+│   ├── ir/                    # @kiln/ir — IR types (SPEC-001 §3.4) + origin tagging
+│   ├── schema/                # @kiln/schema — JSON Schemas (capability, narrative, ir)
+│   ├── compiler/              # @kiln/compiler — authored text → IR
+│   ├── validation/            # @kiln/validation — validators V1–V8 (pure fns over IR)
+│   ├── skills/                # @kiln/skills — LLM skill contracts + prompts (later milestones)
+│   ├── store/                 # @kiln/store — git + .vbd cache + buildHash (ADR-002)
+│   └── eval/                  # @kiln/eval — seeded-defect corpus + harness (§8)
 ├── apps/
 │   ├── service/               # API (compile, validate, review, store)
 │   └── web/                   # SPA (narrative editor, capability map, review inbox)
@@ -48,22 +48,22 @@ Monorepo, npm workspaces (ADR-001):
 ## 3. Milestones (scope • deliverables • definition of done)
 
 ### M0 — Foundation *(no LLM, no UI)* — **DELIVERED**
-- **Scope:** scaffold monorepo; `@vbd/ir` types + origin tagging; `@vbd/schema` capability
-  schema; `@vbd/compiler` skeleton (capabilities → IR with authored/derived tagging +
-  buildHash); `@vbd/validation` V1 (required fields) + V2 (unique/stable ids); tests.
-- **Full-IR-type-at-M0 (REV-006 F4):** the `@vbd/ir` type MUST define **all** node/edge
+- **Scope:** scaffold monorepo; `@kiln/ir` types + origin tagging; `@kiln/schema` capability
+  schema; `@kiln/compiler` skeleton (capabilities → IR with authored/derived tagging +
+  buildHash); `@kiln/validation` V1 (required fields) + V2 (unique/stable ids); tests.
+- **Full-IR-type-at-M0 (REV-006 F4):** the `@kiln/ir` type MUST define **all** node/edge
   variants (capability, actor, outcome, domain_object, bounded_context; produces/consumes/
   depends_on/owns/serves/groups) **and** the deterministic `IREdge.id` rule now, even though
   M0 only exercises the capability path — so the "frozen" IR does not mutate in M2/M3.
-- **Seed the eval corpus now (REV-006 F1):** create `@vbd/eval` with the first hand-authored
+- **Seed the eval corpus now (REV-006 F1):** create `@kiln/eval` with the first hand-authored
   solar narratives carrying *known* seeded defects (missing Procurement, Lead/Customer overlap,
   uncovered outcome). Pure data — no LLM — so it exists *before* it must measure M2/M3.
 - **DoD:** `npm test` green; compiling the solar `capabilities` fixture yields a valid IR;
   V1/V2 catch seeded violations; buildHash stable across recompiles of unchanged input; IR type
   includes all variants; eval corpus has ≥3 named seeded-defect cases.
 - **Exit:** IR contract frozen for downstream packages.
-- **Status:** ✅ **COMPLETE.** scaffold + IR + compiler + V1/V2; `@vbd/eval` seed corpus (4
-  M0-scoreable cases + 2 pending V3/V7 cases) with a recall/precision scorer; `@vbd/store`
+- **Status:** ✅ **COMPLETE.** scaffold + IR + compiler + V1/V2; `@kiln/eval` seed corpus (4
+  M0-scoreable cases + 2 pending V3/V7 cases) with a recall/precision scorer; `@kiln/store`
   buildHash-on-load cache (miss/hit/invalidation/corruption). All green, Node-native TS, zero deps.
 
 ### M1 — Narrative authoring
@@ -72,18 +72,18 @@ Monorepo, npm workspaces (ADR-001):
   raw markdown-only).
 - **DoD:** authoring the solar narrative produces a validated `narrative.json`; anchors are
   stable and referenceable.
-- **Status:** ✅ **COMPLETE (engine + UI shell).** `@vbd/narrative` parses the solar narrative
+- **Status:** ✅ **COMPLETE (engine + UI shell).** `@kiln/narrative` parses the solar narrative
   into an anchored `NarrativeDoc` (hyphenated section anchors + per-section content hashes),
   extracts outcomes/activities/customers, emits `narrative.json`, validates completeness
   (NV1–NV4); 9 tests green. **`apps/web`** (React + Vite + @xyflow/react + i18next, per
   [ADR-003](../adr/ADR-003-frontend-stack.md)) is live: a bilingual DE/EN editor that live-parses
   the narrative, shows sections/anchors/findings, and renders the Capability Map — all computing
-  **client-side** over the pure `@vbd/*` packages (made isomorphic; SHA-256 no longer needs
+  **client-side** over the pure `@kiln/*` packages (made isomorphic; SHA-256 no longer needs
   node:crypto). Build passes (203 modules); verified in-browser (clean model → no findings;
   broken narrative → NV1/NV2 surface live). **NarrativeCoach interview landed** (SPEC-001 §4.1):
   the narrative column now has two input tabs — an interactive **Interview** (default) that elicits
   the narrative via LLM Q&A then writes the structured markdown (interview → propose → user applies →
-  review/edit), and **Markdown** (paste/advanced). Configurable prompt (`@vbd/skills/coach.ts`):
+  review/edit), and **Markdown** (paste/advanced). Configurable prompt (`@kiln/skills/coach.ts`):
   global default + per-project depth/domain override; runs in the UI language; `/api/coach` in the
   service (key server-side). Verified end-to-end (elicited an EV-charging business via German Q&A →
   applied → parsed → capability map). `apps/service` API is live (M2).
@@ -99,9 +99,9 @@ Monorepo, npm workspaces (ADR-001):
   (pre-A1); every LLM capability carries valid provenance (V8 passes); the minimal harness runs
   against the seed corpus and reports a number.
 - **Status:** 🟢 **pipeline delivered — mock AND real LLM.** [ADR-004](../adr/ADR-004-llm-provider-and-skill-runtime.md)
-  + `@vbd/skills`: provider-agnostic `LlmProvider`, `CapabilityGenerator` (schema coercion + one
+  + `@kiln/skills`: provider-agnostic `LlmProvider`, `CapabilityGenerator` (schema coercion + one
   repair retry), `MockProvider` (deterministic, offline). **`apps/service`** (new): server-side API
-  using the **official `@anthropic-ai/sdk`**, key from `VBD_ANTHROPIC_API_KEY` (never in the
+  using the **official `@anthropic-ai/sdk`**, key from `KILN_ANTHROPIC_API_KEY` (never in the
   browser, REV-005), **structured outputs** to lock the JSON shape; `GET /api/models`,
   `POST /api/generate`. **`apps/web`**: live mock by default + a **model/effort selector**
   (default **Sonnet 5 / medium**) and a **"Generate with LLM"** button. **Verified end-to-end with
@@ -113,7 +113,7 @@ Monorepo, npm workspaces (ADR-001):
   ([ADR-005](../adr/ADR-005-project-store.md)); **editable capability forms** (REV-004 F1) — click
   a capability → edit name/purpose/outcomes/actors/depends_on/produces/consumes as structured
   fields (not raw YAML) + add/delete; edits recompile the IR + re-validate live and mark the source
-  hand-edited. **`@vbd/eval` generation-coverage scoring wired** (REV-006 F2): `scoreGenerationCoverage`
+  hand-edited. **`@kiln/eval` generation-coverage scoring wired** (REV-006 F2): `scoreGenerationCoverage`
   (activity-coverage via provenance anchors + expected-id recall); mock hits 12/12 activities + 8/8
   expected ids on solar. **LLM provenance grounded + V8 landed:** the generator now returns the exact
   Core Activities each capability derives from; the skill maps them to real narrative anchors +
@@ -141,7 +141,7 @@ Monorepo, npm workspaces (ADR-001):
   every model change is an attributable commit; no silent mutation.
 
 ### M5 — Solar walkthrough + evaluation + go/no-go
-- **Scope:** grow `@vbd/eval` (seeded from M0) into the full harness — recall/precision, rubric
+- **Scope:** grow `@kiln/eval` (seeded from M0) into the full harness — recall/precision, rubric
   judge, inter-run Jaccard, injection case; **build the minimal second-domain preset that A4
   requires (REV-006 F3)** (a second narrative + domain config, no new code); A6 moderated
   actionability session with a **real unaided target user** (not the proxy expert; REV-006 F5);
@@ -213,13 +213,13 @@ Reviewed by the delivery-execution lens ([REV-006](../reviews/REV-006-delivery-e
 
 | Finding | Disposition | Where addressed |
 |---|---|---|
-| F1 seed corpus scoped too late (M5) to measure M2/M3 | **Fixed** | M0 scope (seed `@vbd/eval` now), §8 |
+| F1 seed corpus scoped too late (M5) to measure M2/M3 | **Fixed** | M0 scope (seed `@kiln/eval` now), §8 |
 | F2 D2 mitigation not scheduled into M2 | **Fixed** | M2 minimal-harness DoD |
 | F3 A4 needs a second-domain preset no milestone builds | **Fixed** | M5 scope builds the preset |
-| F4 IR-freeze illusory unless full type defined at M0 | **Fixed** | M0 "Full-IR-type-at-M0" (all variants + edge-id rule; already in `@vbd/ir`) |
+| F4 IR-freeze illusory unless full type defined at M0 | **Fixed** | M0 "Full-IR-type-at-M0" (all variants + edge-id rule; already in `@kiln/ir`) |
 | F5 proxy fallback covers A1 not A6 | **Fixed** | G-DP split: proxy→A1 only, real user required for A6 |
 
-Minors/Nits (F6–F13: CI strategy, traceability matrix, A3 measurement timing, `@vbd/store` in
+Minors/Nits (F6–F13: CI strategy, traceability matrix, A3 measurement timing, `@kiln/store` in
 M0, G-EVAL enforceability, M4 load, named golden fixture, NarrativeCoach) — **addressed** in §8
 + M0 status note, or **accepted** as milestone-ticket detail.
 

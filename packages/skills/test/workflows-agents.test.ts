@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockGenerateWorkflows, coerceWorkflows, mockGenerateAgents, coerceAgents } from "../src/index.ts";
-import { validateWorkflows, validateAgents } from "@vbd/validation";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+import { validateWorkflows, validateAgents } from "@kiln/validation";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { version: "0.2", domain: "solar", capabilities: [{ id: "lead_management", name: "Lead Management" }] };
 const domain: DomainDoc = { version: "0.3", aggregates: [{ id: "lead", name: "Lead", owner: "lead_management" }], commands: [{ id: "qualify_lead", name: "Qualify Lead", aggregate: "lead", capability: "lead_management" }, { id: "convert_lead", name: "Convert Lead", aggregate: "lead", capability: "lead_management" }] };

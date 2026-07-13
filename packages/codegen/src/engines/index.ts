@@ -1,10 +1,10 @@
 /**
- * @vbd/codegen/engines — the engine plugin seam's ENTRY POINT (SPEC-010, Phase 1).
+ * @kiln/codegen/engines — the engine plugin seam's ENTRY POINT (SPEC-010, Phase 1).
  *
  * Importing this module REGISTERS the six built-in engines as a side effect (their descriptors +
  * adapter wrappers). `targets.ts` imports this before it derives `ENGINES` from the registry, so the
  * binding + validators see every built-in with no second edit. It also re-exports the registry API +
- * the contract types so `@vbd/codegen`'s public surface exposes the seam.
+ * the contract types so `@kiln/codegen`'s public surface exposes the seam.
  *
  * TO ADD AN ENGINE: create `engines/<id>.ts` (descriptor + adapter, wrapping your generator), import it
  * here, and add one `registerEngine(...)` line below. No edits to `projectTargets` or `assembleFullStack`.

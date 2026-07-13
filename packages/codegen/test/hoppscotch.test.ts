@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { hoppscotchCollection } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { domain: "Solar", capabilities: [{ id: "billing", name: "Billing", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
 const domain: DomainDoc = {

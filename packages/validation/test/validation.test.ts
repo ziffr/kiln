@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validateV1, validateV2, validateAll, validateDomain } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 
 const clean: CapabilityDoc = {
   version: "0.2",

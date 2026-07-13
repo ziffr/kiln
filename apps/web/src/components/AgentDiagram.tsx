@@ -2,7 +2,7 @@
 // (right). A capability targeted by two agents shows converging arrows. Hand-rolled SVG (reliable,
 // like the automations wiring) — no graph library needed for a two-column relation.
 
-import { type CapabilityDoc, type AgentsDoc } from "@vbd/compiler";
+import { type CapabilityDoc, type AgentsDoc } from "@kiln/compiler";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 

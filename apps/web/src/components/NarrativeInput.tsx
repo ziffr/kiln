@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { CoachConfig } from "@vbd/skills";
+import type { CoachConfig } from "@kiln/skills";
 import type { CoachMsg as Msg } from "../projects";
 import { SERVICE_URL } from "../config";
 

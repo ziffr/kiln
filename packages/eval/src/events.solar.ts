@@ -2,7 +2,7 @@
  * Seeded-defect corpus + human-blessed reference behaviour for the solar entities (SPEC-004 §8).
  */
 
-import type { DomainDoc } from "@vbd/compiler";
+import type { DomainDoc } from "@kiln/compiler";
 import type { EventsEvalCase, BehaviourReference } from "./events.ts";
 
 const capIds = ["lead_management", "billing"];

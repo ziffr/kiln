@@ -10,9 +10,9 @@ import { PROMPTS } from "./prompts.generated.ts";
  * not narrative headings).
  */
 
-import { slug } from "@vbd/ir";
-import type { AggregateInput, CapabilityDoc, DomainDoc } from "@vbd/compiler";
-import { validateDomain, type Finding } from "@vbd/validation";
+import { slug } from "@kiln/ir";
+import type { AggregateInput, CapabilityDoc, DomainDoc } from "@kiln/compiler";
+import { validateDomain, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 export function mockGenerateDomain(caps: CapabilityDoc): DomainDoc {

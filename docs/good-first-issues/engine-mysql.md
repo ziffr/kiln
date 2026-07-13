@@ -7,7 +7,7 @@
 
 ## Why
 
-VBD can host a business's data on Postgres or SQLite. MySQL/MariaDB is one of the most common
+Kiln can host a business's data on Postgres or SQLite. MySQL/MariaDB is one of the most common
 databases in small-business hosting, so a MySQL **store** engine widens who can run a generated
 system with zero code changes to their stack. This is the ideal first engine — a store adapter is the
 simplest kind, and Postgres is a complete worked example to copy.
@@ -53,7 +53,7 @@ Add one engine that provides the `store` capability (like Postgres, minus row-le
 ## Acceptance criteria
 
 - `node --test packages/*/test/*.test.ts` — all green, including your new test.
-- Binding a model's `store` to `mysql` and exporting (`./vbd.sh export --binding <mysql-binding.json>`)
+- Binding a model's `store` to `mysql` and exporting (`./kiln.sh export --binding <mysql-binding.json>`)
   produces a `mysql/schema.sql` that a real MySQL 8 accepts: `mysql < mysql/schema.sql` runs clean
   (please paste the output in the PR).
 - No `node:*` imports in `engines/mysql.ts` (isomorphism rule).

@@ -1,5 +1,5 @@
 /**
- * @vbd/codegen/engines/registry — the ENGINE PLUGIN SEAM (SPEC-010, Phase 1).
+ * @kiln/codegen/engines/registry — the ENGINE PLUGIN SEAM (SPEC-010, Phase 1).
  *
  * RES-002 (targets.ts) proved the model projects onto heterogeneous execution engines, but the
  * code-generation half of that story was CLOSED: each engine was hardcoded by name inside
@@ -19,7 +19,7 @@
  */
 
 import type { Engine, N8nWorkflow, Binding, ResolvedElement } from "../targets.ts";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
 import type { Theme } from "../ui.ts";
 import type { ExternalServicesDoc } from "../services.ts";
 

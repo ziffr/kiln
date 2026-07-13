@@ -1,4 +1,4 @@
-# The sandbox image: verifies a generated VBD app (boot server + probe API + transform + build).
+# The sandbox image: verifies a generated Kiln app (boot server + probe API + transform + build).
 # Untrusted, LLM-generated code runs here — the container is run with --network none, resource
 # limits, a read-only root fs and a non-root user (see service.mjs / README).
 FROM node:22-slim

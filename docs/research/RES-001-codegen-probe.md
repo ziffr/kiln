@@ -23,7 +23,7 @@ be a reliable *one-way scaffolding* pass. Four modelling layers in, this had nev
 2. What is **missing** for faithful codegen — i.e. what should the next modelling investment add?
 
 ## Method
-A new pure package **`@vbd/codegen`** — a *deterministic compiler pass* over the model (no LLM; codegen
+A new pure package **`@kiln/codegen`** — a *deterministic compiler pass* over the model (no LLM; codegen
 is a projection, per golden invariant #1 and the feasibility note's one-way-scaffolding stance). It
 emits three artifacts and a **gap report**:
 - **TypeScript types** — an `interface` per entity (id + attributes + references).
@@ -69,5 +69,5 @@ note predicted — not a full round-trip, but genuine, useful scaffolding.
 
 **Recommended next step:** un-shelve **SPEC-004** (build the behaviour layer, already reviewed to
 closure) — now with empirical justification — and fold a small **typed-attributes** addition into the
-entity model so codegen produces real schemas. The `@vbd/codegen` probe stays as the yardstick: every
+entity model so codegen produces real schemas. The `@kiln/codegen` probe stays as the yardstick: every
 new modelling layer should measurably improve what it can generate.

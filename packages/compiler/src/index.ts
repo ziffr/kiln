@@ -1,5 +1,5 @@
 /**
- * @vbd/compiler — authored artifacts → IR (SPEC-001 §3.4, M0 skeleton).
+ * @kiln/compiler — authored artifacts → IR (SPEC-001 §3.4, M0 skeleton).
  *
  * M0 scope: compile `capabilities.yaml` (as a parsed object) into an IR graph with
  * correct authored/derived origin tagging + a deterministic buildHash. Narrative parsing
@@ -14,7 +14,7 @@ import {
   canonical,
   slug,
   edgeId,
-} from "@vbd/ir";
+} from "@kiln/ir";
 
 export const COMPILER_VERSION = "0.1.0";
 export const SCHEMA_VERSION = "0.2";

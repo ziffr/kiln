@@ -32,7 +32,7 @@ reviewers: [product-strategy, domain-modeling, ai-llm-feasibility, technical-arc
 > *Invoice Paid → Schedule Installation*, *Lead Qualified → Create Opportunity*. SPEC-005 adds the
 > **policy** (a.k.a. reaction / process-manager rule): when an event occurs, issue a command —
 > possibly on a different entity in a different capability/area. This is the methodology's
-> `policy_model`, and it is **empirically the next codegen gap**: `@vbd/codegen` already reports that
+> `policy_model`, and it is **empirically the next codegen gap**: `@kiln/codegen` already reports that
 > command operations generate but "events trigger no downstream commands" (RES-001 follow-up).
 
 ## 0. Framing
@@ -61,7 +61,7 @@ text-as-truth from SPEC-001–004. It is the layer that makes the behaviour mode
   (no separate view — the SPEC-002/003/004 discipline), business language ("Automations / when… do…"),
   structured-form editing + findings.
 - G6. A gold-free **eval** (seeded-defect corpus + coverage + a reaction quality metric) as the gate.
-- G7. **Close the codegen gap**: `@vbd/codegen` generates workflow/event-handler stubs (on event →
+- G7. **Close the codegen gap**: `@kiln/codegen` generates workflow/event-handler stubs (on event →
   call command) from policies — the yardstick advances again.
 - G8. Vertical-agnostic; prove on solar + smoke-test dental.
 
@@ -95,7 +95,7 @@ Required: policy `id/name/on/then`. Ids are stable slugs, namespaced `policy:` i
 policies carry grounded provenance (PL5).
 
 ## 4. IR extension
-Add node type `policy` and edge types `when` (event → policy) + `then` (policy → command) to `@vbd/ir`
+Add node type `policy` and edge types `when` (event → policy) + `then` (policy → command) to `@kiln/ir`
 (**union growth** — arch review to confirm clean). Compose: one authored `policy:<id>` node; a `when`
 edge `event:<on> → policy:<id>`; a `then` edge `policy:<id> → command:<then>`. `computeBuildHash`
 already mixes the domain artifact (its `version` bump distinguishes v0.2 → v0.3). Authored/derived
@@ -120,7 +120,7 @@ then → command` is the reaction chain the map/codegen can walk (read-only proj
   entity if one exists; else none. Honest, lean, offline.
 
 ## 6. Deterministic validators (`validatePolicies`, isomorphic)
-Pure over the domain doc, added to `@vbd/validation`:
+Pure over the domain doc, added to `@kiln/validation`:
 | Code | Sev | Rule |
 |---|---|---|
 | PL1.required | blocker/major | policy id (blocker); name/on/then (major) present |
@@ -152,7 +152,7 @@ PL2/PL3 are the referential-integrity core; PL6/PL7 are workflow smells (warning
 - A4. Solar coverage: policies grounded (provenanceRate = 1); ≥1 real cross-entity reaction found.
 - A5. **Quality:** reactionRecall of the generated policies vs a human-blessed reference set of
   hand-offs; + a guardrail against a policy per event (over-wiring).
-- A6. **Codegen advances:** `@vbd/codegen` emits event-handler stubs (on event → call command) and the
+- A6. **Codegen advances:** `@kiln/codegen` emits event-handler stubs (on event → call command) and the
   "no reactions" gap is closed.
 - A7. Second-domain smoke (dental) + the design partner rates "Automations" worth acting on.
 
@@ -162,7 +162,7 @@ PL2/PL3 are the referential-integrity core; PL6/PL7 are workflow smells (warning
 - PL-M2. `validatePolicies` (PL1–PL7) + tests + seeded-defect eval + reactionRecall metric.
 - PL-M3. `PolicyModeler` skill (structured outputs, canonicalize, grounded, repair) + `/api/policies`.
 - PL-M4. In-context Automations UI (under each event) + editing + findings + i18n + persistence.
-- PL-M5. `@vbd/codegen` workflow/event-handler stubs from policies (close the gap).
+- PL-M5. `@kiln/codegen` workflow/event-handler stubs from policies (close the gap).
 - PL-M6. Solar walkthrough + eval go/no-go + dental smoke + partner value check + closure.
 
 ## 10. Risks
@@ -237,7 +237,7 @@ design on the shelf**, un-shelved when demand returns.
 
 ### 14. Exit gate — built & verified (PL-M0…M5)
 
-Un-shelved and built after the "whole framework" go-ahead. Gold-free harness (`@vbd/eval/policies`):
+Un-shelved and built after the "whole framework" go-ahead. Gold-free harness (`@kiln/eval/policies`):
 
 | Criterion | Result |
 |---|---|
@@ -250,7 +250,7 @@ Un-shelved and built after the "whole framework" go-ahead. Gold-free harness (`@
 Verified live against Sonnet: the PolicyModeler produced **7 sensible cross-entity hand-offs** on the
 full solar flow (lead→customer, offer→purchase-order, work-order→invoice, …) — **conservative, not a
 policy-per-event** — with only a PL6 self-loop smell flagged. In-context UI shows each reaction under
-its trigger event ("⇒ When … → then … (target entity)"); `@vbd/codegen` emits the reaction handlers
+its trigger event ("⇒ When … → then … (target entity)"); `@kiln/codegen` emits the reaction handlers
 (Workflows tab). 156 tests.
 
 **Decision:** engineering **GREEN**; A6/A7 (partner value + second-domain) fold into the live stack the

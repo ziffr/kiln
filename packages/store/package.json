@@ -1,5 +1,5 @@
 {
-  "name": "@vbd/store",
+  "name": "@kiln/store",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@vbd/ir": "*",
-    "@vbd/compiler": "*"
+    "@kiln/ir": "*",
+    "@kiln/compiler": "*"
   }
 }

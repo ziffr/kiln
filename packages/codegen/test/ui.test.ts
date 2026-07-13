@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { shadcnAdapter, uiStructure, helpModel, appMessages, DEFAULT_THEME, type Theme } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, WorkflowsDoc, RolesDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, WorkflowsDoc, RolesDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = {
   domain: "Test",

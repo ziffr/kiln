@@ -3,8 +3,8 @@
  * Skills depend on the provider INTERFACE, never a vendor SDK.
  */
 
-import type { CapabilityDoc } from "@vbd/compiler";
-import type { Finding } from "@vbd/validation";
+import type { CapabilityDoc } from "@kiln/compiler";
+import type { Finding } from "@kiln/validation";
 
 export interface LlmRequest {
   system: string;

@@ -11,8 +11,8 @@ import { PROMPTS } from "./prompts.generated.ts";
  * entity kind) and `enrichDomain` (real LLM, which knows far more entity shapes across verticals).
  */
 
-import { slug } from "@vbd/ir";
-import { attributeSpecs, type AttributeSpec, type AggregateInput, type CapabilityDoc, type DomainDoc, type RolesDoc, type AgentsDoc } from "@vbd/compiler";
+import { slug } from "@kiln/ir";
+import { attributeSpecs, type AttributeSpec, type AggregateInput, type CapabilityDoc, type DomainDoc, type RolesDoc, type AgentsDoc } from "@kiln/compiler";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 export type EnrichDepth = "conservative" | "standard" | "exhaustive";

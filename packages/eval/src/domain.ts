@@ -1,5 +1,5 @@
 /**
- * @vbd/eval — DOMAIN-layer evaluation (SPEC-002 DM eval; the aggregates-first exit gate).
+ * @kiln/eval — DOMAIN-layer evaluation (SPEC-002 DM eval; the aggregates-first exit gate).
  *
  * Mirrors the capability harness for the domain model, gold-free:
  *
@@ -19,9 +19,9 @@
  * Pure and deterministic — no LLM, key, or cost. Scores the MOCK generator or any DomainDoc.
  */
 
-import { slug } from "@vbd/ir";
-import type { AggregateInput, CapabilityDoc, DomainDoc } from "@vbd/compiler";
-import { validateDomain, type Finding } from "@vbd/validation";
+import { slug } from "@kiln/ir";
+import type { AggregateInput, CapabilityDoc, DomainDoc } from "@kiln/compiler";
+import { validateDomain, type Finding } from "@kiln/validation";
 import type { ExpectedDefect } from "./index.ts";
 
 export interface DomainEvalCase {

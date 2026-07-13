@@ -1,6 +1,6 @@
 /**
- * @vbd/service — the server-side API (ADR-003 §4, ADR-004). Holds the Anthropic key
- * (VBD_ANTHROPIC_API_KEY, loaded via `node --env-file`), NEVER exposes it to the browser.
+ * @kiln/service — the server-side API (ADR-003 §4, ADR-004). Holds the Anthropic key
+ * (KILN_ANTHROPIC_API_KEY, loaded via `node --env-file`), NEVER exposes it to the browser.
  * Uses the official @anthropic-ai/sdk (the project is TypeScript → SDK, not raw HTTP).
  *
  * Endpoints:
@@ -10,7 +10,7 @@
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import Anthropic from "@anthropic-ai/sdk";
-import { parseNarrative } from "@vbd/narrative";
+import { parseNarrative } from "@kiln/narrative";
 import {
   generateCapabilities,
   generateDomain,
@@ -48,15 +48,15 @@ import {
   type CoachConfig,
   type LlmProvider,
   type LlmRequest,
-} from "@vbd/skills";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+} from "@kiln/skills";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 import { DEFAULT_EFFORT, DEFAULT_MODEL, EFFORTS, MODELS, modelById } from "./models.ts";
 import { deleteProject, listProjects, saveProject, type StoredProject } from "./workspaces.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
-const API_KEY = process.env.VBD_ANTHROPIC_API_KEY;
+const API_KEY = process.env.KILN_ANTHROPIC_API_KEY ?? process.env.VBD_ANTHROPIC_API_KEY; // VBD_ = legacy alias (pre-Kiln); accepted so existing .env / hosting envs keep working
 
-// Structured-output schemas now live in @vbd/skills (CAPABILITY_SCHEMA / DOMAIN_SCHEMA) and travel
+// Structured-output schemas now live in @kiln/skills (CAPABILITY_SCHEMA / DOMAIN_SCHEMA) and travel
 // on each LlmRequest's `schema` field; the provider reads req.schema.
 
 interface UsageAcc {
@@ -152,7 +152,7 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/api/generate") {
       if (!client) {
-        return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+        return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       }
       const body = JSON.parse((await readBody(req)) || "{}") as {
         narrative?: string;
@@ -189,7 +189,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/domain") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         capabilities?: CapabilityDoc;
         model?: string;
@@ -214,7 +214,7 @@ const server = createServer(async (req, res) => {
 
     // Domain enrichment: propose realistic attributes + child entities for the current model (review-first).
     if (req.method === "POST" && req.url === "/api/enrich") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         capabilities?: CapabilityDoc;
         domain?: DomainDoc;
@@ -242,7 +242,7 @@ const server = createServer(async (req, res) => {
 
     // Communications / integrations — the LLM refines the "external effects" layer for this business.
     if (req.method === "POST" && (req.url === "/api/communications" || req.url === "/api/integrations")) {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: DomainDoc; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain?.aggregates?.length) {
         return send(res, 400, { error: "capabilities and a domain model are required" });
@@ -264,7 +264,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-003 BC-M3: partition capabilities into business areas with the real LLM (server-side).
     if (req.method === "POST" && req.url === "/api/contexts") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         capabilities?: CapabilityDoc;
         model?: string;
@@ -290,7 +290,7 @@ const server = createServer(async (req, res) => {
     // Semantic critic: the LLM reviews a generated business-area partition (advisory). Higher effort
     // by default — this is a hard reasoning task, and it's where "using the LLM better" pays off.
     if (req.method === "POST" && req.url === "/api/context-critique") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; contexts?: unknown; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.contexts) return send(res, 400, { error: "capabilities and contexts are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -307,7 +307,7 @@ const server = createServer(async (req, res) => {
     // Generic semantic critic: the LLM reviews ANY layer of its own output (advisory). Run at higher
     // effort — critique is a hard reasoning task, and this is where "using the LLM better" pays off.
     if (req.method === "POST" && req.url === "/api/critique") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         layer?: LayerKind;
         capabilities?: CapabilityDoc;
@@ -343,7 +343,7 @@ const server = createServer(async (req, res) => {
 
     // Executable-code target: the LLM writes the business-logic handler bodies for the generated app.
     if (req.method === "POST" && req.url === "/api/app-logic") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: unknown; contexts?: unknown; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -360,13 +360,13 @@ const server = createServer(async (req, res) => {
     // Proxy to the sandboxed app verifier (env-based → local Docker or a VPS, unchanged). No model /
     // API key involved; forwards the generated file map and returns the build-and-run verdict.
     if (req.method === "POST" && req.url === "/api/verify") {
-      const verifyUrl = process.env.VBD_VERIFY_URL;
-      if (!verifyUrl) return send(res, 200, { configured: false, error: "verifier not configured (set VBD_VERIFY_URL)" });
+      const verifyUrl = process.env.KILN_VERIFY_URL;
+      if (!verifyUrl) return send(res, 200, { configured: false, error: "verifier not configured (set KILN_VERIFY_URL)" });
       const body = (await readBody(req)) || "{}";
       try {
         const r = await fetch(verifyUrl.replace(/\/$/, "") + "/verify", {
           method: "POST",
-          headers: { "content-type": "application/json", "x-verify-secret": process.env.VBD_VERIFY_SECRET ?? "" },
+          headers: { "content-type": "application/json", "x-verify-secret": process.env.KILN_VERIFY_SECRET ?? "" },
           body,
         });
         return send(res, r.status, await r.json());
@@ -377,7 +377,7 @@ const server = createServer(async (req, res) => {
 
     // The LLM designs a per-entity screen (a validated view spec — data, never JSX, so it's build-safe).
     if (req.method === "POST" && req.url === "/api/app-components") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: unknown; contexts?: unknown; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -393,7 +393,7 @@ const server = createServer(async (req, res) => {
 
     // Multi-lens AI review of the GENERATED code (security/correctness/maintainability). Higher effort.
     if (req.method === "POST" && req.url === "/api/code-review") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: unknown; contexts?: unknown; roles?: unknown; handlerCode?: Record<string, string>; model?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -409,7 +409,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-004 CE-M3: model behaviour (commands/events) on the entities, per-aggregate, server-side.
     if (req.method === "POST" && req.url === "/api/events") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         domain?: { aggregates?: unknown[] };
         capabilities?: CapabilityDoc;
@@ -434,7 +434,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-005 PL-M3: model reactions (policies) wiring events → downstream commands, server-side.
     if (req.method === "POST" && req.url === "/api/policies") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         domain?: { events?: unknown[]; commands?: unknown[] };
         capabilities?: CapabilityDoc;
@@ -461,7 +461,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-006: model the roles/personas that operate the capabilities, server-side.
     if (req.method === "POST" && req.url === "/api/roles") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -477,7 +477,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-007: model the end-to-end workflows (ordered command sequences), server-side.
     if (req.method === "POST" && req.url === "/api/workflows") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { domain?: { commands?: unknown[] }; model?: string; effort?: string };
       if (!body.domain?.commands?.length) return send(res, 400, { error: "domain with commands is required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -493,7 +493,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-009: route each process → workflow (fixed) or agent (judgement). Drives conditional codegen.
     if (req.method === "POST" && req.url === "/api/orchestration") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { workflows?: { workflows?: unknown[] }; domain?: unknown; model?: string; effort?: string };
       if (!body.workflows?.workflows?.length) return send(res, 400, { error: "workflows are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -510,7 +510,7 @@ const server = createServer(async (req, res) => {
     // Enrich from industry web research: the model searches the web for standard records/fields this
     // vertical has that the model lacks, and returns cited additions (reviewed accept/decline in-app).
     if (req.method === "POST" && req.url === "/api/enrich-web") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: { aggregates?: unknown[] }; model?: string; effort?: string };
       if (!body.domain?.aggregates?.length) return send(res, 400, { error: "domain with aggregates is required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -533,7 +533,7 @@ const server = createServer(async (req, res) => {
 
     // Enrich a named-item layer (capabilities|roles|agents) from industry web research → cited items.
     if (req.method === "POST" && req.url === "/api/enrich-layer") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { layer?: string; capabilities?: CapabilityDoc; roles?: unknown; agents?: unknown; model?: string };
       const layer = body.layer === "roles" || body.layer === "agents" ? body.layer : "capabilities";
       if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
@@ -556,7 +556,7 @@ const server = createServer(async (req, res) => {
 
     // Ingest: turn a RAW business description (transcript, notes) into the structured Business Narrative.
     if (req.method === "POST" && req.url === "/api/structure") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { raw?: string; model?: string; effort?: string };
       if (!body.raw || !body.raw.trim()) return send(res, 400, { error: "raw text is required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -572,7 +572,7 @@ const server = createServer(async (req, res) => {
 
     // i18n: translate the generated app's UI string bundle into a target language (automated LLM).
     if (req.method === "POST" && req.url === "/api/translate") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { bundle?: Record<string, string>; targetLang?: string; model?: string; effort?: string };
       if (!body.bundle || !Object.keys(body.bundle).length || !body.targetLang) return send(res, 400, { error: "bundle and targetLang are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -588,7 +588,7 @@ const server = createServer(async (req, res) => {
 
     // External services (delegation): which existing external workflows/agents to delegate to.
     if (req.method === "POST" && req.url === "/api/external-services") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: { aggregates?: unknown[] }; agentIds?: string[]; model?: string; effort?: string };
       if (!body.domain?.aggregates?.length) return send(res, 400, { error: "domain with aggregates is required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -604,7 +604,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-008: model the autonomous agents that operate the capabilities, server-side.
     if (req.method === "POST" && req.url === "/api/agents") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -619,7 +619,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/coach") {
-      if (!client) return send(res, 500, { error: "VBD_ANTHROPIC_API_KEY is not set on the server" });
+      if (!client) return send(res, 500, { error: "KILN_ANTHROPIC_API_KEY is not set on the server" });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         messages?: Array<{ role: "user" | "assistant"; content: string }>;
         model?: string;
@@ -703,5 +703,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`[vbd/service] listening on http://localhost:${PORT}  (anthropic key ${client ? "loaded" : "MISSING"})`);
+  console.log(`[kiln/service] listening on http://localhost:${PORT}  (anthropic key ${client ? "loaded" : "MISSING"})`);
 });

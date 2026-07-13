@@ -9,9 +9,9 @@ import { PROMPTS } from "./prompts.generated.ts";
  * Fans out one focused agent per entity (concurrent), same shape as the handler fan-out.
  */
 
-import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc } from "@kiln/compiler";
 import type { LlmProvider } from "./types.ts";
-import { projectAppModel, type AppModel } from "@vbd/codegen";
+import { projectAppModel, type AppModel } from "@kiln/codegen";
 
 const FORMATS = ["text", "money", "date", "boolean", "badge", "longtext"] as const;
 type Format = (typeof FORMATS)[number];

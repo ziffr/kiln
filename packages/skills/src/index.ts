@@ -1,14 +1,14 @@
 /**
- * @vbd/skills — LLM skill runtime (ADR-004). The model proposes; validators and the human decide.
+ * @kiln/skills — LLM skill runtime (ADR-004). The model proposes; validators and the human decide.
  *
  * `CapabilityGenerator`: NarrativeDoc → CapabilityDoc, provider-agnostic, with schema coercion,
  * a single repair retry on invalid/blocking output (SPEC-001 §4.4), and deterministic validation.
  */
 
-import type { CapabilityDoc } from "@vbd/compiler";
-import { validateAll, type Finding } from "@vbd/validation";
-import { anchorize, coreActivities, type NarrativeDoc } from "@vbd/narrative";
-import { sha256 } from "@vbd/ir";
+import type { CapabilityDoc } from "@kiln/compiler";
+import { validateAll, type Finding } from "@kiln/validation";
+import { anchorize, coreActivities, type NarrativeDoc } from "@kiln/narrative";
+import { sha256 } from "@kiln/ir";
 import type { GenerationResult, LlmProvider } from "./types.ts";
 import { buildCapabilityRequest } from "./prompt.ts";
 
@@ -145,7 +145,7 @@ export {
  * Extract a JSON object from a model response, tolerating stray fences/prose.
  * Lives here (dependency-free) so both the mock path and the SDK-backed service can use it.
  * The real Anthropic call uses the official @anthropic-ai/sdk and runs server-side only
- * (ADR-004) — @vbd/skills stays isomorphic and SDK-free.
+ * (ADR-004) — @kiln/skills stays isomorphic and SDK-free.
  */
 export function safeParseJson(raw: string): unknown {
   const fenced = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();

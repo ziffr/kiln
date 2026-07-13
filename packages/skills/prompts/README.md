@@ -11,7 +11,7 @@ prompts/<layer>.md   ──  npm run prompts:build  ──▶  src/prompts.gener
    (you edit this)          (embeds md → TS)            (generated; do not edit)      (isomorphic, no fs)
 ```
 
-The embed step keeps the `@vbd/skills` package isomorphic (runs in Node **and** the browser, golden
+The embed step keeps the `@kiln/skills` package isomorphic (runs in Node **and** the browser, golden
 invariant #4 — no `node:fs` at runtime) and build-step-free. Same "text is truth; the projection is
 derived" stance as the product itself.
 

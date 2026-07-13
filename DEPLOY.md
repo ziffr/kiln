@@ -1,4 +1,4 @@
-# Deploying VBD to Vercel
+# Deploying Kiln to Vercel
 
 The web app ships as a static SPA; the service becomes stateless serverless functions under
 `apps/web/api/*`. The Anthropic key stays server-side (a Vercel env var) — it never reaches the
@@ -12,7 +12,7 @@ browser (golden invariant #3).
 3. **Framework Preset:** Vite (auto-detected). Build/Output are taken from `apps/web/vercel.json`
    (`npm run build` → `dist`).
 4. **Environment Variables → add:**
-   - `VBD_ANTHROPIC_API_KEY` = `sk-ant-…` (your Anthropic key). Server-side only — do **not** prefix
+   - `KILN_ANTHROPIC_API_KEY` = `sk-ant-…` (your Anthropic key). Server-side only — do **not** prefix
      it with `VITE_`, or it would be bundled into the browser.
 5. **Deploy.**
 
@@ -30,8 +30,8 @@ the LLM buttons return a "key not set" error until the env var is added, then **
 ## Local dev (unchanged)
 
 ```
-npm run dev --workspace @vbd/web       # http://localhost:5188
-npm run dev --workspace @vbd/service   # http://localhost:8787 (loads root .env)
+npm run dev --workspace @kiln/web       # http://localhost:5188
+npm run dev --workspace @kiln/service   # http://localhost:8787 (loads root .env)
 ```
 `SERVICE_URL` (apps/web/src/config.ts) points at `:8787` in dev and same-origin `/api` in prod;
 override with `VITE_SERVICE_URL` if needed.
@@ -41,4 +41,4 @@ override with `VITE_SERVICE_URL` if needed.
 - `maxDuration` is 60s (`apps/web/vercel.json`); the behaviour endpoint fans out per entity
   **concurrently** to stay within it. On heavier domains, raise it (Pro allows up to 300s).
 - If the build fails, check Vercel's build logs — the usual monorepo fix is confirming Root Directory
-  is `apps/web` so the workspace install resolves the `@vbd/*` packages.
+  is `apps/web` so the workspace install resolves the `@kiln/*` packages.

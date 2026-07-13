@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ReactFlow, ReactFlowProvider, Background, Controls, MarkerType, useReactFlow, type Node, type Edge } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import ELK from "elkjs/lib/elk.bundled.js";
-import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@vbd/compiler";
+import { attributeSpecs, type CapabilityDoc, type DomainDoc } from "@kiln/compiler";
 
 const elk = new ELK();
 const NODE_W = 210;

@@ -5,7 +5,7 @@
  * mock defaults on export, so the exported model is explicit and complete — nothing hidden behind a mock.
  */
 
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
 import {
   mockCommunications,
   mockIntegrations,
@@ -19,7 +19,7 @@ import {
   type TriggersDoc,
   type Binding,
   type Theme,
-} from "@vbd/codegen";
+} from "@kiln/codegen";
 import type { Project } from "./projects";
 
 export interface ModelDoc {

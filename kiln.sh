@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 #
-# vbd.sh — one entrypoint for every VerticalBusinessDesigner (VBD) CLI task.
+# kiln.sh — one entrypoint for every Kiln CLI task.
 #
-# VBD is the "Business Compiler": describe a vertical business → an LLM derives a formal model →
+# Kiln is the "Business Compiler": describe a vertical business → an LLM derives a formal model →
 # deterministic validators check it → it renders as a Capability Map → codegen projects it to a
 # complete, runnable multi-backend system. This script wraps the whole lifecycle so you never have
 # to remember the underlying npm / node / docker incantations.
 #
-#   ./vbd.sh <command> [args]        Run a command.
-#   ./vbd.sh help                    Show every command (this list).
-#   ./vbd.sh doctor                  Check your environment is ready.
+#   ./kiln.sh <command> [args]        Run a command.
+#   ./kiln.sh help                    Show every command (this list).
+#   ./kiln.sh doctor                  Check your environment is ready.
 #
 # The commands fall into three groups:
-#   • Designer   — run and develop VBD itself (the web app + the key-holding service).
+#   • Designer   — run and develop Kiln itself (the web app + the key-holding service).
 #   • Model      — generate the full system from a business model (the codegen exporter).
 #   • App        — build / run / tear down a GENERATED system (docker compose + its Makefile).
 #
@@ -38,15 +38,15 @@ EXPORTER="packages/codegen/bin/export-targets.mjs"
 
 usage() {
   cat <<EOF
-${B}vbd.sh${N} — VerticalBusinessDesigner command helper
+${B}kiln.sh${N} — Kiln command helper
 
-${B}Usage:${N} ./vbd.sh <command> [args]
+${B}Usage:${N} ./kiln.sh <command> [args]
 
 ${B}Getting started${N}
   ${C}install${N}              Install dependencies (links the npm workspaces; offline).
   ${C}doctor${N}               Check the environment (node, .env + key, docker, git).
 
-${B}Designer — run & develop VBD${N}
+${B}Designer — run & develop Kiln${N}
   ${C}dev${N}                  Run the service (:$SERVICE_PORT) AND the web app (:$WEB_PORT) together. Ctrl-C stops both.
   ${C}web${N}                  Run only the web app       → http://localhost:$WEB_PORT
   ${C}service${N}              Run only the API service   → http://localhost:$SERVICE_PORT  (holds the Anthropic key)
@@ -66,9 +66,9 @@ ${B}Model — generate a system from a business model${N}
                          --since <old-model>     emit an incremental migration vs a deployed model
                          --no-git                skip the initial git commit in the output
                        Examples:
-                         ./vbd.sh export
-                         ./vbd.sh export --sqlite --enrich standard
-                         ./vbd.sh export --model ./my-business.json --out ./build
+                         ./kiln.sh export
+                         ./kiln.sh export --sqlite --enrich standard
+                         ./kiln.sh export --model ./my-business.json --out ./build
 
 ${B}App — run a GENERATED system${N}   (operates on ./out/targets, or a dir you pass)
   ${C}app:up${N}   [dir]       docker compose up -d + apply the schema (Postgres/SQLite + n8n + Odoo + spine + UI).
@@ -80,14 +80,14 @@ ${B}App — run a GENERATED system${N}   (operates on ./out/targets, or a dir yo
 ${B}Verify sandbox${N}
   ${C}verify:up${N}            Build + start the Docker verifier (lets the app build/run/smoke-test generated apps).
 
-Run ${C}./vbd.sh doctor${N} first if anything misbehaves.
+Run ${C}./kiln.sh doctor${N} first if anything misbehaves.
 EOF
 }
 
 # Ensure a generated system exists at \$1 (default out/targets) before app:* commands.
 app_dir() {
   local d="${1:-$EXPORT_DIR_DEFAULT}"
-  [ -f "$d/docker-compose.yml" ] || die "no generated system at ${d} — run ${B}./vbd.sh export${N} first (or pass a dir)."
+  [ -f "$d/docker-compose.yml" ] || die "no generated system at ${d} — run ${B}./kiln.sh export${N} first (or pass a dir)."
   printf "%s" "$d"
 }
 
@@ -97,7 +97,7 @@ case "$cmd" in
   install)
     say "installing dependencies (workspace links)"
     run npm install
-    ok "done — next: ./vbd.sh doctor, then ./vbd.sh dev"
+    ok "done — next: ./kiln.sh doctor, then ./kiln.sh dev"
     ;;
 
   doctor)
@@ -108,46 +108,46 @@ case "$cmd" in
     else warn "node not found (need ≥ 20)"; fi
     command -v npm >/dev/null && ok "npm $(npm -v)" || warn "npm not found"
     if [ -f .env ]; then
-      if grep -Eq '^VBD_ANTHROPIC_API_KEY=sk-' .env; then ok ".env: VBD_ANTHROPIC_API_KEY set"; else warn ".env present but VBD_ANTHROPIC_API_KEY not set — LLM features are disabled (mock still works)"; fi
-    else warn "no .env — copy .env.example → .env and set VBD_ANTHROPIC_API_KEY for real LLM generation"; fi
+      if grep -Eq '^KILN_ANTHROPIC_API_KEY=sk-' .env; then ok ".env: KILN_ANTHROPIC_API_KEY set"; else warn ".env present but KILN_ANTHROPIC_API_KEY not set — LLM features are disabled (mock still works)"; fi
+    else warn "no .env — copy .env.example → .env and set KILN_ANTHROPIC_API_KEY for real LLM generation"; fi
     command -v docker >/dev/null && ok "docker $(docker --version | sed 's/,.*//')" || warn "docker not found (needed for app:up / verify:up)"
     command -v git >/dev/null && ok "git $(git --version | awk '{print $3}')" || warn "git not found (generated exports won't get an initial commit)"
-    [ -d node_modules ] && ok "dependencies installed" || warn "node_modules missing — run ./vbd.sh install"
+    [ -d node_modules ] && ok "dependencies installed" || warn "node_modules missing — run ./kiln.sh install"
     ;;
 
   dev)
     say "starting service (:$SERVICE_PORT) + web (:$WEB_PORT) — Ctrl-C stops both"
-    npm run dev --workspace @vbd/service & S=$!
-    npm run dev --workspace @vbd/web & W=$!
+    npm run dev --workspace @kiln/service & S=$!
+    npm run dev --workspace @kiln/web & W=$!
     trap 'kill "$S" "$W" 2>/dev/null || true' INT TERM
     wait
     ;;
 
-  web)      say "web app → http://localhost:$WEB_PORT";        run npm run dev --workspace @vbd/web ;;
-  service)  say "API service → http://localhost:$SERVICE_PORT (loads root .env)"; run npm run dev --workspace @vbd/service ;;
+  web)      say "web app → http://localhost:$WEB_PORT";        run npm run dev --workspace @kiln/web ;;
+  service)  say "API service → http://localhost:$SERVICE_PORT (loads root .env)"; run npm run dev --workspace @kiln/service ;;
   test)     say "package test suite";                          run npm test ;;
-  build)    say "building the web app";                        run npm run build --workspace @vbd/web ;;
+  build)    say "building the web app";                        run npm run build --workspace @kiln/web ;;
   typecheck) say "type-checking (npx tsc)";                    run npm run typecheck ;;
   prompts)  say "rebuilding LLM prompts";                      run npm run prompts:build ;;
 
   check)
     say "pre-commit gate: test + web build"
     run npm test
-    run npm run build --workspace @vbd/web
+    run npm run build --workspace @kiln/web
     ok "green — safe to commit"
     ;;
 
   export)
     say "projecting the model → a complete multi-backend system"
     run node "$EXPORTER" "$@"
-    ok "exported. Inspect it, then: ./vbd.sh app:up   (or read out/targets/README.md)"
+    ok "exported. Inspect it, then: ./kiln.sh app:up   (or read out/targets/README.md)"
     ;;
 
   app:up)
     d="$(app_dir "${1:-}")"
     say "bringing up the generated stack in ${d}"
     ( cd "$d" && run make up && run make db )
-    ok "up — UI :8080 · spine :3000 · n8n :5678 · Odoo :8069   (./vbd.sh app:logs to watch)"
+    ok "up — UI :8080 · spine :3000 · n8n :5678 · Odoo :8069   (./kiln.sh app:logs to watch)"
     ;;
   app:down) d="$(app_dir "${1:-}")"; say "tearing down ${d}"; ( cd "$d" && run make down ) ;;
   app:ui)   d="$(app_dir "${1:-}")"; say "generated UI (host dev server)"; ( cd "$d" && run make ui ) ;;

@@ -1,5 +1,5 @@
 /**
- * @vbd/eval — BEHAVIOUR (commands & events) evaluation (SPEC-004 CE-M2/§8 gate).
+ * @kiln/eval — BEHAVIOUR (commands & events) evaluation (SPEC-004 CE-M2/§8 gate).
  *
  * Mirrors the DM/contexts evals, gold-free, with the quality instrument REV-019 CE-F1 demanded:
  *  1. Defect detection — `scoreEventsCase` runs `validateEvents` over seeded-defect cases.
@@ -10,9 +10,9 @@
  *     update/changed triple; recall against a real reference is not.
  */
 
-import { slug } from "@vbd/ir";
-import type { DomainDoc } from "@vbd/compiler";
-import { validateEvents, type Finding } from "@vbd/validation";
+import { slug } from "@kiln/ir";
+import type { DomainDoc } from "@kiln/compiler";
+import { validateEvents, type Finding } from "@kiln/validation";
 import type { ExpectedDefect } from "./index.ts";
 
 export interface EventsEvalCase {

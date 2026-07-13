@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockCommunications, communicationsAdapter } from "../src/index.ts";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 
 const caps: CapabilityDoc = { domain: "Solar", capabilities: [{ id: "billing", name: "Billing", purpose: "", outcomes: [] }, { id: "leads", name: "Leads", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
 
@@ -56,5 +56,5 @@ test("spreadsheet output (Excel) is a rendered document: template emitted, no n8
   assert.ok(xlsx, "an Excel register export is seeded off the document entity");
   const out = communicationsAdapter(c);
   assert.ok(Object.keys(out.templates).some((p) => p.includes(xlsx!.id)), "template emitted");
-  assert.ok(!out.n8n.some((w) => w.id === `vbd_comm_${xlsx!.id}`), "no n8n flow — rendered like a pdf");
+  assert.ok(!out.n8n.some((w) => w.id === `kiln_comm_${xlsx!.id}`), "no n8n flow — rendered like a pdf");
 });

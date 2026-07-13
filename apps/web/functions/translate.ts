@@ -1,4 +1,4 @@
-import { translateMessages } from "@vbd/skills";
+import { translateMessages } from "@kiln/skills";
 import { requireClient, readBody, newUsage, estCost, anthropicProvider, modelById, pickEffort, DEFAULT_MODEL, type Req, type Res } from "./_lib.ts";
 
 export default async function handler(req: Req, res: Res): Promise<void> {

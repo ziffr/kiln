@@ -1,13 +1,13 @@
 import { PROMPTS } from "./prompts.generated.ts";
 /**
- * External services (delegation) generator. Mock lives in @vbd/codegen; this is the LLM propose pass —
+ * External services (delegation) generator. Mock lives in @kiln/codegen; this is the LLM propose pass —
  * which EXISTING external workflows/agents (a bought qualifier, a contract reviewer) the business would
  * delegate to, sync or async, and where the result lands (record via a command / wake an agent).
  */
 
-import { slug } from "@vbd/ir";
-import type { CapabilityDoc, DomainDoc } from "@vbd/compiler";
-import type { ExternalServicesDoc, ExternalServiceInput } from "@vbd/codegen";
+import { slug } from "@kiln/ir";
+import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
+import type { ExternalServicesDoc, ExternalServiceInput } from "@kiln/codegen";
 import type { LlmProvider } from "./types.ts";
 
 export const EXTERNAL_SERVICES_SYSTEM_PROMPT = PROMPTS["external-services"];

@@ -12,18 +12,32 @@ import type { Project } from "../projects";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 
-export function VersionsModal({ projectId, onRestored, onClose, t }: {
+export function VersionsModal({ projectId, onSaveVersion, onRestored, onClose, t }: {
   projectId: string;
+  onSaveVersion: (label: string) => Promise<void>;
   onRestored: (p: Project) => void;
   onClose: () => void;
   t: T;
 }): React.JSX.Element {
   const [versions, setVersions] = useState<WorkspaceVersion[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [newLabel, setNewLabel] = useState("");
+  const [saving, setSaving] = useState(false);
   // When set, we're showing the diff of `from` (older) vs the current version instead of the list.
   const [diff, setDiff] = useState<{ from: WorkspaceVersion; result: ModelDiff } | null>(null);
 
-  useEffect(() => { void serverListVersions(projectId).then(setVersions); }, [projectId]);
+  const refresh = (): void => { void serverListVersions(projectId).then(setVersions); };
+  useEffect(refresh, [projectId]);
+
+  async function saveVersion(): Promise<void> {
+    setSaving(true);
+    await onSaveVersion(newLabel.trim() || t("versionSaveDefault"));
+    setNewLabel("");
+    // give the commit a beat, then reload the timeline
+    await new Promise((r) => setTimeout(r, 400));
+    refresh();
+    setSaving(false);
+  }
 
   async function restore(sha: string): Promise<void> {
     setBusy(sha);
@@ -58,6 +72,18 @@ export function VersionsModal({ projectId, onRestored, onClose, t }: {
   return (
     <Modal title={t("versionsTitle")} onClose={onClose}>
       <p className="modal-message muted">{t("versionsHint")}</p>
+      <div className="version-save-row">
+        <input
+          className="version-save-input"
+          value={newLabel}
+          placeholder={t("versionSavePlaceholder")}
+          onChange={(e) => setNewLabel(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !saving) void saveVersion(); }}
+        />
+        <button className="btn primary btn-sm" disabled={saving} onClick={() => void saveVersion()}>
+          {saving ? t("versionSaving") : t("versionSaveNew")}
+        </button>
+      </div>
       {versions === null && <p className="muted">{t("versionsLoading")}</p>}
       {versions && versions.length === 0 && <p className="muted">{t("versionsEmpty")}</p>}
       {versions && versions.length > 0 && (

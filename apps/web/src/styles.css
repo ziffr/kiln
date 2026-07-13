@@ -883,6 +883,9 @@ textarea {
 .version-meta { font-size: 11px; font-variant-numeric: tabular-nums; }
 .btn.btn-sm { padding: 4px 10px; font-size: 12px; flex: none; }
 .version-actions { display: flex; gap: 6px; flex: none; }
+.version-save-row { display: flex; gap: 8px; margin: 10px 0 4px; }
+.version-save-input { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); color: var(--fg); font-size: 13px; }
+.version-save-input:focus { outline: none; border-color: var(--accent); }
 .flip { transform: rotate(180deg); }
 /* Version diff (SPEC-011 M4) */
 .diff-view { margin-top: 10px; display: flex; flex-direction: column; gap: 14px; }

@@ -739,11 +739,12 @@ const server = createServer(async (req, res) => {
         return send(res, 200, { ok: true, project: restored, version: newSha });
       }
       if (req.method === "PUT" && id && !sub) {
-        const body = JSON.parse((await readBody(req)) || "{}") as StoredProject & { versionLabel?: string };
+        const body = JSON.parse((await readBody(req)) || "{}") as StoredProject & { versionLabel?: string; forceCommit?: boolean };
         if (body.id !== id) return send(res, 400, { error: "project id mismatch" });
         saveProject(body);
         // Commit the save → this project's git history (SPEC-011). Optional client label; else a default.
-        const newSha = await commitWorkspace(projectDir(id), body.versionLabel?.trim() || `save: ${body.name || id}`);
+        // forceCommit (an explicit "Save version") records a labelled checkpoint even with no changes.
+        const newSha = await commitWorkspace(projectDir(id), body.versionLabel?.trim() || `save: ${body.name || id}`, body.forceCommit === true);
         return send(res, 200, { ok: true, version: newSha });
       }
       if (req.method === "DELETE" && id && !sub) {

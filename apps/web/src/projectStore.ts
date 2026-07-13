@@ -20,12 +20,14 @@ export async function serverListProjects(): Promise<Project[] | null> {
   }
 }
 
-export async function serverSaveProject(p: Project): Promise<void> {
+// SPEC-011 M5: an optional label names the version this save creates; `force` records a labelled
+// checkpoint even when nothing changed (the explicit "Save version").
+export async function serverSaveProject(p: Project, versionLabel?: string, force?: boolean): Promise<void> {
   try {
     await fetch(`${SERVICE_URL}/api/projects/${encodeURIComponent(p.id)}`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(p),
+      body: JSON.stringify({ ...p, versionLabel, forceCommit: force === true }),
     });
   } catch {
     /* offline — localStorage still holds it */

@@ -38,13 +38,16 @@ async function ensureRepo(dir: string): Promise<void> {
  * Commit the whole workspace. Returns the new commit sha, or null if git is unavailable or nothing
  * changed (no empty commits on no-op saves). Never throws for the "no changes" case.
  */
-export async function commitWorkspace(dir: string, message: string): Promise<string | null> {
+export async function commitWorkspace(dir: string, message: string, allowEmpty = false): Promise<string | null> {
   if (!(await gitAvailable()) || !existsSync(dir)) return null;
   await ensureRepo(dir);
   await git(dir, ["add", "-A"]);
-  // `diff --cached --quiet` exits 0 when nothing is staged → resolves → nothing to commit.
-  try { await git(dir, ["diff", "--cached", "--quiet"]); return null; } catch { /* has staged changes */ }
-  await git(dir, ["commit", "-q", "-m", message]);
+  if (!allowEmpty) {
+    // `diff --cached --quiet` exits 0 when nothing is staged → resolves → nothing to commit.
+    try { await git(dir, ["diff", "--cached", "--quiet"]); return null; } catch { /* has staged changes */ }
+  }
+  // allowEmpty (an explicit "Save version") records a labelled checkpoint even if nothing changed.
+  await git(dir, ["commit", "-q", ...(allowEmpty ? ["--allow-empty"] : []), "-m", message]);
   return (await git(dir, ["rev-parse", "HEAD"])).trim();
 }
 

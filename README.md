@@ -8,6 +8,7 @@
 [![CI](https://github.com/ziffr/kiln/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933)](package.json)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-ff8a3d)](CONTRIBUTING.md)
+[![Built &amp; maintained by Claude](https://img.shields.io/badge/built%20%26%20maintained%20by-Claude-D97757)](#built-and-maintained-by-claude)
 
 ![Kiln: describe → model → run](docs/assets/kiln-demo.gif)
 
@@ -23,6 +24,10 @@ schema, a command API, n8n automations, an Odoo module, a shadcn/ui front-end, a
 exportable as a complete, docker-ready repo. **Text is the source of truth; everything downstream is a
 projection of it, and a human reviews the AI's work at every step.**
 
+> 🤖 **Kiln is designed, built, and maintained end-to-end by [Claude](https://claude.com/claude-code)**
+> (Anthropic's AI), working with a non-technical product owner. We're open about that on purpose — Kiln
+> is itself a demonstration of the thesis. See [Built and maintained by Claude](#built-and-maintained-by-claude).
+
 ## How it works
 
 ```
@@ -37,6 +42,24 @@ Content enters three ways — paste a **transcript**, let the **agent interview*
 directly — and the same pipeline derives the model. The projection is deterministic; the **engines are
 pluggable** (add a store, orchestrator, UI, or platform by registering one adapter — see
 [SPEC-010](docs/specs/SPEC-010-engine-plugin-seam.md)).
+
+## Built and maintained by Claude
+
+Kiln is **designed, written, tested, documented, and maintained end-to-end by [Claude](https://claude.com/claude-code)**
+(Anthropic's AI) — working with a **non-technical product owner** who sets the vision, priorities, and
+scope. The human decides *what* to build and *why*; the AI does the *how*.
+
+That's true of the ongoing project too, not just the initial build:
+
+- **Every commit** is co-authored by Claude (check the git history — `Co-Authored-By: Claude`).
+- **Every pull request** is reviewed and merged by the AI maintainer; **green CI is required**, and the
+  owner is consulted only on product/scope, in plain language. See **[GOVERNANCE.md](GOVERNANCE.md)**.
+- **Releases** are cut automatically ([release-please](RELEASING.md)); you can even mention **`@claude`**
+  on an issue to have the AI draft a fix as a normal, reviewed PR.
+
+We're deliberately open about this. Kiln's whole premise is that you can describe intent in plain
+language and get real, working software — so it would be strange to hide that Kiln itself is made that
+way. It's the thesis, applied to itself.
 
 ## Examples
 

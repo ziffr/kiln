@@ -145,6 +145,9 @@ export function WorkflowsView({
   classifyBusy,
   rationales,
   services,
+  selectedId,
+  onSelectWorkflow,
+  onSelectStep,
 }: {
   workflows: WorkflowsDoc;
   domain: DomainDoc;
@@ -156,6 +159,9 @@ export function WorkflowsView({
   classifyBusy?: boolean;
   rationales?: Record<string, string>;
   services?: Array<{ id: string; name: string; invocation: string }>;
+  selectedId?: string | null;
+  onSelectWorkflow?: (id: string) => void;
+  onSelectStep?: (commandId: string) => void;
 }): React.JSX.Element {
   const [openDelegate, setOpenDelegate] = useState<string | null>(null);
   if (!workflows.workflows.length) return <Empty msg={t("emptyWorkflows")} />;
@@ -175,9 +181,9 @@ export function WorkflowsView({
         const mode = (w.mode ?? "workflow") as ProcessMode;
         const rationale = rationales?.[w.id];
         return (
-          <div key={w.id} className={`workflow-card wf-mode-${mode}`}>
+          <div key={w.id} className={`workflow-card wf-mode-${mode}${selectedId === `wf:${w.id}` ? " sel" : ""}`}>
             <div className="wf-card-head">
-              <div className="workflow-name">{w.name || w.id}</div>
+              <button className="workflow-name" onClick={() => onSelectWorkflow?.(w.id)} title={t("workflowDetailHint")}>{w.name || w.id}</button>
               {onSetMode ? (
                 <div className="wf-mode-toggle" role="group" aria-label={t("runAs")}>
                   <span className="muted wf-mode-label">{t("runAs")}</span>
@@ -198,12 +204,11 @@ export function WorkflowsView({
                 const boundTo = w.stepBindings?.[s];
                 return (
                   <div key={i} className="wf-node">
-                    {i > 0 && <span className="wf-conn" aria-hidden />}
-                    <span className="wf-num">{i + 1}</span>
-                    <span className={`wf-box${boundTo ? " wf-box-ext" : ""}`} title={boundTo ? `→ ${svcName(boundTo) ?? boundTo}` : undefined}>
-                      {boundTo && "🌐 "}
+                    {i > 0 && <Icon name="chevronRight" size={13} className="wf-conn" />}
+                    <button className={`wf-box${boundTo ? " wf-box-ext" : ""}`} onClick={() => onSelectStep?.(s)} title={boundTo ? `${t("stepDetailHint")} · → ${svcName(boundTo) ?? boundTo}` : t("stepDetailHint")}>
+                      {boundTo && <Icon name="globe" size={11} />}
                       {cmdName(s)}
-                    </span>
+                    </button>
                   </div>
                 );
               })}
@@ -220,7 +225,7 @@ export function WorkflowsView({
                   <div className="wf-delegate-panel">
                     {(w.steps ?? []).map((s, i) => (
                       <div key={i} className="wf-delegate-row">
-                        <span className="wf-delegate-step">{i + 1}. {cmdName(s)}</span>
+                        <span className="wf-delegate-step">{cmdName(s)}</span>
                         <select value={w.stepBindings?.[s] ?? ""} onChange={(e) => onBindStep(w.id, s, e.target.value)}>
                           <option value="">{t("stepInternal")}</option>
                           {services.map((sv) => (

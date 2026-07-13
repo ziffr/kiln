@@ -35,6 +35,7 @@ import { AreaDiagram } from "./components/AreaDiagram";
 import { AgentDiagram } from "./components/AgentDiagram";
 import { EntityTrace } from "./components/EntityTrace";
 import { NodeDetail } from "./components/NodeDetail";
+import { WorkflowDetail } from "./components/WorkflowDetail";
 import { AreaDetail } from "./components/AreaDetail";
 import { CodePreview } from "./components/CodePreview";
 import { InputDialog, ConfirmDialog } from "./components/Modal";
@@ -287,6 +288,8 @@ export default function App(): React.JSX.Element {
   const selectedArea = contextsDoc.contexts.find((c) => contextNodeId(c.id) === selected);
   // A selected entity (aggregate id) opens the cross-layer connections trace instead of NodeDetail.
   const selectedAggregate = selected ? domainDoc.aggregates.find((a) => a.id === selected) : undefined;
+  // A selected workflow (pseudo-id "wf:<id>") opens its routing/steps detail.
+  const selectedWorkflow = selected?.startsWith("wf:") ? workflowsDoc.workflows.find((w) => `wf:${w.id}` === selected) : undefined;
   const areaTerms = (area: ContextInput): string[] => {
     const terms = new Set<string>();
     for (const m of [...(area.capabilities ?? []), ...(area.shared_kernel ?? [])]) {
@@ -918,6 +921,7 @@ export default function App(): React.JSX.Element {
   // Resolve any artifact id (capability / area-node / entity / command / event / policy / role / agent)
   // to a display NAME — used for breadcrumb labels AND for the meaning-key of an ignored finding.
   const nameFor = (id: string): string => {
+    if (id.startsWith("wf:")) { const w = workflowsDoc.workflows.find((x) => `wf:${x.id}` === id); if (w) return w.name || w.id; }
     const cap = activeDoc.capabilities.find((c) => c.id === id); if (cap) return cap.name || id;
     const area = contextsDoc.contexts.find((c) => contextNodeId(c.id) === id || c.id === id); if (area) return area.name || id;
     const agg = domainDoc.aggregates.find((a) => a.id === id); if (agg) return agg.name || id;
@@ -996,7 +1000,7 @@ export default function App(): React.JSX.Element {
   // The detail panel only opens for artifacts that HAVE a detail view (area / entity / capability);
   // selecting a command/role/etc. just highlights the canvas without an empty slide-in.
   const selectedCap = selected ? activeDoc.capabilities.find((c) => c.id === selected) : undefined;
-  const hasDetail = !!(selectedArea || selectedAggregate || selectedCap);
+  const hasDetail = !!(selectedArea || selectedAggregate || selectedCap || selectedWorkflow);
 
   return (
     <div className={`app shell${sidebarOpen ? "" : " sidebar-collapsed"}`}>
@@ -1292,7 +1296,7 @@ export default function App(): React.JSX.Element {
             {stage === "behaviour" && <BehaviourView domain={behaviourDoc} highlight={selectedAggregate?.id} highlightId={highlightId} t={t} />}
             {stage === "automations" && <AutomationsView domain={flowDoc} highlight={selectedAggregate?.id} highlightId={highlightId} t={t} />}
             {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} highlightCap={hovered ?? selectedAggregate?.owner ?? selected} highlightId={highlightId} t={t} />}
-            {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} onSetMode={setWorkflowMode} onSetService={setWorkflowService} onBindStep={setWorkflowStepBinding} onClassify={classifyOrchestration} classifyBusy={orchestrationBusy} rationales={orchestrationRationales} services={serviceOptions} />}
+            {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} onSetMode={setWorkflowMode} onSetService={setWorkflowService} onBindStep={setWorkflowStepBinding} onClassify={classifyOrchestration} classifyBusy={orchestrationBusy} rationales={orchestrationRationales} services={serviceOptions} selectedId={selected} onSelectWorkflow={(id) => navTo("workflows", `wf:${id}`)} onSelectStep={(cmdId) => navTo("behaviour", cmdId)} />}
             {stage === "agents" && <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={(id) => navTo("capabilities", id)} t={t} />}
             {stage === "code" && (
               <CodePreview
@@ -1354,6 +1358,8 @@ export default function App(): React.JSX.Element {
               <AreaDetail area={selectedArea} doc={activeDoc} terms={areaTerms(selectedArea)} onEdit={editArea} onRetire={retireArea} onSelectCapability={(id) => navTo("capabilities", id)} onClose={() => navTo(stage, null)} />
             ) : selectedAggregate ? (
               <EntityTrace entity={selectedAggregate} domain={flowDoc} caps={activeDoc} roles={rolesDoc} onSelectCap={(id) => navTo("capabilities", id)} onSelectEntity={(id) => navTo("entities", id)} onGo={(s) => navTo(s, selected)} onClose={() => navTo(stage, null)} t={t} />
+            ) : selectedWorkflow ? (
+              <WorkflowDetail workflow={selectedWorkflow} domain={behaviourDoc} rationale={orchestrationRationales?.[selectedWorkflow.id]} services={serviceOptions} t={t} onSelectStep={(cmdId) => navTo("behaviour", cmdId)} onClose={() => navTo(stage, null)} />
             ) : (
               <NodeDetail
                 doc={activeDoc}

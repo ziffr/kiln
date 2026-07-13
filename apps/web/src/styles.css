@@ -605,7 +605,9 @@ textarea {
 /* Workflows */
 .workflows-view { display: flex; flex-direction: column; gap: 12px; }
 .workflow-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
-.workflow-name { font-weight: 600; margin-bottom: 8px; }
+.workflow-card.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.workflow-name { display: inline-block; font-weight: 600; margin-bottom: 8px; background: none; border: none; padding: 0; color: var(--fg); font: inherit; cursor: pointer; text-align: left; }
+.workflow-name:hover { color: var(--accent); }
 .workflow-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .wf-sep { color: var(--muted); margin: 0 4px; }
 
@@ -657,12 +659,22 @@ textarea {
 .wire-box { position: absolute; height: 34px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; font-size: 13px; }
 
 /* Workflow sequence (numbered left-to-right) */
-.wf-seq { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
-.wf-node { display: flex; align-items: center; }
-.wf-conn { width: 26px; height: 2px; background: var(--muted); position: relative; margin: 0 2px; }
-.wf-conn::after { content: "▶"; position: absolute; right: -3px; top: -7px; color: var(--muted); font-size: 10px; }
-.wf-num { width: 20px; height: 20px; flex: none; border-radius: 50%; background: var(--accent-2); color: #fff; font-size: 11px; display: grid; place-items: center; margin-right: 6px; }
-.wf-box { padding: 6px 12px; border: 1px solid #334155; border-radius: 8px; background: var(--panel-2); font-size: 13px; white-space: nowrap; }
+.wf-seq { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 2px; }
+.wf-node { display: flex; align-items: center; gap: 2px; }
+.wf-conn { flex: none; color: var(--muted); }
+.wf-box { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); font-size: 13px; white-space: nowrap; color: var(--fg); cursor: pointer; }
+.wf-box:hover { border-color: var(--accent); }
+.wf-box svg { flex: none; color: var(--accent); }
+/* Workflow detail (slide-in) */
+.wf-detail-meta { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; font-size: 12px; }
+.wf-detail-rationale, .wf-detail-ext { font-size: 12px; margin: 0 0 8px; display: flex; align-items: baseline; gap: 4px; }
+.wf-detail-h { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin: 10px 0 6px; }
+.wf-detail-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 9px; }
+.wf-detail-step { background: none; border: none; padding: 0; text-align: left; font: inherit; color: var(--fg); cursor: pointer; }
+.wf-detail-step:hover .wf-detail-cmd { color: var(--accent); text-decoration: underline; }
+.wf-detail-cmd { font-weight: 600; }
+.wf-detail-emits, .wf-detail-bound { font-size: 11px; margin-top: 2px; }
+.wf-detail-bound { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); }
 
 /* ============ Visual polish pass (harmonize to the token system) ============ */
 .stage-rail { background: var(--panel-2); border-right: 1px solid var(--border); padding: 14px 10px; gap: 3px; }
@@ -715,7 +727,6 @@ textarea {
 .role-matrix thead th { background: var(--panel-2); }
 
 /* Workflow sequence — a touch more air */
-.wf-num { background: var(--accent-2); }
 .wf-box { background: var(--panel-2); border-color: var(--border); }
 
 /* Error boundary */

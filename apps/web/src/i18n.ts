@@ -6,7 +6,7 @@ import { initReactI18next } from "react-i18next";
 const resources = {
   de: {
     translation: {
-      appTitle: "Kiln",
+      appTitle: "Kiln Studio",
       tagline: "Business-Modell → Capability Map → Review",
       narrative: "Business-Narrativ",
       narrativeHint: "Beschreibe das Unternehmen. Fähigkeiten entstehen daraus.",
@@ -276,7 +276,7 @@ const resources = {
   },
   en: {
     translation: {
-      appTitle: "Kiln",
+      appTitle: "Kiln Studio",
       tagline: "Business model → Capability Map → review",
       narrative: "Business Narrative",
       narrativeHint: "Describe the business. Capabilities are derived from it.",

@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔥 Kiln
+# 🔥 Kiln Studio
 
 ### The business compiler — describe a business, get the software that runs it.
 
@@ -12,21 +12,21 @@
 
 ![Kiln: describe → model → run](docs/assets/kiln-demo.gif)
 
-<sub>↑ an animation — run Kiln yourself (below) to try it for real</sub>
+<sub>↑ an animation — run Kiln Studio yourself (below) to try it for real</sub>
 
-[**Get started**](#get-started) · [What is Kiln?](#what-is-kiln) · [How it works](#how-it-works) · [Docs](#learn-more) · [Add an engine](docs/good-first-issues/README.md) · [Contribute](CONTRIBUTING.md)
+[**▶ Live demo**](https://demo.kilnstudio.app) · [**Get started**](#get-started) · [What is it?](#what-is-kiln-studio) · [How it works](#how-it-works) · [Docs](#learn-more) · [Contribute](CONTRIBUTING.md)
 
 </div>
 
-## What is Kiln?
+## What is Kiln Studio?
 
-**Kiln turns a written description of a business into a working software starter kit.**
+**Kiln Studio turns a written description of a business into a working software starter kit.**
 
 You describe how a business actually runs — in plain, structured language, the way you'd explain it to a
 new colleague. Take a solar installer: it captures leads, surveys roofs, sends quotes, orders parts,
 schedules installations, invoices, and services what it sold. You just write that down.
 
-Kiln's AI reads it and turns it into a precise **model** of the business: the things it keeps track of
+Kiln Studio's AI reads it and turns it into a precise **model** of the business: the things it keeps track of
 (leads, offers, work orders), the actions it takes (qualify a lead, approve an order), the events those
 cause, who is allowed to do what, and which steps happen automatically. Deterministic checkers catch gaps
 and contradictions along the way — and **you review and correct the AI at every step**. The AI proposes;
@@ -36,7 +36,7 @@ Crucially, **the written description stays the single source of truth.** The dia
 code are just *views* of it — change the words, regenerate the views. Nothing important lives in the
 picture.
 
-Then, with one click, Kiln **generates the actual software scaffolding** for that business: a database, a
+Then, with one click, Kiln Studio **generates the actual software scaffolding** for that business: a database, a
 web admin interface, automation workflows, connectors to tools like Excel, an agent runtime, and
 documentation — a real, runnable, docker-ready project that a developer (or a coding AI) can pick up and
 finish.
@@ -45,17 +45,21 @@ Think of it as **compiling a business the way you compile source code**: you wri
 once, and it produces the technical foundation — instead of a developer hand-translating a specification
 into code, guessing at the details, and drifting from what the business people actually meant.
 
-## Why "Kiln"?
+## Why "Kiln Studio"?
 
 A **kiln** (pronounced *"kill"*, the *n* often silent) is the oven a potter fires raw clay in to turn it
 into something solid and permanent — pottery, bricks, porcelain. You put in something soft and shapeless;
-heat transforms it into something hard and real.
+heat transforms it into something hard and real. And a **studio** is the workshop where that happens — a
+potter's studio is built *around* its kiln.
 
-That is the whole metaphor: you put in **soft raw material** (a plain-language description of a business)
-and Kiln **fires it into something solid** (running software). It is the same idea as a *compiler* — raw
-input becomes a finished artifact — with a craftsman's feel to it. (A nice accident: a kiln fires *clay*,
-and [Claude](https://claude.com/claude-code) — which designs and maintains Kiln — has a clay-colored
-brand.)
+That is the whole metaphor: **Kiln Studio** is the workshop where you put in **soft raw material** (a
+plain-language description of a business) and **fire it into something solid** (running software). It is
+the same idea as a *compiler* — raw input becomes a finished artifact — with a craftsman's feel to it. (A
+nice accident: a kiln fires *clay*, and [Claude](https://claude.com/claude-code) — which designs and
+maintains it — has a clay-colored brand.)
+
+> **Kiln Studio** is the product; **Kiln** is the engine under it — the `@kiln/*` packages and the
+> `kiln.sh` CLI keep that name.
 
 ## How it works
 
@@ -74,7 +78,7 @@ pluggable** (add a store, orchestrator, UI, or platform by registering one adapt
 
 ## Get started
 
-Set up your own Kiln in a couple of minutes. **It works fully offline in "mock" mode with no API key** —
+Set up your own Kiln Studio in a couple of minutes. **It works fully offline in "mock" mode with no API key** —
 add a key only when you want real AI generation.
 
 **Prerequisites:** [Node ≥ 20](https://nodejs.org) and `git`. *(Optional: [Docker](https://www.docker.com)
@@ -124,9 +128,10 @@ account; the app shows a per-call cost estimate. (No key? Everything above still
 ./kiln.sh help         # every command, documented
 ```
 
-> **Is there a hosted demo?** Not a public one — on purpose. A hosted instance holds an Anthropic key, and
-> every "Generate" would spend the operator's credits, so we don't expose a public token-spending demo.
-> Run your own (above): it's a two-minute setup and needs no key to explore.
+> **Hosted demo:** **[demo.kilnstudio.app](https://demo.kilnstudio.app)** — a public, **keyless** demo.
+> Explore the example businesses, walk every stage, and export code; real AI generation is disabled there
+> (a hosted key would spend the operator's credits). For real generation, run your own (above) with your
+> own key.
 
 ## Built and maintained by Claude
 
@@ -190,9 +195,10 @@ apps/
 workspaces/           reference example data
 ```
 
-> **Naming.** Everything is **Kiln** — the product, the `@kiln/*` packages, and the `kiln.sh` CLI. The only
-> pre-Kiln remnants are the local git-directory name (`VerticalBusinessDesiger`, kept for history) and an
-> accepted legacy `VBD_ANTHROPIC_API_KEY` env alias, so existing setups keep working.
+> **Naming.** The product is **Kiln Studio**; **Kiln** is the engine under it — the `@kiln/*` packages and
+> the `kiln.sh` CLI keep that name. Remnants kept on purpose: the local git-directory name
+> (`VerticalBusinessDesiger`, historical) and an accepted legacy `VBD_ANTHROPIC_API_KEY` env alias, so
+> existing setups keep working.
 
 ## License
 

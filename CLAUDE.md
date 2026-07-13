@@ -1,10 +1,12 @@
-# CLAUDE.md — operating manual for Kiln
+# CLAUDE.md — operating manual for Kiln Studio
 
 This file is loaded into context every session. It is the rules of the road. Read it, follow it,
-and update it when a rule changes. **Product name: Kiln** (tagline "the business compiler"); the
-`@kiln/*` packages and `kiln.sh` carry the name too. Pre-Kiln remnants kept on purpose: the local
-git-directory name `VerticalBusinessDesiger` (historical; the public repo is `kiln`), and a legacy
-`VBD_ANTHROPIC_API_KEY` env alias accepted alongside `KILN_ANTHROPIC_API_KEY` for back-compat.
+and update it when a rule changes. **Product name: Kiln Studio** (tagline "the business compiler");
+**Kiln** is the engine under it — the `@kiln/*` packages and `kiln.sh` CLI keep that name. Hosted as
+two envs: **kilnstudio.app** (studio — keyed, passphrase-locked via `KILN_STUDIO_TOKEN`) and
+**demo.kilnstudio.app** (demo — keyless, public). Remnants kept on purpose: the local git-directory
+name `VerticalBusinessDesiger` (historical), and a legacy `VBD_ANTHROPIC_API_KEY` env alias accepted
+alongside `KILN_ANTHROPIC_API_KEY` for back-compat.
 
 ## What this is
 An LLM-guided **"Business Compiler"**: describe a vertical business in structured text → an LLM
@@ -89,7 +91,7 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
 - `.env`, `node_modules/`, `.kiln/`, `dist/` are gitignored — never commit them.
 
 ## Status (keep current)
-- **LAUNCH-STAGED (private): renamed to Kiln, reviewed, deployed.** Repo is `github.com/ziffr/kiln` (PRIVATE, owner chose to hold the public flip). Full VBD→Kiln rename done (packages/CLI/env/IDs/prose; legacy `VBD_ANTHROPIC_API_KEY` + storage-key aliases kept for back-compat). Launch-readiness review: no blockers, no committed secrets. Live on Vercel (auto-deploy via git integration) serving Kiln; hosted demo is client-side (baked examples + all stages + code preview + full-stack export) � real-LLM `/api` now WORKS on the hosted demo — the 25 functions were consolidated into one catch-all (`functions/router.ts` � `api/[...path].js`), under the plan cap; verified `/api/models` ready:true. To go public (owner's word): flip visibility, enable Discussions, add `ANTHROPIC_API_KEY` secret, enable "Actions may create PRs", branch-protect main, set description/topics/social image; optionally rename the Vercel project off the old URL.
+- **LAUNCH-STAGED (private): renamed to Kiln, reviewed, deployed.** Repo is `github.com/ziffr/kiln` (PRIVATE, owner chose to hold the public flip). Full VBD→Kiln rename done (packages/CLI/env/IDs/prose; legacy `VBD_ANTHROPIC_API_KEY` + storage-key aliases kept for back-compat). Launch-readiness review: no blockers, no committed secrets. Live on Vercel (auto-deploy via git integration) serving Kiln; hosted demo is client-side (baked examples + all stages + code preview + full-stack export) � real-LLM `/api` now WORKS on the hosted demo — the 25 functions were consolidated into one catch-all (`functions/router.ts` � `api/[...path].js`), under the plan cap; verified `/api/models` ready:true. To go public (owner's word): flip visibility, enable Discussions, add `ANTHROPIC_API_KEY` secret, enable "Actions may create PRs", branch-protect main, set description/topics/social image; optionally rename the Vercel project off the old URL.
 - **Building the FULL methodology stack** (user: "the whole enchilada"): policies ✅ → roles ✅ →
   workflows ✅ → agents ✅ → application/implementation blueprints ✅ → execution codegen MCP/React ✅ (adapters hand-owned per ADR-002). FULL STACK BUILT.
 - **SPEC-009 orchestration (workflow-vs-agent router) BUILT** — each process carries an authored

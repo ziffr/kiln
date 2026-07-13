@@ -12,6 +12,10 @@ jobs:
   analyze:
     name: analyze
     runs-on: ubuntu-latest
+    # Code scanning (SARIF upload) is only available on PUBLIC repos (or private with GitHub Advanced
+    # Security). While the repo is private the upload fails; gate the job on visibility so it doesn't
+    # run (and email) until the repo is public, when it resumes automatically.
+    if: ${{ github.event.repository.visibility == 'public' }}
     permissions:
       actions: read
       contents: read

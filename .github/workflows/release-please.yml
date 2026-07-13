@@ -13,6 +13,10 @@ jobs:
   release-please:
     name: release-please
     runs-on: ubuntu-latest
+    # release-please needs "Allow GitHub Actions to create and approve pull requests" (a repo setting)
+    # to open its release PR; until the repo is public and that's enabled, it fails. Gate on visibility
+    # so it doesn't run (and email) while private; it resumes automatically once the repo is public.
+    if: ${{ github.event.repository.visibility == 'public' }}
     steps:
       - name: Run release-please
         uses: googleapis/release-please-action@v4

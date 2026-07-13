@@ -49,7 +49,7 @@ The **IR is the contract**: every view and validator reads it. Validators are pu
 - **TypeScript end-to-end** (ADR-001). Node ≥ 20 runs `.ts` natively (type-stripping) — packages
   have **no build step**. `@types/node`/`typescript` are intentionally not installed, so the editor
   shows "cannot find module 'node:*'" squiggles — harmless; runtime is fine.
-- **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **134** passing). Every
+- **Tests:** `node:test` + `node:assert/strict`. Run `npm test` (currently **279** passing). Every
   new pure function gets a test in `packages/*/test/*.test.ts`.
 - **Web:** Vite. `npm run build --workspace @kiln/web` must pass. Verify UI changes **in the browser**
   (the preview tools), not just tests — the invariants are visual.

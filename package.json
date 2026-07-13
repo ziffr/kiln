@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Kiln (VBD) — an LLM-guided Business Compiler",
+  "description": "Kiln — the business compiler: describe a business, get the software that runs it.",
   "workspaces": [
     "packages/*",
     "apps/*"

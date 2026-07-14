@@ -18,8 +18,8 @@ const comms: CommunicationsDoc = { actions: [{ id: "slack_lead_qualified", name:
 
 test("agentsAdapter emits a runnable runtime + a definition per agent with wired tools", () => {
   const files = agentsAdapter(caps, domain, agents, comms);
-  // the runtime — provider-flexible (Anthropic native + OpenRouter)
-  for (const p of ["agents/package.json", "agents/src/runner.ts", "agents/src/run.ts", "agents/src/server.ts", "agents/src/tools.ts", "agents/src/def.ts", "agents/src/providers/anthropic.ts", "agents/src/providers/openrouter.ts", "agents/tsconfig.json", "agents/README.md"]) assert.ok(files[p], `${p} missing`);
+  // the runtime — provider-flexible (Anthropic native + one OpenAI-compatible path for every gateway)
+  for (const p of ["agents/package.json", "agents/src/runner.ts", "agents/src/run.ts", "agents/src/server.ts", "agents/src/tools.ts", "agents/src/def.ts", "agents/src/providers/anthropic.ts", "agents/src/providers/openaiCompatible.ts", "agents/.env.example", "agents/tsconfig.json", "agents/README.md"]) assert.ok(files[p], `${p} missing`);
   assert.match(files["agents/package.json"], /@anthropic-ai\/sdk/);
   assert.match(files["agents/package.json"], /"openai"/);
   // HTTP mode — a webhook/trigger can WAKE an agent via POST /run
@@ -30,8 +30,14 @@ test("agentsAdapter emits a runnable runtime + a definition per agent with wired
   assert.match(files["agents/src/run.ts"], /export async function runAgent/);
   assert.match(files["agents/src/runner.ts"], /runAgent/); // CLI reuses the shared helper
   assert.match(files["agents/src/providers/anthropic.ts"], /client\.messages\.create/);
-  assert.match(files["agents/src/providers/openrouter.ts"], /chat\.completions\.create/);
+  assert.match(files["agents/src/providers/openaiCompatible.ts"], /chat\.completions\.create/);
+  // the one OpenAI-compatible path resolves every gateway the Studio offers
+  assert.match(files["agents/src/providers/openaiCompatible.ts"], /openrouter/);
+  assert.match(files["agents/src/providers/openaiCompatible.ts"], /omniroute/);
   assert.match(files["agents/src/run.ts"], /openrouter|anthropic/);
+  assert.match(files["agents/src/run.ts"], /runOpenAICompatible/);
+  // default .env leads with Anthropic when no engine is baked
+  assert.match(files["agents/.env.example"], /PROVIDER=anthropic/);
   // the behaviour playbook (the "HOW") — a markdown file the runtime loads as the system prompt
   assert.ok(files["agents/behaviours/lead_agent.md"], "behaviour playbook");
   assert.match(files["agents/behaviours/lead_agent.md"], /How you work/);
@@ -56,6 +62,16 @@ test("agentsAdapter emits a runnable runtime + a definition per agent with wired
 
 test("no agents → nothing emitted", () => {
   assert.equal(Object.keys(agentsAdapter(caps, domain, { agents: [] } as unknown as AgentsDoc)).length, 0);
+});
+
+test("baked engine default: an app built on a gateway leads its .env with that provider + model", () => {
+  const files = agentsAdapter(caps, domain, agents, comms, undefined, undefined, { provider: "omniroute", model: "auto/coding", baseUrl: "https://gw.internal/v1" });
+  const env = files["agents/.env.example"];
+  assert.match(env, /PROVIDER=omniroute/); // leads with the built-on engine
+  assert.match(env, /OMNIROUTE_MODEL=auto\/coding/); // the chosen model is baked
+  assert.match(env, /OMNIROUTE_BASE_URL=https:\/\/gw\.internal\/v1/);
+  assert.match(env, /built on "omniroute"/); // explains why + that Anthropic stays available
+  assert.match(env, /ANTHROPIC_API_KEY/); // still present, just not the default
 });
 
 test("agent-mode processes fold into the covering agent's behaviour (SPEC-009)", () => {

@@ -96,6 +96,10 @@ export interface Binding {
    *  Unset/"node" → the generated Node runtime (Anthropic/OpenRouter); "langdock" → provision into a
    *  Langdock workspace via its Agent API. Only affects agents; does not change command/store/etc. bindings. */
   agentRuntime?: string;
+  /** Default ENGINE for the generated Node agent runtime, baked into its .env.example so an app built on a
+   *  gateway ships pre-pointed at it. provider: anthropic | openrouter | omniroute | openai-compatible.
+   *  Unset → Anthropic-first (default). Always overridable at deploy time via env. */
+  agent?: { provider?: string; model?: string; baseUrl?: string };
 }
 
 /** A sensible multi-backend default for the probe: data in Postgres, orchestration in n8n, rest = spine. */
@@ -647,7 +651,7 @@ export function projectTargets(
     engines: engineOutputs,
     comms: communicationsAdapter(commsDoc),
     integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain),
-    agents: agentsAdapter(caps, domain, agents, commsDoc, workflows, servicesDoc),
+    agents: agentsAdapter(caps, domain, agents, commsDoc, workflows, servicesDoc, binding.agent),
     triggers: (() => {
       const doc = triggers ?? mockTriggers(caps, domain, workflows, agents);
       return { doc, n8n: triggersAdapter(doc, domain) };

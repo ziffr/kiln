@@ -206,16 +206,28 @@ export async function runAnthropic(def: AgentDef, task: string, system: string):
   return finalText;
 }
 `,
-  "src/providers/openrouter.ts": `import OpenAI from "openai";
+  "src/providers/openaiCompatible.ts": `import OpenAI from "openai";
 import { executeTool } from "../tools";
 import type { AgentDef, AgentTool } from "../def";
 
 ${SCHEMA_HELPER}
 
-// OpenAI-compatible loop via OpenRouter — any model (Claude, GPT, Gemini, Llama, self-hosted, …).
-export async function runOpenRouter(def: AgentDef, task: string, system: string): Promise<string> {
-  const client = new OpenAI({ apiKey: process.env.OPENROUTER_API_KEY, baseURL: "https://openrouter.ai/api/v1" });
-  const model = def.model || process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5"; // per-agent override
+// ONE OpenAI-compatible loop for every gateway — OpenRouter, omniroute, or any self-hosted OpenAI-style
+// endpoint (LiteLLM, vLLM, Ollama, Azure, …). PROVIDER selects which key / base URL / default model to read,
+// so adding a gateway is env-only. Mirrors the Studio's openaiCompatible adapter.
+function endpoint(provider: string): { apiKey?: string; baseURL: string; model: string } {
+  if (provider === "openrouter")
+    return { apiKey: process.env.OPENROUTER_API_KEY, baseURL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1", model: process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5" };
+  if (provider === "omniroute")
+    return { apiKey: process.env.OMNIROUTE_API_KEY, baseURL: process.env.OMNIROUTE_BASE_URL || "http://localhost:8080/v1", model: process.env.OMNIROUTE_MODEL || "auto" };
+  // generic OpenAI-compatible gateway
+  return { apiKey: process.env.OPENAI_API_KEY, baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1", model: process.env.OPENAI_MODEL || "gpt-4o" };
+}
+
+export async function runOpenAICompatible(def: AgentDef, task: string, system: string, provider = "openai-compatible"): Promise<string> {
+  const ep = endpoint(provider);
+  const client = new OpenAI({ apiKey: ep.apiKey, baseURL: ep.baseURL });
+  const model = def.model || ep.model; // per-agent override, else the provider's default
   const tools = def.tools.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: toolParams(t) } }));
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: system },
@@ -247,7 +259,7 @@ export async function runOpenRouter(def: AgentDef, task: string, system: string)
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { runAnthropic } from "./providers/anthropic";
-import { runOpenRouter } from "./providers/openrouter";
+import { runOpenAICompatible } from "./providers/openaiCompatible";
 import type { AgentDef } from "./def";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -268,10 +280,15 @@ export async function runAgent(id: string, task: string): Promise<AgentRunResult
   // behaviour = the agent's system prompt; edit behaviours/<id>.md to change how it works.
   const behaviourPath = join(here, "..", "behaviours", id + ".md");
   const system = existsSync(behaviourPath) ? readFileSync(behaviourPath, "utf8") : "You are " + def.name + ". Goal: " + def.goal;
-  // Provider: Anthropic native by default (best Claude fidelity); OpenRouter for any model.
-  const provider = process.env.PROVIDER || (process.env.OPENROUTER_API_KEY ? "openrouter" : "anthropic");
-  const run = provider === "openrouter" ? runOpenRouter : runAnthropic;
-  const result = await run(def, t, system);
+  // Provider: Anthropic native by default (best Claude fidelity); any OpenAI-compatible gateway otherwise
+  // (openrouter | omniroute | openai-compatible). PROVIDER wins; else infer from whichever key is set.
+  const provider = (process.env.PROVIDER
+    || (process.env.OPENROUTER_API_KEY ? "openrouter"
+      : process.env.OMNIROUTE_API_KEY ? "omniroute"
+        : process.env.OPENAI_API_KEY ? "openai-compatible" : "anthropic")).trim();
+  const result = provider === "anthropic"
+    ? await runAnthropic(def, t, system)
+    : await runOpenAICompatible(def, t, system, provider);
   return { agent: id, task: t, result };
 }
 `,
@@ -337,27 +354,51 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
   rules: { "@typescript-eslint/no-explicit-any": "warn", "@typescript-eslint/no-unused-vars": ["error", { args: "none", varsIgnorePattern: "^_" }] },
 });
 `,
-  ".env.example": `# Copy to .env. Pick a provider.
-PROVIDER=anthropic                         # or: openrouter
-SPINE_URL=http://localhost:3000
-# If the spine requires auth (its API_TOKEN is set), send the SAME token on command calls:
-# API_TOKEN=change-me
-
-# Anthropic native (default — best Claude fidelity):
-ANTHROPIC_API_KEY=sk-ant-...
-ANTHROPIC_MODEL=claude-sonnet-5
-
-# OpenRouter — one integration, ANY model (Claude / GPT / Gemini / Llama / self-hosted). Cheapest route
-# to a low/flat cost is a small open model here; note: consumer plans (Claude Max, ChatGPT Pro, Gemini
-# Advanced) are NOT usable programmatically — their ToS forbid it and there is no official API.
-OPENROUTER_API_KEY=sk-or-...
-OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
-`,
   ".gitignore": "node_modules\n.env\n",
 };
 
+/** Default agent-runtime engine, baked into the exported .env.example so an app built on a gateway ships
+ *  pre-pointed at it (still overridable at deploy time). Unset → Anthropic-first. */
+export interface AgentDefaults { provider?: string; model?: string; baseUrl?: string }
+
+/** The exported agents/.env.example — leads with the engine the model was built on, then lists the rest. */
+function agentEnvExample(d?: AgentDefaults): string {
+  const provider = d?.provider || "anthropic";
+  const blocks: Record<string, string> = {
+    anthropic: `# Anthropic native — best Claude fidelity; per-agent model/effort apply here.
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=${(provider === "anthropic" && d?.model) || "claude-sonnet-5"}
+`,
+    openrouter: `# OpenRouter — one OpenAI-compatible integration, ANY model (Claude / GPT / Gemini / Llama / self-hosted).
+OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_MODEL=${(provider === "openrouter" && d?.model) || "anthropic/claude-sonnet-4.5"}
+`,
+    omniroute: `# omniroute — self-hosted OpenAI-compatible gateway; point at your gateway + set its key.
+OMNIROUTE_BASE_URL=${(provider === "omniroute" && d?.baseUrl) || "http://localhost:8080/v1"}
+OMNIROUTE_API_KEY=...
+OMNIROUTE_MODEL=${(provider === "omniroute" && d?.model) || "auto"}
+`,
+    "openai-compatible": `# Any other OpenAI-compatible endpoint (LiteLLM, vLLM, Ollama, Azure OpenAI, …).
+OPENAI_BASE_URL=${(provider === "openai-compatible" && d?.baseUrl) || "https://api.openai.com/v1"}
+OPENAI_API_KEY=...
+OPENAI_MODEL=${(provider === "openai-compatible" && d?.model) || "gpt-4o"}
+`,
+  };
+  const order = [provider, ...Object.keys(blocks).filter((k) => k !== provider)];
+  const note = provider !== "anthropic"
+    ? `# This app was built on "${provider}" in Kiln, so PROVIDER defaults to it. Anthropic stays available — switch PROVIDER to use it.\n`
+    : "";
+  return `# Copy to .env. PROVIDER picks the engine; fill in that engine's block below.
+PROVIDER=${provider}                         # anthropic | openrouter | omniroute | openai-compatible
+SPINE_URL=http://localhost:3000
+# If the spine requires auth (its API_TOKEN is set), send the SAME token on command calls:
+# API_TOKEN=change-me
+${note}
+${order.map((k) => blocks[k]).join("\n")}`;
+}
+
 /** Resolve each agent's toolset and emit a runnable, provider-flexible runtime (definitions + loop). */
-export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc): Record<string, string> {
+export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc, agentDefaults?: AgentDefaults): Record<string, string> {
   if (!agents?.agents?.length) return {};
   const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
   const cmdName = new Map((domain.commands ?? []).map((c) => [c.id, c.name || c.id]));
@@ -405,6 +446,7 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
 
   const files: Record<string, string> = {};
   for (const [rel, content] of Object.entries(RUNTIME)) files[`agents/${rel}`] = content;
+  files["agents/.env.example"] = agentEnvExample(agentDefaults); // engine-aware: leads with the built-on provider
   for (const d of defs) {
     // definition = structure + config; behaviour = the editable markdown playbook (the "HOW").
     files[`agents/definitions/${d.id}.json`] = JSON.stringify({ ...d, instructions: undefined }, null, 2);
@@ -444,12 +486,16 @@ capabilities → its command tools change). Per-agent \`model\`/\`effort\` apply
 playbook. (If you want fixed, deterministic steps instead, that's a **workflow**, not an agent.)
 
 ## Choosing a model / provider (\`.env\`)
-- **Anthropic native** (default): set \`ANTHROPIC_API_KEY\` + \`ANTHROPIC_MODEL\` (per-agent \`model\`/\`effort\`
-  in the definition override it). Best Claude fidelity.
-- **OpenRouter** (any model): set \`PROVIDER=openrouter\` + \`OPENROUTER_API_KEY\` + \`OPENROUTER_MODEL\`
-  (e.g. \`openai/gpt-4o\`, \`google/gemini-2.0-flash\`, \`meta-llama/llama-3.3-70b\`, or a self-hosted model).
-  One OpenAI-compatible integration for every provider — the cheapest/most-predictable route is a small
-  open model.
+\`PROVIDER\` picks the engine; the same four Kiln offers in Studio work here. \`.env.example\` **leads with the
+engine this app was built on** — switch \`PROVIDER\` to use another. Per-agent \`model\`/\`effort\` (in the
+definition) override the env default; \`effort\` is Anthropic-only.
+- **Anthropic native** (\`PROVIDER=anthropic\`): \`ANTHROPIC_API_KEY\` + \`ANTHROPIC_MODEL\`. Best Claude fidelity.
+- **OpenRouter** (\`PROVIDER=openrouter\`): \`OPENROUTER_API_KEY\` + \`OPENROUTER_MODEL\` (e.g. \`openai/gpt-4o\`,
+  \`google/gemini-2.0-flash\`, \`meta-llama/llama-3.3-70b\`). One integration, any model.
+- **omniroute** (\`PROVIDER=omniroute\`): self-hosted OpenAI-compatible gateway — \`OMNIROUTE_BASE_URL\` +
+  \`OMNIROUTE_API_KEY\` + \`OMNIROUTE_MODEL\`.
+- **Any OpenAI-compatible endpoint** (\`PROVIDER=openai-compatible\`): LiteLLM, vLLM, Ollama, Azure OpenAI —
+  \`OPENAI_BASE_URL\` + \`OPENAI_API_KEY\` + \`OPENAI_MODEL\`.
 
 **On flat-fee plans:** consumer subscriptions (Claude Max, ChatGPT Plus/Pro, Gemini Advanced) can NOT
 power an app's agents — their terms forbid programmatic use and there's no official API. For predictable

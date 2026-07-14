@@ -1,0 +1,9 @@
+{
+  "label": "The modeling flow",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "title": "The modeling flow",
+    "description": "A walkthrough of every layer, from your plain-language description down to runnable code. Each layer is derived from the ones above it — work top to bottom, and stop whenever you have enough."
+  }
+}

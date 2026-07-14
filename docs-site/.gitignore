@@ -1,0 +1,7 @@
+# Docs-site build + tooling — never committed. This project is not a repo workspace, so these deps
+# live only here (and in CI); a contributor's root `npm install` never touches them.
+/node_modules
+/build
+/.docusaurus
+/.cache-loader
+.DS_Store

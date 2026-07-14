@@ -32,3 +32,6 @@
 /SECURITY.md                            @ziffr
 /GOVERNANCE.md                          @ziffr
 /.github/**                             @ziffr
+
+# ── Documentation site — the owner maintains it; others contribute via PR only ───────────────────
+/docs-site/**                           @ziffr

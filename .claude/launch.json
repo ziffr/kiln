@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace", "@kiln/service"],
       "port": 8787
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "docs-site", "run", "start", "--", "--port", "3100", "--no-open"],
+      "port": 3100
     }
   ]
 }

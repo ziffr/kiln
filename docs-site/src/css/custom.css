@@ -1,0 +1,23 @@
+/* Kiln Studio docs theme — warm "kiln flame" accent over Docusaurus defaults. */
+:root {
+  --ifm-color-primary: #d9772e;
+  --ifm-color-primary-dark: #c3691f;
+  --ifm-color-primary-darker: #b8631d;
+  --ifm-color-primary-darkest: #975118;
+  --ifm-color-primary-light: #de8747;
+  --ifm-color-primary-lighter: #e08f52;
+  --ifm-color-primary-lightest: #e7a674;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #e79b63;
+  --ifm-color-primary-dark: #e08847;
+  --ifm-color-primary-darker: #dc7f39;
+  --ifm-color-primary-darkest: #c1691f;
+  --ifm-color-primary-light: #eead7f;
+  --ifm-color-primary-lighter: #f0b78d;
+  --ifm-color-primary-lightest: #f5d0b6;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}

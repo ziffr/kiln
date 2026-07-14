@@ -24,6 +24,9 @@ import {
   generateAppLogic,
   generateComponents,
   polishComponents,
+  validateSpec,
+  POLISH_UI_SCHEMA,
+  POLISH_VISUAL_SYSTEM_PROMPT,
   reviewGeneratedCode,
   CRITIQUE_EFFORT,
   type LayerKind,
@@ -67,6 +70,8 @@ import {
 } from "./models.ts";
 import { openAiCompatibleProvider, type OpenAiCompatConfig } from "./providers/openaiCompatible.ts";
 import { startRun, getRun, stopRun, runClientHtml } from "./run.ts";
+import { screenshotUrl, screenshotAvailable } from "./screenshot.ts";
+import { generateApp, projectAppModel } from "@kiln/codegen";
 import { deleteProject, listProjects, projectDir, saveProject, type StoredProject } from "./workspaces.ts";
 import { commitWorkspace, listVersions, showFileAt } from "./workspaceGit.ts";
 
@@ -565,6 +570,61 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
+    // VISUAL UX pass (Phase 2): boot the app, SCREENSHOT each screen with headless Chrome, and have Claude
+    // vision critique what it actually SEES → improved view specs. Anthropic-only (vision) + local-only
+    // (needs a browser + spawn, so not on the hosted serverless functions). Degrades gracefully if no Chrome.
+    if (req.method === "POST" && req.url === "/api/polish-visual") {
+      if (!client) return send(res, 500, { error: "Visual polish needs an Anthropic key (KILN_ANTHROPIC_API_KEY / KILN_LANGDOCK_API_KEY)." });
+      if (!screenshotAvailable()) return send(res, 200, { unavailable: true, error: "Visual polish needs a local Chrome/Chromium. Install Google Chrome (or set KILN_CHROME) and retry." });
+      const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: DomainDoc; contexts?: unknown; roles?: unknown; views?: Record<string, unknown>; model?: string };
+      if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
+      const model = anthropicModel(body.model); // vision → Anthropic model
+      const curViews = (body.views && typeof body.views === "object" ? body.views : {}) as Record<string, unknown>;
+      const files = generateApp(body.capabilities, body.domain, body.contexts as never, body.roles as never, undefined, curViews as never);
+      const started = await startRun(files, `http://localhost:${PORT}`, curViews);
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const views: Record<string, unknown> = { ...curViews };
+      const improvements: Record<string, string[]> = {};
+      try {
+        const m = projectAppModel(body.capabilities, body.domain, body.contexts as never, body.roles as never);
+        const VISION_MAX = 6; // bound cost/latency: shoot + critique at most this many screens
+        for (const e of m.entities.slice(0, VISION_MAX)) {
+          const shot = await screenshotUrl(`http://localhost:${PORT}/run/${started.id}/?screen=${e.id}`, { width: 1200, height: 900 });
+          if (!shot) continue;
+          const cur = (curViews[e.id] as unknown) ?? {};
+          const user = `Entity "${e.name}" (id: ${e.id}). Fields (name:type): ${e.fields.map((f) => `${f.name}:${f.type}`).join(", ") || "(none)"}. Current spec: ${JSON.stringify(cur)}. Critique the screenshot and return an improved spec.`;
+          let resp;
+          try {
+            resp = await client.messages.create({
+              model: model.id,
+              max_tokens: 2000,
+              system: POLISH_VISUAL_SYSTEM_PROMPT,
+              messages: [{ role: "user", content: [
+                { type: "image", source: { type: "base64", media_type: "image/png", data: shot.toString("base64") } },
+                { type: "text", text: user },
+              ] }],
+              output_config: { format: { type: "json_schema", schema: POLISH_UI_SCHEMA } },
+            } as unknown as Anthropic.MessageCreateParamsNonStreaming);
+          } catch { continue; } // one bad screen shouldn't fail the whole pass
+          usage.input += resp.usage.input_tokens ?? 0;
+          usage.output += resp.usage.output_tokens ?? 0;
+          const text = resp.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("").trim();
+          const parsed = safeParseJson(text) as Record<string, unknown> | null;
+          const improved = validateSpec(parsed, e);
+          if (improved) {
+            views[e.id] = improved;
+            const imps = Array.isArray(parsed?.improvements) ? (parsed!.improvements as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 8) : [];
+            if (imps.length) improvements[e.id] = imps;
+          }
+        }
+      } finally {
+        stopRun(started.id);
+      }
+      const estCostUsd = round((usage.input * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+      return send(res, 200, { views, improvements, model: model.id, usage, estCostUsd, sessionSpendUsd });
     }
 
     // Multi-lens AI review of the GENERATED code (security/correctness/maintainability). Higher effort.

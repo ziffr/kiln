@@ -215,7 +215,9 @@ const api = {
 const el = (t, props, kids) => { const n = document.createElement(t); Object.assign(n, props || {}); (kids||[]).forEach(k => n.append(k)); return n; };
 const entities = MODEL.entities || [];
 const roles = (MODEL.roles || []).map(r => typeof r === "string" ? r : r.name);
-let screen = entities[0] ? entities[0].id : "__events__";
+// ?screen=<entityId> lets the visual UX pass shoot one screen at a time (headless Chrome).
+const _q = new URLSearchParams(location.search);
+let screen = _q.get("screen") || (entities[0] ? entities[0].id : "__events__");
 
 function renderRole() {
   const s = document.getElementById("role");

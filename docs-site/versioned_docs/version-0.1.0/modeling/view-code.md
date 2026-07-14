@@ -32,6 +32,12 @@ you the changes **per screen to accept or skip** — nothing is applied until yo
 can't break the build. Web research and the interview aside, it runs on your selected
 [engine](../reference/choosing-an-engine).
 
+**👁 Visual polish** goes one step further: it boots the app locally, **screenshots each screen**, and an
+AI critiques what it actually *sees* — spotting an empty or unbalanced layout, a pipeline that should be a
+board, missing KPI tiles — then proposes the same accept/skip improvements. It needs the local service and a
+local Chrome/Chromium installed (set `KILN_CHROME` to point at a specific one); if none is found it says so
+rather than failing.
+
 ## Run app — see the outcome before you export
 
 Click **▶ Run app** to actually use the software your model describes, before you commit to it. Kiln

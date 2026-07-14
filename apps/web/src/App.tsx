@@ -1674,6 +1674,14 @@ export default function App(): React.JSX.Element {
                   setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
                   return { views: data.views ?? {}, improvements: data.improvements ?? {} };
                 }}
+                requestPolishVisual={serverUp ? async (views) => {
+                  const res = await fetch(`${SERVICE_URL}/api/polish-visual`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, views, model: modelFor("entities") }) });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+                  if (data.unavailable) return { views: {}, improvements: {}, unavailable: true, error: data.error };
+                  setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                  return { views: data.views ?? {}, improvements: data.improvements ?? {} };
+                } : undefined}
                 requestCodeReview={async (handlerCode) => {
                   const res = await fetch(`${SERVICE_URL}/api/code-review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, handlerCode, model: modelFor("behaviour"), provider: engine }) });
                   const data = await res.json();

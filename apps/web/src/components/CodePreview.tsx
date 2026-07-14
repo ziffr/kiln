@@ -31,6 +31,7 @@ export function CodePreview({
   requestVerify,
   requestRun,
   requestPolishUi,
+  requestPolishVisual,
   requestCodeReview,
   buildModel,
   onClose,
@@ -46,6 +47,7 @@ export function CodePreview({
   requestVerify: (files: Record<string, string>) => Promise<VerifyVerdict>;
   requestRun?: (files: Record<string, string>, views?: Record<string, unknown>) => Promise<{ uiUrl: string; id: string }>;
   requestPolishUi?: (views: Record<string, unknown>) => Promise<{ views: Record<string, unknown>; improvements: Record<string, string[]> }>;
+  requestPolishVisual?: (views: Record<string, unknown>) => Promise<{ views: Record<string, unknown>; improvements: Record<string, string[]>; unavailable?: boolean; error?: string }>;
   requestCodeReview: (handlerCode?: Record<string, string>) => Promise<CodeFinding[]>;
   buildModel: () => ModelDoc; // the COMPLETE model (all layers) — for the full-stack export
   onClose: () => void;
@@ -65,12 +67,31 @@ export function CodePreview({
   const [running, setRunning] = useState(false);
   const [runUrl, setRunUrl] = useState<string | null>(null);
   const [polishing, setPolishing] = useState(false);
+  const [visualPolishing, setVisualPolishing] = useState(false);
   // A proposed UX pass awaiting review: the improved specs + per-screen rationale + which screens to apply.
   const [polish, setPolish] = useState<{ views: Record<string, unknown>; improvements: Record<string, string[]> } | null>(null);
   const [polishAccept, setPolishAccept] = useState<Record<string, boolean>>({});
   const autoStop = useRef(false);
   const zipName = `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`;
-  const busy = exporting || reviewing || fixing || auto || verifying || autoVerifying || running || polishing;
+  const busy = exporting || reviewing || fixing || auto || verifying || autoVerifying || running || polishing || visualPolishing;
+
+  // Phase-2 VISUAL pass: the service boots the app, screenshots each screen, and Claude vision critiques
+  // what it SEES → improved specs. Same review panel as the structural pass. Local-only (needs a browser).
+  async function polishVisual(): Promise<void> {
+    if (!requestPolishVisual) return;
+    setVisualPolishing(true);
+    setExportNote(null);
+    try {
+      const res = await requestPolishVisual((views as Record<string, unknown>) ?? {});
+      if (res.unavailable) { setExportNote(res.error ?? "Visual polish is unavailable."); return; }
+      setPolish({ views: res.views, improvements: res.improvements });
+      setPolishAccept(Object.fromEntries(Object.keys(res.improvements).map((id) => [id, true])));
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVisualPolishing(false);
+    }
+  }
 
   // Automated UX pass: a "senior designer" agent critiques + improves every screen's view spec against the
   // Kiln design rubric, iterating to best practices. The result is REVIEWED (per-screen accept) before it
@@ -310,6 +331,11 @@ export function CodePreview({
           {requestPolishUi && (
             <button className="code-export ghost" onClick={() => void polishUi()} disabled={busy} title="A designer agent critiques + improves every screen (hierarchy, formats, badges, hidden ids) in the Kiln design language — you review before it applies">
               <Icon name="sparkles" size={14} />{polishing ? "Polishing…" : "Polish UI"}
+            </button>
+          )}
+          {requestPolishVisual && (
+            <button className="code-export ghost" onClick={() => void polishVisual()} disabled={busy} title="Visual pass: boots the app, screenshots each screen, and an AI critiques what it actually SEES (layout, balance, boards vs tables) — needs a local Chrome">
+              <Icon name="eye" size={14} />{visualPolishing ? "Looking…" : "Visual polish"}
             </button>
           )}
           {requestRun && (

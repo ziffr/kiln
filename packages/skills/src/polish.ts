@@ -16,6 +16,8 @@ import { PROMPTS } from "./prompts.generated.ts";
 import { COMPONENTS_SCHEMA, validateSpec, type ViewSpec } from "./components.ts";
 
 export const POLISH_UI_SYSTEM_PROMPT = PROMPTS["polish-ui"];
+/** System prompt for the VISUAL pass — the model is shown a screenshot alongside the spec (Anthropic-only). */
+export const POLISH_VISUAL_SYSTEM_PROMPT = PROMPTS["polish-visual"];
 
 // The view-spec schema plus the critique's rationale (`improvements`) and a convergence signal (`done`).
 export const POLISH_UI_SCHEMA = {

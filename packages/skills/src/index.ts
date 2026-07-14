@@ -136,7 +136,7 @@ export { parseFinding, type FixIntent } from "./fixparse.ts";
 export { generateAppLogic, APP_LOGIC_SCHEMA, APP_LOGIC_SYSTEM_PROMPT, type AppLogicResult } from "./applogic.ts";
 export { reviewGeneratedCode, CODE_REVIEW_SCHEMA, CODE_REVIEW_SYSTEM_PROMPT, type CodeReviewResult, type CodeFinding, type CodeLens } from "./codereview.ts";
 export { generateComponents, COMPONENTS_SCHEMA, COMPONENTS_SYSTEM_PROMPT, validateSpec, type ComponentsResult, type ViewSpec, type ViewMetric, type ViewCard } from "./components.ts";
-export { polishComponents, POLISH_UI_SCHEMA, POLISH_UI_SYSTEM_PROMPT, type PolishResult } from "./polish.ts";
+export { polishComponents, POLISH_UI_SCHEMA, POLISH_UI_SYSTEM_PROMPT, POLISH_VISUAL_SYSTEM_PROMPT, type PolishResult } from "./polish.ts";
 export { buildCapabilityRequest, renderUserPrompt, CAPABILITY_SYSTEM_PROMPT } from "./prompt.ts";
 export {
   buildCoachSystemPrompt,

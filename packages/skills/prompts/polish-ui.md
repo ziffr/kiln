@@ -22,14 +22,18 @@ Apply this checklist and FIX every issue you find:
 - **Form design** — `formFields` = only the fields a user fills, in the order they'd naturally enter them
   (identity first, then details); omit system/derived fields. Don't dump every field into the form.
 - **Orientation** — write a `description`: one plain-language line on what this screen is for.
-- **Engaging layout** — a plain table is fine, but reach for a richer layout when the data invites it:
-  · `layout: "board"` + `groupBy: <status field>` when the entity moves through stages (leads, orders,
-  tickets) — a pipeline reads far better as a kanban than a table.
-  · `layout: "cards"` + a `card` spec ({ title, subtitle, badge, meta }) when a few rich fields matter more
-  than many columns.
-  · `metrics`: 1–4 KPI tiles ({ label, agg: count|sum|avg, field?, format? }) to lead the screen — e.g. a
-  count of open items and a sum of a money field. This is the single biggest step up in "looks professional".
-  Only use these when they genuinely help; a clean table beats a forced board.
+- **Lead with metrics** — ALWAYS add 1–3 `metrics` KPI tiles when the entity has a money/number field or a
+  status field: a `count` of rows, and a `sum`/`avg` over the main money/number field (e.g. total pipeline
+  value, average deal size). Metric tiles are the single biggest step up in "looks professional" — omit them
+  only for a trivial lookup table with no numeric or status field.
+- **Engaging layout** — reach past a plain table when the data invites it:
+  · `layout: "board"` + `groupBy: <status/stage field>` when the entity moves through stages (leads, orders,
+  tickets, applications) — a pipeline reads far better as a kanban than a table. Prefer this whenever a
+  short status/stage field exists.
+  · `layout: "cards"` when a few rich fields matter more than many columns.
+  · Whenever you choose `board` OR `cards`, you MUST also give a `card` spec: `title` (the headline field),
+  a `badge` (the status field), and 1–2 `meta` fields (the key facts). A card without a spec looks unfinished.
+  A clean table is still the right default for reference data with no status and many equal columns.
 
 Also return:
 - `improvements`: a short list of the specific changes you made and why (e.g. "Hid raw `id` column",

@@ -99,6 +99,10 @@ export function openAiCompatibleProvider(
 ): LlmProvider {
   const url = `${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`;
   const name = `${cfg.label}:${model}`;
+  // A gateway call that never returns would otherwise hang the request forever (no default fetch timeout).
+  // Cap it so a stalled/slow model fails LOUDLY with a clear error instead. Generous by default (a
+  // high-reasoning model legitimately takes ~1 min); override with KILN_LLM_TIMEOUT_MS.
+  const timeoutMs = Number(process.env.KILN_LLM_TIMEOUT_MS ?? 180000);
   const post = async (body: Record<string, unknown>): Promise<Response> =>
     fetch(url, {
       method: "POST",
@@ -108,20 +112,30 @@ export function openAiCompatibleProvider(
         ...cfg.headers,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
   return {
     name,
     async complete(req: LlmRequest): Promise<LlmResult> {
-      let resp = await post(buildChatRequest(req, model, effort, supportsEffort, true));
-      // Degrade once on a 400 (a model that rejects response_format and/or reasoning_effort): retry
-      // plain. The system prompt already asks for bare JSON, so the repair-parse below still applies.
-      if (resp.status === 400) {
-        resp = await post(buildChatRequest(req, model, effort, supportsEffort, false));
+      let resp: Response;
+      try {
+        resp = await post(buildChatRequest(req, model, effort, supportsEffort, true));
+        // Degrade once on a 400 (a model that rejects response_format and/or reasoning_effort): retry
+        // plain. The system prompt already asks for bare JSON, so the repair-parse below still applies.
+        if (resp.status === 400) {
+          resp = await post(buildChatRequest(req, model, effort, supportsEffort, false));
+        }
+      } catch (e) {
+        // Turn an abort/timeout into a clear, actionable message rather than a raw "fetch failed" hang.
+        if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+          throw Object.assign(new Error(`${cfg.label} timed out after ${Math.round(timeoutMs / 1000)}s (model "${model}") — the model was too slow or unreachable. Try a faster model or lower the effort.`), { status: 504 });
+        }
+        throw Object.assign(new Error(`${cfg.label} could not be reached (model "${model}"): ${e instanceof Error ? e.message : String(e)}`), { status: 502 });
       }
       if (!resp.ok) {
         const detail = await resp.text().catch(() => "");
-        throw Object.assign(new Error(`${cfg.label} request failed (${resp.status}): ${detail.slice(0, 500)}`), { status: resp.status });
+        throw Object.assign(new Error(`${cfg.label} request failed (${resp.status}) for model "${model}": ${detail.slice(0, 500)}`), { status: resp.status });
       }
       const json = (await resp.json()) as { usage?: { prompt_tokens?: number; completion_tokens?: number } };
       usage.input += json.usage?.prompt_tokens ?? 0;

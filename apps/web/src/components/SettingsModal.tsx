@@ -44,6 +44,7 @@ export function SettingsModal(props: Props): React.JSX.Element {
   const dprov = providerOf(defaultEngine);
   const defKnown = dprov?.models.some((m) => m.id === defaultModel) ?? false;
   const defHasEffort = modelHasEffort(defaultEngine, defaultModel);
+  const adaptiveApplies = defaultEngine === "anthropic"; // adaptive tiers only fire on Anthropic stages
 
   const hasOverrides = Object.keys(overrides).length > 0;
   const [expanded, setExpanded] = useState(hasOverrides);
@@ -109,20 +110,28 @@ export function SettingsModal(props: Props): React.JSX.Element {
               <tr>
                 <td>Adaptive</td>
                 <td>
-                  <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <input type="checkbox" checked={adaptive} onChange={(e) => onSetAdaptive(e.target.checked)} />
+                  {/* The tiers only fire on stages that run on Anthropic. When the default engine is a
+                      gateway, the toggle is a no-op for those stages → disable it and say so plainly. */}
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: adaptiveApplies ? "pointer" : "not-allowed", opacity: adaptiveApplies ? 1 : 0.55 }}>
+                    <input type="checkbox" checked={adaptive} disabled={!adaptiveApplies} onChange={(e) => onSetAdaptive(e.target.checked)} />
                     <span>Pick model &amp; effort per stage on Anthropic</span>
                   </label>
                   <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>
-                    heavy reasoning (capabilities, business areas, automations) → <strong>Opus · high</strong>;
-                    standard (behaviour, workflows) → <strong>Sonnet</strong>; light (entities, roles, agents) →
-                    <strong> Haiku</strong>. Off = every stage uses the default model above.
+                    {adaptiveApplies ? (
+                      <>heavy reasoning (capabilities, business areas, automations) → <strong>Opus · high</strong>;
+                      standard (behaviour, workflows) → <strong>Sonnet</strong>; light (entities, roles, agents) →
+                      <strong> Haiku</strong>. Off = every stage uses the default model above.</>
+                    ) : (
+                      <><strong>Anthropic only.</strong> Your engine is <strong>{providerLabel(defaultEngine)}</strong>,
+                      so every stage uses the default model above. (Still applies to any stage you override to
+                      Anthropic below.)</>
+                    )}
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
-          {adaptive && (
+          {adaptive && adaptiveApplies && (
             <p className="muted" style={{ marginTop: 6, fontSize: 12 }}>
               With Adaptive on, the default <strong>Model</strong> above is the fallback for non-Anthropic
               engines; Anthropic stages follow the tiers. Any per-stage override below still wins.

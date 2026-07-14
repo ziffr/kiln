@@ -1563,7 +1563,17 @@ export default function App(): React.JSX.Element {
             </div>
           </div>
 
-          {error && <p className="err-line"><code>{error}</code> &mdash; {t("serviceHint")}</p>}
+          {error && (
+            <div className="err-banner" role="alert">
+              <Icon name="alert" size={16} />
+              <div className="err-banner-text">
+                <code>{error}</code>
+                <div className="err-banner-hint">
+                  {/(not a valid model|for model "|timed out|too slow|could not be reached|invalid model)/i.test(error) ? t("modelErrorHint") : t("serviceHint")}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Findings live at the TOP (below the header) so they're visible on entry regardless of how
               tall the diagram is; a collapsible, height-capped panel keeps a long list from dominating. */}

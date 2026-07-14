@@ -98,3 +98,11 @@ optional Langdock agent runtime is a separate binding.)
   back to parsing the model's JSON, so generation still works (just a little less strictly enforced).
 - **Per-agent `effort`** (thinking level) applies on Anthropic only; on the OpenAI-compatible gateways
   agents use the model as-is.
+- **A gateway model id must be valid.** For a custom model on OpenRouter/omniroute, the slug has to match
+  the provider's catalog (e.g. `openrouter.ai/models`). An unknown id (say `gmicloud/fp8` on OpenRouter)
+  is rejected — you'll now see a clear error like *"…is not a valid model ID"* rather than a silent
+  failure. GMICloud and other non-OpenRouter providers aren't reachable through OpenRouter; use omniroute
+  or a custom OpenAI-compatible base URL for those.
+- **Gateway calls time out after ~180s** (`KILN_LLM_TIMEOUT_MS`), so a stalled or unreachable model fails
+  loudly instead of hanging. A high-reasoning model can legitimately take ~1 minute — lower the effort or
+  pick a faster model if that's too slow.

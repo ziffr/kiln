@@ -48,6 +48,7 @@ ${B}Getting started${N}
 
 ${B}Designer — run & develop Kiln${N}
   ${C}dev${N}                  Run the service (:$SERVICE_PORT) AND the web app (:$WEB_PORT) together. Ctrl-C stops both.
+  ${C}stop${N}                 Stop any running dev processes + free ports :$SERVICE_PORT/:$WEB_PORT (clears stale servers).
   ${C}web${N}                  Run only the web app       → http://localhost:$WEB_PORT
   ${C}service${N}              Run only the API service   → http://localhost:$SERVICE_PORT  (holds the Anthropic key)
   ${C}test${N}                 Run the package test suite (node --test).
@@ -95,6 +96,21 @@ app_dir() {
   printf "%s" "$d"
 }
 
+# Kill a pid AND all its descendants. `npm run dev` spawns a `node --watch` server as a child, so killing
+# only the npm wrapper (its $! pid) orphans the server — it keeps holding its port and the next `dev` can't
+# bind, which is how stale processes pile up. Walk the tree so nothing is left behind.
+kill_tree() {
+  local pid="$1" child
+  for child in $(pgrep -P "$pid" 2>/dev/null); do kill_tree "$child"; done
+  kill "$pid" 2>/dev/null || true
+}
+
+# Kill whatever LISTENs on a TCP port (returns 0 if it killed something). Precise — used by `stop`.
+kill_port() {
+  local pids; pids="$(lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null || true)"
+  [ -n "$pids" ] && { kill $pids 2>/dev/null || true; return 0; } || return 1
+}
+
 cmd="${1:-help}"; [ $# -gt 0 ] && shift || true
 
 case "$cmd" in
@@ -112,19 +128,38 @@ case "$cmd" in
     else warn "node not found (need ≥ 20)"; fi
     command -v npm >/dev/null && ok "npm $(npm -v)" || warn "npm not found"
     if [ -f .env ]; then
-      if grep -Eq '^KILN_ANTHROPIC_API_KEY=sk-' .env; then ok ".env: KILN_ANTHROPIC_API_KEY set"; else warn ".env present but KILN_ANTHROPIC_API_KEY not set — LLM features are disabled (mock still works)"; fi
-    else warn "no .env — copy .env.example → .env and set KILN_ANTHROPIC_API_KEY for real LLM generation"; fi
+      # Anthropic is the default engine — accept the legacy VBD_ alias too (both are read by the service).
+      if grep -Eq '^(KILN|VBD)_ANTHROPIC_API_KEY=.*sk-' .env; then ok ".env: Anthropic key set (default engine)"; else warn ".env present but no Anthropic key (KILN_ANTHROPIC_API_KEY) — real LLM needs an engine (mock still works)"; fi
+      # Optional open-source engines — reported when their key has a non-empty value.
+      grep -Eq '^KILN_OPENROUTER_API_KEY=.' .env && ok ".env: OpenRouter engine configured" || true
+      grep -Eq '^KILN_OMNIROUTE_API_KEY=.'  .env && ok ".env: omniroute engine configured"  || true
+    else warn "no .env — copy .env.example → .env and set an engine key (KILN_ANTHROPIC_API_KEY) for real LLM generation"; fi
     command -v docker >/dev/null && ok "docker $(docker --version | sed 's/,.*//')" || warn "docker not found (needed for app:up / verify:up)"
     command -v git >/dev/null && ok "git $(git --version | awk '{print $3}')" || warn "git not found (generated exports won't get an initial commit)"
     [ -d node_modules ] && ok "dependencies installed" || warn "node_modules missing — run ./kiln.sh install"
+    # Stale-process guard: >1 service process means an orphaned `dev` is likely squatting on :$SERVICE_PORT,
+    # which blocks a fresh service from binding (its engine catalog then looks wrong). `stop` clears them.
+    svc="$(pgrep -f 'env-file=../../.env' 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "${svc:-0}" -gt 1 ]; then warn "$svc Kiln service processes running (expected ≤ 1) — likely stale; run ${B}./kiln.sh stop${N}"; else ok "no stale service processes"; fi
     ;;
 
   dev)
     say "starting service (:$SERVICE_PORT) + web (:$WEB_PORT) — Ctrl-C stops both"
     npm run dev --workspace @kiln/service & S=$!
     npm run dev --workspace @kiln/web & W=$!
-    trap 'kill "$S" "$W" 2>/dev/null || true' INT TERM
+    # Take down the node --watch servers too, not just the npm wrappers — otherwise a server orphans and
+    # keeps holding its port (stale-process pileup). EXIT covers non-signal exits as well.
+    trap 'kill_tree "$S"; kill_tree "$W"' INT TERM EXIT
     wait
+    ;;
+
+  stop|kill)
+    say "stopping Kiln dev processes + freeing ports :$SERVICE_PORT / :$WEB_PORT"
+    kill_port "$SERVICE_PORT" && ok "freed :$SERVICE_PORT (service)" || say ":$SERVICE_PORT already free"
+    kill_port "$WEB_PORT"     && ok "freed :$WEB_PORT (web)"         || say ":$WEB_PORT already free"
+    # Sweep any orphaned service processes that lost their port but keep running (the pileup culprit).
+    pkill -f 'env-file=../../.env' 2>/dev/null && ok "cleared orphaned service process(es)" || true
+    ok "done — ./kiln.sh dev for a clean start"
     ;;
 
   web)      say "web app → http://localhost:$WEB_PORT";        run npm run dev --workspace @kiln/web ;;

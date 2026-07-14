@@ -138,6 +138,13 @@ export default function App(): React.JSX.Element {
   const engine = active?.engine && catalog.some((p) => p.id === active.engine) ? active.engine : defaultEngine;
   const engineProvider = catalog.find((p) => p.id === engine) ?? catalog[0] ?? FALLBACK_PROVIDERS[0];
   const engineModels = engineProvider.models; // the models the CURRENT engine offers (for the selectors)
+  // Coerce the saved model to the current engine: a project saved on another engine (or an engine that's
+  // no longer configured) can carry a model id this engine doesn't offer — fall back to the engine default
+  // rather than showing/sending a stale slug. Free-text ids on gateways (allowCustomModel) are kept.
+  const globalModel =
+    engineModels.some((m) => m.id === active?.model) || (engineProvider.allowCustomModel && Boolean(active?.model))
+      ? (active!.model as string)
+      : engineProvider.defaultModel;
 
   // On load: adopt the server's projects; if the server is empty, migrate local projects up once.
   const stateRef = useRef(state);
@@ -739,7 +746,7 @@ export default function App(): React.JSX.Element {
   // one global model. Applies to a stage's generation AND its review.
   const tierModels = active.tierModels ?? DEFAULT_TIER_MODELS;
   const modelFor = (layer: LayerKind): string =>
-    active.adaptiveModel ? tierModels[LAYER_TIER[layer]] ?? active.model : active.model;
+    active.adaptiveModel ? tierModels[LAYER_TIER[layer]] ?? globalModel : globalModel;
   const supportsEffortFor = (layer: LayerKind): boolean => MODELS.find((m) => m.id === modelFor(layer))?.supportsEffort ?? true;
 
   const reviewBody = (layer: LayerKind, ov: ModelOverride) => ({
@@ -1119,7 +1126,7 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const supportsEffort = MODELS.find((m) => m.id === active.model)?.supportsEffort ?? true;
+  const supportsEffort = MODELS.find((m) => m.id === globalModel)?.supportsEffort ?? true;
 
   // Resolve any artifact id (capability / area-node / entity / command / event / policy / role / agent)
   // to a display NAME — used for breadcrumb labels AND for the meaning-key of an ignored finding.
@@ -1305,7 +1312,7 @@ export default function App(): React.JSX.Element {
           effortByLayer={active.effortByLayer ?? {}}
           defaults={CRITIQUE_EFFORT}
           globalEffort={active.effort}
-          globalModelLabel={MODELS.find((m) => m.id === active.model)?.label ?? active.model}
+          globalModelLabel={MODELS.find((m) => m.id === globalModel)?.label ?? globalModel}
           supportsEffort={supportsEffort}
           efforts={EFFORTS}
           models={engineModels}
@@ -1315,7 +1322,7 @@ export default function App(): React.JSX.Element {
           modelLabelFor={(kind) => MODELS.find((m) => m.id === modelFor(kind))?.label ?? modelFor(kind)}
           providers={catalog.map((p) => ({ id: p.id, label: p.label, note: p.note, allowCustomModel: p.allowCustomModel }))}
           engine={engine}
-          globalModel={active.model}
+          globalModel={globalModel}
           onSetEngine={(id) => {
             const p = catalog.find((x) => x.id === id) ?? engineProvider;
             // Models/tiers are engine-specific → reset to the new engine's default when switching.
@@ -1596,7 +1603,7 @@ export default function App(): React.JSX.Element {
                   key={active.id}
                   narrative={text}
                   onNarrative={setNarrative}
-                  model={active.model}
+                  model={globalModel}
                   effort={active.effort}
                   provider={engine}
                   config={active.coachConfig ?? {}}

@@ -67,6 +67,13 @@ export function SettingsModal(props: Props): React.JSX.Element {
             Which AI runs the modeling stages. Anthropic is the default and preferred engine; other engines
             appear here only when their key is set on the server.
           </p>
+          {providers.length <= 1 && (
+            <p className="muted" style={{ marginTop: 0 }}>
+              To add <strong>OpenRouter</strong> or <strong>omniroute</strong> as alternative engines, set
+              <code> KILN_OPENROUTER_API_KEY</code> / <code> KILN_OMNIROUTE_API_KEY</code> in your server
+              <code> .env</code> and restart the service — a Provider dropdown then appears here.
+            </p>
+          )}
           <table className="settings-table">
             <tbody>
               {providers.length > 1 && (

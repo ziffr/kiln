@@ -3565,7 +3565,7 @@ function listPage(s, view) {
   }
   const metricsJsx = metrics.length ? [
     `      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">`,
-    ...metrics.map((m) => `        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-medium text-muted-foreground">{${JSON.stringify(m.label)}}</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{formatCell(metricValue(rows, ${JSON.stringify({ agg: m.agg, field: m.field })}), ${JSON.stringify(m.format ?? "text")})}</CardContent></Card>`),
+    ...metrics.map((m) => `        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-medium text-muted-foreground">{${JSON.stringify(m.label)}}</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{formatCell(metricValue(rows, ${JSON.stringify({ agg: m.agg, field: m.field ? slug(m.field) : void 0 })}), ${JSON.stringify(m.format ?? "text")})}</CardContent></Card>`),
     `      </div>`
   ].join("\n") : "";
   const chartJsx = chartField ? `      <DistributionChart title=${JSON.stringify(`By ${chartField}`)} rows={rows} field={${JSON.stringify(slug(chartField))}} />` : "";
@@ -4522,6 +4522,15 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 export function createApp(): Express {
   const app = express();
   app.use(express.json());
+  // CORS \u2014 the generated UI is a separate origin (Vite dev, or a static host in prod), so it must be
+  // allowed to call this API. Permissive by default; tighten Access-Control-Allow-Origin for production.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.header("Access-Control-Allow-Origin", process.env.CORS_ORIGIN || "*");
+    res.header("Access-Control-Allow-Headers", "content-type, authorization");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    if (req.method === "OPTIONS") { res.sendStatus(204); return; }
+    next();
+  });
   if (!API_TOKEN) console.warn("[auth] API_TOKEN is not set \u2014 the command API is OPEN (no auth). Set API_TOKEN before exposing it beyond localhost.");
   app.get("/health", (_req: Request, res: Response) => { res.json({ ok: true }); });
 

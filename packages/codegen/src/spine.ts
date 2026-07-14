@@ -313,6 +313,15 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 export function createApp(): Express {
   const app = express();
   app.use(express.json());
+  // CORS — the generated UI is a separate origin (Vite dev, or a static host in prod), so it must be
+  // allowed to call this API. Permissive by default; tighten Access-Control-Allow-Origin for production.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.header("Access-Control-Allow-Origin", process.env.CORS_ORIGIN || "*");
+    res.header("Access-Control-Allow-Headers", "content-type, authorization");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    if (req.method === "OPTIONS") { res.sendStatus(204); return; }
+    next();
+  });
   if (!API_TOKEN) console.warn("[auth] API_TOKEN is not set — the command API is OPEN (no auth). Set API_TOKEN before exposing it beyond localhost.");
   app.get("/health", (_req: Request, res: Response) => { res.json({ ok: true }); });
 

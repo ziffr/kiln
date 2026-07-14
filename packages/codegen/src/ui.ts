@@ -566,7 +566,7 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
   const metricsJsx = metrics.length
     ? [
         `      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">`,
-        ...metrics.map((m) => `        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-medium text-muted-foreground">{${JSON.stringify(m.label)}}</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{formatCell(metricValue(rows, ${JSON.stringify({ agg: m.agg, field: m.field })}), ${JSON.stringify(m.format ?? "text")})}</CardContent></Card>`),
+        ...metrics.map((m) => `        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-medium text-muted-foreground">{${JSON.stringify(m.label)}}</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{formatCell(metricValue(rows, ${JSON.stringify({ agg: m.agg, field: m.field ? slug(m.field) : undefined })}), ${JSON.stringify(m.format ?? "text")})}</CardContent></Card>`),
         `      </div>`,
       ].join("\n")
     : "";

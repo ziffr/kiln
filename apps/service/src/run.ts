@@ -26,6 +26,12 @@ interface RunEntry {
 const runs = new Map<string, RunEntry>();
 let counter = 0;
 
+// The Kiln mark (same glyph as Kiln Studio + the docs site) — inlined as a URL-encoded SVG data URI so
+// the preview's browser tab + sidebar carry the brand, dependency-free and offline.
+const KILN_LOGO_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="8" fill="#d9772e"/><path d="M16 6c2.2 3 1 5.2-.6 6.8-1.6 1.6-3.4 3.4-3.4 6.2A4 4 0 0 0 16 23a4 4 0 0 0 4-4c0-1.2-.5-2.2-1.2-3 .2 1.6-.6 2.6-1.4 2.6-.9 0-1.4-.7-1.4-1.7 0-1.7 1.7-2.7 1.7-5 0-2.4-1.5-4.6-1.7-4.9z" fill="#fff"/></svg>';
+const KILN_FAVICON = encodeURIComponent(KILN_LOGO_SVG);
+
 /** Ask the OS for a free TCP port (bind :0, read it back, release it). */
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -125,30 +131,53 @@ export function runClientHtml(model: unknown, apiBase: string): string {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(domain)} — live preview</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,${KILN_FAVICON}">
 <style>
-  * { box-sizing: border-box; } body { margin: 0; font: 14px system-ui, sans-serif; color: #1f2937; }
+  /* Aligned with Kiln Studio's design language — warm paper, fired-clay ember accent, Inter. */
+  :root {
+    --bg:#faf9f6; --panel:#ffffff; --panel-2:#f4f2ee; --fg:#23201c; --muted:#7a756d;
+    --edge:#dad5cc; --border:#eae6df; --accent:#c2410c; --accent-soft:#fbede4;
+    --sidebar:#201c16; --sidebar-fg:#cfc8bd; --sidebar-muted:#8f887d; --radius:10px;
+    --shadow:0 1px 2px rgba(35,32,28,.05), 0 6px 20px rgba(35,32,28,.05);
+    font-family:"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; } body { margin: 0; font-size: 14px; color: var(--fg); background: var(--bg); }
   .app { display: flex; min-height: 100vh; }
-  aside { width: 230px; background: #0f172a; color: #cbd5e1; padding: 16px; }
-  aside h1 { font-size: 15px; color: #fff; text-transform: capitalize; margin: 0 0 4px; }
-  .badge { display:inline-block; font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:#93c5fd; margin-bottom:12px; }
-  select.role { width: 100%; margin: 8px 0 12px; padding: 5px; background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 5px; }
-  .area-name { margin: 14px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
-  aside button { display: block; width: 100%; text-align: left; background: none; border: none; color: #cbd5e1; padding: 5px 8px; border-radius: 5px; cursor: pointer; }
-  aside button:hover, aside button.sel { background: #1e293b; color: #fff; }
-  main { flex: 1; padding: 24px; }
-  table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-  th, td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; }
-  th { background: #f9fafb; }
-  .panel { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; max-width: 520px; }
-  label { display: block; margin-bottom: 8px; } label input { display: block; width: 100%; padding: 5px; margin-top: 2px; }
+  aside { width: 244px; background: var(--sidebar); color: var(--sidebar-fg); padding: 18px 14px; }
+  .brand { display:flex; align-items:center; gap:9px; margin-bottom:2px; }
+  .brand .mark { width:22px; height:22px; border-radius:6px; flex:0 0 auto; }
+  aside h1 { font-size: 15px; color: #fff; text-transform: capitalize; margin: 0; font-weight: 650; letter-spacing:-.01em; }
+  .badge { display:inline-block; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); background:var(--accent-soft); padding:2px 7px; border-radius:999px; margin:8px 0 14px; }
+  select.role { width: 100%; margin: 0 0 14px; padding: 7px 8px; background: #2a251d; color: var(--sidebar-fg); border: 1px solid #3a342c; border-radius: 8px; font: inherit; }
+  .area-name { margin: 16px 0 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--sidebar-muted); }
+  aside nav button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--sidebar-fg); padding: 6px 9px; border-radius: 7px; cursor: pointer; font: inherit; }
+  aside nav button:hover { background: #2a251d; color: #fff; }
+  aside nav button.sel { background: var(--accent); color: #fff; }
+  main { flex: 1; padding: 28px 32px; max-width: 1000px; }
+  h2 { font-size: 20px; font-weight: 650; letter-spacing:-.01em; margin: 0 0 16px; }
+  h3 { font-size: 13px; font-weight: 620; margin: 0 0 12px; }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; margin-bottom: 22px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  th { background: var(--panel-2); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  tbody tr:hover { background: #fcfbf9; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; max-width: 540px; box-shadow: var(--shadow); }
+  label { display: block; margin-bottom: 10px; font-size: 12px; color: var(--muted); }
+  label input { display: block; width: 100%; padding: 7px 9px; margin-top: 3px; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--edge); border-radius: 8px; }
+  label input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   label input[type=checkbox] { width: auto; }
-  .muted { color: #9ca3af; font-size: 12px; }
-  button.primary { background: #4f46e5; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
-  .cmds button { margin: 0 8px 8px 0; padding: 6px 12px; border: 1px solid #4f46e5; color: #4f46e5; background: #fff; border-radius: 6px; cursor: pointer; }
+  .muted { color: var(--muted); font-size: 12px; }
+  button.primary { background: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 550; }
+  button.primary:hover { filter: brightness(1.05); }
+  td button { background: none; border: 1px solid var(--edge); color: var(--muted); border-radius: 7px; padding: 2px 8px; cursor: pointer; }
+  td button:hover { border-color: var(--accent); color: var(--accent); }
+  .cmds button { margin: 0 8px 8px 0; padding: 7px 13px; border: 1px solid var(--edge); color: var(--accent); background: var(--panel); border-radius: 8px; cursor: pointer; font: inherit; }
+  .cmds button:hover { border-color: var(--accent); background: var(--accent-soft); }
 </style></head>
 <body><div class="app">
   <aside>
-    <h1>${escapeHtml(domain)}</h1><div class="badge">Kiln live preview</div>
+    <div class="brand"><img class="mark" src="data:image/svg+xml,${KILN_FAVICON}" alt=""><h1>${escapeHtml(domain)}</h1></div>
+    <div class="badge">Kiln live preview</div>
     <select class="role" id="role"></select>
     <nav id="nav"></nav>
   </aside>

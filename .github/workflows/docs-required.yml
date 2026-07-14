@@ -1,0 +1,48 @@
+name: docs-required
+
+# Guards against shipping user-facing changes without touching the docs. Fires on PRs only — direct
+# commits to main are governed by the rule in CLAUDE.md instead (CI can't gate a push). A PR that
+# changes user-facing code (or is a feat:/fix:) must also change docs-site/, unless it carries the
+# `docs:not-needed` label (an explicit, visible opt-out for genuinely doc-irrelevant changes).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  docs-required:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require docs for user-facing changes
+        env:
+          # Untrusted inputs go through env (never interpolated into the script) to avoid injection.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_REF: ${{ github.base_ref }}
+          SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'docs:not-needed') }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          changed=$(git diff --name-only "origin/$BASE_REF...HEAD")
+          echo "Changed files:"; echo "$changed"
+
+          # User-facing surface: the web UI and the shipped LLM prompts.
+          code=$(printf '%s\n' "$changed" | grep -E '^(apps/web/src/|packages/skills/prompts/)' || true)
+          docs=$(printf '%s\n' "$changed" | grep -E '^docs-site/' || true)
+
+          # A feat:/fix: PR is user-facing by convention, even if it touches other paths.
+          featfix=false
+          case "$PR_TITLE" in
+            feat:*|feat\(*|fix:*|fix\(*) featfix=true ;;
+          esac
+
+          if { [ -n "$code" ] || [ "$featfix" = true ]; } && [ -z "$docs" ] && [ "$SKIP" != "true" ]; then
+            echo "::error::This PR changes user-facing code but updates no docs under docs-site/. Update the matching page, or add the 'docs:not-needed' label (with a reason in the PR)."
+            exit 1
+          fi
+          echo "Docs requirement satisfied."

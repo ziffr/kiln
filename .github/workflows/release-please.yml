@@ -17,9 +17,58 @@ jobs:
     # to open its release PR; until the repo is public and that's enabled, it fails. Gate on visibility
     # so it doesn't run (and email) while private; it resumes automatically once the repo is public.
     if: ${{ github.event.repository.visibility == 'public' }}
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      version: ${{ steps.rp.outputs.version }}
+      major: ${{ steps.rp.outputs.major }}
+      minor: ${{ steps.rp.outputs.minor }}
+      patch: ${{ steps.rp.outputs.patch }}
     steps:
       - name: Run release-please
+        id: rp
         uses: googleapis/release-please-action@v4
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # When a release is cut, freeze the live ("Next") docs into a version matching the studio release, so
+  # docs versions stay in lockstep with studio versions. Only MINOR/MAJOR releases get a docs snapshot
+  # (patch releases ride the latest — a snapshot per patch would clutter the version dropdown without
+  # changing documented behaviour). The snapshot lands as a REVIEWED PR (docs-site is code-owned).
+  docs-version:
+    name: snapshot docs for the release
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.patch == '0' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cut the docs version and open a PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          set -euo pipefail
+          # VERSION is release-please output (a semver string), not user text — safe to use in commands.
+          cd docs-site
+          npm ci
+          npm run docusaurus docs:version "$VERSION"
+          cd ..
+          if git diff --quiet; then
+            echo "No docs changes to snapshot (already versioned?)."; exit 0
+          fi
+          branch="docs/snapshot-v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add docs-site/versioned_docs docs-site/versioned_sidebars docs-site/versions.json
+          git commit -m "docs: snapshot v$VERSION"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "docs: snapshot v$VERSION" \
+            --body "Automated docs version snapshot matching studio release v$VERSION. The live \`docs/\` folder continues as \"Next\"; review and merge to publish the versioned docs."

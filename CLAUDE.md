@@ -90,6 +90,14 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
   **status lifecycle**). Update `docs/INDEX.md` when adding/changing a doc.
 - Specs and plans get **independent, multi-lens review to closure** before `Approved`; log finding
   disposition in the doc. ADRs record decisions.
+- **User-facing docs live in `docs-site/`** (Docusaurus → GitHub Pages, versioned). **When a change
+  alters user-facing behaviour — a new feature, a fix that changes behaviour, a reviewed tweak, a new
+  connector/adapter, or any config/env/prompt that changes what a user sees or must set up — update the
+  matching page under `docs-site/docs/` IN THE SAME COMMIT.** Treat "docs updated?" as part of green,
+  like tests. There is a `docs-required` CI check, but it only fires on **PRs** — and we develop directly
+  on `main`, so **CI won't catch a missing doc for our own commits; this rule is the enforcement.** Docs
+  are English-first; the German locale (`docs-site/i18n/de/`) follows. Purely-internal changes (refactors,
+  tests, tooling) need no docs.
 
 ## Git
 - Commit when a coherent unit is green. **Before committing: `npm test` + web build.** Commit

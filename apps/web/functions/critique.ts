@@ -17,6 +17,7 @@ export default async function handler(req: Req, res: Res): Promise<void> {
     agents?: unknown;
     model?: string;
     effort?: string;
+    accepted?: string[];
   }>(req);
   if (!body.layer || !body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "layer and capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -33,7 +34,8 @@ export default async function handler(req: Req, res: Res): Promise<void> {
     workflows: body.workflows as never,
     agents: body.agents as never,
   };
-  const result = await critiqueLayer(body.layer, review, provider);
+  const accepted = Array.isArray(body.accepted) ? (body.accepted as string[]).filter((x) => typeof x === "string") : [];
+  const result = await critiqueLayer(body.layer, review, provider, accepted);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
 }

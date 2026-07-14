@@ -119,6 +119,7 @@ export {
   buildCritiqueRequest,
   critiqueToFeedback,
   diffCritique,
+  concernsMatch,
   resolveTarget,
   CRITIQUE_SCHEMA,
   CRITIQUE_EFFORT,

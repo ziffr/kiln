@@ -463,6 +463,15 @@ textarea {
 /* Diminishing-returns nudge — the loop rarely converges to zero; say when it's fine to stop. */
 .review-nudge { padding: 4px 0 2px 24px; font-size: 12px; line-height: 1.4; }
 
+/* Per-finding closure actions: fix it in the model (converges) or accept & silence it (terminal). */
+.finding-acts { display: flex; gap: 8px; padding: 3px 0 0 22px; }
+.finding-act { display: inline-flex; align-items: center; gap: 3px; background: none; border: none; padding: 1px 4px; font-size: 11px; color: var(--accent-2); cursor: pointer; border-radius: 4px; }
+.finding-act:hover { background: color-mix(in srgb, var(--accent-2) 12%, transparent); }
+.finding-act.ignore { color: var(--muted); }
+.finding-act.ignore:hover { background: var(--panel-2); color: var(--fg); }
+.review-restore { display: inline-flex; align-items: center; gap: 5px; margin: 4px 0 2px 24px; background: none; border: none; font-size: 12px; cursor: pointer; padding: 0; }
+.review-restore:hover { color: var(--accent); }
+
 /* Settings modal + effort transparency */
 .review-effort { font-size: 11px; border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; color: #9aa4b2; }
 .settings-modal { max-width: 560px; }

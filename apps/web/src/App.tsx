@@ -21,7 +21,7 @@ import {
   type AgentsDoc,
 } from "@kiln/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@kiln/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, diffCritique, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding, type CritiqueDiff } from "@kiln/skills";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, diffCritique, concernsMatch, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding, type CritiqueDiff } from "@kiln/skills";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
 import { EnrichPanel } from "./components/EnrichPanel";
@@ -597,6 +597,11 @@ export default function App(): React.JSX.Element {
     agents: ov.agents ?? agentsDoc,
     model: modelFor(layer),
     effort: critiqueEffortFor(layer),
+    // Concerns the human already accepted on this layer → the critic is told not to raise them again.
+    accepted: (active.ignoredFindings ?? [])
+      .filter((k) => k.startsWith(`ai|${layer}|`))
+      .map((k) => k.split("|").slice(3).join("|"))
+      .filter(Boolean),
   });
 
   // Review: ask the LLM (higher effort, server-side) to critique one layer. Returns the findings.
@@ -611,7 +616,8 @@ export default function App(): React.JSX.Element {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      const findings = (data.findings ?? []) as CritiqueFinding[];
+      // Drop concerns the human has already accepted (matched fuzzily so a reworded re-raise stays down).
+      const findings = ((data.findings ?? []) as CritiqueFinding[]).filter((f) => !isCritIgnored(layer, f));
       // Diff against the previous round for progress-vs-churn, and against all earlier rounds for
       // recurrence (an oscillating layer). Then append this round to the history and count it. First
       // review of a layer has no prior → no diff.
@@ -979,11 +985,29 @@ export default function App(): React.JSX.Element {
   // generated id, so an ignore survives a regenerate that reissues ids. Restorable. ----
   const ignored = useMemo(() => new Set(active.ignoredFindings ?? []), [active.ignoredFindings]);
   const detKey = (f: { code: string; subjects: string[] }): string => `${f.code}|${f.subjects.map(nameFor).slice().sort().join(",")}`;
-  const critKey = (f: { message: string }): string => `ai|${f.message}`;
+  // AI-critique ignores are keyed `ai|<layer>|<target>|<message>` and MATCHED FUZZILY (by target node or
+  // wording), so an accepted concern stays silenced even when the critic rewords it. detKey stays exact.
+  const critKey = (layer: LayerKind, f: { target?: string; message: string }): string => `ai|${layer}|${f.target ?? ""}|${f.message}`;
+  const ignoredCrit = useMemo(
+    () => (active.ignoredFindings ?? []).filter((k) => k.startsWith("ai|")).map((key) => {
+      const [, layer, target, ...rest] = key.split("|");
+      return { key, layer: layer as LayerKind, target: target || undefined, message: rest.join("|") };
+    }),
+    [active.ignoredFindings],
+  );
+  const isCritIgnored = (layer: LayerKind, f: { target?: string; message: string }): boolean =>
+    ignoredCrit.some((ic) => ic.layer === layer && concernsMatch(ic, f));
   const liveCount = (arr: { code: string; subjects: string[] }[]): number => arr.reduce((n, f) => n + (ignored.has(detKey(f)) ? 0 : 1), 0);
   function ignoreFinding(key: string): void {
     if (ignored.has(key)) return;
     patchActive({ ignoredFindings: [...(active.ignoredFindings ?? []), key] });
+  }
+  function ignoreCritFinding(layer: LayerKind, f: CritiqueFinding): void {
+    ignoreFinding(critKey(layer, f));
+  }
+  function restoreLayerIgnored(layer: LayerKind): void {
+    const keys = ignoredCrit.filter((ic) => ic.layer === layer).map((ic) => ic.key);
+    if (keys.length) restoreIgnored(keys);
   }
   function restoreIgnored(keys: string[]): void {
     const drop = new Set(keys);
@@ -1137,6 +1161,14 @@ export default function App(): React.JSX.Element {
                 onReview={(k) => void reviewLayer(k)}
                 onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
                 onSelect={(f) => { selectFinding(f); setShowReview(false); }}
+                onIgnore={(k, f) => {
+                  ignoreCritFinding(k, f);
+                  // Remove it from the current list right away so accepting feels immediate; it also
+                  // won't return on the next review (filtered client-side + the critic is told).
+                  setCritique((c) => ({ ...c, [k]: (c[k] ?? []).filter((x) => x.id !== f.id) }));
+                }}
+                ignoredCount={(k) => ignoredCrit.filter((ic) => ic.layer === k).length}
+                onRestoreIgnored={(k) => restoreLayerIgnored(k)}
                 onSettings={() => { setShowReview(false); setShowSettings(true); }}
                 autoRunning={autoRunning}
                 autoLayer={autoLayer}
@@ -1284,11 +1316,12 @@ export default function App(): React.JSX.Element {
           {(() => {
             const raw = stageFindings[stage] ?? [];
             const det = raw.filter((f) => !ignored.has(detKey(f)));
-            const critRaw = REVIEW_KIND[stage] ? critique[REVIEW_KIND[stage]!] : undefined;
-            const crit = critRaw?.filter((f) => !ignored.has(critKey(f)));
+            const layerKind = REVIEW_KIND[stage];
+            const critRaw = layerKind ? critique[layerKind] : undefined;
+            const crit = layerKind ? critRaw?.filter((f) => !isCritIgnored(layerKind, f)) : critRaw;
             const ignoredHere = [
               ...raw.filter((f) => ignored.has(detKey(f))).map(detKey),
-              ...(critRaw ?? []).filter((f) => ignored.has(critKey(f))).map(critKey),
+              ...(layerKind ? ignoredCrit.filter((ic) => ic.layer === layerKind).map((ic) => ic.key) : []),
             ];
             const total = det.length + (crit?.length ?? 0);
             if (total === 0 && !critRaw && ignoredHere.length === 0) return null;
@@ -1330,7 +1363,7 @@ export default function App(): React.JSX.Element {
                         {crit.map((f) => (
                           <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)} title={f.target ? t("findingGoHint") : undefined}>
                             <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
-                            <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); ignoreFinding(critKey(f)); }}><Icon name="x" size={13} /></button>
+                            {layerKind && <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); ignoreCritFinding(layerKind, f); }}><Icon name="x" size={13} /></button>}
                           </li>
                         ))}
                       </ul>

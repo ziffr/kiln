@@ -26,6 +26,9 @@ interface Props {
   onReview: (k: LayerKind) => void;
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
   onSelect: (f: CritiqueFinding) => void;
+  onIgnore: (k: LayerKind, f: CritiqueFinding) => void;
+  ignoredCount: (k: LayerKind) => number;
+  onRestoreIgnored: (k: LayerKind) => void;
   autoRunning: boolean;
   autoLayer: LayerKind | null;
   onAuto: () => void;
@@ -34,7 +37,7 @@ interface Props {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-export function ReviewPanel({ layers, critique, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, onSelect, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
+export function ReviewPanel({ layers, critique, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, onSelect, onIgnore, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
   const autoLabel = autoLayer ? layers.find((l) => l.kind === autoLayer)?.label ?? autoLayer : "";
   return (
     <div className="review-panel">
@@ -66,6 +69,7 @@ export function ReviewPanel({ layers, critique, diffs, reviewCount, busy, refina
           findings={critique[row.kind]}
           diff={diffs[row.kind]}
           reviewCount={reviewCount[row.kind] ?? 0}
+          ignoredCount={ignoredCount(row.kind)}
           isBusy={busy === row.kind}
           active={autoLayer === row.kind}
           canApply={refinable(row.kind)}
@@ -75,6 +79,8 @@ export function ReviewPanel({ layers, critique, diffs, reviewCount, busy, refina
           onReview={onReview}
           onApply={onApply}
           onSelect={onSelect}
+          onIgnore={onIgnore}
+          onRestoreIgnored={onRestoreIgnored}
           t={t}
         />
       ))}
@@ -87,6 +93,7 @@ interface RowProps {
   findings: CritiqueFinding[] | undefined;
   diff: CritiqueDiff | undefined;
   reviewCount: number;
+  ignoredCount: number;
   isBusy: boolean;
   active: boolean;
   canApply: boolean;
@@ -96,10 +103,12 @@ interface RowProps {
   onReview: (k: LayerKind) => void;
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
   onSelect: (f: CritiqueFinding) => void;
+  onIgnore: (k: LayerKind, f: CritiqueFinding) => void;
+  onRestoreIgnored: (k: LayerKind) => void;
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function LayerReviewRow({ row, findings, diff, reviewCount, isBusy, active, canApply, effort, modelLabel, autoRunning, onReview, onApply, onSelect, t }: RowProps): React.JSX.Element {
+function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, canApply, effort, modelLabel, autoRunning, onReview, onApply, onSelect, onIgnore, onRestoreIgnored, t }: RowProps): React.JSX.Element {
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -245,6 +254,10 @@ function LayerReviewRow({ row, findings, diff, reviewCount, isBusy, active, canA
                     )}
                   </div>
                 )}
+                <div className="finding-acts">
+                  {f.target && <button className="finding-act" onClick={() => onSelect(f)} title={t("aiGoFixHint")}><Icon name="pencil" size={12} /> {t("aiGoFix")}</button>}
+                  <button className="finding-act ignore" onClick={() => onIgnore(row.kind, f)} title={t("aiIgnoreHint")}><Icon name="x" size={12} /> {t("aiIgnore")}</button>
+                </div>
               </li>
             );
           })}
@@ -252,6 +265,12 @@ function LayerReviewRow({ row, findings, diff, reviewCount, isBusy, active, canA
       )}
 
       {showNudge && <div className="review-nudge muted">💡 {nudgeText}</div>}
+
+      {ignoredCount > 0 && (
+        <button className="review-restore muted" onClick={() => onRestoreIgnored(row.kind)}>
+          <Icon name="refresh" size={12} /> {t("aiRestoreIgnored", { count: ignoredCount })}
+        </button>
+      )}
 
       {showApplied && (
         <div className="review-applied">

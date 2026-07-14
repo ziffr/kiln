@@ -352,6 +352,7 @@ const server = createServer(async (req, res) => {
         agents?: unknown;
         model?: string;
         effort?: string;
+        accepted?: string[];
       };
       if (!body.layer || !body.capabilities?.capabilities?.length) return send(res, 400, { error: "layer and capabilities are required" });
       const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -368,7 +369,8 @@ const server = createServer(async (req, res) => {
         workflows: body.workflows as never,
         agents: body.agents as never,
       };
-      const result = await critiqueLayer(body.layer, review, provider);
+      const accepted = Array.isArray(body.accepted) ? (body.accepted as string[]).filter((x) => typeof x === "string") : [];
+      const result = await critiqueLayer(body.layer, review, provider, accepted);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);

@@ -22,6 +22,14 @@ Apply this checklist and FIX every issue you find:
 - **Form design** — `formFields` = only the fields a user fills, in the order they'd naturally enter them
   (identity first, then details); omit system/derived fields. Don't dump every field into the form.
 - **Orientation** — write a `description`: one plain-language line on what this screen is for.
+- **Engaging layout** — a plain table is fine, but reach for a richer layout when the data invites it:
+  · `layout: "board"` + `groupBy: <status field>` when the entity moves through stages (leads, orders,
+  tickets) — a pipeline reads far better as a kanban than a table.
+  · `layout: "cards"` + a `card` spec ({ title, subtitle, badge, meta }) when a few rich fields matter more
+  than many columns.
+  · `metrics`: 1–4 KPI tiles ({ label, agg: count|sum|avg, field?, format? }) to lead the screen — e.g. a
+  count of open items and a sum of a money field. This is the single biggest step up in "looks professional".
+  Only use these when they genuinely help; a clean table beats a forced board.
 
 Also return:
 - `improvements`: a short list of the specific changes you made and why (e.g. "Hid raw `id` column",

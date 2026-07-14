@@ -23,7 +23,10 @@ It's scaffolding, not the finished software — a base that developers extend by
 Click **✨ Polish UI** and a senior-designer AI reviews every generated screen against UX best practices
 in Kiln's design language and proposes improvements: a clear row title, hiding raw ids and technical
 fields, the right formats (money, dates, badges for statuses), a sensible column selection and form
-order, and a one-line screen description. It **iterates** each screen toward the guidelines, then shows
+order, and a one-line screen description. It can also switch a screen to a richer layout when the data
+invites it — **KPI tiles** (totals/counts) above the list, a **card grid**, or a **kanban board** grouped
+by a status/stage field (great for pipelines like leads, orders, or tickets). It **iterates** each screen
+toward the guidelines, then shows
 you the changes **per screen to accept or skip** — nothing is applied until you say so. Apply, then
 **Run app** or export to see the result. It changes *information design* (layout data), never code, so it
 can't break the build. Web research and the interview aside, it runs on your selected

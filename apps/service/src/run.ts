@@ -165,6 +165,21 @@ export function runClientHtml(model: unknown, apiBase: string, views: unknown = 
   tbody tr:hover { background: #fcfbf9; }
   .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; max-width: 540px; box-shadow: var(--shadow); }
   .badge-cell { display:inline-block; padding:2px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-size:12px; font-weight:550; text-transform:capitalize; }
+  .stats { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:22px; }
+  .stat { background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; min-width:150px; box-shadow:var(--shadow); }
+  .stat-label { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; }
+  .stat-value { font-size:24px; font-weight:650; letter-spacing:-.01em; margin-top:4px; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px; margin-bottom:22px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); position:relative; }
+  .card-title { font-weight:620; }
+  .card-sub { color:var(--muted); font-size:13px; margin-top:2px; }
+  .card-meta { color:var(--muted); font-size:12px; margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; }
+  .card .del { position:absolute; top:10px; right:10px; }
+  .board { display:flex; gap:14px; overflow-x:auto; padding-bottom:8px; margin-bottom:22px; }
+  .board-col { flex:0 0 250px; background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius); padding:12px; }
+  .board-col-head { font-size:12px; font-weight:650; text-transform:capitalize; margin-bottom:10px; display:flex; justify-content:space-between; color:var(--fg); }
+  .board-col-head .count { color:var(--muted); font-weight:500; }
+  .board .card { margin-bottom:10px; }
   label { display: block; margin-bottom: 10px; font-size: 12px; color: var(--muted); }
   label input { display: block; width: 100%; padding: 7px 9px; margin-top: 3px; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--edge); border-radius: 8px; }
   label input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -244,23 +259,26 @@ async function renderMain() {
   // Render per the polished view spec (columns/formats/formFields) when present — else a sensible default.
   const view = VIEWS[entity.id] || defaultView(entity);
   if (view.description) main.append(el("p", { className: "muted", textContent: view.description }));
-  const rows = await api.list(entity.id);
+  const rows = (await api.list(entity.id)) || [];
   const typeOf = Object.fromEntries((entity.fields || []).map(f => [f.name, f.type]));
-  const tbl = el("table");
-  const thead = el("thead"); const htr = el("tr"); view.columns.forEach(c => htr.append(el("th", { textContent: c.field }))); htr.append(el("th")); thead.append(htr); tbl.append(thead);
-  const tb = el("tbody");
-  (rows || []).forEach(r => {
-    const tr = el("tr");
-    view.columns.forEach(c => {
-      const td = el("td"); // textContent everywhere → no XSS from user-entered data
-      if (c.format === "badge" && r[c.field] != null && r[c.field] !== "") td.append(el("span", { className: "badge-cell", textContent: String(r[c.field]) }));
-      else td.textContent = fmt(r[c.field], c.format);
-      tr.append(td);
+
+  // KPI tiles computed from the loaded rows (count / sum / avg).
+  if (view.metrics && view.metrics.length) {
+    const stats = el("div", { className: "stats" });
+    view.metrics.forEach(m => {
+      const s = el("div", { className: "stat" });
+      s.append(el("div", { className: "stat-label", textContent: m.label }));
+      s.append(el("div", { className: "stat-value", textContent: fmt(metricValue(rows, m), m.format) }));
+      stats.append(s);
     });
-    const del = el("button", { textContent: "✕" }); del.onclick = async () => { await api.remove(entity.id, r.id); render(); };
-    const td = el("td"); td.append(del); tr.append(td); tb.append(tr);
-  });
-  tbl.append(tb); main.append(tbl);
+    main.append(stats);
+  }
+
+  // The list, in the spec's layout: kanban board (grouped), a card grid, or the default table.
+  const remove = async (r) => { await api.remove(entity.id, r.id); render(); };
+  if (view.layout === "board" && view.groupBy) main.append(renderBoard(entity, view, rows, remove));
+  else if (view.layout === "cards") main.append(renderCards(entity, view, rows, remove));
+  else main.append(renderTable(entity, view, rows, remove));
 
   const form = {};
   const panel = el("div", { className: "panel" }); panel.append(el("h3", { textContent: "New " + entity.name }));
@@ -294,6 +312,63 @@ function fmt(v, format) {
 function defaultView(entity) {
   const fields = entity.fields || [];
   return { columns: fields.map(f => ({ field: f.name, format: ["money","date","boolean"].includes(f.type) ? f.type : "text" })), formFields: fields.map(f => f.name) };
+}
+function metricValue(rows, m) {
+  if (m.agg === "count") return rows.length;
+  const nums = rows.map(r => Number(r[m.field])).filter(n => !Number.isNaN(n));
+  const sum = nums.reduce((a, b) => a + b, 0);
+  return m.agg === "avg" ? (nums.length ? sum / nums.length : 0) : sum;
+}
+function cardTitleField(entity, view) {
+  return (view.card && view.card.title) || view.titleField || (view.columns[0] && view.columns[0].field) || ((entity.fields[0] || {}).name);
+}
+function makeCard(entity, view, r, remove) {
+  const card = el("div", { className: "card" });
+  const del = el("button", { className: "del", textContent: "✕" }); del.onclick = () => remove(r); card.append(del);
+  card.append(el("div", { className: "card-title", textContent: String(r[cardTitleField(entity, view)] ?? "") }));
+  const c = view.card || {};
+  if (c.subtitle) card.append(el("div", { className: "card-sub", textContent: fmt(r[c.subtitle]) }));
+  if (c.badge && r[c.badge] != null && r[c.badge] !== "") { const b = el("div"); b.append(el("span", { className: "badge-cell", textContent: String(r[c.badge]) })); card.append(b); }
+  const tf = cardTitleField(entity, view);
+  const meta = (c.meta && c.meta.length) ? c.meta : view.columns.map(x => x.field).filter(f => f !== tf).slice(0, 3);
+  if (meta.length) {
+    const md = el("div", { className: "card-meta" });
+    meta.forEach(f => { const col = view.columns.find(x => x.field === f) || {}; md.append(el("span", { textContent: f + ": " + fmt(r[f], col.format) })); });
+    card.append(md);
+  }
+  return card;
+}
+function renderCards(entity, view, rows, remove) {
+  const grid = el("div", { className: "card-grid" });
+  rows.forEach(r => grid.append(makeCard(entity, view, r, remove)));
+  if (!rows.length) grid.append(el("p", { className: "muted", textContent: "No " + entity.name + " yet." }));
+  return grid;
+}
+function renderBoard(entity, view, rows, remove) {
+  const groups = {};
+  rows.forEach(r => { const k = String(r[view.groupBy] == null || r[view.groupBy] === "" ? "—" : r[view.groupBy]); (groups[k] = groups[k] || []).push(r); });
+  const board = el("div", { className: "board" });
+  Object.keys(groups).forEach(k => {
+    const col = el("div", { className: "board-col" });
+    const head = el("div", { className: "board-col-head" });
+    head.append(el("span", { textContent: k })); head.append(el("span", { className: "count", textContent: String(groups[k].length) }));
+    col.append(head);
+    groups[k].forEach(r => col.append(makeCard(entity, view, r, remove)));
+    board.append(col);
+  });
+  return board;
+}
+function renderTable(entity, view, rows, remove) {
+  const tbl = el("table");
+  const thead = el("thead"); const htr = el("tr"); view.columns.forEach(c => htr.append(el("th", { textContent: c.field }))); htr.append(el("th")); thead.append(htr); tbl.append(thead);
+  const tb = el("tbody");
+  rows.forEach(r => {
+    const tr = el("tr");
+    view.columns.forEach(c => { const td = el("td"); if (c.format === "badge" && r[c.field] != null && r[c.field] !== "") td.append(el("span", { className: "badge-cell", textContent: String(r[c.field]) })); else td.textContent = fmt(r[c.field], c.format); tr.append(td); });
+    const del = el("button", { textContent: "✕" }); del.onclick = () => remove(r);
+    const td = el("td"); td.append(del); tr.append(td); tb.append(tr);
+  });
+  tbl.append(tb); return tbl;
 }
 function render() { renderRole(); renderNav(); renderMain(); }
 render();

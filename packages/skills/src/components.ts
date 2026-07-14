@@ -15,10 +15,27 @@ import { projectAppModel, type AppModel } from "@kiln/codegen";
 
 const FORMATS = ["text", "money", "date", "boolean", "badge", "longtext"] as const;
 type Format = (typeof FORMATS)[number];
+const LAYOUTS = ["table", "cards", "board"] as const;
+type Layout = (typeof LAYOUTS)[number];
+const AGGS = ["count", "sum", "avg"] as const;
+type Agg = (typeof AGGS)[number];
+
+/** A KPI tile computed from the loaded rows — count of rows, or sum/avg over a numeric field. */
+export interface ViewMetric { label: string; agg: Agg; field?: string; format?: Format }
+/** Card/board presentation: which fields become the card's title / subtitle / badge / meta line. */
+export interface ViewCard { title?: string; subtitle?: string; badge?: string; meta?: string[] }
 
 export interface ViewSpec {
   description?: string;
   titleField?: string;
+  /** How the list renders: a table (default), a grid of cards, or a kanban board grouped by `groupBy`. */
+  layout?: Layout;
+  /** 0–4 KPI tiles shown above the list. */
+  metrics?: ViewMetric[];
+  /** A short status/stage/type field to group by (board columns / grouped cards). */
+  groupBy?: string;
+  /** Presentation for cards/board mode (falls back to titleField + first columns when absent). */
+  card?: ViewCard;
   columns: { field: string; format: Format }[];
   formFields: string[];
 }
@@ -30,6 +47,13 @@ export const COMPONENTS_SCHEMA = {
   properties: {
     description: { type: "string" },
     titleField: { type: "string" },
+    layout: { type: "string", enum: [...LAYOUTS] },
+    metrics: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, required: ["label", "agg"], properties: { label: { type: "string" }, agg: { type: "string", enum: [...AGGS] }, field: { type: "string" }, format: { type: "string", enum: [...FORMATS] } } },
+    },
+    groupBy: { type: "string" },
+    card: { type: "object", additionalProperties: false, properties: { title: { type: "string" }, subtitle: { type: "string" }, badge: { type: "string" }, meta: { type: "array", items: { type: "string" } } } },
     columns: {
       type: "array",
       items: { type: "object", additionalProperties: false, required: ["field", "format"], properties: { field: { type: "string" }, format: { type: "string", enum: [...FORMATS] } } },
@@ -56,9 +80,33 @@ export function validateSpec(raw: unknown, e: AppModel["entities"][number]): Vie
   const formFields = (Array.isArray(o.formFields) ? o.formFields : []).filter((f): f is string => typeof f === "string" && real.has(f));
   if (columns.length === 0 && formFields.length === 0) return null; // nothing usable → fall back to the default screen
   const titleField = typeof o.titleField === "string" && real.has(o.titleField) ? o.titleField : undefined;
+  const realField = (v: unknown): string | undefined => (typeof v === "string" && real.has(v) ? v : undefined);
+
+  // KPI tiles — count needs no field; sum/avg require a real numeric-ish field. Cap at 4.
+  const metrics = (Array.isArray(o.metrics) ? o.metrics : [])
+    .map((m) => m as Record<string, unknown>)
+    .filter((m) => typeof m.label === "string" && (AGGS as readonly string[]).includes(String(m.agg)))
+    .map((m) => ({ label: String(m.label).slice(0, 40), agg: m.agg as Agg, field: realField(m.field), format: (FORMATS as readonly string[]).includes(String(m.format)) ? (m.format as Format) : undefined }))
+    .filter((m) => m.agg === "count" || m.field) // sum/avg without a field is meaningless → drop
+    .slice(0, 4);
+
+  const groupBy = realField(o.groupBy);
+  const cardRaw = o.card && typeof o.card === "object" ? (o.card as Record<string, unknown>) : undefined;
+  const card = cardRaw
+    ? { title: realField(cardRaw.title), subtitle: realField(cardRaw.subtitle), badge: realField(cardRaw.badge), meta: Array.isArray(cardRaw.meta) ? cardRaw.meta.filter((x): x is string => typeof x === "string" && real.has(x)).slice(0, 4) : undefined }
+    : undefined;
+
+  // A board needs something to group by; without it, degrade to cards (never a broken board).
+  let layout = (LAYOUTS as readonly string[]).includes(String(o.layout)) ? (o.layout as Layout) : undefined;
+  if (layout === "board" && !groupBy) layout = "cards";
+
   return {
     description: typeof o.description === "string" ? o.description.slice(0, 200) : undefined,
     titleField,
+    ...(layout ? { layout } : {}),
+    ...(metrics.length ? { metrics } : {}),
+    ...(groupBy ? { groupBy } : {}),
+    ...(card && (card.title || card.subtitle || card.badge || card.meta?.length) ? { card } : {}),
     columns: columns.length ? columns : e.fields.map((f) => ({ field: f.name, format: (f.type === "money" || f.type === "date" || f.type === "boolean" ? f.type : "text") as Format })),
     formFields: formFields.length ? formFields : e.fields.map((f) => f.name),
   };

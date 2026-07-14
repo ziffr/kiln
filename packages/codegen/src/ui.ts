@@ -548,14 +548,14 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
     // Table layout → the sortable/filterable DataTable with a per-row action menu (view / edit / commands).
     const colsLiteral = JSON.stringify(columns.map((c) => ({ field: slug(c.field), label: c.field, format: c.format })));
     body = [
-      `      <DataTable columns={${colsLiteral}} rows={rows as Record<string, unknown>[]} actions={(r) => (`,
+      `      <DataTable columns={${colsLiteral}} rows={rows} actions={(r) => (`,
       `        <DropdownMenu>`,
       `          <DropdownMenuTrigger asChild><Button variant="ghost" size="sm">⋯</Button></DropdownMenuTrigger>`,
       `          <DropdownMenuContent>`,
-      `            <DropdownMenuItem onClick={() => setPreview(r as ${s.typeName})}>{t("ui.view", "View")}</DropdownMenuItem>`,
-      `            <DropdownMenuItem asChild><Link to={${JSON.stringify(s.route + "/")} + String((r as { id?: string }).id ?? "")}>{t("ui.edit", "Edit")}</Link></DropdownMenuItem>`,
+      `            <DropdownMenuItem onClick={() => setPreview(r)}>{t("ui.view", "View")}</DropdownMenuItem>`,
+      `            <DropdownMenuItem asChild><Link to={${JSON.stringify(s.route + "/")} + String(r.id ?? "")}>{t("ui.edit", "Edit")}</Link></DropdownMenuItem>`,
       `            {actionCommands(${JSON.stringify(s.entity)}).map((c) => (`,
-      `              <DropdownMenuItem key={c.command} onClick={() => api.command(c.path.replace("{id}", String((r as { id?: string }).id ?? "")), r).then(load)}>{c.name}</DropdownMenuItem>`,
+      `              <DropdownMenuItem key={c.command} onClick={() => api.command(c.path.replace("{id}", String(r.id ?? "")), r).then(load)}>{c.name}</DropdownMenuItem>`,
       `            ))}`,
       `          </DropdownMenuContent>`,
       `        </DropdownMenu>`,
@@ -572,14 +572,14 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
     : "";
 
   const chartJsx = chartField
-    ? `      <DistributionChart title=${JSON.stringify(`By ${chartField}`)} rows={rows as Record<string, unknown>[]} field={${JSON.stringify(slug(chartField))}} />`
+    ? `      <DistributionChart title=${JSON.stringify(`By ${chartField}`)} rows={rows} field={${JSON.stringify(slug(chartField))}} />`
     : "";
   const sheetJsx = isTable
     ? [
         `      <Sheet open={!!preview} onOpenChange={(o) => { if (!o) setPreview(null); }}>`,
         `        <SheetContent>`,
         `          <SheetTitle>{title}</SheetTitle>`,
-        `          {preview && (<div className="space-y-2 text-sm">${columns.map((c) => `<div className="flex justify-between gap-4"><span className="text-muted-foreground">{${JSON.stringify(c.field)}}</span><span>{formatCell((preview as Record<string, unknown>)[${JSON.stringify(slug(c.field))}], ${JSON.stringify(c.format)})}</span></div>`).join("")}</div>)}`,
+        `          {preview && (<div className="space-y-2 text-sm">${columns.map((c) => `<div className="flex justify-between gap-4"><span className="text-muted-foreground">{${JSON.stringify(c.field)}}</span><span>{formatCell(preview[${JSON.stringify(slug(c.field))}], ${JSON.stringify(c.format)})}</span></div>`).join("")}</div>)}`,
         `        </SheetContent>`,
         `      </Sheet>`,
       ].join("\n")
@@ -599,7 +599,6 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
     isTable ? `import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";` : "",
     isTable ? `import { actionCommands } from "@/lib/model";` : "",
     chartField ? `import { DistributionChart } from "@/components/charts/DistributionChart";` : "",
-    `import type { ${s.typeName} } from "@/types";`,
   ].filter(Boolean);
 
   return [
@@ -608,9 +607,9 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
     "",
     `export default function ${T}List() {`,
     `  const { t } = useI18n();`,
-    `  const [rows, setRows] = useState<${s.typeName}[]>([]);`,
-    isTable ? `  const [preview, setPreview] = useState<${s.typeName} | null>(null);` : "",
-    `  const load = () => api.list(${JSON.stringify(s.entity)}).then((d) => setRows(d as ${s.typeName}[]));`,
+    `  const [rows, setRows] = useState<Record<string, unknown>[]>([]);`,
+    isTable ? `  const [preview, setPreview] = useState<Record<string, unknown> | null>(null);` : "",
+    `  const load = () => api.list(${JSON.stringify(s.entity)}).then(setRows);`,
     `  useEffect(() => { load(); }, []);`,
     `  const title = t(${JSON.stringify(`nav.${s.route}`)}, ${JSON.stringify(s.title)});`,
     `  return (`,

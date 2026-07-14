@@ -1,58 +1,46 @@
-import type { LayerKind, Tier } from "@kiln/skills";
+import { useState } from "react";
 import { Modal } from "./Modal";
 
-// Settings for the AI stages: transparency + control over which MODEL and EFFORT each step runs at.
-// Two independent knobs, both opt-in-friendly:
-//  · Model per step — off = one global model everywhere; on = pick a model per difficulty tier.
-//  · Effort per step — off = one global effort; on = the app's per-layer preset (editable).
-// The table shows the net resolved model + effort for every step, so nothing is hidden.
+// AI-stage settings: a GLOBAL default (engine / model / effort) + optional PER-STAGE overrides.
+// Any stage can run on a different provider, model and effort than the default — e.g. capabilities on
+// Opus/high, entities on a cheap gateway model in low effort. Visual polish is a vision pass, so its
+// provider is locked to Anthropic. "(default)" in a cell means "inherit the global default".
 
 interface ModelOpt { id: string; label: string; supportsEffort: boolean }
-interface ProviderOpt { id: string; label: string; note?: string; allowCustomModel: boolean }
+interface ProviderOpt { id: string; label: string; note?: string; allowCustomModel: boolean; models: ModelOpt[] }
+interface StageRow { key: string; label: string; lockProvider?: string }
+interface Override { provider?: string; model?: string; effort?: string }
+type Field = "provider" | "model" | "effort";
 
 interface Props {
-  layers: { kind: LayerKind; label: string }[];
-  // effort
-  adaptiveEffort: boolean;
-  effortByLayer: Record<string, string>;
-  defaults: Record<string, string>;
-  globalEffort: string;
-  supportsEffort: boolean;
+  providers: ProviderOpt[]; // only the engines configured on the server
   efforts: string[];
-  // engine (LLM provider) — Anthropic default; OpenRouter / omniroute when configured server-side
-  providers: ProviderOpt[];
-  engine: string;
-  globalModel: string;
-  onSetEngine: (id: string) => void;
-  onSetGlobalModel: (id: string) => void;
-  // model
-  models: ModelOpt[];
-  globalModelLabel: string;
-  adaptiveModel: boolean;
-  tierModels: { light: string; standard: string; heavy: string };
-  tierOf: Record<LayerKind, Tier>;
-  modelLabelFor: (kind: LayerKind) => string;
-  // handlers
-  onToggleAdaptive: (v: boolean) => void;
-  onSetLayerEffort: (kind: LayerKind, effort: string) => void;
-  onToggleAdaptiveModel: (v: boolean) => void;
-  onSetTierModel: (tier: Tier, modelId: string) => void;
+  defaultEngine: string;
+  defaultModel: string;
+  defaultEffort: string;
+  stages: StageRow[];
+  overrides: Record<string, Override>;
+  resolvedFor: (key: string) => { provider: string; model: string; effort: string };
+  onSetDefault: (field: Field, value: string) => void;
+  onSetStage: (key: string, field: Field, value: string | undefined) => void;
   onReset: () => void;
   onClose: () => void;
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-const TIERS: Tier[] = ["light", "standard", "heavy"];
-
 export function SettingsModal(props: Props): React.JSX.Element {
-  const { layers, adaptiveEffort, effortByLayer, defaults, globalEffort, supportsEffort, efforts,
-    providers, engine, globalModel, onSetEngine, onSetGlobalModel,
-    models, globalModelLabel, adaptiveModel, tierModels, tierOf, modelLabelFor,
-    onToggleAdaptive, onSetLayerEffort, onToggleAdaptiveModel, onSetTierModel, onReset, onClose, t } = props;
-  const modelSupportsEffort = (id: string): boolean => models.find((m) => m.id === id)?.supportsEffort ?? true;
-  const activeProvider = providers.find((p) => p.id === engine);
-  // A saved model id not in the current engine's curated list (e.g. a free-text gateway slug) still shows.
-  const knownModel = models.some((m) => m.id === globalModel);
+  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, t } = props;
+  const providerOf = (id: string): ProviderOpt | undefined => providers.find((p) => p.id === id);
+  const providerLabel = (id: string): string => providerOf(id)?.label ?? id;
+  const modelLabel = (providerId: string, modelId: string): string => providerOf(providerId)?.models.find((m) => m.id === modelId)?.label ?? modelId;
+  const modelHasEffort = (providerId: string, modelId: string): boolean => providerOf(providerId)?.models.find((m) => m.id === modelId)?.supportsEffort ?? true;
+
+  const dprov = providerOf(defaultEngine);
+  const defKnown = dprov?.models.some((m) => m.id === defaultModel) ?? false;
+  const defHasEffort = modelHasEffort(defaultEngine, defaultModel);
+
+  const hasOverrides = Object.keys(overrides).length > 0;
+  const [expanded, setExpanded] = useState(hasOverrides);
 
   return (
     <Modal title={t("settingsTitle")} onClose={onClose} wide
@@ -61,17 +49,17 @@ export function SettingsModal(props: Props): React.JSX.Element {
         <button className="btn primary" onClick={onClose}>{t("settingsDone")}</button>
       </>}>
       <div className="settings">
-          {/* ---- Engine (LLM provider) + the global model it runs ---- */}
-          <h3 className="settings-h">Engine</h3>
+          {/* ---- The default engine / model / effort ---- */}
+          <h3 className="settings-h">Engine — default</h3>
           <p className="muted" style={{ marginTop: 0 }}>
-            Which AI runs the modeling stages. Anthropic is the default and preferred engine; other engines
-            appear here only when their key is set on the server.
+            The engine, model and effort every stage uses unless you override it below. Anthropic is the
+            default and preferred engine; other engines appear when their key is set on the server.
           </p>
           {providers.length <= 1 && (
             <p className="muted" style={{ marginTop: 0 }}>
-              To add <strong>OpenRouter</strong> or <strong>omniroute</strong> as alternative engines, set
+              To add <strong>OpenRouter</strong> or <strong>omniroute</strong>, set
               <code> KILN_OPENROUTER_API_KEY</code> / <code> KILN_OMNIROUTE_API_KEY</code> in your server
-              <code> .env</code> and restart the service — a Provider dropdown then appears here.
+              <code> .env</code> and restart the service.
             </p>
           )}
           <table className="settings-table">
@@ -80,102 +68,95 @@ export function SettingsModal(props: Props): React.JSX.Element {
                 <tr>
                   <td>Provider</td>
                   <td>
-                    <select value={engine} onChange={(e) => onSetEngine(e.target.value)}>
+                    <select value={defaultEngine} onChange={(e) => onSetDefault("provider", e.target.value)}>
                       {providers.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </select>
-                    {activeProvider?.note && <span className="muted" style={{ marginLeft: 8 }}>{activeProvider.note}</span>}
+                    {dprov?.note && <span className="muted" style={{ marginLeft: 8 }}>{dprov.note}</span>}
                   </td>
                 </tr>
               )}
               <tr>
                 <td>Model</td>
                 <td>
-                  <select
-                    value={knownModel ? globalModel : "__custom__"}
-                    onChange={(e) => onSetGlobalModel(e.target.value === "__custom__" ? "" : e.target.value)}
-                  >
-                    {models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-                    {activeProvider?.allowCustomModel && <option value="__custom__">Custom model id…</option>}
+                  <select value={defKnown ? defaultModel : "__custom__"} onChange={(e) => onSetDefault("model", e.target.value === "__custom__" ? "" : e.target.value)}>
+                    {dprov?.models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                    {dprov?.allowCustomModel && <option value="__custom__">Custom model id…</option>}
                   </select>
-                  {activeProvider?.allowCustomModel && (
-                    <input
-                      type="text"
-                      value={knownModel ? "" : globalModel}
-                      placeholder="e.g. openai/gpt-5-mini"
-                      onChange={(e) => onSetGlobalModel(e.target.value)}
-                      style={{ marginLeft: 8, minWidth: 220 }}
-                    />
+                  {dprov?.allowCustomModel && (
+                    <input type="text" value={defKnown ? "" : defaultModel} placeholder="e.g. openai/gpt-5-mini" onChange={(e) => onSetDefault("model", e.target.value)} style={{ marginLeft: 8, minWidth: 220 }} />
                   )}
+                </td>
+              </tr>
+              <tr>
+                <td>Effort</td>
+                <td>
+                  {defHasEffort ? (
+                    <select value={defaultEffort} onChange={(e) => onSetDefault("effort", e.target.value)}>
+                      {efforts.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
+                    </select>
+                  ) : <span className="muted">— (this model has no effort control)</span>}
                 </td>
               </tr>
             </tbody>
           </table>
 
-          {/* ---- Model per step ---- */}
-          <h3 className="settings-h">{t("settingsModelSection")}</h3>
-          <label className="settings-toggle">
-            <input type="checkbox" checked={adaptiveModel} onChange={(e) => onToggleAdaptiveModel(e.target.checked)} />
-            <span><strong>{t("settingsModelAdaptive")}</strong> — {adaptiveModel ? t("settingsModelOnHint") : t("settingsModelOffHint", { model: globalModelLabel })}</span>
-          </label>
-          {adaptiveModel && (
-            <table className="settings-table">
-              <thead><tr><th>{t("settingsTier")}</th><th>{t("settingsModel")}</th></tr></thead>
-              <tbody>
-                {TIERS.map((tier) => (
-                  <tr key={tier}>
-                    <td>{t(`tier_${tier}`)} <span className="muted">{t(`tier_${tier}_hint`)}</span></td>
-                    <td>
-                      <select value={tierModels[tier]} onChange={(e) => onSetTierModel(tier, e.target.value)}>
-                        {models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {/* ---- Effort per step ---- */}
-          <h3 className="settings-h">{t("settingsEffortSection")}</h3>
-          {!supportsEffort && !adaptiveModel && <p className="muted">{t("settingsNoEffort")}</p>}
-          <label className="settings-toggle">
-            <input type="checkbox" checked={adaptiveEffort} onChange={(e) => onToggleAdaptive(e.target.checked)} />
-            <span><strong>{t("settingsAdaptive")}</strong> — {t("settingsAdaptiveHint")}</span>
-          </label>
-
-          {/* ---- Net per-step table (what actually runs) ---- */}
-          <table className="settings-table">
-            <thead>
-              <tr><th>{t("settingsStep")}</th><th>{t("settingsModel")}</th><th>{t("settingsEffort")}</th></tr>
-            </thead>
-            <tbody>
-              {layers.map((l) => {
-                const stageModel = adaptiveModel ? tierModels[tierOf[l.kind]] : undefined;
-                const canEffort = stageModel ? modelSupportsEffort(stageModel) : supportsEffort;
-                const eff = adaptiveEffort ? effortByLayer[l.kind] ?? defaults[l.kind] ?? "high" : globalEffort;
-                const overridden = adaptiveEffort && effortByLayer[l.kind] !== undefined && effortByLayer[l.kind] !== defaults[l.kind];
-                return (
-                  <tr key={l.kind}>
-                    <td>{l.label}{adaptiveModel && <span className="settings-tier-tag">{t(`tier_${tierOf[l.kind]}`)}</span>}</td>
-                    <td className="muted">{modelLabelFor(l.kind)}</td>
-                    <td>
-                      {canEffort ? (
-                        <>
-                          <select value={eff} disabled={!adaptiveEffort} onChange={(e) => onSetLayerEffort(l.kind, e.target.value)}>
-                            {efforts.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
+          {/* ---- Per-stage overrides (progressive disclosure) ---- */}
+          <h3 className="settings-h" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            Per stage
+            <button className="btn ghost" style={{ fontSize: 12, padding: "2px 8px" }} onClick={() => setExpanded((v) => !v)}>
+              {expanded ? "hide" : "customize"}
+            </button>
+          </h3>
+          {expanded && (
+            <>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Override any stage's provider / model / effort. Leave a cell on <em>(default)</em> to inherit the
+                default above. Example: capabilities on Opus, entities on a cheap gateway model in low effort.
+              </p>
+              <table className="settings-table">
+                <thead><tr><th>Stage</th><th>Provider</th><th>Model</th><th>Effort</th></tr></thead>
+                <tbody>
+                  {stages.map((st) => {
+                    const ov = overrides[st.key] ?? {};
+                    const rowProvider = st.lockProvider ?? ov.provider ?? defaultEngine;
+                    const p = providerOf(rowProvider);
+                    const res = resolvedFor(st.key);
+                    const effOk = modelHasEffort(res.provider, res.model);
+                    const modelInList = ov.model && (p?.models.some((m) => m.id === ov.model) ?? false);
+                    return (
+                      <tr key={st.key}>
+                        <td>{st.label}</td>
+                        <td>
+                          {st.lockProvider ? (
+                            <span className="muted" title="Visual polish is a vision pass — Anthropic only">🔒 {providerLabel(st.lockProvider)} · vision</span>
+                          ) : providers.length > 1 ? (
+                            <select value={ov.provider ?? ""} onChange={(e) => onSetStage(st.key, "provider", e.target.value || undefined)}>
+                              <option value="">(default: {providerLabel(defaultEngine)})</option>
+                              {providers.map((pr) => <option key={pr.id} value={pr.id}>{pr.label}</option>)}
+                            </select>
+                          ) : <span className="muted">{providerLabel(defaultEngine)}</span>}
+                        </td>
+                        <td>
+                          <select value={modelInList ? (ov.model as string) : ""} onChange={(e) => onSetStage(st.key, "model", e.target.value || undefined)}>
+                            <option value="">(default: {modelLabel(res.provider, res.model)})</option>
+                            {p?.models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
                           </select>
-                          {overridden && <span className="settings-badge">{t("settingsCustom")}</span>}
-                        </>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
+                        </td>
+                        <td>
+                          {effOk ? (
+                            <select value={ov.effort ?? ""} onChange={(e) => onSetStage(st.key, "effort", e.target.value || undefined)}>
+                              <option value="">(default: {res.effort})</option>
+                              {efforts.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
+                            </select>
+                          ) : <span className="muted">—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </>
+          )}
       </div>
     </Modal>
   );

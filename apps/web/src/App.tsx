@@ -21,7 +21,7 @@ import {
   type AgentsDoc,
 } from "@kiln/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@kiln/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, diffCritique, concernsMatch, parseFinding, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding, type CritiqueDiff } from "@kiln/skills";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, diffCritique, concernsMatch, parseFinding, resolveTarget, CRITIQUE_EFFORT, type LayerKind, type CritiqueFinding, type CritiqueDiff } from "@kiln/skills";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
 import { EnrichPanel } from "./components/EnrichPanel";
@@ -90,7 +90,6 @@ const EST_OUT_TOKENS = 800;
 const EFFORTS = ["low", "medium", "high", "max"];
 // Default per-tier models when "pick model per step" is on: upgrade the hard-reasoning stages to
 // Opus, keep the rest on Sonnet (quality-first; the user can drop light stages to Haiku for cost).
-const DEFAULT_TIER_MODELS = { light: "claude-sonnet-5", standard: "claude-sonnet-5", heavy: "claude-opus-4-8" };
 
 // A partial model override — lets the auto-review loop feed just-refined docs into the next
 // Review/Refine without waiting for React's async state to flush (which would leave them stale).
@@ -403,7 +402,7 @@ export default function App(): React.JSX.Element {
     try {
       const res = await fetch(`${SERVICE_URL}/api/narrative-sync`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ narrative: active.narrative ?? "", facts, model: modelFor("capabilities"), effort: active.effort, provider: engine }),
+        body: JSON.stringify({ narrative: active.narrative ?? "", facts, ...stageCfg("capabilities") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -432,7 +431,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/generate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ narrative: text, model: modelFor("capabilities"), effort: active.effort, provider: engine }),
+        body: JSON.stringify({ narrative: text, ...stageCfg("capabilities") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -454,7 +453,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/domain`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("entities"), effort: active.effort, provider: engine }),
+        body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("entities") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -657,7 +656,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/contexts`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("areas"), effort: active.effort, provider: engine }),
+        body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("areas") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -678,7 +677,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/events`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ domain: domainDoc, capabilities: activeDoc, model: modelFor("behaviour"), effort: active.effort, provider: engine }),
+        body: JSON.stringify({ domain: domainDoc, capabilities: activeDoc, ...stageCfg("behaviour") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -700,7 +699,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/policies`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ domain: behaviourDoc, capabilities: activeDoc, model: modelFor("automations"), effort: active.effort, provider: engine }),
+        body: JSON.stringify({ domain: behaviourDoc, capabilities: activeDoc, ...stageCfg("automations") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -721,7 +720,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/roles`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("roles"), effort: active.effort, provider: engine }),
+        body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("roles") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -737,17 +736,32 @@ export default function App(): React.JSX.Element {
   // ---- Semantic critic: the Review → Refine → Re-review → Clean loop, any layer (advisory) ----
   // A model override lets the auto loop feed a just-refined doc straight into the next review,
   // bypassing React's async state (the render-time docs would otherwise be stale mid-loop).
-  // The effort a given review step runs at: the app's per-layer preset when adaptive is on
-  // (the user can override individual layers), otherwise the one global effort.
-  const critiqueEffortFor = (layer: LayerKind): string =>
-    active.adaptiveEffort === false ? active.effort : active.effortByLayer?.[layer] ?? CRITIQUE_EFFORT[layer] ?? "high";
-
-  // The model a given stage runs at: when "pick model per step" is on, by difficulty tier; else the
-  // one global model. Applies to a stage's generation AND its review.
-  const tierModels = active.tierModels ?? DEFAULT_TIER_MODELS;
-  const modelFor = (layer: LayerKind): string =>
-    active.adaptiveModel ? tierModels[LAYER_TIER[layer]] ?? globalModel : globalModel;
-  const supportsEffortFor = (layer: LayerKind): boolean => MODELS.find((m) => m.id === modelFor(layer))?.supportsEffort ?? true;
+  // ---- Per-stage engine/model/effort ----
+  // A global default (engine / globalModel / effort) with optional per-stage overrides. A stage can run on
+  // a different PROVIDER, MODEL and EFFORT than the default — e.g. capabilities on Opus, entities on a cheap
+  // gateway model in low effort. Each request threads its stage's {provider, model, effort}.
+  const stageOverride = (stage: string): { provider?: string; model?: string; effort?: string } => active.stages?.[stage] ?? {};
+  const providerFor = (stage: string): string => {
+    const o = stageOverride(stage).provider;
+    if (o && catalog.some((p) => p.id === o)) return o;
+    // Visual polish is a vision pass → Anthropic-only; default it there when Anthropic is configured.
+    if (stage === "visual" && catalog.some((p) => p.id === "anthropic")) return "anthropic";
+    return engine;
+  };
+  const modelFor = (stage: string): string => {
+    const prov = providerFor(stage);
+    const p = catalog.find((x) => x.id === prov) ?? engineProvider;
+    const o = stageOverride(stage).model;
+    if (o && (p.models.some((m) => m.id === o) || p.allowCustomModel)) return o;
+    return prov === engine ? globalModel : p.defaultModel ?? p.models[0]?.id ?? globalModel;
+  };
+  // A stage's effort: its override, else the global effort (for generation) or the review preset (for review).
+  const effortFor = (stage: string, review = false): string =>
+    stageOverride(stage).effort ?? (review ? CRITIQUE_EFFORT[stage as LayerKind] ?? "high" : active.effort);
+  const critiqueEffortFor = (layer: LayerKind): string => effortFor(layer, true);
+  // The full {model, effort, provider} a request should send for a stage. Spread into the body.
+  const stageCfg = (stage: string, review = false): { model: string; effort: string; provider: string } => ({ model: modelFor(stage), effort: effortFor(stage, review), provider: providerFor(stage) });
+  const supportsEffortFor = (stage: string): boolean => MODELS.find((m) => m.id === modelFor(stage))?.supportsEffort ?? true;
 
   const reviewBody = (layer: LayerKind, ov: ModelOverride) => ({
     layer,
@@ -757,9 +771,7 @@ export default function App(): React.JSX.Element {
     roles: ov.roles ?? rolesDoc,
     workflows: ov.workflows ?? workflowsDoc,
     agents: ov.agents ?? agentsDoc,
-    model: modelFor(layer),
-    effort: critiqueEffortFor(layer),
-    provider: engine,
+    ...stageCfg(layer, true),
     // Concerns the human already accepted on this layer → the critic is told not to raise them again.
     accepted: (active.ignoredFindings ?? [])
       .filter((k) => k.startsWith(`ai|${layer}|`))
@@ -807,7 +819,7 @@ export default function App(): React.JSX.Element {
   async function refineLayer(layer: LayerKind, findings?: CritiqueFinding[], ov: ModelOverride = {}): Promise<ModelOverride | null> {
     const fs = findings ?? critique[layer];
     if (!fs || fs.length === 0) return null;
-    const common = { model: modelFor(layer), effort: active.effort, provider: engine, feedback: critiqueToFeedback(fs) };
+    const common = { ...stageCfg(layer), feedback: critiqueToFeedback(fs) };
     let url = "";
     let body: Record<string, unknown> = {};
     let applyDoc: (doc: unknown) => ModelOverride = () => ({});
@@ -921,7 +933,7 @@ export default function App(): React.JSX.Element {
   async function generateWorkflowsModel(): Promise<void> {
     setWorkflowsBusy(true); setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/workflows`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ domain: behaviourDoc, model: modelFor("workflows"), effort: active.effort, provider: engine }) });
+      const res = await fetch(`${SERVICE_URL}/api/workflows`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ domain: behaviourDoc, ...stageCfg("workflows") }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ workflows: data.doc });
@@ -954,7 +966,7 @@ export default function App(): React.JSX.Element {
   async function classifyOrchestration(): Promise<void> {
     setOrchestrationBusy(true); setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/orchestration`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workflows: workflowsDoc, domain: behaviourDoc, model: modelFor("workflows"), effort: active.effort, provider: engine }) });
+      const res = await fetch(`${SERVICE_URL}/api/orchestration`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workflows: workflowsDoc, domain: behaviourDoc, ...stageCfg("workflows") }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ workflows: data.workflows }); // modes folded onto the workflows (source of truth)
@@ -965,7 +977,7 @@ export default function App(): React.JSX.Element {
   async function generateAgentsModel(): Promise<void> {
     setAgentsBusy(true); setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/agents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, model: modelFor("agents"), effort: active.effort, provider: engine }) });
+      const res = await fetch(`${SERVICE_URL}/api/agents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("agents") }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ agents: data.doc });
@@ -1104,7 +1116,7 @@ export default function App(): React.JSX.Element {
     setEnrichWebBusy(true);
     setError(null);
     try {
-      const common = { model: modelFor(enrichLayer === "entities" ? "entities" : "capabilities"), effort: active.effort, provider: engine };
+      const common = { ...stageCfg(enrichLayer === "entities" ? "entities" : "capabilities") };
       const url = enrichLayer === "entities" ? "/api/enrich-web" : "/api/enrich-layer";
       const body = enrichLayer === "entities"
         ? { capabilities: activeDoc, domain: flowDoc, ...common }
@@ -1126,7 +1138,6 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const supportsEffort = MODELS.find((m) => m.id === globalModel)?.supportsEffort ?? true;
 
   // Resolve any artifact id (capability / area-node / entity / command / event / policy / role / agent)
   // to a display NAME — used for breadcrumb labels AND for the meaning-key of an ignored finding.
@@ -1307,33 +1318,28 @@ export default function App(): React.JSX.Element {
       )}
       {showSettings && (
         <SettingsModal
-          layers={reviewLayers.map((r) => ({ kind: r.kind, label: r.label }))}
-          adaptiveEffort={active.adaptiveEffort !== false}
-          effortByLayer={active.effortByLayer ?? {}}
-          defaults={CRITIQUE_EFFORT}
-          globalEffort={active.effort}
-          globalModelLabel={MODELS.find((m) => m.id === globalModel)?.label ?? globalModel}
-          supportsEffort={supportsEffort}
+          providers={catalog.map((p) => ({ id: p.id, label: p.label, note: p.note, allowCustomModel: p.allowCustomModel, models: p.models.map((m) => ({ id: m.id, label: m.label, supportsEffort: m.supportsEffort })) }))}
           efforts={EFFORTS}
-          models={engineModels}
-          adaptiveModel={active.adaptiveModel === true}
-          tierModels={tierModels}
-          tierOf={LAYER_TIER}
-          modelLabelFor={(kind) => MODELS.find((m) => m.id === modelFor(kind))?.label ?? modelFor(kind)}
-          providers={catalog.map((p) => ({ id: p.id, label: p.label, note: p.note, allowCustomModel: p.allowCustomModel }))}
-          engine={engine}
-          globalModel={globalModel}
-          onSetEngine={(id) => {
-            const p = catalog.find((x) => x.id === id) ?? engineProvider;
-            // Models/tiers are engine-specific → reset to the new engine's default when switching.
-            patchActive({ engine: id, model: p.defaultModel, adaptiveModel: false, tierModels: DEFAULT_TIER_MODELS });
+          defaultEngine={engine}
+          defaultModel={globalModel}
+          defaultEffort={active.effort}
+          stages={[...reviewLayers.map((r) => ({ key: r.kind as string, label: r.label })), { key: "polish", label: "Polish UI" }, { key: "visual", label: "Visual polish", lockProvider: "anthropic" }]}
+          overrides={active.stages ?? {}}
+          resolvedFor={(key) => stageCfg(key)}
+          onSetDefault={(field, value) => {
+            if (field === "provider") { const p = catalog.find((x) => x.id === value) ?? engineProvider; patchActive({ engine: value, model: p.defaultModel }); }
+            else if (field === "model") patchActive({ model: value });
+            else patchActive({ effort: value });
           }}
-          onSetGlobalModel={(id) => patchActive({ model: id })}
-          onToggleAdaptive={(v) => patchActive({ adaptiveEffort: v })}
-          onSetLayerEffort={(kind, effort) => patchActive({ effortByLayer: { ...(active.effortByLayer ?? {}), [kind]: effort } })}
-          onToggleAdaptiveModel={(v) => patchActive({ adaptiveModel: v })}
-          onSetTierModel={(tier, modelId) => patchActive({ tierModels: { ...tierModels, [tier]: modelId } })}
-          onReset={() => patchActive({ adaptiveEffort: true, effortByLayer: {}, adaptiveModel: false, tierModels: DEFAULT_TIER_MODELS })}
+          onSetStage={(key, field, value) => {
+            const cur = { ...(active.stages ?? {}) };
+            const row: { provider?: string; model?: string; effort?: string } = { ...(cur[key] ?? {}) };
+            if (value === undefined || value === "") delete row[field];
+            else { row[field] = value; if (field === "provider") delete row.model; } // model belongs to the old provider → clear it
+            if (Object.keys(row).length) cur[key] = row; else delete cur[key];
+            patchActive({ stages: cur });
+          }}
+          onReset={() => patchActive({ stages: {} })}
           onClose={() => setShowSettings(false)}
           t={t}
         />
@@ -1363,7 +1369,7 @@ export default function App(): React.JSX.Element {
                 refinable={(k) => k !== "capabilities" && k !== "holistic"}
                 effortFor={(k) => (supportsEffortFor(k) ? critiqueEffortFor(k) : "—")}
                 modelLabelFor={(k) => MODELS.find((m) => m.id === modelFor(k))?.label ?? modelFor(k)}
-                showModel={active.adaptiveModel === true}
+                showModel={Object.keys(active.stages ?? {}).length > 0}
                 onReview={(k) => void reviewLayer(k)}
                 onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
                 onSelect={(f) => { selectFinding(f); setShowReview(false); }}
@@ -1644,14 +1650,14 @@ export default function App(): React.JSX.Element {
                 workflows={workflowsDoc}
                 agents={agentsDoc}
                 requestAppLogic={async (feedback?: string) => {
-                  const res = await fetch(`${SERVICE_URL}/api/app-logic`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, feedback, model: modelFor("behaviour"), effort: active.effort, provider: engine }) });
+                  const res = await fetch(`${SERVICE_URL}/api/app-logic`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, feedback, ...stageCfg("behaviour") }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
                   setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
                   return data as { handlers: Record<string, string>; written: number; skipped: number };
                 }}
                 requestAppComponents={async () => {
-                  const res = await fetch(`${SERVICE_URL}/api/app-components`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, model: modelFor("entities"), effort: active.effort, provider: engine }) });
+                  const res = await fetch(`${SERVICE_URL}/api/app-components`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, ...stageCfg("entities") }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
                   setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
@@ -1668,14 +1674,14 @@ export default function App(): React.JSX.Element {
                   return { uiUrl: data.uiUrl as string, id: data.id as string };
                 } : undefined}
                 requestPolishUi={async (views) => {
-                  const res = await fetch(`${SERVICE_URL}/api/polish-ui`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, views, model: modelFor("entities"), effort: active.effort, provider: engine }) });
+                  const res = await fetch(`${SERVICE_URL}/api/polish-ui`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, views, ...stageCfg("polish") }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
                   setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
                   return { views: data.views ?? {}, improvements: data.improvements ?? {} };
                 }}
                 requestPolishVisual={serverUp ? async (views) => {
-                  const res = await fetch(`${SERVICE_URL}/api/polish-visual`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, views, model: modelFor("entities") }) });
+                  const res = await fetch(`${SERVICE_URL}/api/polish-visual`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, views, model: modelFor("visual"), effort: effortFor("visual") }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
                   if (data.unavailable) return { views: {}, improvements: {}, unavailable: true, error: data.error };
@@ -1683,7 +1689,7 @@ export default function App(): React.JSX.Element {
                   return { views: data.views ?? {}, improvements: data.improvements ?? {} };
                 } : undefined}
                 requestCodeReview={async (handlerCode) => {
-                  const res = await fetch(`${SERVICE_URL}/api/code-review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, handlerCode, model: modelFor("behaviour"), provider: engine }) });
+                  const res = await fetch(`${SERVICE_URL}/api/code-review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, handlerCode, model: modelFor("behaviour"), provider: providerFor("behaviour") }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
                   setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });

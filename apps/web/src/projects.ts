@@ -57,8 +57,11 @@ export interface Project {
    *  false = use the global `effort` for every review. effortByLayer overrides the built-in preset. */
   adaptiveEffort?: boolean;
   effortByLayer?: Record<string, string>;
-  /** Per-stage model tiering. adaptiveModel (default false) = pick a model per stage by difficulty
-   *  tier; false = use the single global `model` everywhere. tierModels maps light/standard/heavy. */
+  /** Per-STAGE engine/model/effort overrides over the global `engine`/`model`/`effort` default. Keyed by
+   *  stage (the modeling layers + "polish" + "visual"); each field absent → use the global default. A stage
+   *  can run on a different provider entirely (e.g. capabilities on Opus, entities on a cheap gateway model). */
+  stages?: Record<string, { provider?: string; model?: string; effort?: string }>;
+  /** @deprecated superseded by `stages` (per-stage). Left for back-compat; no longer read. */
   adaptiveModel?: boolean;
   tierModels?: { light: string; standard: string; heavy: string };
   /** per-project interview override (tone/depth/domain); empty → global default. */

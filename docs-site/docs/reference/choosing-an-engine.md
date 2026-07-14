@@ -49,15 +49,19 @@ Restart the service and pick omniroute in **Settings → Engine**.
 
 ## Selecting the engine, model, and effort in Studio
 
-Open **Settings** (bottom of the sidebar) → the **Engine** section:
+Open **Settings** (bottom of the sidebar). There are two levels:
 
-1. **Provider** — pick the engine (only shown when more than one is configured). Anthropic is preselected.
+**Engine — default** sets the provider, model and effort every stage uses unless overridden:
+1. **Provider** — pick the engine (shown when more than one is configured). Anthropic is preselected.
 2. **Model** — pick a model from that engine. For the gateways you can also choose **"Custom model id…"**
-   and type any model slug (e.g. `openai/gpt-5-mini` on OpenRouter, or `auto/coding` on omniroute).
-3. **Effort** — the "thinking effort" per step (low → max). Models that don't support it simply ignore it.
+   and type any slug (e.g. `openai/gpt-5-mini` on OpenRouter, or `auto/coding` on omniroute).
+3. **Effort** — the "thinking effort" (low → max). Models that don't support it simply ignore it.
 
-You can also turn on **"pick a model per step"** to run harder stages (like behaviour) on a stronger
-model and lighter stages on a cheaper one. These choices are saved with the project.
+**Per stage** (click *customize*) lets you override any individual stage — its **provider, model, AND
+effort** — independently of the default. Each cell shows `(default)` until you change it. For example:
+generate **Capabilities** on Anthropic Opus at high effort, but run **Entities** on a cheap OpenRouter
+model in low effort. It also covers the **Polish UI** and **Visual polish** stages — Visual polish is a
+vision pass, so its provider is locked to Anthropic. All of this is saved with the project.
 
 ## Things to know
 

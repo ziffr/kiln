@@ -1,5 +1,5 @@
 <!--
-Thanks for contributing to VerticalBusinessDesigner!
+Thanks for contributing to Kiln!
 Every PR is reviewed and merged by the AI Maintainer (see GOVERNANCE.md), and green CI is required.
 Please use a Conventional Commit style for the PR title (e.g. "feat: ...", "fix: ...", "docs: ...").
 -->
@@ -16,7 +16,9 @@ Please use a Conventional Commit style for the PR title (e.g. "feat: ...", "fix:
       `derived`; secrets stay server-side; pure packages stay isomorphic and free of `node:*` imports
 - [ ] Changes go in the model / generator, not in generated code
 - [ ] UI changes verified in the browser (if applicable)
-- [ ] Docs updated where relevant (and `docs/INDEX.md` if a governed doc changed)
+- [ ] **User-facing docs updated** under `docs-site/` (feature, behaviour-changing fix, connector, or
+      config/env/prompt change) — _or_ the `docs:not-needed` label is set with a reason. (And
+      `docs/INDEX.md` if a governed doc under `docs/` changed.)
 - [ ] PR title uses [Conventional Commits](https://www.conventionalcommits.org/)
 
 ## Notes for the reviewer

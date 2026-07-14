@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { critiqueLayer, critiqueToFeedback, resolveTarget, generateContexts, type LlmProvider, type ReviewModel } from "../src/index.ts";
+import { critiqueLayer, critiqueToFeedback, diffCritique, resolveTarget, generateContexts, type CritiqueFinding, type LlmProvider, type ReviewModel } from "../src/index.ts";
 import type { CapabilityDoc } from "@kiln/compiler";
+
+const f = (id: string, message: string, target?: string, severity: "concern" | "suggestion" = "concern"): CritiqueFinding => ({ id, severity, message, target });
 
 const caps: CapabilityDoc = {
   version: "0.2", domain: "solar",
@@ -97,4 +99,48 @@ test("LAYER_TIER classifies every layer and the hard-reasoning ones are 'heavy'"
   for (const k of ["areas", "automations", "holistic", "capabilities"]) assert.equal(LAYER_TIER[k], "heavy", k);
   // pure extraction/scaffolding stays light
   for (const k of ["entities", "roles", "agents"]) assert.equal(LAYER_TIER[k], "light", k);
+});
+
+test("diffCritique labels still-open, new, and resolved across rounds", () => {
+  const prev = [
+    f("a1", "Invoice has no total field", "invoice"),
+    f("b1", "Agent 'Concierge' operates nothing", "concierge"),
+    f("c1", "Scheduling role is far too broad", "scheduling"),
+  ];
+  const next = [
+    // same target + related wording as a1 → still open (even though the id differs after regen)
+    f("a2", "Invoice is missing a total amount", "invoice"),
+    // brand-new concern on a node not seen before
+    f("d1", "Payment has no timestamp", "payment"),
+  ];
+  const d = diffCritique(prev, next);
+  assert.equal(d.statuses["a2"], "still");
+  assert.equal(d.statuses["d1"], "new");
+  assert.equal(d.counts.still, 1);
+  assert.equal(d.counts.new, 1);
+  // b1 (concierge) and c1 (scheduling) vanished → resolved
+  assert.equal(d.counts.resolved, 2);
+  assert.deepEqual(d.resolved.map((x) => x.id).sort(), ["b1", "c1"]);
+});
+
+test("diffCritique treats different targets as different concerns", () => {
+  const prev = [f("r1", "Role is too broad", "sales")];
+  const next = [f("r2", "Role is too broad", "finance")]; // identical wording, different node
+  const d = diffCritique(prev, next);
+  assert.equal(d.statuses["r2"], "new");
+  assert.equal(d.counts.resolved, 1); // the sales one is gone
+});
+
+test("diffCritique matches target-less findings by wording overlap", () => {
+  const prev = [f("x1", "The billing area is split from fulfilment it is coupled to")];
+  const next = [f("x2", "The billing area is split from the fulfilment it is coupled to")];
+  const d = diffCritique(prev, next);
+  assert.equal(d.statuses["x2"], "still");
+  assert.equal(d.counts.resolved, 0);
+});
+
+test("diffCritique against an empty prior round marks everything new", () => {
+  const d = diffCritique([], [f("n1", "something", "x")]);
+  assert.equal(d.statuses["n1"], "new");
+  assert.equal(d.counts.resolved, 0);
 });

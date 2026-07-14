@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { CritiqueFinding, LayerKind } from "@kiln/skills";
+import type { CritiqueDiff, CritiqueFinding, LayerKind } from "@kiln/skills";
 import { Icon } from "./Icon";
 
 // The Review panel — a "closure dashboard" for the model. Each layer shows a status (○ not reviewed ·
@@ -16,6 +16,8 @@ export interface LayerRow {
 interface Props {
   layers: LayerRow[];
   critique: Partial<Record<LayerKind, CritiqueFinding[]>>;
+  diffs: Partial<Record<LayerKind, CritiqueDiff>>;
+  reviewCount: Partial<Record<LayerKind, number>>;
   busy: LayerKind | null;
   refinable: (k: LayerKind) => boolean;
   effortFor: (k: LayerKind) => string;
@@ -32,7 +34,7 @@ interface Props {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-export function ReviewPanel({ layers, critique, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, onSelect, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
+export function ReviewPanel({ layers, critique, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, onSelect, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
   const autoLabel = autoLayer ? layers.find((l) => l.kind === autoLayer)?.label ?? autoLayer : "";
   return (
     <div className="review-panel">
@@ -53,11 +55,17 @@ export function ReviewPanel({ layers, critique, busy, refinable, effortFor, mode
         </span>
       </div>
       <p className="review-sub muted">{t("aiReviewSub")}</p>
+      <details className="review-how">
+        <summary>{t("aiHowTitle")}</summary>
+        <p>{t("aiHowBody")}</p>
+      </details>
       {layers.map((row) => (
         <LayerReviewRow
           key={row.kind}
           row={row}
           findings={critique[row.kind]}
+          diff={diffs[row.kind]}
+          reviewCount={reviewCount[row.kind] ?? 0}
           isBusy={busy === row.kind}
           active={autoLayer === row.kind}
           canApply={refinable(row.kind)}
@@ -77,6 +85,8 @@ export function ReviewPanel({ layers, critique, busy, refinable, effortFor, mode
 interface RowProps {
   row: LayerRow;
   findings: CritiqueFinding[] | undefined;
+  diff: CritiqueDiff | undefined;
+  reviewCount: number;
   isBusy: boolean;
   active: boolean;
   canApply: boolean;
@@ -89,7 +99,7 @@ interface RowProps {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function LayerReviewRow({ row, findings, isBusy, active, canApply, effort, modelLabel, autoRunning, onReview, onApply, onSelect, t }: RowProps): React.JSX.Element {
+function LayerReviewRow({ row, findings, diff, reviewCount, isBusy, active, canApply, effort, modelLabel, autoRunning, onReview, onApply, onSelect, t }: RowProps): React.JSX.Element {
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -115,6 +125,14 @@ function LayerReviewRow({ row, findings, isBusy, active, canApply, effort, model
   const clean = reviewed && findings!.length === 0;
   const showApplied = applied !== null && findings === undefined;
   const selectedCount = open ? findings!.filter((f) => sel[f.id]).length : 0;
+
+  // Round-over-round delta + a stop-here nudge. The delta summary shows after a re-review (there's a
+  // prior round to compare against); the nudge fires when only subjective suggestions remain or the
+  // layer has already been refined a few times — the loop rarely converges to zero, so we say so.
+  const showDelta = Boolean(diff) && (open || clean);
+  const onlySuggestions = open && findings!.every((f) => f.severity !== "concern");
+  const showNudge = open && (onlySuggestions || reviewCount >= 3);
+  const nudgeText = onlySuggestions ? t("aiOnlySuggestions") : t("aiRefinedTimes", { count: reviewCount });
 
   const statusText = isBusy
     ? t("aiReviewBusy")
@@ -158,10 +176,29 @@ function LayerReviewRow({ row, findings, isBusy, active, canApply, effort, model
         </span>
       </div>
 
+      {showDelta && (
+        <div className="review-delta">
+          <span className="muted">{t("aiSinceReview")}</span>
+          {diff!.counts.resolved > 0 && <span className="delta-chip resolved" title={t("aiDeltaResolvedHint")}>✓ {t("aiDeltaResolved", { count: diff!.counts.resolved })}</span>}
+          {diff!.counts.still > 0 && <span className="delta-chip still" title={t("aiDeltaStillHint")}>↻ {t("aiDeltaStill", { count: diff!.counts.still })}</span>}
+          {diff!.counts.new > 0 && <span className="delta-chip new" title={t("aiDeltaNewHint")}>✦ {t("aiDeltaNew", { count: diff!.counts.new })}</span>}
+          {clean && <span className="delta-chip resolved">✓ {t("aiReviewOk")}</span>}
+        </div>
+      )}
+
+      {showDelta && diff!.resolved.length > 0 && (
+        <ul className="review-resolved">
+          {diff!.resolved.map((r) => (
+            <li key={r.id} className="muted"><span className="delta-mark resolved">✓</span> <s>{r.message}</s></li>
+          ))}
+        </ul>
+      )}
+
       {open && (
         <ul className="review-findings">
           {findings!.map((f) => {
             const sugg = edited[f.id] ?? f.suggestion ?? "";
+            const delta = diff?.statuses[f.id];
             return (
               <li key={f.id} className={sel[f.id] ? "" : "deselected"}>
                 <div className="finding-top">
@@ -173,6 +210,11 @@ function LayerReviewRow({ row, findings, isBusy, active, canApply, effort, model
                       onChange={(e) => setSel((s) => ({ ...s, [f.id]: e.target.checked }))}
                       title={t("aiAcceptToggle")}
                     />
+                  )}
+                  {delta && (
+                    <span className={`finding-delta ${delta}`} title={delta === "new" ? t("aiDeltaNewHint") : t("aiDeltaStillHint")}>
+                      {delta === "new" ? "✦" : "↻"}
+                    </span>
                   )}
                   <span className={f.target ? "finding-msg clickable" : "finding-msg"} onClick={() => f.target && onSelect(f)}>
                     <code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}
@@ -201,6 +243,8 @@ function LayerReviewRow({ row, findings, isBusy, active, canApply, effort, model
           })}
         </ul>
       )}
+
+      {showNudge && <div className="review-nudge muted">💡 {nudgeText}</div>}
 
       {showApplied && (
         <div className="review-applied">

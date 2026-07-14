@@ -21,7 +21,7 @@ import {
   type AgentsDoc,
 } from "@kiln/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@kiln/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding } from "@kiln/skills";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, diffCritique, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding, type CritiqueDiff } from "@kiln/skills";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
 import { EnrichPanel } from "./components/EnrichPanel";
@@ -185,8 +185,21 @@ export default function App(): React.JSX.Element {
   // layer, so all critique goes stale → clear it.
   const [critique, setCritique] = useState<Partial<Record<LayerKind, CritiqueFinding[]>>>({});
   const [reviewBusy, setReviewBusy] = useState<LayerKind | null>(null);
+  // Round-over-round: the delta of the latest review vs the previous one (still-open/new/resolved), and
+  // how many times each layer has been reviewed (drives the "diminishing returns" nudge). `lastReviewedRef`
+  // holds the prior round's findings to diff against — it survives an Apply (which clears `critique`) so a
+  // post-Apply re-review is compared against what was applied.
+  const [critiqueDiff, setCritiqueDiff] = useState<Partial<Record<LayerKind, CritiqueDiff>>>({});
+  const [reviewCount, setReviewCount] = useState<Partial<Record<LayerKind, number>>>({});
+  const lastReviewedRef = useRef<Partial<Record<LayerKind, CritiqueFinding[]>>>({});
   const capSig = activeDoc.capabilities.map((c) => c.id).join(",");
-  useEffect(() => setCritique({}), [capSig]);
+  useEffect(() => {
+    // A capability change (or project switch) restarts the review dialogue from scratch.
+    setCritique({});
+    setCritiqueDiff({});
+    setReviewCount({});
+    lastReviewedRef.current = {};
+  }, [capSig]);
   // Auto mode: run the whole Review→Refine→Re-review loop to closure, layer by layer.
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoLayer, setAutoLayer] = useState<LayerKind | null>(null);
@@ -597,6 +610,12 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       const findings = (data.findings ?? []) as CritiqueFinding[];
+      // Diff against the previous round (if any) so the panel can show progress vs churn, then make
+      // this round the new baseline and count it. First review of a layer has no prior → no diff.
+      const prior = lastReviewedRef.current[layer];
+      setCritiqueDiff((d) => ({ ...d, [layer]: prior ? diffCritique(prior, findings) : undefined }));
+      lastReviewedRef.current[layer] = findings;
+      setReviewCount((c) => ({ ...c, [layer]: (c[layer] ?? 0) + 1 }));
       setCritique((prev) => ({ ...prev, [layer]: findings }));
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
       return findings;
@@ -1103,6 +1122,8 @@ export default function App(): React.JSX.Element {
               <ReviewPanel
                 layers={reviewLayers}
                 critique={critique}
+                diffs={critiqueDiff}
+                reviewCount={reviewCount}
                 busy={reviewBusy}
                 refinable={(k) => k !== "capabilities" && k !== "holistic"}
                 effortFor={(k) => (supportsEffortFor(k) ? critiqueEffortFor(k) : "—")}

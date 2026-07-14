@@ -211,6 +211,56 @@ export function critiqueToFeedback(findings: CritiqueFinding[]): string {
   return `A reviewer flagged the following about the previous version — produce an improved version that ADDRESSES each:\n${findings.map((f) => `- ${f.message}${f.suggestion ? ` (fix: ${f.suggestion})` : ""}`).join("\n")}`;
 }
 
+// ── Round-over-round delta ──────────────────────────────────────────────────
+// Apply is generative (it regenerates the whole layer) and the critic is a fresh subjective pass, so a
+// re-review returns a NEW finding list with no stable identity to the previous one (the id is a hash of
+// the exact wording). To tell "progress" from "churn" we match findings across rounds by the node they
+// target and by wording overlap, and label each still-open / new, plus which prior ones were resolved.
+
+/** The delta between a review round and the one before it. */
+export interface CritiqueDiff {
+  /** current finding id → did it persist from the previous round ("still") or is it fresh ("new"). */
+  statuses: Record<string, "new" | "still">;
+  /** previous findings absent from the current round — addressed since the last review. */
+  resolved: CritiqueFinding[];
+  counts: { resolved: number; still: number; new: number };
+}
+
+const DIFF_STOP = new Set("der die das und oder ein eine the a an of to for is are be on in with no not it its this that and or as at".split(" "));
+function diffTokens(s: string): Set<string> {
+  return new Set(
+    s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 2 && !DIFF_STOP.has(w)),
+  );
+}
+/** Jaccard overlap of the significant words in two messages (0..1). */
+function messageSim(a: string, b: string): number {
+  const ta = diffTokens(a), tb = diffTokens(b);
+  if (ta.size === 0 || tb.size === 0) return 0;
+  let inter = 0;
+  for (const w of ta) if (tb.has(w)) inter++;
+  return inter / (ta.size + tb.size - inter);
+}
+/** Two findings describe "the same concern" if they name the same node (with related wording), or —
+ *  when neither carries a target — their wording overlaps strongly. Different targets ⇒ different concern. */
+function sameConcern(a: CritiqueFinding, b: CritiqueFinding): boolean {
+  const at = a.target?.trim().toLowerCase(), bt = b.target?.trim().toLowerCase();
+  if (at && bt) return at === bt && messageSim(a.message, b.message) >= 0.3;
+  return messageSim(a.message, b.message) >= 0.55;
+}
+
+/** Compare a fresh review (`next`) to the previous one (`prev`): flag each still-open/new, list resolved. */
+export function diffCritique(prev: CritiqueFinding[], next: CritiqueFinding[]): CritiqueDiff {
+  const statuses: Record<string, "new" | "still"> = {};
+  let still = 0, fresh = 0;
+  for (const n of next) {
+    const persisted = prev.some((p) => sameConcern(p, n));
+    statuses[n.id] = persisted ? "still" : "new";
+    if (persisted) still++; else fresh++;
+  }
+  const resolved = prev.filter((p) => !next.some((n) => sameConcern(p, n)));
+  return { statuses, resolved, counts: { resolved: resolved.length, still, new: fresh } };
+}
+
 /** Resolve a finding's target to a canonical id the UI can select, given the whole model. */
 export function resolveTarget(target: string | undefined, model: ReviewModel): { kind: "capability" | "area" | "entity"; id: string } | undefined {
   if (!target) return undefined;

@@ -118,6 +118,7 @@ export {
   critiqueLayer,
   buildCritiqueRequest,
   critiqueToFeedback,
+  diffCritique,
   resolveTarget,
   CRITIQUE_SCHEMA,
   CRITIQUE_EFFORT,
@@ -127,6 +128,7 @@ export {
   type ReviewModel,
   type CritiqueResult,
   type CritiqueFinding,
+  type CritiqueDiff,
 } from "./critic.ts";
 export { generateAppLogic, APP_LOGIC_SCHEMA, APP_LOGIC_SYSTEM_PROMPT, type AppLogicResult } from "./applogic.ts";
 export { reviewGeneratedCode, CODE_REVIEW_SCHEMA, CODE_REVIEW_SYSTEM_PROMPT, type CodeReviewResult, type CodeFinding, type CodeLens } from "./codereview.ts";

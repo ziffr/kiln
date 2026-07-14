@@ -77,6 +77,10 @@ ${B}App — run a GENERATED system${N}   (operates on ./out/targets, or a dir yo
   ${C}app:spine${N} [dir]      Run the generated command API on the host.
   ${C}app:logs${N} [dir]       Follow the docker compose logs.
 
+${B}Alternative AI engines${N}   (optional — Anthropic is the default; OpenRouter needs only a key)
+  ${C}omniroute:up${N}         Run the self-hosted omniroute AI gateway as a sidecar (via npx, MIT). Prints next steps.
+  ${C}omniroute:down${N}       Stop it.
+
 ${B}Verify sandbox${N}
   ${C}verify:up${N}            Build + start the Docker verifier (lets the app build/run/smoke-test generated apps).
 
@@ -153,6 +157,29 @@ case "$cmd" in
   app:ui)   d="$(app_dir "${1:-}")"; say "generated UI (host dev server)"; ( cd "$d" && run make ui ) ;;
   app:spine) d="$(app_dir "${1:-}")"; say "generated command API (host)"; ( cd "$d" && run make spine ) ;;
   app:logs) d="$(app_dir "${1:-}")"; ( cd "$d" && run docker compose logs -f ) ;;
+
+  omniroute:up)
+    # omniroute (MIT) is a self-hosted, OpenAI-compatible AI gateway — an OPTIONAL alternative engine.
+    # It is NOT a Kiln dependency: we run it as a sidecar via npx (no install), Kiln just calls it over HTTP.
+    port="${KILN_OMNIROUTE_PORT:-20128}"
+    if lsof -ti:"$port" >/dev/null 2>&1; then
+      ok "omniroute already running → dashboard http://localhost:$port"
+    else
+      say "starting omniroute on :$port (first run fetches it via npx — this can take a moment)"
+      nohup npx -y omniroute >/tmp/kiln-omniroute.log 2>&1 &
+      sleep 3
+      lsof -ti:"$port" >/dev/null 2>&1 && ok "omniroute up → dashboard http://localhost:$port  (logs: /tmp/kiln-omniroute.log)" \
+        || warn "omniroute may still be starting — check /tmp/kiln-omniroute.log"
+    fi
+    say "Next: open the dashboard, connect a provider + copy an API key, then add to your ${B}.env${N}:"
+    printf "    KILN_OMNIROUTE_API_KEY=<key from the dashboard>\n    # base URL defaults to http://localhost:%s/v1\n" "$port"
+    say "Then run ${B}./kiln.sh service${N} and choose omniroute in Studio → Settings → Engine. (Anthropic stays the default.)"
+    ;;
+  omniroute:down)
+    port="${KILN_OMNIROUTE_PORT:-20128}"
+    pids="$(lsof -ti:"$port" 2>/dev/null || true)"
+    if [ -n "$pids" ]; then run kill $pids; ok "omniroute stopped"; else warn "omniroute not running on :$port"; fi
+    ;;
 
   verify:up)
     say "starting the Docker verifier sandbox"

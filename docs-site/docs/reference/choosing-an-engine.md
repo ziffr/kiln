@@ -21,6 +21,32 @@ An engine only appears in Kiln when its key is set **on the server** (in your `.
 reaches the browser. See [`.env.example`](https://github.com/ziffr/kiln/blob/main/.env.example) for the
 exact variables. If you only set the Anthropic key, Kiln behaves exactly as before.
 
+## Quick start
+
+**OpenRouter** is the zero-install way to try other models — it's hosted, so you only need a key:
+
+```bash
+# in your .env
+KILN_OPENROUTER_API_KEY=sk-or-...
+```
+Restart the service and OpenRouter appears in **Settings → Engine** with 250+ models.
+
+**omniroute** is a self-hosted gateway you run locally (privacy/offline, pooled free tiers). It's an
+*optional sidecar*, **not** a Kiln dependency — Kiln just calls it over HTTP. A helper starts it via `npx`
+(no global install; MIT-licensed):
+
+```bash
+./kiln.sh omniroute:up        # runs omniroute on :20128 (Ctrl-free; ./kiln.sh omniroute:down to stop)
+```
+Then open its dashboard (`http://localhost:20128`), connect a provider and copy an API key, and add:
+
+```bash
+# in your .env
+KILN_OMNIROUTE_API_KEY=<key from the omniroute dashboard>
+# KILN_OMNIROUTE_BASE_URL defaults to http://localhost:20128/v1
+```
+Restart the service and pick omniroute in **Settings → Engine**.
+
 ## Selecting the engine, model, and effort in Studio
 
 Open **Settings** (bottom of the sidebar) → the **Engine** section:

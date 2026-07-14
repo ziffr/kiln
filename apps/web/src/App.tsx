@@ -1373,7 +1373,7 @@ export default function App(): React.JSX.Element {
             <button onClick={deleteProject} disabled={state.projects.length <= 1} title={t("del")} aria-label={t("del")}><Icon name="trash" size={15} /></button>
             <span className="pt-spacer" />
             {/* Version history is git-backed → only when a persistent workspace backend is reachable (SPEC-011). */}
-            {serverUp && <button onClick={() => setShowVersions(true)} title={t("versionsOpen")} aria-label={t("versionsOpen")}><Icon name="refresh" size={15} /></button>}
+            {serverUp && <button onClick={() => setShowVersions(true)} title={t("versionsOpen")} aria-label={t("versionsOpen")}><Icon name="package" size={15} /></button>}
             <button onClick={() => modelFileRef.current?.click()} title={t("importModelHint")} aria-label={t("importModel")}><Icon name="upload" size={15} /></button>
             <button onClick={exportModel} title={t("exportModelHint")} aria-label={t("exportModel")}><Icon name="download" size={15} /></button>
             <input ref={modelFileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importModel(f); e.target.value = ""; }} />

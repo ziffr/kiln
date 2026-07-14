@@ -12,4 +12,4 @@ export const SERVICE_URL =
  * The external documentation site (Docusaurus on GitHub Pages). The in-app "Documentation" links point
  * here. Override with `VITE_DOCS_URL` — e.g. a custom domain once one is set up.
  */
-export const DOCS_URL = (import.meta.env.VITE_DOCS_URL as string | undefined) ?? "https://ziffr.github.io/kiln/";
+export const DOCS_URL = (import.meta.env.VITE_DOCS_URL as string | undefined) ?? "https://docs.kilnstudio.app";

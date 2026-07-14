@@ -10,8 +10,9 @@ const config = {
   tagline: "The business compiler",
   favicon: "img/logo.svg",
 
-  url: "https://ziffr.github.io",
-  baseUrl: "/kiln/",
+  // Served from the custom domain at its ROOT (see static/CNAME), not from /kiln/.
+  url: "https://docs.kilnstudio.app",
+  baseUrl: "/",
   organizationName: "ziffr",
   projectName: "kiln",
   trailingSlash: false,

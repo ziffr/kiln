@@ -68,10 +68,30 @@ function routesFor(domain: DomainDoc): Route[] {
  * Spine adapter. `handlers` maps a command id → an LLM-drafted `(input, ctx) => record` arrow source
  * (from generateAppLogic, already security-validated). Missing → a pass-through default.
  */
+// SQLite column type per business attribute type (matches targets.ts SQLITE_TYPE; kept local to avoid a cycle).
+const SPINE_SQLITE_TYPE: Record<string, string> = { text: "TEXT", number: "REAL", boolean: "INTEGER", date: "TEXT", money: "NUMERIC", reference: "TEXT" };
+
+/** CREATE TABLE IF NOT EXISTS for every aggregate — the spine embeds this to auto-create its store on boot
+ *  (idempotent → safe every start). No FK ordering needed: SQLite validates references only at insert time. */
+function sqliteSchema(domain: DomainDoc): string {
+  const ids = new Set(domain.aggregates.map((a) => a.id));
+  return domain.aggregates
+    .map((a) => {
+      const cols = [
+        "  id TEXT PRIMARY KEY",
+        ...attributeSpecs(a).map((attr) => `  ${slug(attr.name)} ${attr.type ? SPINE_SQLITE_TYPE[attr.type] ?? "TEXT" : "TEXT"}`),
+        ...(a.references ?? []).filter((ref) => ids.has(ref)).map((ref) => `  ${slug(ref)}_id TEXT REFERENCES ${slug(ref)}(id)`),
+      ];
+      return `CREATE TABLE IF NOT EXISTS ${slug(a.id)} (\n${cols.join(",\n")}\n);`;
+    })
+    .join("\n");
+}
+
 export function spineAdapter(_caps: CapabilityDoc, domain: DomainDoc, handlers: Record<string, string> = {}, dialect: "postgres" | "sqlite" = "postgres"): Record<string, string> {
   const commands = domain.commands ?? [];
   if (!commands.length) return {};
   const sqlite = dialect === "sqlite";
+  const schemaSql = sqlite ? sqliteSchema(domain) : "";
   const routes = routesFor(domain);
   const columns: Record<string, string[]> = {};
   for (const a of domain.aggregates) columns[slug(a.id)] = ["id", ...attributeSpecs(a).map((f) => slug(f.name)), ...(a.references ?? []).map((r) => `${slug(r)}_id`)];
@@ -215,12 +235,14 @@ export const h = <E>(fn: (input: Partial<E> & Record<string, unknown>, ctx: Ctx)
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 // Embedded, file-based store — one file, no separate db service. better-sqlite3 is synchronous; we keep the
-// same async interface as the Postgres driver so the rest of the spine is identical. Apply schema.sql once.
+// same async interface as the Postgres driver so the rest of the spine is identical. Tables are auto-created
+// on boot (idempotent), so the app runs with no manual schema step. sqlite/schema.sql stays for reference.
 const file = process.env.DB_FILE || "data/app.db";
 mkdirSync(dirname(file), { recursive: true });
 const db = new Database(file);
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
+db.exec(${JSON.stringify(schemaSql)});
 // SQLite params must be primitives — coerce booleans (0/1) and objects (JSON).
 const norm = (v: unknown): unknown => (typeof v === "boolean" ? (v ? 1 : 0) : v !== null && typeof v === "object" ? JSON.stringify(v) : v);
 export function genId(): string { return "r_" + Math.random().toString(36).slice(2, 10); }

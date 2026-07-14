@@ -17,6 +17,7 @@
 import { slug } from "@kiln/ir";
 import { attributeSpecs, type AttrType, type CapabilityDoc, type DomainDoc, type ContextsDoc, type RolesDoc, type WorkflowsDoc } from "@kiln/compiler";
 import { DEFAULT_THEME, type Theme } from "./ui.ts";
+import type { ViewSpecInput } from "./app.ts";
 import { mockCommunications, communicationsAdapter, type CommunicationsDoc } from "./comms.ts";
 import { mockIntegrations, integrationsAdapter, type IntegrationsDoc } from "./integrations.ts";
 import { agentsAdapter } from "./agents.ts";
@@ -596,6 +597,7 @@ export function projectTargets(
   triggers?: TriggersDoc,
   services?: ExternalServicesDoc,
   i18n?: { sourceLang?: string; translations?: Record<string, Record<string, string>> },
+  views?: Record<string, ViewSpecInput>,
 ): TargetsReport {
   const resolved = resolveBinding(binding, caps, domain, contexts, roles, workflows);
   const validation = validateBinding(resolved, workflows, domain);
@@ -619,7 +621,7 @@ export function projectTargets(
   // SPEC-010 engine dispatch: instead of hardcoding each engine by name, run the REGISTERED adapters.
   // The engines "in play" = those hosting a resolved element, PLUS the app-level serve-ui engine
   // (serve-ui is app-level, not per-element, so it never appears in `resolved`). Sorted for determinism.
-  const engCtx: EngineContext = { binding, resolved, dialect, caps, domain, contexts, roles, workflows, agents, theme, handlers, services: servicesDoc, i18n };
+  const engCtx: EngineContext = { binding, resolved, dialect, caps, domain, contexts, roles, workflows, agents, theme, handlers, services: servicesDoc, i18n, views };
   const inPlay = new Set(resolved.map((r) => r.engineId));
   inPlay.add(uiEngine);
   // App-level agent runtime (like serve-ui): if the binding routes agents to a non-default engine (e.g.

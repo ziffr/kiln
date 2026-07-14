@@ -136,6 +136,34 @@ createRoot(document.getElementById("root")!).render(<React.StrictMode><I18nProvi
 import { twMerge } from "tailwind-merge";
 export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 `,
+  "src/components/ui/badge.tsx": `import * as React from "react";
+import { cn } from "@/lib/utils";
+const styles: Record<string, string> = {
+  default: "bg-primary text-primary-foreground",
+  secondary: "bg-secondary text-secondary-foreground",
+  outline: "border text-foreground",
+};
+export function Badge({ className, variant = "secondary", ...props }: React.HTMLAttributes<HTMLDivElement> & { variant?: "default" | "secondary" | "outline" }) {
+  return <div className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize", styles[variant], className)} {...props} />;
+}
+`,
+  "src/lib/format.tsx": `// Format-aware cell + KPI helpers, shared by every generated list page (the polished view-spec formats).
+import { Badge } from "@/components/ui/badge";
+export function formatCell(v: unknown, format?: string) {
+  if (v === null || v === undefined || v === "") return "";
+  if (format === "money") return "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 });
+  if (format === "boolean" || typeof v === "boolean") return v ? "✓" : "✗";
+  if (format === "badge") return <Badge>{String(v)}</Badge>;
+  if (format === "longtext") { const s = String(v); return s.length > 60 ? s.slice(0, 60) + "…" : s; }
+  return String(v);
+}
+export function metricValue(rows: Array<Record<string, unknown>>, m: { agg: string; field?: string }): number {
+  if (m.agg === "count") return rows.length;
+  const nums = rows.map((r) => Number(r[m.field as string])).filter((n) => !Number.isNaN(n));
+  const sum = nums.reduce((a, b) => a + b, 0);
+  return m.agg === "avg" ? (nums.length ? sum / nums.length : 0) : sum;
+}
+`,
   "src/components/ui/button.tsx": `import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";

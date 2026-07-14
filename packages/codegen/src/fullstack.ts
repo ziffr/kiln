@@ -20,6 +20,7 @@ import { projectTargets, type Binding, type TargetsReport } from "./targets.ts";
 import { generateOpenApi } from "./index.ts";
 import { hoppscotchCollection } from "./hoppscotch.ts";
 import type { Theme } from "./ui.ts";
+import type { ViewSpecInput } from "./app.ts";
 import type { CommunicationsDoc } from "./comms.ts";
 import type { IntegrationsDoc } from "./integrations.ts";
 import type { TriggersDoc } from "./triggers.ts";
@@ -43,6 +44,8 @@ export interface FullStackInput {
   binding: Binding;
   dialect: "postgres" | "sqlite";
   handlers?: Record<string, string>;
+  /** per-entity screen specs (columns/formats/layout/metrics/card) — the polished UI vocabulary. */
+  views?: Record<string, ViewSpecInput>;
   comms?: CommunicationsDoc;
   integrations?: IntegrationsDoc;
   triggers?: TriggersDoc;
@@ -106,7 +109,7 @@ export function assembleFullStack(input: FullStackInput): { files: Record<string
 
   // i18n: the caller resolved the source language + any LLM translations (from the model's i18n or CLI flags).
   const i18nOpt = input.i18n ?? { sourceLang: "en" };
-  const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, m.theme, handlers, comms, integrations, m.agents, triggers, input.services, i18nOpt);
+  const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, m.theme, handlers, comms, integrations, m.agents, triggers, input.services, i18nOpt, input.views);
 
   // The file map (relative path → content). `write` mirrors the bin's helper but targets the object, so the
   // template blocks below are copied VERBATIM from the bin (write/written.push preserved) → byte-identical.

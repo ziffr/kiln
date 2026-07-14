@@ -28,7 +28,9 @@ invites it — **KPI tiles** (totals/counts) above the list, a **card grid**, or
 by a status/stage field (great for pipelines like leads, orders, or tickets). It **iterates** each screen
 toward the guidelines, then shows
 you the changes **per screen to accept or skip** — nothing is applied until you say so. Apply, then
-**Run app** or export to see the result. It changes *information design* (layout data), never code, so it
+**Run app** or export to see the result. The polished layout flows into all three: the **Run app** preview,
+the single-file app, and the **Full-Stack** shadcn export (its list pages render the chosen board/cards/KPI
+tiles with real shadcn components). It changes *information design* (layout data), never code, so it
 can't break the build. Web research and the interview aside, it runs on your selected
 [engine](../reference/choosing-an-engine).
 

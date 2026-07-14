@@ -21,6 +21,7 @@
 import type { Engine, N8nWorkflow, Binding, ResolvedElement } from "../targets.ts";
 import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
 import type { Theme } from "../ui.ts";
+import type { ViewSpecInput } from "../app.ts";
 import type { ExternalServicesDoc } from "../services.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,6 +51,8 @@ export interface EngineContext {
   handlers: Record<string, string>;
   services: ExternalServicesDoc;
   i18n?: { sourceLang?: string; translations?: Record<string, Record<string, string>> };
+  /** per-entity screen specs (columns/formats/layout/metrics/card) — the polished UI vocabulary. */
+  views?: Record<string, ViewSpecInput>;
 }
 
 /**

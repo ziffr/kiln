@@ -226,6 +226,7 @@ export function CodePreview({
         binding: m.binding,
         dialect,
         handlers: handlers ?? undefined,
+        views: (views as never) ?? undefined,
         comms: m.comms,
         integrations: m.integrations,
         triggers: m.triggers,

@@ -20,5 +20,5 @@ export const shadcnEngineAdapter: EngineAdapter = {
   engine: SHADCN,
   // serve-ui is read from the binding directly (app-level); we generate the UI only when it's shadcn.
   applies: (ctx) => (ctx.binding.defaults["serve-ui"] ?? "shadcn") === "shadcn",
-  generate: (ctx) => ({ files: shadcnAdapter(ctx.caps, ctx.domain, ctx.contexts, ctx.theme, ctx.workflows, ctx.roles, ctx.i18n) }),
+  generate: (ctx) => ({ files: shadcnAdapter(ctx.caps, ctx.domain, ctx.contexts, ctx.theme, ctx.workflows, ctx.roles, ctx.i18n, ctx.views) }),
 };

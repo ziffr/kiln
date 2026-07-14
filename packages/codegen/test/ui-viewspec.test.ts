@@ -1,0 +1,29 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { shadcnAdapter } from "../src/ui.ts";
+
+const caps = { version: "0.2", domain: "solar", capabilities: [{ id: "p", name: "Pipeline" }] } as never;
+const domain = { version: "0.1", aggregates: [{ id: "lead", name: "Lead", owner: "p", references: [],
+  attributes: [{ name: "contactName", type: "text" }, { name: "dealValue", type: "money" }, { name: "stage", type: "text" }] }],
+  commands: [], events: [] } as never;
+
+test("shadcn full-stack list page honours the view spec (board + metrics + badge)", () => {
+  const views = { lead: { layout: "board", groupBy: "stage", titleField: "contactName",
+    metrics: [{ label: "Leads", agg: "count" }, { label: "Pipeline", agg: "sum", field: "dealValue", format: "money" }],
+    card: { title: "contactName", badge: "stage", meta: ["dealValue"] },
+    columns: [{ field: "contactName", format: "text" }, { field: "stage", format: "badge" }, { field: "dealValue", format: "money" }],
+    formFields: ["contactName", "dealValue"] } };
+  const files = shadcnAdapter(caps, domain, undefined, undefined, undefined, undefined, undefined, views as never);
+  const list = files["src/pages/LeadList.tsx"];
+  assert.match(list, /metricValue/, "renders KPI metrics");
+  assert.match(list, /board view for Lead/, "board layout chosen");
+  assert.match(list, /new Set\(rows\.map/, "groups rows for the board");
+  assert.match(list, /formatCell\(r\["stage"\], "badge"\)/, "badge formatting");
+  assert.ok(files["src/lib/format.tsx"] && files["src/components/ui/badge.tsx"], "ships the format helper + Badge");
+});
+
+test("no view spec → a typed table (back-compat default)", () => {
+  const files = shadcnAdapter(caps, domain);
+  assert.match(files["src/pages/LeadList.tsx"], /table view for Lead/);
+  assert.match(files["src/pages/LeadList.tsx"], /<Table>/);
+});

@@ -28,6 +28,10 @@ export interface Project {
   narrative: string;
   model: string;
   effort: string;
+  /** Which LLM engine runs the AI stages: "anthropic" (default/preferred) | "openrouter" | "omniroute".
+   *  Availability is server-decided (which key is set); undefined → the server's default engine. This is
+   *  the *engine*, distinct from `provider` below (which records how the capabilities were authored). */
+  engine?: string;
   /** last LLM-generated capabilities (null → use the live mock). */
   capabilities: CapabilityDoc | null;
   provider: string | null;

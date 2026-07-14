@@ -15,6 +15,7 @@ export function NarrativeInput({
   onNarrative,
   model,
   effort,
+  provider,
   config,
   onConfig,
   transcript,
@@ -25,6 +26,8 @@ export function NarrativeInput({
   onNarrative: (v: string) => void;
   model: string;
   effort: string;
+  /** LLM engine id — routes /api/structure to the selected provider (coach is Anthropic-only). */
+  provider?: string;
   config: CoachConfig;
   onConfig: (c: CoachConfig) => void;
   transcript: Msg[];
@@ -57,7 +60,7 @@ export function NarrativeInput({
       const res = await fetch(`${SERVICE_URL}/api/structure`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ raw, model, effort }),
+        body: JSON.stringify({ raw, model, effort, provider }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);

@@ -64,10 +64,24 @@ import { SERVICE_URL, DOCS_URL } from "./config";
 
 
 
-const MODELS = [
-  { id: "claude-sonnet-5", label: "Sonnet 5", supportsEffort: true, inPerM: 2, outPerM: 10 },
-  { id: "claude-opus-4-8", label: "Opus 4.8", supportsEffort: true, inPerM: 5, outPerM: 25 },
-  { id: "claude-haiku-4-5", label: "Haiku 4.5", supportsEffort: false, inPerM: 1, outPerM: 5 },
+// LLM engine catalog. Kiln is Anthropic-first; the open-source build also allows OpenAI-compatible
+// gateways (OpenRouter / omniroute). The SERVER decides which engines are actually available (which key
+// is set) and returns them from /api/models; this static list is the fallback before that responds and
+// in the client-only demo (no /api). See apps/service/src/models.ts for the authoritative catalog.
+interface ModelOpt { id: string; label: string; provider: string; supportsEffort: boolean; inPerM: number; outPerM: number }
+interface ProviderCat { id: string; label: string; models: ModelOpt[]; allowCustomModel: boolean; defaultModel: string; note?: string }
+const FALLBACK_PROVIDERS: ProviderCat[] = [
+  {
+    id: "anthropic",
+    label: "Anthropic (recommended)",
+    allowCustomModel: false,
+    defaultModel: "claude-sonnet-5",
+    models: [
+      { id: "claude-sonnet-5", label: "Sonnet 5", provider: "anthropic", supportsEffort: true, inPerM: 2, outPerM: 10 },
+      { id: "claude-opus-4-8", label: "Opus 4.8", provider: "anthropic", supportsEffort: true, inPerM: 5, outPerM: 25 },
+      { id: "claude-haiku-4-5", label: "Haiku 4.5", provider: "anthropic", supportsEffort: false, inPerM: 1, outPerM: 5 },
+    ],
+  },
 ];
 // Rough tokens per model call (input/output), used only for the Auto cost estimate. Deliberately a
 // ballpark — the confirm shows a ±range, and the real per-call spend is reported after each call.
@@ -94,6 +108,9 @@ export default function App(): React.JSX.Element {
   // ---- Projects: server-backed when reachable, localStorage cache/fallback (ADR-006) ----
   const [state, setState] = useState<ProjectState>(() => loadProjects()); // instant local render
   const [serverUp, setServerUp] = useState(false);
+  // LLM engine catalog — narrowed by the server to the engines whose key is configured (/api/models).
+  const [catalog, setCatalog] = useState<ProviderCat[]>(FALLBACK_PROVIDERS);
+  const [defaultEngine, setDefaultEngine] = useState<string>("anthropic");
   useEffect(() => saveProjects(state), [state]); // always mirror to localStorage (+ activeId pref)
   useEffect(() => { // studio lock: studio-auth.ts signals a locked /api; ask for the passphrase in-app
     const onLocked = () => setStudioLocked(true);
@@ -101,6 +118,26 @@ export default function App(): React.JSX.Element {
     return () => window.removeEventListener("kiln:studio-locked", onLocked);
   }, []);
   const active = state.projects.find((p) => p.id === state.activeId) ?? state.projects[0];
+
+  // ---- LLM engine selection (Anthropic default; OpenRouter / omniroute when configured server-side) ----
+  // Fetch the configured-engine catalog once; falls back to Anthropic-only if /api is unreachable (demo).
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(`${SERVICE_URL}/api/models`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { providers?: ProviderCat[]; defaultProvider?: string } | null) => {
+        if (cancelled || !d?.providers?.length) return;
+        setCatalog(d.providers);
+        if (d.defaultProvider) setDefaultEngine(d.defaultProvider);
+      })
+      .catch(() => {/* offline / client-only demo → keep the fallback catalog */});
+    return () => { cancelled = true; };
+  }, []);
+  // The full flat model list (all engines) — cross-engine lookups (pricing/effort/label of a saved model).
+  const MODELS = catalog.flatMap((p) => p.models);
+  const engine = active?.engine && catalog.some((p) => p.id === active.engine) ? active.engine : defaultEngine;
+  const engineProvider = catalog.find((p) => p.id === engine) ?? catalog[0] ?? FALLBACK_PROVIDERS[0];
+  const engineModels = engineProvider.models; // the models the CURRENT engine offers (for the selectors)
 
   // On load: adopt the server's projects; if the server is empty, migrate local projects up once.
   const stateRef = useRef(state);
@@ -359,7 +396,7 @@ export default function App(): React.JSX.Element {
     try {
       const res = await fetch(`${SERVICE_URL}/api/narrative-sync`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ narrative: active.narrative ?? "", facts, model: modelFor("capabilities"), effort: active.effort }),
+        body: JSON.stringify({ narrative: active.narrative ?? "", facts, model: modelFor("capabilities"), effort: active.effort, provider: engine }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -388,7 +425,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/generate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ narrative: text, model: modelFor("capabilities"), effort: active.effort }),
+        body: JSON.stringify({ narrative: text, model: modelFor("capabilities"), effort: active.effort, provider: engine }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -410,7 +447,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/domain`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("entities"), effort: active.effort }),
+        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("entities"), effort: active.effort, provider: engine }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -613,7 +650,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/contexts`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("areas"), effort: active.effort }),
+        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("areas"), effort: active.effort, provider: engine }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -634,7 +671,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/events`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ domain: domainDoc, capabilities: activeDoc, model: modelFor("behaviour"), effort: active.effort }),
+        body: JSON.stringify({ domain: domainDoc, capabilities: activeDoc, model: modelFor("behaviour"), effort: active.effort, provider: engine }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -656,7 +693,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/policies`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ domain: behaviourDoc, capabilities: activeDoc, model: modelFor("automations"), effort: active.effort }),
+        body: JSON.stringify({ domain: behaviourDoc, capabilities: activeDoc, model: modelFor("automations"), effort: active.effort, provider: engine }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -677,7 +714,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/roles`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("roles"), effort: active.effort }),
+        body: JSON.stringify({ capabilities: activeDoc, model: modelFor("roles"), effort: active.effort, provider: engine }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -715,6 +752,7 @@ export default function App(): React.JSX.Element {
     agents: ov.agents ?? agentsDoc,
     model: modelFor(layer),
     effort: critiqueEffortFor(layer),
+    provider: engine,
     // Concerns the human already accepted on this layer → the critic is told not to raise them again.
     accepted: (active.ignoredFindings ?? [])
       .filter((k) => k.startsWith(`ai|${layer}|`))
@@ -762,7 +800,7 @@ export default function App(): React.JSX.Element {
   async function refineLayer(layer: LayerKind, findings?: CritiqueFinding[], ov: ModelOverride = {}): Promise<ModelOverride | null> {
     const fs = findings ?? critique[layer];
     if (!fs || fs.length === 0) return null;
-    const common = { model: modelFor(layer), effort: active.effort, feedback: critiqueToFeedback(fs) };
+    const common = { model: modelFor(layer), effort: active.effort, provider: engine, feedback: critiqueToFeedback(fs) };
     let url = "";
     let body: Record<string, unknown> = {};
     let applyDoc: (doc: unknown) => ModelOverride = () => ({});
@@ -876,7 +914,7 @@ export default function App(): React.JSX.Element {
   async function generateWorkflowsModel(): Promise<void> {
     setWorkflowsBusy(true); setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/workflows`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ domain: behaviourDoc, model: modelFor("workflows"), effort: active.effort }) });
+      const res = await fetch(`${SERVICE_URL}/api/workflows`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ domain: behaviourDoc, model: modelFor("workflows"), effort: active.effort, provider: engine }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ workflows: data.doc });
@@ -909,7 +947,7 @@ export default function App(): React.JSX.Element {
   async function classifyOrchestration(): Promise<void> {
     setOrchestrationBusy(true); setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/orchestration`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workflows: workflowsDoc, domain: behaviourDoc, model: modelFor("workflows"), effort: active.effort }) });
+      const res = await fetch(`${SERVICE_URL}/api/orchestration`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workflows: workflowsDoc, domain: behaviourDoc, model: modelFor("workflows"), effort: active.effort, provider: engine }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ workflows: data.workflows }); // modes folded onto the workflows (source of truth)
@@ -920,7 +958,7 @@ export default function App(): React.JSX.Element {
   async function generateAgentsModel(): Promise<void> {
     setAgentsBusy(true); setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/agents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, model: modelFor("agents"), effort: active.effort }) });
+      const res = await fetch(`${SERVICE_URL}/api/agents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, model: modelFor("agents"), effort: active.effort, provider: engine }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ agents: data.doc });
@@ -1059,7 +1097,7 @@ export default function App(): React.JSX.Element {
     setEnrichWebBusy(true);
     setError(null);
     try {
-      const common = { model: modelFor(enrichLayer === "entities" ? "entities" : "capabilities"), effort: active.effort };
+      const common = { model: modelFor(enrichLayer === "entities" ? "entities" : "capabilities"), effort: active.effort, provider: engine };
       const url = enrichLayer === "entities" ? "/api/enrich-web" : "/api/enrich-layer";
       const body = enrichLayer === "entities"
         ? { capabilities: activeDoc, domain: flowDoc, ...common }
@@ -1270,11 +1308,20 @@ export default function App(): React.JSX.Element {
           globalModelLabel={MODELS.find((m) => m.id === active.model)?.label ?? active.model}
           supportsEffort={supportsEffort}
           efforts={EFFORTS}
-          models={MODELS}
+          models={engineModels}
           adaptiveModel={active.adaptiveModel === true}
           tierModels={tierModels}
           tierOf={LAYER_TIER}
           modelLabelFor={(kind) => MODELS.find((m) => m.id === modelFor(kind))?.label ?? modelFor(kind)}
+          providers={catalog.map((p) => ({ id: p.id, label: p.label, note: p.note, allowCustomModel: p.allowCustomModel }))}
+          engine={engine}
+          globalModel={active.model}
+          onSetEngine={(id) => {
+            const p = catalog.find((x) => x.id === id) ?? engineProvider;
+            // Models/tiers are engine-specific → reset to the new engine's default when switching.
+            patchActive({ engine: id, model: p.defaultModel, adaptiveModel: false, tierModels: DEFAULT_TIER_MODELS });
+          }}
+          onSetGlobalModel={(id) => patchActive({ model: id })}
           onToggleAdaptive={(v) => patchActive({ adaptiveEffort: v })}
           onSetLayerEffort={(kind, effort) => patchActive({ effortByLayer: { ...(active.effortByLayer ?? {}), [kind]: effort } })}
           onToggleAdaptiveModel={(v) => patchActive({ adaptiveModel: v })}
@@ -1551,6 +1598,7 @@ export default function App(): React.JSX.Element {
                   onNarrative={setNarrative}
                   model={active.model}
                   effort={active.effort}
+                  provider={engine}
                   config={active.coachConfig ?? {}}
                   onConfig={(c) => patchActive({ coachConfig: c })}
                   transcript={active.coachTranscript ?? []}
@@ -1589,14 +1637,14 @@ export default function App(): React.JSX.Element {
                 workflows={workflowsDoc}
                 agents={agentsDoc}
                 requestAppLogic={async (feedback?: string) => {
-                  const res = await fetch(`${SERVICE_URL}/api/app-logic`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, feedback, model: modelFor("behaviour"), effort: active.effort }) });
+                  const res = await fetch(`${SERVICE_URL}/api/app-logic`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, feedback, model: modelFor("behaviour"), effort: active.effort, provider: engine }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
                   setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
                   return data as { handlers: Record<string, string>; written: number; skipped: number };
                 }}
                 requestAppComponents={async () => {
-                  const res = await fetch(`${SERVICE_URL}/api/app-components`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, model: modelFor("entities"), effort: active.effort }) });
+                  const res = await fetch(`${SERVICE_URL}/api/app-components`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, model: modelFor("entities"), effort: active.effort, provider: engine }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
                   setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
@@ -1606,8 +1654,14 @@ export default function App(): React.JSX.Element {
                   const res = await fetch(`${SERVICE_URL}/api/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ files }) });
                   return await res.json();
                 }}
+                requestRun={serverUp ? async (files) => {
+                  const res = await fetch(`${SERVICE_URL}/api/run`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ files }) });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+                  return { uiUrl: data.uiUrl as string, id: data.id as string };
+                } : undefined}
                 requestCodeReview={async (handlerCode) => {
-                  const res = await fetch(`${SERVICE_URL}/api/code-review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, handlerCode, model: modelFor("behaviour") }) });
+                  const res = await fetch(`${SERVICE_URL}/api/code-review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, handlerCode, model: modelFor("behaviour"), provider: engine }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
                   setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });

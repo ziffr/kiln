@@ -14,6 +14,7 @@ const P: Record<string, JSX.Element> = {
   book: <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" /></>,
   sparkles: <><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z" /><path d="M19 3v4" /><path d="M21 5h-4" /></>,
   zap: <><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z" /></>,
+  play: <><path d="M6 3l14 9-14 9V3Z" /></>,
   code: <><path d="M16 18l6-6-6-6" /><path d="M8 6l-6 6 6 6" /></>,
   check: <><path d="M20 6L9 17l-5-5" /></>,
   x: <><path d="M18 6L6 18" /><path d="M6 6l12 12" /></>,

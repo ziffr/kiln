@@ -29,6 +29,7 @@ export function CodePreview({
   requestAppLogic,
   requestAppComponents,
   requestVerify,
+  requestRun,
   requestCodeReview,
   buildModel,
   onClose,
@@ -42,6 +43,7 @@ export function CodePreview({
   requestAppLogic: (feedback?: string) => Promise<{ handlers: Record<string, string>; written: number; skipped: number }>;
   requestAppComponents: () => Promise<{ views: Record<string, unknown>; written: number; skipped: number }>;
   requestVerify: (files: Record<string, string>) => Promise<VerifyVerdict>;
+  requestRun?: (files: Record<string, string>) => Promise<{ uiUrl: string; id: string }>;
   requestCodeReview: (handlerCode?: Record<string, string>) => Promise<CodeFinding[]>;
   buildModel: () => ModelDoc; // the COMPLETE model (all layers) — for the full-stack export
   onClose: () => void;
@@ -58,9 +60,28 @@ export function CodePreview({
   const [verifying, setVerifying] = useState(false);
   const [autoVerifying, setAutoVerifying] = useState(false);
   const [verdict, setVerdict] = useState<VerifyVerdict | null>(null);
+  const [running, setRunning] = useState(false);
+  const [runUrl, setRunUrl] = useState<string | null>(null);
   const autoStop = useRef(false);
   const zipName = `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`;
-  const busy = exporting || reviewing || fixing || auto || verifying || autoVerifying;
+  const busy = exporting || reviewing || fixing || auto || verifying || autoVerifying || running;
+
+  // Run the generated app locally: POST the assembled files to the service, which boots the zero-dep
+  // Node/SQLite server and returns a live preview URL — opened in a new tab (the "see the outcome" loop).
+  async function runApp(): Promise<void> {
+    if (!requestRun) return;
+    setRunning(true);
+    setExportNote(null);
+    try {
+      const { uiUrl } = await requestRun(currentFiles());
+      setRunUrl(uiUrl);
+      window.open(uiUrl, "_blank", "noopener");
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRunning(false);
+    }
+  }
 
   // The exact files that would be exported right now (incl. any AI handlers/screens applied).
   const currentFiles = (): Record<string, string> => generateApp(caps, domain, contexts, roles, handlers ?? undefined, (views as never) ?? undefined);
@@ -250,6 +271,16 @@ export function CodePreview({
           <button className="code-export ghost" onClick={() => void autoVerify()} disabled={busy} title={t("verifyAutoHint")}>
             <Icon name="refresh" size={14} />{autoVerifying ? t("generating") : t("verifyAuto")}
           </button>
+          {requestRun && (
+            <button className="code-export" onClick={() => void runApp()} disabled={busy} title="Boot the generated app locally and open it in a new tab">
+              <Icon name="play" size={14} />{running ? "Starting…" : "Run app"}
+            </button>
+          )}
+          {runUrl && !running && (
+            <a className="code-export ghost" href={runUrl} target="_blank" rel="noopener noreferrer" title="Reopen the running preview">
+              <Icon name="globe" size={14} />Open preview
+            </a>
+          )}
           <span className="code-export-sep" aria-hidden="true" />
           <button className="code-export ghost" onClick={() => void exportApp(false)} disabled={busy} title={t("exportAppHint")}>
             <Icon name="download" size={14} />{t("exportApp")}

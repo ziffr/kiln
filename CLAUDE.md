@@ -107,6 +107,24 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
 - `.env`, `node_modules/`, `.kiln/`, `dist/` are gitignored — never commit them.
 
 ## Status (keep current)
+- **Multi-engine seam + local "Run app" BUILT.** (1) **Alternative AI engines** (open-source): Anthropic
+  stays default/preferred, but OpenAI-compatible gateways — **OpenRouter** (`KILN_OPENROUTER_API_KEY`) and
+  **omniroute** (`KILN_OMNIROUTE_API_KEY` + base URL) — are now selectable. ONE new adapter serves both
+  (`apps/service/src/providers/openaiCompatible.ts`, dependency-free `fetch`, maps `schema→response_format`
+  + `effort→reasoning_effort`, degrades on 400). `apps/service/src/models.ts` is now a provider catalog
+  (`PROVIDERS`, cross-provider `modelById`, `resolveModelOption`); `server.ts` resolves `{provider,model}`
+  per request via `resolveModel`/`makeProvider` (`llmReady`), and `/api/models` returns the configured-
+  engine catalog. In Studio: **Settings → Engine** = a Provider dropdown (only configured engines) + a
+  global Model picker + free-text custom model id for gateways; the project carries an `engine` field and
+  every request sends `provider`. Web research + the AI interview stay Anthropic-only (Anthropic-native
+  features). (2) **Run app** (View-code stage): `POST /api/run` writes the generated zero-dep app to a
+  temp dir, spawns `node server.mjs` on a free port (real `node:sqlite`), and the service serves a
+  dependency-free vanilla admin page (`apps/service/src/run.ts`) that talks to it — opened in a NEW TAB.
+  Closes the loop describe→adjust→**run/see**→export; offline, no build. Verified in-browser (engine
+  switch re-filters models; solar app booted, created a Lead, fired Capture Lead → `lead_captured` event).
+  **322 tests** (test glob now also runs `apps/*/test/*.test.ts`); web build green. Docs: new
+  `reference/choosing-an-engine.md` + `view-code.md` Run-app section + `.env.example`. NOT YET on the
+  hosted Vercel functions (`functions/router.ts`) — that's a fast follow; Run app is local/self-host only.
 - **LAUNCH-STAGED (private): renamed to Kiln, reviewed, deployed.** Repo is `github.com/ziffr/kiln` (PRIVATE, owner chose to hold the public flip). Full VBD→Kiln rename done (packages/CLI/env/IDs/prose; legacy `VBD_ANTHROPIC_API_KEY` + storage-key aliases kept for back-compat). Launch-readiness review: no blockers, no committed secrets. Live on Vercel (auto-deploy via git integration) serving Kiln; hosted demo is client-side (baked examples + all stages + code preview + full-stack export) � real-LLM `/api` now WORKS on the hosted demo — the 25 functions were consolidated into one catch-all (`functions/router.ts` � `api/[...path].js`), under the plan cap; verified `/api/models` ready:true. To go public (owner's word): flip visibility, enable Discussions, add `ANTHROPIC_API_KEY` secret, enable "Actions may create PRs", branch-protect main, set description/topics/social image; optionally rename the Vercel project off the old URL.
 - **Building the FULL methodology stack** (user: "the whole enchilada"): policies ✅ → roles ✅ →
   workflows ✅ → agents ✅ → application/implementation blueprints ✅ → execution codegen MCP/React ✅ (adapters hand-owned per ADR-002). FULL STACK BUILT.

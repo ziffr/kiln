@@ -51,7 +51,21 @@ import {
   type LlmRequest,
 } from "@kiln/skills";
 import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
-import { DEFAULT_EFFORT, DEFAULT_MODEL, EFFORTS, MODELS, modelById } from "./models.ts";
+import {
+  DEFAULT_EFFORT,
+  DEFAULT_MODEL,
+  DEFAULT_PROVIDER,
+  EFFORTS,
+  MODELS,
+  PROVIDERS,
+  modelById,
+  providerById,
+  resolveModelOption,
+  type ModelOption,
+  type ProviderCatalog,
+} from "./models.ts";
+import { openAiCompatibleProvider, type OpenAiCompatConfig } from "./providers/openaiCompatible.ts";
+import { startRun, getRun, stopRun, runClientHtml } from "./run.ts";
 import { deleteProject, listProjects, projectDir, saveProject, type StoredProject } from "./workspaces.ts";
 import { commitWorkspace, listVersions, showFileAt } from "./workspaceGit.ts";
 
@@ -64,6 +78,13 @@ const API_KEY = process.env.KILN_ANTHROPIC_API_KEY ?? process.env.VBD_ANTHROPIC_
 // key). output_config passthrough is unverified against a live key → the provider degrades gracefully.
 const LANGDOCK_KEY = process.env.KILN_LANGDOCK_API_KEY;
 const LANGDOCK_BASE_URL = process.env.KILN_LANGDOCK_BASE_URL ?? "https://api.langdock.com/anthropic/eu/v1";
+// Open-source alternative engines: OpenAI-compatible gateways (OpenRouter hosted / omniroute self-hosted).
+// A provider is *available* iff its key is set. Anthropic stays the default/preferred engine either way.
+// The key lives only here (server-side); the browser only ever names the provider/model, never the key.
+const OPENROUTER_KEY = process.env.KILN_OPENROUTER_API_KEY;
+const OPENROUTER_BASE_URL = process.env.KILN_OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
+const OMNIROUTE_KEY = process.env.KILN_OMNIROUTE_API_KEY;
+const OMNIROUTE_BASE_URL = process.env.KILN_OMNIROUTE_BASE_URL ?? "http://localhost:20128/v1";
 
 // Structured-output schemas now live in @kiln/skills (CAPABILITY_SCHEMA / DOMAIN_SCHEMA) and travel
 // on each LlmRequest's `schema` field; the provider reads req.schema.
@@ -161,8 +182,9 @@ function readBody(req: IncomingMessage): Promise<string> {
   });
 }
 
-// Provider seam: Langdock (Bearer + its Anthropic-native base URL) if configured, else Anthropic direct
+// Anthropic seam: Langdock (Bearer + its Anthropic-native base URL) if configured, else Anthropic direct
 // (x-api-key). Same SDK, same call surface either way; PROVIDER_LABEL tags usage/spend for visibility.
+// `client` is the Anthropic-capable client; web-search + coach endpoints use it directly (Anthropic-only).
 const PROVIDER_LABEL = LANGDOCK_KEY ? "langdock" : "anthropic";
 const client = LANGDOCK_KEY
   ? new Anthropic({ authToken: LANGDOCK_KEY, baseURL: LANGDOCK_BASE_URL })
@@ -171,23 +193,122 @@ const client = LANGDOCK_KEY
     : null;
 if (LANGDOCK_KEY) console.log(`[kiln] LLM provider: Langdock (${LANGDOCK_BASE_URL})`);
 
+// OpenAI-compatible gateway configs (open-source alternative engines). null = not configured.
+const openrouterCfg: OpenAiCompatConfig | null = OPENROUTER_KEY
+  ? { label: "openrouter", apiKey: OPENROUTER_KEY, baseUrl: OPENROUTER_BASE_URL, headers: { "HTTP-Referer": "https://kilnstudio.app", "X-Title": "Kiln Studio" } }
+  : null;
+const omnirouteCfg: OpenAiCompatConfig | null = OMNIROUTE_KEY
+  ? { label: "omniroute", apiKey: OMNIROUTE_KEY, baseUrl: OMNIROUTE_BASE_URL }
+  : null;
+if (openrouterCfg) console.log(`[kiln] LLM provider available: OpenRouter (${OPENROUTER_BASE_URL})`);
+if (omnirouteCfg) console.log(`[kiln] LLM provider available: omniroute (${OMNIROUTE_BASE_URL})`);
+
+/** Is a given provider id backed by a configured key right now? */
+function providerReady(id: string): boolean {
+  if (id === "anthropic") return Boolean(client);
+  if (id === "openrouter") return Boolean(openrouterCfg);
+  if (id === "omniroute") return Boolean(omnirouteCfg);
+  return false;
+}
+
+// At least one engine configured? Generic (provider-agnostic) endpoints guard on this; the three
+// Anthropic-only endpoints (coach, enrich-web, enrich-layer) still guard on `client` specifically.
+const llmReady = Boolean(client) || Boolean(openrouterCfg) || Boolean(omnirouteCfg);
+const NO_LLM = "No LLM engine configured on the server (set KILN_ANTHROPIC_API_KEY, or KILN_OPENROUTER_API_KEY / KILN_OMNIROUTE_API_KEY for the open-source engines).";
+
+// Providers the UI may offer = catalog entries whose key is set. Anthropic stays first (preferred).
+const availableProviders: ProviderCatalog[] = PROVIDERS.filter((p) => providerReady(p.id));
+const defaultProvider = providerReady(DEFAULT_PROVIDER) ? DEFAULT_PROVIDER : (availableProviders[0]?.id ?? DEFAULT_PROVIDER);
+
+/**
+ * Resolve a request's { provider, model } → a concrete ModelOption, falling back to a *configured*
+ * provider if the requested one isn't available (so the app never dead-ends). Anthropic preferred.
+ */
+function resolveModel(body: { provider?: string; model?: string }): ModelOption {
+  // 1. An explicit, configured provider wins (this path also honours free-text/custom model ids).
+  if (body.provider && providerReady(body.provider)) {
+    const opt = resolveModelOption({ provider: body.provider, model: body.model });
+    if (providerReady(opt.provider)) return opt;
+  }
+  // 2. Model id alone → find its provider across the configured catalogs (ids are globally unique),
+  //    so the browser can route just by picking a model without also naming the engine.
+  if (body.model) {
+    const found = modelById(body.model);
+    if (found && providerReady(found.provider)) return found;
+  }
+  // 3. Fall back to the default configured provider's default model.
+  return resolveModelOption({ provider: defaultProvider });
+}
+
+/** Force an Anthropic model (for the Anthropic-only endpoints: coach + web-search enrichment). */
+function anthropicModel(id: string | undefined): ModelOption {
+  const opt = id ? modelById(id) : undefined;
+  return opt && opt.provider === "anthropic" ? opt : modelById(DEFAULT_MODEL)!;
+}
+
+/** Dispatch a ModelOption to its provider adapter (Anthropic SDK vs OpenAI-compatible gateway). */
+function makeProvider(model: ModelOption, effort: string, usage: UsageAcc): LlmProvider {
+  if (model.provider === "openrouter" && openrouterCfg) return openAiCompatibleProvider(openrouterCfg, model.id, effort, model.supportsEffort, usage);
+  if (model.provider === "omniroute" && omnirouteCfg) return openAiCompatibleProvider(omnirouteCfg, model.id, effort, model.supportsEffort, usage);
+  if (model.provider === "anthropic" && client) return anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+  throw new Error(`${NO_LLM} (requested engine "${model.provider}" is not configured)`);
+}
+
 const server = createServer(async (req, res) => {
   try {
     if (req.method === "OPTIONS") return send(res, 204, {});
 
+    // ---- Local "Run app" sandbox: boot the generated zero-dep app + serve a live preview page. ----
+    // POST /api/run { files } → spawn node server.mjs on a free port; returns a UI url to open in a tab.
+    if (req.method === "POST" && req.url === "/api/run") {
+      const body = JSON.parse((await readBody(req)) || "{}") as { files?: Record<string, string> };
+      if (!body.files || typeof body.files !== "object") return send(res, 400, { error: "files (the generated app) are required" });
+      const origin = `http://${req.headers.host ?? `localhost:${PORT}`}`;
+      const started = await startRun(body.files, origin);
+      return send(res, 200, started);
+    }
+    // POST /api/run/<id>/stop → kill the sandbox + clean its temp dir.
+    if (req.method === "POST" && req.url?.startsWith("/api/run/") && req.url.endsWith("/stop")) {
+      const id = req.url.slice("/api/run/".length, -"/stop".length);
+      return send(res, 200, { stopped: stopRun(id) });
+    }
+    // GET /run/<id>/ → the dependency-free admin preview for that sandbox (talks to its API port).
+    if (req.method === "GET" && req.url?.startsWith("/run/")) {
+      const id = req.url.slice("/run/".length).replace(/\/.*$/, "");
+      const run = getRun(id);
+      if (!run) {
+        res.writeHead(404, { "content-type": "text/html" });
+        return res.end("<h1>Run not found</h1><p>The preview may have been stopped. Re-run from Studio.</p>");
+      }
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      return res.end(runClientHtml(run.model, `http://localhost:${run.port}`));
+    }
+
     if (req.method === "GET" && req.url === "/api/models") {
+      const dp = providerById(defaultProvider);
       return send(res, 200, {
-        models: MODELS,
-        defaultModel: DEFAULT_MODEL,
+        // Provider-aware catalog: only engines whose key is set on the server (Anthropic first/preferred).
+        providers: availableProviders.map((p) => ({
+          id: p.id,
+          label: p.label,
+          models: p.models,
+          allowCustomModel: p.allowCustomModel,
+          defaultModel: p.defaultModel,
+          note: p.note,
+        })),
+        defaultProvider,
+        // Back-compat: `models` = the default provider's models (older clients read this field).
+        models: dp?.models ?? MODELS,
+        defaultModel: dp?.defaultModel ?? DEFAULT_MODEL,
         defaultEffort: DEFAULT_EFFORT,
         efforts: EFFORTS,
-        ready: Boolean(client),
+        ready: llmReady,
       });
     }
 
     if (req.method === "POST" && req.url === "/api/generate") {
-      if (!client) {
-        return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) {
+        return send(res, 500, { error: NO_LLM });
       }
       const body = JSON.parse((await readBody(req)) || "{}") as {
         narrative?: string;
@@ -197,14 +318,14 @@ const server = createServer(async (req, res) => {
       if (!body.narrative || !body.narrative.trim()) {
         return send(res, 400, { error: "narrative is required" });
       }
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "")
         ? (body.effort as string)
         : DEFAULT_EFFORT;
 
       const narrative = parseNarrative(body.narrative);
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generateCapabilities(narrative, provider);
 
       // Estimated cost (cache reads ~0.1×, cache writes ~1.25× input rate). Estimate, not billing.
@@ -224,7 +345,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/domain") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         capabilities?: CapabilityDoc;
         model?: string;
@@ -233,11 +354,11 @@ const server = createServer(async (req, res) => {
       if (!body.capabilities?.capabilities?.length) {
         return send(res, 400, { error: "capabilities are required" });
       }
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generateDomain(body.capabilities, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
@@ -249,7 +370,7 @@ const server = createServer(async (req, res) => {
 
     // Domain enrichment: propose realistic attributes + child entities for the current model (review-first).
     if (req.method === "POST" && req.url === "/api/enrich") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         capabilities?: CapabilityDoc;
         domain?: DomainDoc;
@@ -260,12 +381,12 @@ const server = createServer(async (req, res) => {
       if (!body.capabilities?.capabilities?.length || !body.domain?.aggregates?.length) {
         return send(res, 400, { error: "capabilities and a domain model are required" });
       }
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const depth: EnrichDepth = (["conservative", "standard", "exhaustive"] as const).includes(body.depth as EnrichDepth) ? (body.depth as EnrichDepth) : "standard";
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await enrichDomain(body.capabilities, body.domain, provider, depth);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
@@ -277,15 +398,15 @@ const server = createServer(async (req, res) => {
 
     // Communications / integrations — the LLM refines the "external effects" layer for this business.
     if (req.method === "POST" && (req.url === "/api/communications" || req.url === "/api/integrations")) {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: DomainDoc; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain?.aggregates?.length) {
         return send(res, 400, { error: "capabilities and a domain model are required" });
       }
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result =
         req.url === "/api/communications"
           ? await generateCommunications(body.capabilities, body.domain, provider)
@@ -299,7 +420,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-003 BC-M3: partition capabilities into business areas with the real LLM (server-side).
     if (req.method === "POST" && req.url === "/api/contexts") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         capabilities?: CapabilityDoc;
         model?: string;
@@ -308,11 +429,11 @@ const server = createServer(async (req, res) => {
       if (!body.capabilities?.capabilities?.length) {
         return send(res, 400, { error: "capabilities are required" });
       }
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generateContexts(body.capabilities, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
@@ -325,13 +446,13 @@ const server = createServer(async (req, res) => {
     // Semantic critic: the LLM reviews a generated business-area partition (advisory). Higher effort
     // by default — this is a hard reasoning task, and it's where "using the LLM better" pays off.
     if (req.method === "POST" && req.url === "/api/context-critique") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; contexts?: unknown; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.contexts) return send(res, 400, { error: "capabilities and contexts are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = model.supportsEffort ? "high" : DEFAULT_EFFORT; // critique benefits from more reasoning
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await critiqueContexts(body.capabilities, body.contexts as never, provider);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -342,7 +463,7 @@ const server = createServer(async (req, res) => {
     // Generic semantic critic: the LLM reviews ANY layer of its own output (advisory). Run at higher
     // effort — critique is a hard reasoning task, and this is where "using the LLM better" pays off.
     if (req.method === "POST" && req.url === "/api/critique") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         layer?: LayerKind;
         capabilities?: CapabilityDoc;
@@ -356,12 +477,12 @@ const server = createServer(async (req, res) => {
         accepted?: string[];
       };
       if (!body.layer || !body.capabilities?.capabilities?.length) return send(res, 400, { error: "layer and capabilities are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       // Effort: honour the client's per-layer choice; fall back to the built-in preset. Haiku ignores it.
       const wantEffort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : CRITIQUE_EFFORT[body.layer] ?? "high";
       const effort = model.supportsEffort ? wantEffort : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const review: ReviewModel = {
         caps: body.capabilities,
         domain: body.domain as never,
@@ -380,13 +501,13 @@ const server = createServer(async (req, res) => {
 
     // Executable-code target: the LLM writes the business-logic handler bodies for the generated app.
     if (req.method === "POST" && req.url === "/api/app-logic") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: unknown; contexts?: unknown; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generateAppLogic(body.capabilities, body.domain as never, body.contexts as never, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -414,13 +535,13 @@ const server = createServer(async (req, res) => {
 
     // The LLM designs a per-entity screen (a validated view spec — data, never JSX, so it's build-safe).
     if (req.method === "POST" && req.url === "/api/app-components") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: unknown; contexts?: unknown; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generateComponents(body.capabilities, body.domain as never, body.contexts as never, provider);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -430,13 +551,13 @@ const server = createServer(async (req, res) => {
 
     // Multi-lens AI review of the GENERATED code (security/correctness/maintainability). Higher effort.
     if (req.method === "POST" && req.url === "/api/code-review") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: unknown; contexts?: unknown; roles?: unknown; handlerCode?: Record<string, string>; model?: string };
       if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = model.supportsEffort ? "high" : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await reviewGeneratedCode(body.capabilities, body.domain as never, body.contexts as never, body.roles as never, body.handlerCode, provider);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -446,7 +567,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-004 CE-M3: model behaviour (commands/events) on the entities, per-aggregate, server-side.
     if (req.method === "POST" && req.url === "/api/events") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         domain?: { aggregates?: unknown[] };
         capabilities?: CapabilityDoc;
@@ -455,11 +576,11 @@ const server = createServer(async (req, res) => {
       };
       if (!body.domain?.aggregates?.length) return send(res, 400, { error: "domain with aggregates is required" });
       if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generateEvents(body.domain as never, body.capabilities, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
@@ -471,7 +592,7 @@ const server = createServer(async (req, res) => {
 
     // SPEC-005 PL-M3: model reactions (policies) wiring events → downstream commands, server-side.
     if (req.method === "POST" && req.url === "/api/policies") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         domain?: { events?: unknown[]; commands?: unknown[] };
         capabilities?: CapabilityDoc;
@@ -481,12 +602,12 @@ const server = createServer(async (req, res) => {
       if (!body.domain?.events?.length || !body.domain?.commands?.length) {
         return send(res, 400, { error: "domain with events and commands is required" });
       }
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const capIds = (body.capabilities?.capabilities ?? []).map((c) => c.id);
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generatePolicies(body.domain as never, capIds, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
@@ -498,13 +619,13 @@ const server = createServer(async (req, res) => {
 
     // SPEC-006: model the roles/personas that operate the capabilities, server-side.
     if (req.method === "POST" && req.url === "/api/roles") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generateRoles(body.capabilities, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -514,13 +635,13 @@ const server = createServer(async (req, res) => {
 
     // SPEC-007: model the end-to-end workflows (ordered command sequences), server-side.
     if (req.method === "POST" && req.url === "/api/workflows") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { domain?: { commands?: unknown[] }; model?: string; effort?: string };
       if (!body.domain?.commands?.length) return send(res, 400, { error: "domain with commands is required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generateWorkflows(body.domain as never, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -530,13 +651,13 @@ const server = createServer(async (req, res) => {
 
     // SPEC-009: route each process → workflow (fixed) or agent (judgement). Drives conditional codegen.
     if (req.method === "POST" && req.url === "/api/orchestration") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { workflows?: { workflows?: unknown[] }; domain?: unknown; model?: string; effort?: string };
       if (!body.workflows?.workflows?.length) return send(res, 400, { error: "workflows are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generateOrchestration(body.workflows as never, provider, body.domain as never);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -547,10 +668,11 @@ const server = createServer(async (req, res) => {
     // Enrich from industry web research: the model searches the web for standard records/fields this
     // vertical has that the model lacks, and returns cited additions (reviewed accept/decline in-app).
     if (req.method === "POST" && req.url === "/api/enrich-web") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      // Web research uses the Anthropic-native web_search tool → Anthropic engine only (not the gateways).
+      if (!client) return send(res, 500, { error: "Web research needs an Anthropic key (KILN_ANTHROPIC_API_KEY / KILN_LANGDOCK_API_KEY)." });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: { aggregates?: unknown[] }; model?: string; effort?: string };
       if (!body.domain?.aggregates?.length) return send(res, 400, { error: "domain with aggregates is required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = anthropicModel(body.model);
       const resp = await client.messages.create({
         model: model.id,
         max_tokens: 4096,
@@ -570,11 +692,12 @@ const server = createServer(async (req, res) => {
 
     // Enrich a named-item layer (capabilities|roles|agents) from industry web research → cited items.
     if (req.method === "POST" && req.url === "/api/enrich-layer") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      // Web research uses the Anthropic-native web_search tool → Anthropic engine only (not the gateways).
+      if (!client) return send(res, 500, { error: "Web research needs an Anthropic key (KILN_ANTHROPIC_API_KEY / KILN_LANGDOCK_API_KEY)." });
       const body = JSON.parse((await readBody(req)) || "{}") as { layer?: string; capabilities?: CapabilityDoc; roles?: unknown; agents?: unknown; model?: string };
       const layer = body.layer === "roles" || body.layer === "agents" ? body.layer : "capabilities";
       if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = anthropicModel(body.model);
       const resp = await client.messages.create({
         model: model.id,
         max_tokens: 4096,
@@ -593,13 +716,13 @@ const server = createServer(async (req, res) => {
 
     // Ingest: turn a RAW business description (transcript, notes) into the structured Business Narrative.
     if (req.method === "POST" && req.url === "/api/structure") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { raw?: string; model?: string; effort?: string };
       if (!body.raw || !body.raw.trim()) return send(res, 400, { error: "raw text is required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await structureNarrative(body.raw, provider);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -610,14 +733,14 @@ const server = createServer(async (req, res) => {
     // Narrative sync: propose narrative sentences for model facts the narrative doesn't yet state (a
     // one-way, human-reviewed reconcile so hand-made model fixes don't silently fall out of the prose).
     if (req.method === "POST" && req.url === "/api/narrative-sync") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { narrative?: string; facts?: string[]; model?: string; effort?: string };
       const facts = Array.isArray(body.facts) ? body.facts.filter((x) => typeof x === "string") : [];
       if (!facts.length) return send(res, 400, { error: "facts are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await syncNarrative(body.narrative ?? "", facts, provider);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -627,13 +750,13 @@ const server = createServer(async (req, res) => {
 
     // i18n: translate the generated app's UI string bundle into a target language (automated LLM).
     if (req.method === "POST" && req.url === "/api/translate") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { bundle?: Record<string, string>; targetLang?: string; model?: string; effort?: string };
       if (!body.bundle || !Object.keys(body.bundle).length || !body.targetLang) return send(res, 400, { error: "bundle and targetLang are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const translations = await translateMessages(body.bundle, body.targetLang, provider);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -643,13 +766,13 @@ const server = createServer(async (req, res) => {
 
     // External services (delegation): which existing external workflows/agents to delegate to.
     if (req.method === "POST" && req.url === "/api/external-services") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: { aggregates?: unknown[] }; agentIds?: string[]; model?: string; effort?: string };
       if (!body.domain?.aggregates?.length) return send(res, 400, { error: "domain with aggregates is required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const doc = await generateExternalServices((body.capabilities ?? { capabilities: [] }) as never, body.domain as never, provider, body.agentIds ?? []);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -659,13 +782,13 @@ const server = createServer(async (req, res) => {
 
     // SPEC-008: model the autonomous agents that operate the capabilities, server-side.
     if (req.method === "POST" && req.url === "/api/agents") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; model?: string; effort?: string };
       if (!body.capabilities?.capabilities?.length) return send(res, 400, { error: "capabilities are required" });
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const provider = makeProvider(model, effort, usage);
       const result = await generateAgents(body.capabilities, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -674,7 +797,8 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/coach") {
-      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      // The interview is multi-turn + Anthropic structured output → Anthropic engine only for now.
+      if (!client) return send(res, 500, { error: "The AI interview needs an Anthropic key (KILN_ANTHROPIC_API_KEY / KILN_LANGDOCK_API_KEY). Paste/markdown narrative works with any engine." });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         messages?: Array<{ role: "user" | "assistant"; content: string }>;
         model?: string;
@@ -687,7 +811,7 @@ const server = createServer(async (req, res) => {
       const messages = firstUser >= 0 ? all.slice(firstUser) : [];
       if (messages.length === 0) return send(res, 400, { error: "at least one user message is required" });
 
-      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const model = anthropicModel(body.model);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
 
       const outputConfig: Record<string, unknown> = { format: { type: "json_schema", schema: COACH_SCHEMA } };
@@ -776,7 +900,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && (req.url === "/" || req.url === "/health")) {
-      return send(res, 200, { ok: true, ready: Boolean(client) });
+      return send(res, 200, { ok: true, ready: llmReady });
     }
 
     return send(res, 404, { error: "not found" });

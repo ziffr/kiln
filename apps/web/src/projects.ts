@@ -61,8 +61,11 @@ export interface Project {
    *  stage (the modeling layers + "polish" + "visual"); each field absent → use the global default. A stage
    *  can run on a different provider entirely (e.g. capabilities on Opus, entities on a cheap gateway model). */
   stages?: Record<string, { provider?: string; model?: string; effort?: string }>;
-  /** @deprecated superseded by `stages` (per-stage). Left for back-compat; no longer read. */
+  /** Adaptive Anthropic defaults (default true): when on, an Anthropic stage with no per-stage override
+   *  picks its model + effort from the layer's tier (heavy→Opus/high, standard→Sonnet, light→Haiku)
+   *  instead of the flat global default. Per-stage `stages` overrides always win; gateways are unaffected. */
   adaptiveModel?: boolean;
+  /** @deprecated superseded by adaptive tiers + per-stage `stages`. Left for back-compat; no longer read. */
   tierModels?: { light: string; standard: string; heavy: string };
   /** per-project interview override (tone/depth/domain); empty → global default. */
   coachConfig?: CoachConfig;
@@ -88,6 +91,7 @@ export interface ProjectState {
 
 const KEY = "kiln.projects";
 const LEGACY_KEY = "vbd.projects"; // pre-Kiln storage key — migrated on load so existing users keep their projects
+const ADAPTIVE_RESET_KEY = "kiln.adaptiveReset"; // guards the one-time clear of stale adaptiveModel:false
 
 /** Empty narrative scaffold for a brand-new project (sections the parser expects). */
 export const NARRATIVE_TEMPLATE = `# New Business
@@ -195,6 +199,13 @@ export function loadProjects(): ProjectState {
     if (!parsed.projects?.length) return seed();
     if (!parsed.projects.some((p) => p.id === parsed.activeId)) {
       parsed.activeId = parsed.projects[0].id;
+    }
+    // One-time migration: `adaptiveModel` was deprecated/unread for a while, so any persisted `false`
+    // from that era is stale — clear it once (guarded) so adaptive per-stage defaults come back on.
+    // After this runs, a deliberate toggle-off in Settings persists normally.
+    if (!localStorage.getItem(ADAPTIVE_RESET_KEY)) {
+      for (const p of parsed.projects) if (p.adaptiveModel === false) delete p.adaptiveModel;
+      localStorage.setItem(ADAPTIVE_RESET_KEY, "1");
     }
     return parsed;
   } catch {

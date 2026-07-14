@@ -51,17 +51,41 @@ Restart the service and pick omniroute in **Settings → Engine**.
 
 Open **Settings** (bottom of the sidebar). There are two levels:
 
-**Engine — default** sets the provider, model and effort every stage uses unless overridden:
+**Engine & models** sets the provider, model and effort every stage uses unless overridden:
 1. **Provider** — pick the engine (shown when more than one is configured). Anthropic is preselected.
 2. **Model** — pick a model from that engine. For the gateways you can also choose **"Custom model id…"**
    and type any slug (e.g. `openai/gpt-5-mini` on OpenRouter, or `auto/coding` on omniroute).
 3. **Effort** — the "thinking effort" (low → max). Models that don't support it simply ignore it.
+4. **Adaptive** (on by default) — on Anthropic, each stage automatically picks a model and effort by how
+   hard it is: heavy reasoning (capabilities, business areas, automations, the whole-model review) →
+   **Opus · high**; standard stages (behaviour, workflows) → **Sonnet**; light, mechanical stages
+   (entities, roles, agents) → **Haiku**. Turn it off to run every stage on the single default model
+   above. On the gateways there's no tier equivalent, so they always use the default model.
 
 **Per stage** (click *customize*) lets you override any individual stage — its **provider, model, AND
-effort** — independently of the default. Each cell shows `(default)` until you change it. For example:
-generate **Capabilities** on Anthropic Opus at high effort, but run **Entities** on a cheap OpenRouter
-model in low effort. It also covers the **Polish UI** and **Visual polish** stages — Visual polish is a
-vision pass, so its provider is locked to Anthropic. All of this is saved with the project.
+effort** — independently of the default. Each stage row explains what it produces, and each cell shows the
+resolved `(default)` until you change it (so with Adaptive on you'll see e.g. `(default: Opus 4.8)` on
+capabilities). For example: keep the adaptive defaults but drop **Entities** to a cheap OpenRouter model in
+low effort. It also covers the **Polish layout** and **Visual review** stages — Visual review is a vision
+pass, so its provider is locked to Anthropic. All of this is saved with the project.
+
+## The engine choice also carries into the exported app
+
+The engine you pick isn't only used to *generate* the model — if your business has **agents**, the
+exported app runs them at runtime, and that runtime honours the **same engines**. The generated
+`agents/` runtime picks its provider from a `PROVIDER` env var:
+
+- `anthropic` — `ANTHROPIC_API_KEY` + `ANTHROPIC_MODEL` (per-agent model/effort apply here),
+- `openrouter` — `OPENROUTER_API_KEY` + `OPENROUTER_MODEL`,
+- `omniroute` — `OMNIROUTE_BASE_URL` + `OMNIROUTE_API_KEY` + `OMNIROUTE_MODEL`,
+- `openai-compatible` — any other OpenAI-style endpoint (LiteLLM, vLLM, Ollama, Azure OpenAI):
+  `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `OPENAI_MODEL`.
+
+**The export is pre-pointed at the engine you built on.** If you generated on omniroute, the exported
+`agents/.env.example` leads with `PROVIDER=omniroute` and your chosen model — so an app built precisely
+*because* you can't use Anthropic doesn't ship Anthropic-first. Every engine's block is still present, so
+switching at deploy time is a one-line `PROVIDER=` change. (Only the Node agent runtime is affected; the
+optional Langdock agent runtime is a separate binding.)
 
 ## Things to know
 
@@ -72,3 +96,5 @@ vision pass, so its provider is locked to Anthropic. All of this is saved with t
   any engine.
 - **Structured output** is requested from every engine; if a particular model rejects it, Kiln falls
   back to parsing the model's JSON, so generation still works (just a little less strictly enforced).
+- **Per-agent `effort`** (thinking level) applies on Anthropic only; on the OpenAI-compatible gateways
+  agents use the model as-is.

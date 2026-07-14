@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal } from "./Modal";
+import { Icon } from "./Icon";
 
 // AI-stage settings: a GLOBAL default (engine / model / effort) + optional PER-STAGE overrides.
 // Any stage can run on a different provider, model and effort than the default — e.g. capabilities on
@@ -8,7 +9,7 @@ import { Modal } from "./Modal";
 
 interface ModelOpt { id: string; label: string; supportsEffort: boolean }
 interface ProviderOpt { id: string; label: string; note?: string; allowCustomModel: boolean; models: ModelOpt[] }
-interface StageRow { key: string; label: string; lockProvider?: string }
+interface StageRow { key: string; label: string; description?: string; lockProvider?: string }
 interface Override { provider?: string; model?: string; effort?: string }
 type Field = "provider" | "model" | "effort";
 
@@ -18,6 +19,11 @@ interface Props {
   defaultEngine: string;
   defaultModel: string;
   defaultEffort: string;
+  /** Adaptive Anthropic defaults on/off (model+effort per stage by tier). */
+  adaptive: boolean;
+  onSetAdaptive: (v: boolean) => void;
+  /** Deep link to the docs page explaining engines/models/stages. */
+  docsUrl?: string;
   stages: StageRow[];
   overrides: Record<string, Override>;
   resolvedFor: (key: string) => { provider: string; model: string; effort: string };
@@ -29,7 +35,7 @@ interface Props {
 }
 
 export function SettingsModal(props: Props): React.JSX.Element {
-  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, t } = props;
+  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, t } = props;
   const providerOf = (id: string): ProviderOpt | undefined => providers.find((p) => p.id === id);
   const providerLabel = (id: string): string => providerOf(id)?.label ?? id;
   const modelLabel = (providerId: string, modelId: string): string => providerOf(providerId)?.models.find((m) => m.id === modelId)?.label ?? modelId;
@@ -50,7 +56,10 @@ export function SettingsModal(props: Props): React.JSX.Element {
       </>}>
       <div className="settings">
           {/* ---- The default engine / model / effort ---- */}
-          <h3 className="settings-h">Engine — default</h3>
+          <h3 className="settings-h" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            Engine &amp; models
+            {docsUrl && <a className="settings-doclink" href={docsUrl} target="_blank" rel="noreferrer">Learn more ↗</a>}
+          </h3>
           <p className="muted" style={{ marginTop: 0 }}>
             The engine, model and effort every stage uses unless you override it below. Anthropic is the
             default and preferred engine; other engines appear when their key is set on the server.
@@ -97,8 +106,28 @@ export function SettingsModal(props: Props): React.JSX.Element {
                   ) : <span className="muted">— (this model has no effort control)</span>}
                 </td>
               </tr>
+              <tr>
+                <td>Adaptive</td>
+                <td>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input type="checkbox" checked={adaptive} onChange={(e) => onSetAdaptive(e.target.checked)} />
+                    <span>Pick model &amp; effort per stage on Anthropic</span>
+                  </label>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>
+                    heavy reasoning (capabilities, business areas, automations) → <strong>Opus · high</strong>;
+                    standard (behaviour, workflows) → <strong>Sonnet</strong>; light (entities, roles, agents) →
+                    <strong> Haiku</strong>. Off = every stage uses the default model above.
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
+          {adaptive && (
+            <p className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+              With Adaptive on, the default <strong>Model</strong> above is the fallback for non-Anthropic
+              engines; Anthropic stages follow the tiers. Any per-stage override below still wins.
+            </p>
+          )}
 
           {/* ---- Per-stage overrides (progressive disclosure) ---- */}
           <h3 className="settings-h" style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -125,7 +154,17 @@ export function SettingsModal(props: Props): React.JSX.Element {
                     const modelInList = ov.model && (p?.models.some((m) => m.id === ov.model) ?? false);
                     return (
                       <tr key={st.key}>
-                        <td>{st.label}</td>
+                        <td>
+                          <span className="settings-stage-name">
+                            {st.label}
+                            {st.description && (
+                              <span className="tip-wrap" tabIndex={0} aria-label={st.description}>
+                                <Icon name="info" size={13} className="tip-icon" />
+                                <span className="tip" role="tooltip">{st.description}</span>
+                              </span>
+                            )}
+                          </span>
+                        </td>
                         <td>
                           {st.lockProvider ? (
                             <span className="muted" title="Visual polish is a vision pass — Anthropic only">🔒 {providerLabel(st.lockProvider)} · vision</span>

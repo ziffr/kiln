@@ -6,6 +6,7 @@ import type { CodeFinding } from "@kiln/skills";
 import type { ModelDoc } from "../model";
 import { downloadZip } from "../zip";
 import { Icon } from "./Icon";
+import { Menu } from "./Menu";
 
 export interface VerifyVerdict {
   ok?: boolean;
@@ -313,54 +314,40 @@ export function CodePreview({
             <button key={k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>{t(`code_${k}`)}</button>
           ))}
         </div>
-        {/* Two clusters: Check (review/verify + their auto-fix pairs) | Export (increasing completeness,
-            full-stack is the single primary). Icons over emoji; one accent CTA, the rest ghost. */}
-        <span className="code-export-group">
-          {exportNote && <span className="code-export-note muted">{exportNote}</span>}
-          <button className="code-export ghost" onClick={() => void reviewCode()} disabled={busy} title={t("codeReviewHint")}>
-            <Icon name="search" size={14} />{reviewing ? t("generating") : t("codeReview")}
-          </button>
-          <button className="code-export ghost" onClick={() => void autoFix()} disabled={busy} title={t("codeReviewAutoHint")}>
-            <Icon name="wrench" size={14} />{auto ? t("generating") : t("codeReviewAuto")}
-          </button>
-          <button className="code-export ghost" onClick={() => void verifyApp()} disabled={busy} title={t("verifyHint")}>
-            <Icon name="beaker" size={14} />{verifying ? t("verifyBusy") : t("verifyApp")}
-          </button>
-          <button className="code-export ghost" onClick={() => void autoVerify()} disabled={busy} title={t("verifyAutoHint")}>
-            <Icon name="refresh" size={14} />{autoVerifying ? t("generating") : t("verifyAuto")}
-          </button>
-          {requestPolishUi && (
-            <button className="code-export ghost" onClick={() => void polishUi()} disabled={busy} title="A designer agent critiques + improves every screen (hierarchy, formats, badges, hidden ids) in the Kiln design language — you review before it applies">
-              <Icon name="sparkles" size={14} />{polishing ? "Polishing…" : "Polish UI"}
-            </button>
-          )}
-          {requestPolishVisual && (
-            <button className="code-export ghost" onClick={() => void polishVisual()} disabled={busy} title="Visual pass: boots the app, screenshots each screen, and an AI critiques what it actually SEES (layout, balance, boards vs tables) — needs a local Chrome">
-              <Icon name="eye" size={14} />{visualPolishing ? "Looking…" : "Visual polish"}
-            </button>
-          )}
+        <button className="nd-close" onClick={onClose} aria-label="close">×</button>
+      </div>
+
+      {/* Action bar: three controls, not ten. Two menus (Improve with AI · Export) collapse the many
+          passes/options — each item explains itself in one line — around the primary Run app button. A
+          single live status line replaces the per-button "generating…" swaps. Non-sprawling on any width. */}
+      <div className="code-toolbar">
+        <div className="code-actions">
+          <Menu trigger={t("improveGroup")} icon="sparkles" disabled={busy} items={[
+            { key: "review", icon: "search", label: t("codeReview"), description: t("codeReviewHint"), onClick: () => void reviewCode() },
+            { key: "autofix", icon: "wrench", label: t("codeReviewAuto"), description: t("codeReviewAutoHint"), onClick: () => void autoFix() },
+            { key: "verify", icon: "beaker", label: t("verifyApp"), description: t("verifyHint"), onClick: () => void verifyApp() },
+            { key: "autoverify", icon: "refresh", label: t("verifyAuto"), description: t("verifyAutoHint"), onClick: () => void autoVerify() },
+            ...(requestPolishUi ? [{ key: "polish", icon: "sparkles", label: t("polishLayout"), description: t("polishLayoutHint"), onClick: () => void polishUi() }] : []),
+            ...(requestPolishVisual ? [{ key: "visual", icon: "eye", label: t("visualReview"), description: t("visualReviewHint"), onClick: () => void polishVisual() }] : []),
+          ]} />
           {requestRun && (
-            <button className="code-export" onClick={() => void runApp()} disabled={busy} title="Boot the generated app locally and open it in a new tab">
-              <Icon name="play" size={14} />{running ? "Starting…" : "Run app"}
+            <button className="code-export" onClick={() => void runApp()} disabled={busy} title={t("runAppHint")}>
+              <Icon name="play" size={14} />{running ? t("runAppBusy") : t("runApp")}
             </button>
           )}
           {runUrl && !running && (
-            <a className="code-export ghost" href={runUrl} target="_blank" rel="noopener noreferrer" title="Reopen the running preview">
-              <Icon name="globe" size={14} />Open preview
+            <a className="code-export ghost" href={runUrl} target="_blank" rel="noopener noreferrer" title={t("openPreviewHint")}>
+              <Icon name="globe" size={14} />{t("openPreview")}
             </a>
           )}
-          <span className="code-export-sep" aria-hidden="true" />
-          <button className="code-export ghost" onClick={() => void exportApp(false)} disabled={busy} title={t("exportAppHint")}>
-            <Icon name="download" size={14} />{t("exportApp")}
-          </button>
-          <button className="code-export ghost" onClick={() => void exportApp(true)} disabled={busy} title={t("exportAppAiHint")}>
-            <Icon name="sparkles" size={14} />{exporting ? t("generating") : t("exportAppAi")}
-          </button>
-          <button className="code-export" onClick={() => void exportFullStack()} disabled={busy} title={t("exportFullStackHint")}>
-            <Icon name="package" size={14} />{exporting ? t("generating") : t("exportFullStack")}
-          </button>
-        </span>
-        <button className="nd-close" onClick={onClose} aria-label="close">×</button>
+          <Menu trigger={t("exportGroup")} icon="download" align="right" accent={!requestRun} disabled={busy} items={[
+            { key: "scaffold", icon: "download", label: t("exportApp"), description: t("exportAppHint"), onClick: () => void exportApp(false) },
+            { key: "ailogic", icon: "sparkles", label: t("exportAppAi"), description: t("exportAppAiHint"), onClick: () => void exportApp(true) },
+            { key: "fullstack", icon: "package", label: t("exportFullStack"), description: t("exportFullStackShort"), onClick: () => void exportFullStack(), accent: true },
+          ]} />
+          {busy && <span className="code-busy muted"><Icon name="refresh" size={13} />{t("working")}</span>}
+        </div>
+        {exportNote && <p className="code-export-note muted">{exportNote}</p>}
       </div>
 
       {verdict && (

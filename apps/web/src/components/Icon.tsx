@@ -34,6 +34,7 @@ const P: Record<string, JSX.Element> = {
   grid: <><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></>,
   chevronRight: <><path d="m9 18 6-6-6-6" /></>,
   chevronDown: <><path d="m6 9 6 6 6-6" /></>,
+  info: <><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></>,
 };
 
 export type IconName = keyof typeof P;

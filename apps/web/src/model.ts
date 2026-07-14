@@ -56,8 +56,12 @@ export interface ResolvedCore {
 }
 
 /** Materialize the complete model: the resolved core + every execution layer (authored, else its default). */
-export function assembleModel(core: ResolvedCore, p: Project): ModelDoc {
+export function assembleModel(core: ResolvedCore, p: Project, agent?: { provider?: string; model?: string; baseUrl?: string }): ModelDoc {
   const { capabilities, domain, contexts, roles, workflows, agents } = core;
+  const baseBinding = p.binding ?? DEFAULT_BINDING;
+  // Bake the agent-runtime engine default (the engine the model was built on) into the binding so the
+  // exported app's .env.example leads with it. Absent → Anthropic-first, as before.
+  const binding = agent ? { ...baseBinding, agent } : baseBinding;
   return {
     version: "1.0",
     name: core.name,
@@ -73,7 +77,7 @@ export function assembleModel(core: ResolvedCore, p: Project): ModelDoc {
     triggers: p.triggers ?? mockTriggers(capabilities, domain, workflows, agents),
     comms: p.comms ?? mockCommunications(capabilities, domain),
     integrations: p.integrations ?? mockIntegrations(capabilities, domain),
-    binding: p.binding ?? DEFAULT_BINDING,
+    binding,
     theme: p.theme ?? DEFAULT_THEME,
     i18n: p.i18n ?? { sourceLang: "en" },
   };

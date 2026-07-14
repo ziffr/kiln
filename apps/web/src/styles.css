@@ -263,7 +263,6 @@ textarea {
 .code-head { display: flex; align-items: center; flex-wrap: wrap; row-gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--edge); }
 .code-tabs { order: 1; flex: 1 1 auto; min-width: 0; display: flex; gap: 4px; padding-right: 34px; overflow-x: auto; scrollbar-width: thin; }
 .code-head .nd-close { position: absolute; top: 6px; right: 8px; z-index: 2; }
-.code-head .code-export-group { order: 3; flex-basis: 100%; margin-left: 0; justify-content: flex-end; flex-wrap: wrap; row-gap: 6px; }
 .code-tabs button { background: transparent; border: none; color: var(--muted); font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
 .code-tabs button.active { color: var(--fg); background: var(--bg); }
 .code-body { max-height: 320px; overflow: auto; }
@@ -498,6 +497,20 @@ textarea {
 .settings-h { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; margin: 18px 0 6px; color: var(--muted); }
 .settings-h:first-child { margin-top: 2px; }
 .settings-tier-tag { margin-left: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; }
+.settings-doclink { font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--accent-2); text-decoration: none; }
+.settings-doclink:hover { text-decoration: underline; }
+.settings-stage-name { font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
+/* Hover/focus info tooltip on a stage name — saves the vertical space the inline description took. */
+.tip-wrap { position: relative; display: inline-flex; color: var(--muted); cursor: help; outline: none; }
+.tip-wrap:hover, .tip-wrap:focus-visible { color: var(--accent-2); }
+.tip-icon { opacity: .7; }
+.tip-wrap:hover .tip-icon, .tip-wrap:focus-visible .tip-icon { opacity: 1; }
+.tip { position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%);
+  z-index: 30; width: max-content; max-width: 260px; padding: 7px 10px; border-radius: 8px;
+  background: var(--card); color: var(--fg); border: 1px solid var(--edge); font-weight: 400;
+  font-size: 12px; line-height: 1.4; text-transform: none; letter-spacing: 0;
+  box-shadow: 0 8px 24px -8px rgba(0,0,0,.35); opacity: 0; visibility: hidden; transition: opacity .12s; }
+.tip-wrap:hover .tip, .tip-wrap:focus-visible .tip { opacity: 1; visibility: visible; }
 
 /* Export runnable app */
 .code-export { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; margin-right: 8px; font-size: 13px; padding: 3px 12px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg); border-radius: 6px; cursor: pointer; }
@@ -505,12 +518,37 @@ textarea {
 .code-export-sep { width: 1px; align-self: stretch; margin: 3px 2px; background: var(--edge); }
 .code-export:hover:not(:disabled) { filter: brightness(1.05); }
 
-/* Export app (scaffold vs AI logic) */
-.code-export-group { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.code-export-note { font-size: 12px; max-width: 240px; }
+.code-export-note { font-size: 12px; }
 .code-export.ghost { background: transparent; color: var(--fg); border-color: var(--edge); }
 .code-export.ghost:hover:not(:disabled) { background: var(--panel-2); }
 .code-export:disabled { opacity: 0.6; cursor: default; }
+
+/* View-code action bar — three controls, not ten: two dropdown menus (Improve · Export) around the
+   primary Run app button. Left-aligned + content-width so it never sprawls on wide screens. */
+.code-toolbar { padding: 10px 12px; border-bottom: 1px solid var(--edge); background: var(--bg); }
+.code-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.code-actions .code-export { margin-left: 0; margin-right: 0; }
+.code-busy { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+.code-busy svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Dropdown menu (Menu.tsx) */
+.menu { position: relative; display: inline-flex; }
+.menu-trigger svg:last-child { margin-left: 1px; opacity: .7; }
+.menu-pop { position: absolute; top: calc(100% + 5px); left: 0; z-index: 20; min-width: 300px; max-width: 360px;
+  background: var(--card); border: 1px solid var(--edge); border-radius: 10px; padding: 5px;
+  box-shadow: 0 10px 30px -8px rgba(0,0,0,.35), 0 2px 8px -4px rgba(0,0,0,.2); }
+.menu-right .menu-pop { left: auto; right: 0; }
+.menu-item { display: flex; gap: 10px; width: 100%; text-align: left; background: transparent; border: none;
+  border-radius: 7px; padding: 8px 9px; cursor: pointer; color: var(--fg); }
+.menu-item:hover:not(:disabled) { background: var(--panel-2); }
+.menu-item:disabled { opacity: .5; cursor: default; }
+.menu-item-icon { flex: 0 0 auto; margin-top: 1px; color: var(--muted); display: inline-flex; }
+.menu-item.accent .menu-item-icon { color: var(--accent); }
+.menu-item-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.menu-item-label { font-size: 13px; font-weight: 600; }
+.menu-item.accent .menu-item-label { color: var(--accent); }
+.menu-item-desc { font-size: 12px; color: var(--muted); line-height: 1.35; }
 
 /* AI code review panel */
 .code-review { border-bottom: 1px solid var(--border); background: var(--bg); max-height: 320px; overflow-y: auto; }

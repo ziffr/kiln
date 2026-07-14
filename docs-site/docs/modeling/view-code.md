@@ -9,12 +9,17 @@ title: View code
 for developers.
 
 **How.** The **View code** panel presents your model across tabs: data types, an API, on-screen structure,
-permissions, processes, agents, and deployment. The toolbar groups three things:
+permissions, processes, agents, and deployment. Below the tabs are just three controls, so it's clear where
+to click:
 
-- **Check** — have an AI review, auto-fix, and test the generated code, and **✨ Polish UI** (see below).
-- **Run app** — boot the generated app **locally** and open it in a new browser tab (see below).
-- **Export** — download just the scaffold, a runnable app with AI-written logic, or the whole
-  **Full-Stack** project as a zip.
+- **✨ Improve with AI** — a menu of optional AI passes over the generated app: **Code review** and
+  **Auto-fix** (find and fix code issues), **Verify app** and **Auto-fix & verify** (build, run and
+  self-heal in a sandbox), and **Polish layout** and **Visual review** (design passes — see below). Each
+  item spells out what it does in one line, and every pass proposes changes you review and approve before
+  anything is applied.
+- **▶ Run app** — boots the generated app **locally** and opens it in a new browser tab (see below).
+- **⤓ Export** — a menu: download just the **scaffold**, a **runnable app** with AI-written logic, or the
+  whole **Full stack** project, each as a zip.
 
 The **Full-Stack** export is a runnable app, not just a mockup: the shadcn UI **fetches real data** from
 the generated command API (spine) and drives its actions, and it uses real shadcn components — a
@@ -22,9 +27,9 @@ sortable/filterable **data table** with per-row action menus, a slide-over **det
 related records, and a **chart** of the KPI breakdown. Point it at the backend with `VITE_API_URL`. It's
 still a starting point developers extend by hand — but a running one.
 
-## ✨ Polish UI — an automatic design pass
+## ✨ Polish layout — an automatic design pass
 
-Click **✨ Polish UI** and a senior-designer AI reviews every generated screen against UX best practices
+Click **✨ Polish layout** and a senior-designer AI reviews every generated screen against UX best practices
 in Kiln's design language and proposes improvements: a clear row title, hiding raw ids and technical
 fields, the right formats (money, dates, badges for statuses), a sensible column selection and form
 order, and a one-line screen description. It can also switch a screen to a richer layout when the data
@@ -38,7 +43,7 @@ tiles with real shadcn components). It changes *information design* (layout data
 can't break the build. Web research and the interview aside, it runs on your selected
 [engine](../reference/choosing-an-engine).
 
-**👁 Visual polish** goes one step further: it boots the app locally, **screenshots each screen**, and an
+**👁 Visual review** goes one step further: it boots the app locally, **screenshots each screen**, and an
 AI critiques what it actually *sees* — spotting an empty or unbalanced layout, a pipeline that should be a
 board, missing KPI tiles — then proposes the same accept/skip improvements. It needs the local service and a
 local Chrome/Chromium installed (set `KILN_CHROME` to point at a specific one); if none is found it says so

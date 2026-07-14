@@ -21,7 +21,7 @@ import {
   type AgentsDoc,
 } from "@kiln/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@kiln/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, diffCritique, concernsMatch, parseFinding, resolveTarget, CRITIQUE_EFFORT, type LayerKind, type CritiqueFinding, type CritiqueDiff } from "@kiln/skills";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, diffCritique, concernsMatch, parseFinding, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type Tier, type LayerKind, type CritiqueFinding, type CritiqueDiff } from "@kiln/skills";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
 import { EnrichPanel } from "./components/EnrichPanel";
@@ -88,8 +88,14 @@ const FALLBACK_PROVIDERS: ProviderCat[] = [
 const EST_IN_TOKENS = 2000;
 const EST_OUT_TOKENS = 800;
 const EFFORTS = ["low", "medium", "high", "max"];
-// Default per-tier models when "pick model per step" is on: upgrade the hard-reasoning stages to
-// Opus, keep the rest on Sonnet (quality-first; the user can drop light stages to Haiku for cost).
+// Adaptive Anthropic defaults: when Adaptive is on and a stage runs on Anthropic with no explicit
+// per-stage override, its model + effort come from the layer's TIER — heavy reasoning stages get
+// Opus/high, standard stages Sonnet, mechanical (light) stages Haiku — instead of a flat global
+// default. Per-stage Settings overrides always win; gateways keep the flat default (no tier equivalent).
+const ANTHROPIC_TIER_MODEL: Record<Tier, string> = { heavy: "claude-opus-4-8", standard: "claude-sonnet-5", light: "claude-haiku-4-5" };
+const GEN_EFFORT_TIER: Record<Tier, string> = { heavy: "high", standard: "medium", light: "medium" };
+// polish/visual aren't modeling layers → treat them as standard (Sonnet) design passes.
+const stageTier = (stage: string): Tier => LAYER_TIER[stage as LayerKind] ?? "standard";
 
 // A partial model override — lets the auto-review loop feed just-refined docs into the next
 // Review/Refine without waiting for React's async state to flush (which would leave them stale).
@@ -740,6 +746,7 @@ export default function App(): React.JSX.Element {
   // A global default (engine / globalModel / effort) with optional per-stage overrides. A stage can run on
   // a different PROVIDER, MODEL and EFFORT than the default — e.g. capabilities on Opus, entities on a cheap
   // gateway model in low effort. Each request threads its stage's {provider, model, effort}.
+  const adaptive = active.adaptiveModel ?? true; // adaptive Anthropic per-stage defaults (on unless disabled)
   const stageOverride = (stage: string): { provider?: string; model?: string; effort?: string } => active.stages?.[stage] ?? {};
   const providerFor = (stage: string): string => {
     const o = stageOverride(stage).provider;
@@ -753,15 +760,33 @@ export default function App(): React.JSX.Element {
     const p = catalog.find((x) => x.id === prov) ?? engineProvider;
     const o = stageOverride(stage).model;
     if (o && (p.models.some((m) => m.id === o) || p.allowCustomModel)) return o;
+    // Adaptive: on Anthropic with no override, pick the model by the layer's tier (Opus/Sonnet/Haiku).
+    if (adaptive && prov === "anthropic") {
+      const tierModel = ANTHROPIC_TIER_MODEL[stageTier(stage)];
+      if (p.models.some((m) => m.id === tierModel)) return tierModel;
+    }
     return prov === engine ? globalModel : p.defaultModel ?? p.models[0]?.id ?? globalModel;
   };
-  // A stage's effort: its override, else the global effort (for generation) or the review preset (for review).
-  const effortFor = (stage: string, review = false): string =>
-    stageOverride(stage).effort ?? (review ? CRITIQUE_EFFORT[stage as LayerKind] ?? "high" : active.effort);
+  // A stage's effort: its override, else the review preset (review), else the adaptive per-tier effort
+  // on Anthropic, else the flat global effort.
+  const effortFor = (stage: string, review = false): string => {
+    const o = stageOverride(stage).effort;
+    if (o) return o;
+    if (review) return CRITIQUE_EFFORT[stage as LayerKind] ?? "high";
+    if (adaptive && providerFor(stage) === "anthropic") return GEN_EFFORT_TIER[stageTier(stage)];
+    return active.effort;
+  };
   const critiqueEffortFor = (layer: LayerKind): string => effortFor(layer, true);
   // The full {model, effort, provider} a request should send for a stage. Spread into the body.
   const stageCfg = (stage: string, review = false): { model: string; effort: string; provider: string } => ({ model: modelFor(stage), effort: effortFor(stage, review), provider: providerFor(stage) });
   const supportsEffortFor = (stage: string): boolean => MODELS.find((m) => m.id === modelFor(stage))?.supportsEffort ?? true;
+  // The engine default baked into the EXPORTED agents runtime (.env.example): the provider + model the
+  // agents stage resolves to now, so an app built on a gateway ships pre-pointed at it. Native gateway ids
+  // map through; anything else → the generic OpenAI-compatible path.
+  const agentExportDefault = (): { provider: string; model: string } => {
+    const prov = providerFor("agents");
+    return { provider: ["anthropic", "openrouter", "omniroute"].includes(prov) ? prov : "openai-compatible", model: modelFor("agents") };
+  };
 
   const reviewBody = (layer: LayerKind, ov: ModelOverride) => ({
     layer,
@@ -1061,6 +1086,7 @@ export default function App(): React.JSX.Element {
     const model = assembleModel(
       { name: active.name, description: active.description, narrative: text, capabilities: activeDoc, contexts: contextsDoc, domain: flowDoc, roles: rolesDoc, workflows: workflowsDoc, agents: agentsDoc },
       active,
+      agentExportDefault(),
     );
     const blob = new Blob([JSON.stringify(model, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -1323,7 +1349,12 @@ export default function App(): React.JSX.Element {
           defaultEngine={engine}
           defaultModel={globalModel}
           defaultEffort={active.effort}
-          stages={[...reviewLayers.map((r) => ({ key: r.kind as string, label: r.label })), { key: "polish", label: "Polish UI" }, { key: "visual", label: "Visual polish", lockProvider: "anthropic" }]}
+          adaptive={adaptive}
+          onSetAdaptive={(v) => patchActive({ adaptiveModel: v })}
+          docsUrl="https://docs.kilnstudio.app/reference/choosing-an-engine"
+          stages={[...reviewLayers.map((r) => ({ key: r.kind as string, label: r.label, description: t(`stageDesc_${r.kind}`) })),
+            { key: "polish", label: t("polishLayout"), description: t("stageDesc_polish") },
+            { key: "visual", label: t("visualReview"), description: t("stageDesc_visual"), lockProvider: "anthropic" }]}
           overrides={active.stages ?? {}}
           resolvedFor={(key) => stageCfg(key)}
           onSetDefault={(field, value) => {
@@ -1699,6 +1730,7 @@ export default function App(): React.JSX.Element {
                   assembleModel(
                     { name: active.name, description: active.description, narrative: text, capabilities: activeDoc, contexts: contextsDoc, domain: flowDoc, roles: rolesDoc, workflows: workflowsDoc, agents: agentsDoc },
                     active,
+                    agentExportDefault(),
                   )
                 }
                 onClose={() => navTo("capabilities", null)}

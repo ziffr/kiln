@@ -30,6 +30,7 @@ export function CodePreview({
   requestAppComponents,
   requestVerify,
   requestRun,
+  requestPolishUi,
   requestCodeReview,
   buildModel,
   onClose,
@@ -43,7 +44,8 @@ export function CodePreview({
   requestAppLogic: (feedback?: string) => Promise<{ handlers: Record<string, string>; written: number; skipped: number }>;
   requestAppComponents: () => Promise<{ views: Record<string, unknown>; written: number; skipped: number }>;
   requestVerify: (files: Record<string, string>) => Promise<VerifyVerdict>;
-  requestRun?: (files: Record<string, string>) => Promise<{ uiUrl: string; id: string }>;
+  requestRun?: (files: Record<string, string>, views?: Record<string, unknown>) => Promise<{ uiUrl: string; id: string }>;
+  requestPolishUi?: (views: Record<string, unknown>) => Promise<{ views: Record<string, unknown>; improvements: Record<string, string[]> }>;
   requestCodeReview: (handlerCode?: Record<string, string>) => Promise<CodeFinding[]>;
   buildModel: () => ModelDoc; // the COMPLETE model (all layers) — for the full-stack export
   onClose: () => void;
@@ -62,9 +64,43 @@ export function CodePreview({
   const [verdict, setVerdict] = useState<VerifyVerdict | null>(null);
   const [running, setRunning] = useState(false);
   const [runUrl, setRunUrl] = useState<string | null>(null);
+  const [polishing, setPolishing] = useState(false);
+  // A proposed UX pass awaiting review: the improved specs + per-screen rationale + which screens to apply.
+  const [polish, setPolish] = useState<{ views: Record<string, unknown>; improvements: Record<string, string[]> } | null>(null);
+  const [polishAccept, setPolishAccept] = useState<Record<string, boolean>>({});
   const autoStop = useRef(false);
   const zipName = `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`;
-  const busy = exporting || reviewing || fixing || auto || verifying || autoVerifying || running;
+  const busy = exporting || reviewing || fixing || auto || verifying || autoVerifying || running || polishing;
+
+  // Automated UX pass: a "senior designer" agent critiques + improves every screen's view spec against the
+  // Kiln design rubric, iterating to best practices. The result is REVIEWED (per-screen accept) before it
+  // touches the app — model proposes, human decides. Applying merges accepted specs into the live views.
+  async function polishUi(): Promise<void> {
+    if (!requestPolishUi) return;
+    setPolishing(true);
+    setExportNote(null);
+    try {
+      const res = await requestPolishUi((views as Record<string, unknown>) ?? {});
+      setPolish(res);
+      // Default: accept every screen that actually changed something.
+      setPolishAccept(Object.fromEntries(Object.keys(res.improvements).map((id) => [id, true])));
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPolishing(false);
+    }
+  }
+
+  function applyPolish(): void {
+    if (!polish) return;
+    // Merge only the accepted screens' improved specs over the current views.
+    const next: Record<string, unknown> = { ...(views ?? {}) };
+    for (const [id, spec] of Object.entries(polish.views)) if (polishAccept[id] !== false) next[id] = spec;
+    setViews(next);
+    setPolish(null);
+    const n = Object.values(polishAccept).filter(Boolean).length;
+    setExportNote(`Applied the UX pass to ${n} screen${n === 1 ? "" : "s"} — Run app or export to see it.`);
+  }
 
   // Run the generated app locally: POST the assembled files to the service, which boots the zero-dep
   // Node/SQLite server and returns a live preview URL — opened in a new tab (the "see the outcome" loop).
@@ -73,7 +109,7 @@ export function CodePreview({
     setRunning(true);
     setExportNote(null);
     try {
-      const { uiUrl } = await requestRun(currentFiles());
+      const { uiUrl } = await requestRun(currentFiles(), (views as never) ?? undefined);
       setRunUrl(uiUrl);
       window.open(uiUrl, "_blank", "noopener");
     } catch (e) {
@@ -271,6 +307,11 @@ export function CodePreview({
           <button className="code-export ghost" onClick={() => void autoVerify()} disabled={busy} title={t("verifyAutoHint")}>
             <Icon name="refresh" size={14} />{autoVerifying ? t("generating") : t("verifyAuto")}
           </button>
+          {requestPolishUi && (
+            <button className="code-export ghost" onClick={() => void polishUi()} disabled={busy} title="A designer agent critiques + improves every screen (hierarchy, formats, badges, hidden ids) in the Kiln design language — you review before it applies">
+              <Icon name="sparkles" size={14} />{polishing ? "Polishing…" : "Polish UI"}
+            </button>
+          )}
           {requestRun && (
             <button className="code-export" onClick={() => void runApp()} disabled={busy} title="Boot the generated app locally and open it in a new tab">
               <Icon name="play" size={14} />{running ? "Starting…" : "Run app"}
@@ -311,6 +352,42 @@ export function CodePreview({
                 <li key={c.name}><code className={c.ok ? "sev-low" : "sev-high"}>{c.ok ? "✓" : "✗"}</code> <span className="cr-file">{c.name}</span> <span className="muted">{c.detail}</span></li>
               ))}
             </ul>
+          )}
+        </div>
+      )}
+
+      {polish && (
+        <div className="code-review">
+          <div className="code-review-head">
+            <Icon name="sparkles" size={15} /> UX pass — review the improvements
+            <button className="nd-close" onClick={() => setPolish(null)} aria-label="close">×</button>
+          </div>
+          {Object.keys(polish.improvements).length === 0 ? (
+            <p className="code-review-advisory">Every screen already follows the design best practices — nothing to change.</p>
+          ) : (
+            <>
+              <ul className="verify-checks">
+                {Object.entries(polish.improvements).map(([id, notes]) => {
+                  const name = domain.aggregates.find((a) => a.id === id)?.name ?? id;
+                  return (
+                    <li key={id}>
+                      <label style={{ display: "flex", gap: 8, alignItems: "baseline", cursor: "pointer" }}>
+                        <input type="checkbox" checked={polishAccept[id] !== false} onChange={(e) => setPolishAccept((p) => ({ ...p, [id]: e.target.checked }))} />
+                        <span><strong>{name}</strong>
+                          <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
+                            {notes.map((n, i) => <li key={i} className="muted">{n}</li>)}
+                          </ul>
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="code-export" onClick={() => applyPolish()} disabled={busy}><Icon name="check" size={14} />Apply</button>
+                <button className="code-export ghost" onClick={() => setPolish(null)} disabled={busy}>Discard</button>
+              </div>
+            </>
           )}
         </div>
       )}

@@ -1661,12 +1661,19 @@ export default function App(): React.JSX.Element {
                   const res = await fetch(`${SERVICE_URL}/api/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ files }) });
                   return await res.json();
                 }}
-                requestRun={serverUp ? async (files) => {
-                  const res = await fetch(`${SERVICE_URL}/api/run`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ files }) });
+                requestRun={serverUp ? async (files, views) => {
+                  const res = await fetch(`${SERVICE_URL}/api/run`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ files, views }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
                   return { uiUrl: data.uiUrl as string, id: data.id as string };
                 } : undefined}
+                requestPolishUi={async (views) => {
+                  const res = await fetch(`${SERVICE_URL}/api/polish-ui`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, views, model: modelFor("entities"), effort: active.effort, provider: engine }) });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+                  setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                  return { views: data.views ?? {}, improvements: data.improvements ?? {} };
+                }}
                 requestCodeReview={async (handlerCode) => {
                   const res = await fetch(`${SERVICE_URL}/api/code-review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, handlerCode, model: modelFor("behaviour"), provider: engine }) });
                   const data = await res.json();

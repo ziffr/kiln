@@ -45,7 +45,7 @@ function renderOne(e: AppModel["entities"][number]): string {
 }
 
 /** Keep only real fields / allowed formats — the spec can never reference something that doesn't exist. */
-function validateSpec(raw: unknown, e: AppModel["entities"][number]): ViewSpec | null {
+export function validateSpec(raw: unknown, e: AppModel["entities"][number]): ViewSpec | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const real = new Set(e.fields.map((f) => f.name));

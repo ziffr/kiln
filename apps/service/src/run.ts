@@ -20,6 +20,7 @@ interface RunEntry {
   proc: ChildProcess;
   dir: string;
   model: unknown;
+  views: unknown; // polished per-entity view specs (drives the preview's columns/formats), or {}
   startedAt: number;
 }
 
@@ -65,6 +66,7 @@ async function waitReady(port: number, timeoutMs = 8000): Promise<boolean> {
 export async function startRun(
   files: Record<string, string>,
   origin: string,
+  views: unknown = {},
 ): Promise<{ id: string; port: number; uiUrl: string }> {
   if (!files["server.mjs"] || !files["handlers.mjs"] || !files["model.json"]) {
     throw new Error("generated app is missing server.mjs / handlers.mjs / model.json");
@@ -92,7 +94,7 @@ export async function startRun(
   }
   let model: unknown = {};
   try { model = JSON.parse(files["model.json"]); } catch {/* keep {} */}
-  runs.set(id, { id, port, proc, dir, model, startedAt: Date.now() });
+  runs.set(id, { id, port, proc, dir, model, views: views && typeof views === "object" ? views : {}, startedAt: Date.now() });
   return { id, port, uiUrl: `${origin}/run/${id}/` };
 }
 
@@ -124,10 +126,10 @@ for (const sig of ["exit", "SIGINT", "SIGTERM"] as const) {
  * command buttons + a live event log, talking to the spawned API at `apiBase`. Pure string builder
  * (exported for a unit test); the model is inlined as JSON so the page needs no extra fetch to boot.
  */
-export function runClientHtml(model: unknown, apiBase: string): string {
+export function runClientHtml(model: unknown, apiBase: string, views: unknown = {}): string {
   const m = (model && typeof model === "object" ? model : {}) as Record<string, unknown>;
   const domain = typeof m.domain === "string" ? m.domain : "app";
-  const data = JSON.stringify({ model: m, api: apiBase });
+  const data = JSON.stringify({ model: m, api: apiBase, views: views && typeof views === "object" ? views : {} });
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(domain)} — live preview</title>
@@ -162,6 +164,7 @@ export function runClientHtml(model: unknown, apiBase: string): string {
   th { background: var(--panel-2); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
   tbody tr:hover { background: #fcfbf9; }
   .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; max-width: 540px; box-shadow: var(--shadow); }
+  .badge-cell { display:inline-block; padding:2px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-size:12px; font-weight:550; text-transform:capitalize; }
   label { display: block; margin-bottom: 10px; font-size: 12px; color: var(--muted); }
   label input { display: block; width: 100%; padding: 7px 9px; margin-top: 3px; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--edge); border-radius: 8px; }
   label input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -184,7 +187,7 @@ export function runClientHtml(model: unknown, apiBase: string): string {
   <main id="main"></main>
 </div>
 <script>
-const { model: MODEL, api: API } = ${data};
+const { model: MODEL, api: API, views: VIEWS } = ${data};
 let role = "";
 const H = () => ({ "content-type": "application/json", "x-role": role });
 const api = {
@@ -238,14 +241,22 @@ async function renderMain() {
   }
   const entity = entities.find(e => e.id === screen); if (!entity) return;
   main.append(el("h2", { textContent: entity.name }));
+  // Render per the polished view spec (columns/formats/formFields) when present — else a sensible default.
+  const view = VIEWS[entity.id] || defaultView(entity);
+  if (view.description) main.append(el("p", { className: "muted", textContent: view.description }));
   const rows = await api.list(entity.id);
-  const fields = entity.fields || [];
+  const typeOf = Object.fromEntries((entity.fields || []).map(f => [f.name, f.type]));
   const tbl = el("table");
-  const thead = el("thead"); const htr = el("tr"); fields.forEach(f => htr.append(el("th", { textContent: f.name }))); htr.append(el("th")); thead.append(htr); tbl.append(thead);
+  const thead = el("thead"); const htr = el("tr"); view.columns.forEach(c => htr.append(el("th", { textContent: c.field }))); htr.append(el("th")); thead.append(htr); tbl.append(thead);
   const tb = el("tbody");
   (rows || []).forEach(r => {
     const tr = el("tr");
-    fields.forEach(f => tr.append(el("td", { textContent: fmt(r[f.name]) }))); // textContent → no XSS from user-entered data
+    view.columns.forEach(c => {
+      const td = el("td"); // textContent everywhere → no XSS from user-entered data
+      if (c.format === "badge" && r[c.field] != null && r[c.field] !== "") td.append(el("span", { className: "badge-cell", textContent: String(r[c.field]) }));
+      else td.textContent = fmt(r[c.field], c.format);
+      tr.append(td);
+    });
     const del = el("button", { textContent: "✕" }); del.onclick = async () => { await api.remove(entity.id, r.id); render(); };
     const td = el("td"); td.append(del); tr.append(td); tb.append(tr);
   });
@@ -253,11 +264,12 @@ async function renderMain() {
 
   const form = {};
   const panel = el("div", { className: "panel" }); panel.append(el("h3", { textContent: "New " + entity.name }));
-  fields.forEach(f => {
-    const lab = el("label"); lab.append(document.createTextNode(f.name + " "));
-    lab.append(el("span", { className: "muted", textContent: f.type }));
-    const inp = el("input", { type: inputType(f.type) });
-    inp.oninput = e => { form[f.name] = f.type === "boolean" ? e.target.checked : e.target.value; };
+  view.formFields.forEach(name => {
+    const type = typeOf[name] || "text";
+    const lab = el("label"); lab.append(document.createTextNode(name + " "));
+    lab.append(el("span", { className: "muted", textContent: type }));
+    const inp = el("input", { type: inputType(type) });
+    inp.oninput = e => { form[name] = type === "boolean" ? e.target.checked : e.target.value; };
     lab.append(inp); panel.append(lab);
   });
   const create = el("button", { className: "primary", textContent: "Create" });
@@ -271,7 +283,18 @@ async function renderMain() {
     main.append(cp);
   }
 }
-function fmt(v) { if (v === null || v === undefined) return ""; if (typeof v === "boolean") return v ? "✓" : "✗"; return String(v); }
+function fmt(v, format) {
+  if (v === null || v === undefined || v === "") return "";
+  if (format === "money") return "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 });
+  if (format === "boolean" || typeof v === "boolean") return v ? "✓" : "✗";
+  if (format === "longtext") { const s = String(v); return s.length > 64 ? s.slice(0, 64) + "…" : s; }
+  return String(v);
+}
+// The default screen when a screen has no polished view spec: all fields, typed formats, no title.
+function defaultView(entity) {
+  const fields = entity.fields || [];
+  return { columns: fields.map(f => ({ field: f.name, format: ["money","date","boolean"].includes(f.type) ? f.type : "text" })), formFields: fields.map(f => f.name) };
+}
 function render() { renderRole(); renderNav(); renderMain(); }
 render();
 </script>

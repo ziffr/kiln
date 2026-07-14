@@ -11,12 +11,23 @@ for developers.
 **How.** The **View code** panel presents your model across tabs: data types, an API, on-screen structure,
 permissions, processes, agents, and deployment. The toolbar groups three things:
 
-- **Check** — have an AI review, auto-fix, and test the generated code.
+- **Check** — have an AI review, auto-fix, and test the generated code, and **✨ Polish UI** (see below).
 - **Run app** — boot the generated app **locally** and open it in a new browser tab (see below).
 - **Export** — download just the scaffold, a runnable app with AI-written logic, or the whole
   **Full-Stack** project as a zip.
 
 It's scaffolding, not the finished software — a base that developers extend by hand.
+
+## ✨ Polish UI — an automatic design pass
+
+Click **✨ Polish UI** and a senior-designer AI reviews every generated screen against UX best practices
+in Kiln's design language and proposes improvements: a clear row title, hiding raw ids and technical
+fields, the right formats (money, dates, badges for statuses), a sensible column selection and form
+order, and a one-line screen description. It **iterates** each screen toward the guidelines, then shows
+you the changes **per screen to accept or skip** — nothing is applied until you say so. Apply, then
+**Run app** or export to see the result. It changes *information design* (layout data), never code, so it
+can't break the build. Web research and the interview aside, it runs on your selected
+[engine](../reference/choosing-an-engine).
 
 ## Run app — see the outcome before you export
 

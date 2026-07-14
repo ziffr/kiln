@@ -23,6 +23,7 @@ import {
   critiqueLayer,
   generateAppLogic,
   generateComponents,
+  polishComponents,
   reviewGeneratedCode,
   CRITIQUE_EFFORT,
   type LayerKind,
@@ -261,10 +262,10 @@ const server = createServer(async (req, res) => {
     // ---- Local "Run app" sandbox: boot the generated zero-dep app + serve a live preview page. ----
     // POST /api/run { files } → spawn node server.mjs on a free port; returns a UI url to open in a tab.
     if (req.method === "POST" && req.url === "/api/run") {
-      const body = JSON.parse((await readBody(req)) || "{}") as { files?: Record<string, string> };
+      const body = JSON.parse((await readBody(req)) || "{}") as { files?: Record<string, string>; views?: Record<string, unknown> };
       if (!body.files || typeof body.files !== "object") return send(res, 400, { error: "files (the generated app) are required" });
       const origin = `http://${req.headers.host ?? `localhost:${PORT}`}`;
-      const started = await startRun(body.files, origin);
+      const started = await startRun(body.files, origin, body.views ?? {});
       return send(res, 200, started);
     }
     // POST /api/run/<id>/stop → kill the sandbox + clean its temp dir.
@@ -281,7 +282,7 @@ const server = createServer(async (req, res) => {
         return res.end("<h1>Run not found</h1><p>The preview may have been stopped. Re-run from Studio.</p>");
       }
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      return res.end(runClientHtml(run.model, `http://localhost:${run.port}`));
+      return res.end(runClientHtml(run.model, `http://localhost:${run.port}`, run.views));
     }
 
     if (req.method === "GET" && req.url === "/api/models") {
@@ -543,6 +544,23 @@ const server = createServer(async (req, res) => {
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
       const provider = makeProvider(model, effort, usage);
       const result = await generateComponents(body.capabilities, body.domain as never, body.contexts as never, provider);
+      const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
+      const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+      return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
+    // Automated UX pass: a "senior designer" critiques + improves each screen's view spec (build-safe
+    // data), iterating toward the design-language best practices. Returns improved views + per-screen why.
+    if (req.method === "POST" && req.url === "/api/polish-ui") {
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
+      const body = JSON.parse((await readBody(req)) || "{}") as { capabilities?: CapabilityDoc; domain?: unknown; contexts?: unknown; views?: Record<string, never>; rounds?: number; model?: string; effort?: string };
+      if (!body.capabilities?.capabilities?.length || !body.domain) return send(res, 400, { error: "capabilities and domain are required" });
+      const model = resolveModel(body);
+      const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const provider = makeProvider(model, effort, usage);
+      const result = await polishComponents(body.capabilities, body.domain as never, body.contexts as never, body.views as never, provider, { rounds: body.rounds });
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);

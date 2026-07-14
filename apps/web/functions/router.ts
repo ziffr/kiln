@@ -28,6 +28,7 @@ import integrations from "./integrations.ts";
 import models from "./models.ts";
 import orchestration from "./orchestration.ts";
 import policies from "./policies.ts";
+import polishUi from "./polish-ui.ts";
 import roles from "./roles.ts";
 import structure from "./structure.ts";
 import translate from "./translate.ts";
@@ -60,6 +61,7 @@ const routes: Record<string, Handler> = {
   models,
   orchestration,
   policies,
+  "polish-ui": polishUi,
   roles,
   structure,
   translate,

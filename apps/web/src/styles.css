@@ -483,18 +483,19 @@ textarea {
 
 /* Settings modal + effort transparency */
 .review-effort { font-size: 11px; border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; color: #9aa4b2; }
-.settings-modal { max-width: 560px; }
-.settings-toggle { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0; cursor: pointer; }
-.settings-toggle input { margin-top: 3px; accent-color: var(--accent-2); }
-.settings-table { width: 100%; border-collapse: collapse; margin: 6px 0 14px; }
-.settings-table th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--border); }
-.settings-table td { padding: 5px 6px; border-bottom: 1px solid var(--bg); }
-.settings-table select { min-width: 90px; }
+/* AI-review settings: a labelled toggle + a clean net-effect table, inside the standard modal shell. */
+.settings-toggle { display: flex; gap: 9px; align-items: flex-start; margin: 8px 0 4px; cursor: pointer; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.settings-toggle input { margin-top: 2px; accent-color: var(--accent-2); flex: none; }
+.settings-toggle strong { color: var(--fg); font-weight: 600; }
+.settings-table { width: 100%; border-collapse: collapse; margin: 8px 0 6px; }
+.settings-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 4px 8px 6px; border-bottom: 1px solid var(--border); }
+.settings-table td { padding: 7px 8px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); font-size: 13px; }
+.settings-table tr:last-child td { border-bottom: none; }
+.settings-table select { min-width: 96px; }
 .settings-badge { margin-left: 8px; font-size: 11px; color: var(--accent-2); }
-.settings-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
 
-/* Model-tier settings */
-.settings-h { font-size: 13px; margin: 16px 0 4px; color: var(--fg); }
+/* Section header inside settings — a quiet, "designed" label. */
+.settings-h { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; margin: 18px 0 6px; color: var(--muted); }
 .settings-h:first-child { margin-top: 2px; }
 .settings-tier-tag { margin-left: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; }
 
@@ -1082,6 +1083,9 @@ textarea {
   border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 20px 60px rgba(20,17,13,.28);
   animation: modal-pop .14s cubic-bezier(.2,.8,.2,1);
 }
+/* Wider variant for content-heavy modals (settings tables, the examples gallery). */
+.modal-card.wide { max-width: 640px; }
+.modal-card.wide .modal-body { max-height: min(72vh, 720px); overflow: auto; }
 @keyframes modal-pop { from { opacity: 0; transform: translateY(6px) scale(.99); } to { opacity: 1; transform: none; } }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 0; }
 .modal-head h3 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }

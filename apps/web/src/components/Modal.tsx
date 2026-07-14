@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { Icon } from "./Icon";
 
-export function Modal({ title, onClose, children, footer }: { title: string; onClose: () => void; children?: ReactNode; footer?: ReactNode }): JSX.Element {
+export function Modal({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children?: ReactNode; footer?: ReactNode; wide?: boolean }): JSX.Element {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -13,7 +13,7 @@ export function Modal({ title, onClose, children, footer }: { title: string; onC
   }, [onClose]);
   return (
     <div className="modal-overlay" onMouseDown={onClose} role="presentation">
-      <div className="modal-card" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}>
+      <div className={`modal-card${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>{title}</h3>
           <button className="modal-x" onClick={onClose} aria-label="Close"><Icon name="x" size={16} /></button>

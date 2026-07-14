@@ -17,7 +17,7 @@ export function ExamplesModal({ onPick, onClose, t }: { onPick: (p: Project) => 
   // Build the gallery once (fresh ids per mount); pick hands the chosen Project up to App.
   const [examples] = useState(() => exampleProjects());
   return (
-    <Modal title={t("examplesTitle")} onClose={onClose}>
+    <Modal title={t("examplesTitle")} onClose={onClose} wide>
       <p className="modal-message muted">{t("examplesHint")}</p>
       <div className="examples-grid">
         {examples.map((ex, i) => {

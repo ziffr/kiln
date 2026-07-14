@@ -1,4 +1,5 @@
 import type { LayerKind, Tier } from "@kiln/skills";
+import { Modal } from "./Modal";
 
 // Settings for the AI stages: transparency + control over which MODEL and EFFORT each step runs at.
 // Two independent knobs, both opt-in-friendly:
@@ -43,13 +44,12 @@ export function SettingsModal(props: Props): React.JSX.Element {
   const modelSupportsEffort = (id: string): boolean => models.find((m) => m.id === id)?.supportsEffort ?? true;
 
   return (
-    <div className="guide-overlay" onClick={onClose}>
-      <div className="guide settings-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="guide-head">
-          <h2>⚙︎ {t("settingsTitle")}</h2>
-          <button className="nd-close" onClick={onClose} aria-label="close">×</button>
-        </div>
-        <div className="guide-body">
+    <Modal title={t("settingsTitle")} onClose={onClose} wide
+      footer={<>
+        <button className="btn ghost" onClick={onReset}>{t("settingsReset")}</button>
+        <button className="btn primary" onClick={onClose}>{t("settingsDone")}</button>
+      </>}>
+      <div className="settings">
           {/* ---- Model per step ---- */}
           <h3 className="settings-h">{t("settingsModelSection")}</h3>
           <label className="settings-toggle">
@@ -115,12 +115,7 @@ export function SettingsModal(props: Props): React.JSX.Element {
             </tbody>
           </table>
 
-          <div className="settings-actions">
-            <button className="review-btn" onClick={onReset}>{t("settingsReset")}</button>
-            <button className="generate" onClick={onClose}>{t("settingsDone")}</button>
-          </div>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

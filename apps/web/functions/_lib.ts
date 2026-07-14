@@ -8,25 +8,90 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { safeParseJson, type LlmProvider, type LlmRequest } from "@kiln/skills";
 
+export type ProviderId = "anthropic" | "openrouter" | "omniroute";
+
 export interface ModelOption {
   id: string;
   label: string;
+  provider: ProviderId;
   supportsEffort: boolean;
   inPerM: number;
   outPerM: number;
 }
 
-// Pricing per the claude-api skill (2026-07); estimates only (authoritative billing is the Console).
-export const MODELS: ModelOption[] = [
-  { id: "claude-sonnet-5", label: "Sonnet 5", supportsEffort: true, inPerM: 2, outPerM: 10 },
-  { id: "claude-opus-4-8", label: "Opus 4.8", supportsEffort: true, inPerM: 5, outPerM: 25 },
-  { id: "claude-haiku-4-5", label: "Haiku 4.5", supportsEffort: false, inPerM: 1, outPerM: 5 },
+export interface ProviderCatalog {
+  id: ProviderId;
+  label: string;
+  kind: "anthropic" | "openai";
+  models: ModelOption[];
+  allowCustomModel: boolean;
+  defaultModel: string;
+  note?: string;
+}
+
+// Provider catalog — MIRRORS apps/service/src/models.ts (the functions are a self-contained deploy mirror
+// of the local service). Anthropic stays default/preferred; OpenRouter + omniroute are OpenAI-compatible
+// gateways, selectable when their key is set on the server. Pricing is Anthropic-only estimates (0 = n/a).
+const ANTHROPIC_MODELS: ModelOption[] = [
+  { id: "claude-sonnet-5", label: "Sonnet 5", provider: "anthropic", supportsEffort: true, inPerM: 2, outPerM: 10 },
+  { id: "claude-opus-4-8", label: "Opus 4.8", provider: "anthropic", supportsEffort: true, inPerM: 5, outPerM: 25 },
+  { id: "claude-haiku-4-5", label: "Haiku 4.5", provider: "anthropic", supportsEffort: false, inPerM: 1, outPerM: 5 },
 ];
+const OPENROUTER_MODELS: ModelOption[] = [
+  { id: "anthropic/claude-sonnet-4.5", label: "Claude Sonnet 4.5 (OpenRouter)", provider: "openrouter", supportsEffort: true, inPerM: 0, outPerM: 0 },
+  { id: "openai/gpt-5", label: "GPT-5 (OpenRouter)", provider: "openrouter", supportsEffort: true, inPerM: 0, outPerM: 0 },
+  { id: "openai/gpt-4o", label: "GPT-4o (OpenRouter)", provider: "openrouter", supportsEffort: false, inPerM: 0, outPerM: 0 },
+  { id: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro (OpenRouter)", provider: "openrouter", supportsEffort: false, inPerM: 0, outPerM: 0 },
+  { id: "deepseek/deepseek-chat", label: "DeepSeek V3 (OpenRouter)", provider: "openrouter", supportsEffort: false, inPerM: 0, outPerM: 0 },
+  { id: "meta-llama/llama-3.3-70b-instruct", label: "Llama 3.3 70B (OpenRouter)", provider: "openrouter", supportsEffort: false, inPerM: 0, outPerM: 0 },
+];
+const OMNIROUTE_MODELS: ModelOption[] = [
+  { id: "auto", label: "Auto (best available)", provider: "omniroute", supportsEffort: false, inPerM: 0, outPerM: 0 },
+  { id: "auto/coding", label: "Auto · coding", provider: "omniroute", supportsEffort: false, inPerM: 0, outPerM: 0 },
+  { id: "auto/fast", label: "Auto · fast", provider: "omniroute", supportsEffort: false, inPerM: 0, outPerM: 0 },
+  { id: "auto/cheap", label: "Auto · cheap", provider: "omniroute", supportsEffort: false, inPerM: 0, outPerM: 0 },
+];
+
+export const PROVIDERS: ProviderCatalog[] = [
+  { id: "anthropic", label: "Anthropic (recommended)", kind: "anthropic", models: ANTHROPIC_MODELS, allowCustomModel: false, defaultModel: "claude-sonnet-5", note: "Kiln's default engine — best structured-output + effort support." },
+  { id: "openrouter", label: "OpenRouter", kind: "openai", models: OPENROUTER_MODELS, allowCustomModel: true, defaultModel: "anthropic/claude-sonnet-4.5", note: "Hosted gateway to 250+ models. Any slug from openrouter.ai/models works." },
+  { id: "omniroute", label: "omniroute (self-hosted)", kind: "openai", models: OMNIROUTE_MODELS, allowCustomModel: true, defaultModel: "auto", note: "Local proxy (default localhost:20128). Connect providers in its dashboard first." },
+];
+
+export const MODELS: ModelOption[] = PROVIDERS.flatMap((p) => p.models);
 export const EFFORTS = ["low", "medium", "high", "max"] as const;
+export const DEFAULT_PROVIDER: ProviderId = "anthropic";
 export const DEFAULT_MODEL = "claude-sonnet-5";
 export const DEFAULT_EFFORT = "medium";
+export const providerById = (id: string | undefined): ProviderCatalog | undefined => PROVIDERS.find((p) => p.id === id);
+/** Look a model up across every provider's catalog (ids are globally unique). */
 export const modelById = (id: string): ModelOption | undefined => MODELS.find((m) => m.id === id);
 export const pickEffort = (e?: string): string => ((EFFORTS as readonly string[]).includes(e ?? "") ? (e as string) : DEFAULT_EFFORT);
+/** Force an Anthropic model — for the Anthropic-only endpoints (coach + web-search enrichment). */
+export const anthropicModel = (id?: string): ModelOption => {
+  const opt = id ? modelById(id) : undefined;
+  return opt && opt.provider === "anthropic" ? opt : modelById(DEFAULT_MODEL)!;
+};
+
+/** Which gateway engines have a key set on the server (Anthropic handled separately via anthropicClient). */
+export function openrouterCfg(): { apiKey: string; baseUrl: string } | null {
+  const apiKey = process.env.KILN_OPENROUTER_API_KEY;
+  return apiKey ? { apiKey, baseUrl: process.env.KILN_OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1" } : null;
+}
+export function omnirouteCfg(): { apiKey: string; baseUrl: string } | null {
+  const apiKey = process.env.KILN_OMNIROUTE_API_KEY;
+  return apiKey ? { apiKey, baseUrl: process.env.KILN_OMNIROUTE_BASE_URL ?? "http://localhost:20128/v1" } : null;
+}
+export function providerConfigured(id: ProviderId): boolean {
+  if (id === "anthropic") return Boolean(anthropicClient());
+  if (id === "openrouter") return Boolean(openrouterCfg());
+  if (id === "omniroute") return Boolean(omnirouteCfg());
+  return false;
+}
+/** The provider catalog narrowed to engines whose key is set (Anthropic first/preferred). */
+export function configuredProviders(): ProviderCatalog[] {
+  return PROVIDERS.filter((p) => providerConfigured(p.id));
+}
 
 export interface UsageAcc {
   input: number;
@@ -59,8 +124,63 @@ export function providerLabel(): string {
   return process.env.KILN_LANGDOCK_API_KEY ? "langdock" : "anthropic";
 }
 
+/** OpenAI-compatible adapter (OpenRouter / omniroute) — dependency-free fetch; mirrors
+ *  apps/service/src/providers/openaiCompatible.ts. schema→response_format, effort→reasoning_effort,
+ *  degrade once on a 400 (drop both) → repair-parse. */
+export function openAiCompatibleProvider(
+  cfg: { apiKey: string; baseUrl: string; label: string },
+  model: string,
+  effort: string,
+  supportsEffort: boolean,
+  usage: UsageAcc,
+): LlmProvider {
+  const url = `${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`;
+  const name = `${cfg.label}:${model}`;
+  const buildBody = (withStructured: boolean, req: LlmRequest): Record<string, unknown> => {
+    const system = req.schema ? `${req.system}\n\nRespond with a single valid JSON object only — no prose, no markdown fences.` : req.system;
+    const body: Record<string, unknown> = { model, max_tokens: 16000, messages: [{ role: "system", content: system }, { role: "user", content: req.user }] };
+    if (withStructured && req.schema) body.response_format = { type: "json_schema", json_schema: { name: "kiln_output", strict: true, schema: req.schema } };
+    if (withStructured && supportsEffort && effort) body.reasoning_effort = effort === "max" ? "high" : effort;
+    return body;
+  };
+  const post = (body: Record<string, unknown>): Promise<Response> =>
+    fetch(url, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${cfg.apiKey}`, "HTTP-Referer": "https://kilnstudio.app", "X-Title": "Kiln Studio" }, body: JSON.stringify(body) });
+  return {
+    name,
+    async complete(req: LlmRequest) {
+      let resp = await post(buildBody(true, req));
+      if (resp.status === 400) resp = await post(buildBody(false, req));
+      if (!resp.ok) throw new Error(`${cfg.label} request failed (${resp.status}): ${(await resp.text().catch(() => "")).slice(0, 500)}`);
+      const json = (await resp.json()) as { usage?: { prompt_tokens?: number; completion_tokens?: number }; choices?: Array<{ message?: { content?: unknown } }> };
+      usage.input += json.usage?.prompt_tokens ?? 0;
+      usage.output += json.usage?.completion_tokens ?? 0;
+      const content = json.choices?.[0]?.message?.content;
+      const text = (typeof content === "string" ? content : Array.isArray(content) ? content.map((p) => (typeof p === "string" ? p : String((p as { text?: unknown }).text ?? ""))).join("") : "").trim();
+      return { json: safeParseJson(text), raw: text, provider: name };
+    },
+  };
+}
+
+/**
+ * Build the right LlmProvider for a model, dispatching by the model's provider. Exported (and aliased as
+ * `anthropicProvider`) so the handler call sites — `anthropicProvider(client, model.id, …)` — are unchanged:
+ * catalog model ids are globally unique, so we look the provider up by id. `client` is the Anthropic client
+ * (from requireClient) used only for Anthropic models; gateway models ignore it and use their own key.
+ */
+export function makeProvider(client: Anthropic | null, modelId: string, effort: string, supportsEffort: boolean, usage: UsageAcc): LlmProvider {
+  const provider = modelById(modelId)?.provider ?? "anthropic";
+  const or = openrouterCfg();
+  const om = omnirouteCfg();
+  if (provider === "openrouter" && or) return openAiCompatibleProvider({ ...or, label: "openrouter" }, modelId, effort, supportsEffort, usage);
+  if (provider === "omniroute" && om) return openAiCompatibleProvider({ ...om, label: "omniroute" }, modelId, effort, supportsEffort, usage);
+  if (client) return anthropicOnlyProvider(client, modelId, effort, supportsEffort, usage);
+  throw new Error(`engine "${provider}" is not configured on the server`);
+}
+/** Back-compat alias: handlers import `anthropicProvider`; it now dispatches by the model's provider. */
+export const anthropicProvider = makeProvider;
+
 /** Build an LlmProvider backed by the Anthropic SDK; accumulates token usage into `usage`. */
-export function anthropicProvider(client: Anthropic, model: string, effort: string, supportsEffort: boolean, usage: UsageAcc): LlmProvider {
+export function anthropicOnlyProvider(client: Anthropic, model: string, effort: string, supportsEffort: boolean, usage: UsageAcc): LlmProvider {
   const label = providerLabel();
   return {
     name: `${label}:${model}`,

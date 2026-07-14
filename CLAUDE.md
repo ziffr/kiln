@@ -123,8 +123,15 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
   Closes the loop describe→adjust→**run/see**→export; offline, no build. Verified in-browser (engine
   switch re-filters models; solar app booted, created a Lead, fired Capture Lead → `lead_captured` event).
   **322 tests** (test glob now also runs `apps/*/test/*.test.ts`); web build green. Docs: new
-  `reference/choosing-an-engine.md` + `view-code.md` Run-app section + `.env.example`. NOT YET on the
-  hosted Vercel functions (`functions/router.ts`) — that's a fast follow; Run app is local/self-host only.
+  `reference/choosing-an-engine.md` + `view-code.md` Run-app section + `.env.example`. (3) **Engine seam
+  wired into the hosted Vercel functions too** — `apps/web/functions/_lib.ts` mirrors the service catalog +
+  gains `openAiCompatibleProvider` + a `makeProvider` dispatcher aliased as `anthropicProvider` (so the 20
+  generic handlers are unchanged: catalog ids are globally unique → dispatch by id); the 3 Anthropic-only
+  handlers (coach/enrich-web/enrich-layer) coerce to an Anthropic model via `anthropicModel`; `functions/
+  models.ts` returns the configured-engine catalog. Anthropic stays the hosted BASELINE (gateways are
+  additive/selectable on top); gateway-only-no-Anthropic hosting is a non-goal. Verified: bundled catch-all
+  `/api/models` returns providers `[anthropic, openrouter]`; `makeProvider` routes `openai/gpt-5`→openrouter
+  adapter, `claude-sonnet-5`→Anthropic SDK. Run app stays local/self-host only (needs spawn/fs).
 - **LAUNCH-STAGED (private): renamed to Kiln, reviewed, deployed.** Repo is `github.com/ziffr/kiln` (PRIVATE, owner chose to hold the public flip). Full VBD→Kiln rename done (packages/CLI/env/IDs/prose; legacy `VBD_ANTHROPIC_API_KEY` + storage-key aliases kept for back-compat). Launch-readiness review: no blockers, no committed secrets. Live on Vercel (auto-deploy via git integration) serving Kiln; hosted demo is client-side (baked examples + all stages + code preview + full-stack export) � real-LLM `/api` now WORKS on the hosted demo — the 25 functions were consolidated into one catch-all (`functions/router.ts` � `api/[...path].js`), under the plan cap; verified `/api/models` ready:true. To go public (owner's word): flip visibility, enable Discussions, add `ANTHROPIC_API_KEY` secret, enable "Actions may create PRs", branch-protect main, set description/topics/social image; optionally rename the Vercel project off the old URL.
 - **Building the FULL methodology stack** (user: "the whole enchilada"): policies ✅ → roles ✅ →
   workflows ✅ → agents ✅ → application/implementation blueprints ✅ → execution codegen MCP/React ✅ (adapters hand-owned per ADR-002). FULL STACK BUILT.

@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ENRICH_LAYER_SYSTEM_PROMPT, renderEnrichLayerUserPrompt, extractJsonObject } from "@kiln/skills";
-import { requireClient, readBody, estCost, modelById, DEFAULT_MODEL, type Req, type Res } from "./_lib.ts";
+import { requireClient, readBody, estCost, anthropicModel, type Req, type Res } from "./_lib.ts";
 
 export default async function handler(req: Req, res: Res): Promise<void> {
   const client = requireClient(req, res);
@@ -8,7 +8,7 @@ export default async function handler(req: Req, res: Res): Promise<void> {
   const body = readBody<{ layer?: string; capabilities?: { capabilities?: unknown[] }; roles?: unknown; agents?: unknown; model?: string }>(req);
   const layer = body.layer === "roles" || body.layer === "agents" ? body.layer : "capabilities";
   if (!body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "capabilities are required" });
-  const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+  const model = anthropicModel(body.model);
   const resp = await client.messages.create({
     model: model.id,
     max_tokens: 4096,

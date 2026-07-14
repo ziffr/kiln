@@ -1,13 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ENRICH_WEB_SYSTEM_PROMPT, renderEnrichWebUserPrompt, coerceEnrichment, extractJsonObject } from "@kiln/skills";
-import { requireClient, readBody, estCost, modelById, DEFAULT_MODEL, type Req, type Res } from "./_lib.ts";
+import { requireClient, readBody, estCost, anthropicModel, type Req, type Res } from "./_lib.ts";
 
 export default async function handler(req: Req, res: Res): Promise<void> {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody<{ capabilities?: unknown; domain?: { aggregates?: unknown[] }; model?: string; effort?: string }>(req);
   if (!body.domain?.aggregates?.length) return void res.status(400).json({ error: "domain with aggregates is required" });
-  const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+  const model = anthropicModel(body.model);
   const resp = await client.messages.create({
     model: model.id,
     max_tokens: 4096,

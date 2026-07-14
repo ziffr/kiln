@@ -26,6 +26,10 @@ export const UI_SCAFFOLD: Record<string, string> = {
         "@radix-ui/react-label": "^2.1.0",
         "@radix-ui/react-switch": "^1.1.1",
         "@radix-ui/react-select": "^2.1.1",
+        "@radix-ui/react-dropdown-menu": "^2.1.1",
+        "@radix-ui/react-dialog": "^1.1.1",
+        "@radix-ui/react-tabs": "^1.1.0",
+        recharts: "^2.12.7",
       },
       devDependencies: {
         vite: "^5.4.6",
@@ -145,6 +149,102 @@ const styles: Record<string, string> = {
 };
 export function Badge({ className, variant = "secondary", ...props }: React.HTMLAttributes<HTMLDivElement> & { variant?: "default" | "secondary" | "outline" }) {
   return <div className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize", styles[variant], className)} {...props} />;
+}
+`,
+  "src/components/ui/dropdown-menu.tsx": `import * as React from "react";
+import * as P from "@radix-ui/react-dropdown-menu";
+import { cn } from "@/lib/utils";
+export const DropdownMenu = P.Root;
+export const DropdownMenuTrigger = P.Trigger;
+export const DropdownMenuContent = React.forwardRef<React.ElementRef<typeof P.Content>, React.ComponentPropsWithoutRef<typeof P.Content>>(({ className, sideOffset = 4, ...props }, ref) => (
+  <P.Portal><P.Content ref={ref} sideOffset={sideOffset} align="end" className={cn("z-50 min-w-[9rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md", className)} {...props} /></P.Portal>
+));
+DropdownMenuContent.displayName = "DropdownMenuContent";
+export const DropdownMenuItem = React.forwardRef<React.ElementRef<typeof P.Item>, React.ComponentPropsWithoutRef<typeof P.Item>>(({ className, ...props }, ref) => (
+  <P.Item ref={ref} className={cn("relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground", className)} {...props} />
+));
+DropdownMenuItem.displayName = "DropdownMenuItem";
+`,
+  "src/components/ui/sheet.tsx": `import * as React from "react";
+import * as P from "@radix-ui/react-dialog";
+import { cn } from "@/lib/utils";
+export const Sheet = P.Root;
+export const SheetTrigger = P.Trigger;
+export const SheetClose = P.Close;
+export const SheetContent = React.forwardRef<React.ElementRef<typeof P.Content>, React.ComponentPropsWithoutRef<typeof P.Content>>(({ className, children, ...props }, ref) => (
+  <P.Portal>
+    <P.Overlay className="fixed inset-0 z-50 bg-black/50" />
+    <P.Content ref={ref} className={cn("fixed inset-y-0 right-0 z-50 h-full w-3/4 max-w-md border-l bg-background p-6 shadow-lg overflow-y-auto", className)} {...props}>{children}</P.Content>
+  </P.Portal>
+));
+SheetContent.displayName = "SheetContent";
+export const SheetTitle = React.forwardRef<React.ElementRef<typeof P.Title>, React.ComponentPropsWithoutRef<typeof P.Title>>(({ className, ...props }, ref) => (
+  <P.Title ref={ref} className={cn("text-lg font-semibold mb-4", className)} {...props} />
+));
+SheetTitle.displayName = "SheetTitle";
+`,
+  "src/components/ui/tabs.tsx": `import * as React from "react";
+import * as P from "@radix-ui/react-tabs";
+import { cn } from "@/lib/utils";
+export const Tabs = P.Root;
+export const TabsList = React.forwardRef<React.ElementRef<typeof P.List>, React.ComponentPropsWithoutRef<typeof P.List>>(({ className, ...props }, ref) => (
+  <P.List ref={ref} className={cn("inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground", className)} {...props} />
+));
+TabsList.displayName = "TabsList";
+export const TabsTrigger = React.forwardRef<React.ElementRef<typeof P.Trigger>, React.ComponentPropsWithoutRef<typeof P.Trigger>>(({ className, ...props }, ref) => (
+  <P.Trigger ref={ref} className={cn("inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow", className)} {...props} />
+));
+TabsTrigger.displayName = "TabsTrigger";
+export const TabsContent = React.forwardRef<React.ElementRef<typeof P.Content>, React.ComponentPropsWithoutRef<typeof P.Content>>(({ className, ...props }, ref) => (
+  <P.Content ref={ref} className={cn("mt-3", className)} {...props} />
+));
+TabsContent.displayName = "TabsContent";
+`,
+  "src/components/ui/data-table.tsx": `import * as React from "react";
+import { useMemo, useState } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { formatCell } from "@/lib/format";
+export interface Column { field: string; label?: string; format?: string; }
+// A sortable + filterable table. Click a header to sort; type to filter across the shown columns.
+export function DataTable({ columns, rows, actions }: { columns: Column[]; rows: Record<string, unknown>[]; actions?: (row: Record<string, unknown>) => React.ReactNode }) {
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<{ field: string; dir: 1 | -1 } | null>(null);
+  const view = useMemo(() => {
+    let out = rows;
+    if (q) { const s = q.toLowerCase(); out = out.filter((r) => columns.some((c) => String(r[c.field] ?? "").toLowerCase().includes(s))); }
+    if (sort) { const { field, dir } = sort; out = [...out].sort((a, b) => (String(a[field] ?? "") > String(b[field] ?? "") ? dir : -dir)); }
+    return out;
+  }, [rows, q, sort, columns]);
+  const toggle = (field: string) => setSort((s) => (s && s.field === field ? { field, dir: (s.dir === 1 ? -1 : 1) as 1 | -1 } : { field, dir: 1 }));
+  return (
+    <div className="space-y-3">
+      <Input placeholder="Filter…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
+      <Table>
+        <TableHeader><TableRow>{columns.map((c) => (<TableHead key={c.field} className="cursor-pointer select-none" onClick={() => toggle(c.field)}>{c.label ?? c.field}{sort?.field === c.field ? (sort.dir === 1 ? " ↑" : " ↓") : ""}</TableHead>))}{actions ? <TableHead /> : null}</TableRow></TableHeader>
+        <TableBody>{view.map((r, i) => (<TableRow key={i}>{columns.map((c) => <TableCell key={c.field}>{formatCell(r[c.field], c.format)}</TableCell>)}{actions ? <TableCell className="text-right">{actions(r)}</TableCell> : null}</TableRow>))}</TableBody>
+      </Table>
+    </div>
+  );
+}
+`,
+  "src/components/charts/DistributionChart.tsx": `import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+// A bar chart of row counts grouped by a field (e.g. leads by stage) — derived from the loaded rows.
+export function DistributionChart({ title, rows, field }: { title: string; rows: Record<string, unknown>[]; field: string }) {
+  const counts: Record<string, number> = {};
+  for (const r of rows) { const k = String(r[field] ?? "—"); counts[k] = (counts[k] ?? 0) + 1; }
+  const data = Object.entries(counts).map(([name, value]) => ({ name, value }));
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle></CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={data}><XAxis dataKey="name" fontSize={12} /><YAxis allowDecimals={false} width={24} fontSize={12} /><Tooltip /><Bar dataKey="value" fill="hsl(var(--primary))" radius={4} /></BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
 }
 `,
   "src/lib/api.ts": `/// <reference types="vite/client" />

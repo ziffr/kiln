@@ -2721,7 +2721,11 @@ var UI_SCAFFOLD = {
         "@radix-ui/react-slot": "^1.1.0",
         "@radix-ui/react-label": "^2.1.0",
         "@radix-ui/react-switch": "^1.1.1",
-        "@radix-ui/react-select": "^2.1.1"
+        "@radix-ui/react-select": "^2.1.1",
+        "@radix-ui/react-dropdown-menu": "^2.1.1",
+        "@radix-ui/react-dialog": "^1.1.1",
+        "@radix-ui/react-tabs": "^1.1.0",
+        recharts: "^2.12.7"
       },
       devDependencies: {
         vite: "^5.4.6",
@@ -2843,6 +2847,102 @@ const styles: Record<string, string> = {
 };
 export function Badge({ className, variant = "secondary", ...props }: React.HTMLAttributes<HTMLDivElement> & { variant?: "default" | "secondary" | "outline" }) {
   return <div className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize", styles[variant], className)} {...props} />;
+}
+`,
+  "src/components/ui/dropdown-menu.tsx": `import * as React from "react";
+import * as P from "@radix-ui/react-dropdown-menu";
+import { cn } from "@/lib/utils";
+export const DropdownMenu = P.Root;
+export const DropdownMenuTrigger = P.Trigger;
+export const DropdownMenuContent = React.forwardRef<React.ElementRef<typeof P.Content>, React.ComponentPropsWithoutRef<typeof P.Content>>(({ className, sideOffset = 4, ...props }, ref) => (
+  <P.Portal><P.Content ref={ref} sideOffset={sideOffset} align="end" className={cn("z-50 min-w-[9rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md", className)} {...props} /></P.Portal>
+));
+DropdownMenuContent.displayName = "DropdownMenuContent";
+export const DropdownMenuItem = React.forwardRef<React.ElementRef<typeof P.Item>, React.ComponentPropsWithoutRef<typeof P.Item>>(({ className, ...props }, ref) => (
+  <P.Item ref={ref} className={cn("relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground", className)} {...props} />
+));
+DropdownMenuItem.displayName = "DropdownMenuItem";
+`,
+  "src/components/ui/sheet.tsx": `import * as React from "react";
+import * as P from "@radix-ui/react-dialog";
+import { cn } from "@/lib/utils";
+export const Sheet = P.Root;
+export const SheetTrigger = P.Trigger;
+export const SheetClose = P.Close;
+export const SheetContent = React.forwardRef<React.ElementRef<typeof P.Content>, React.ComponentPropsWithoutRef<typeof P.Content>>(({ className, children, ...props }, ref) => (
+  <P.Portal>
+    <P.Overlay className="fixed inset-0 z-50 bg-black/50" />
+    <P.Content ref={ref} className={cn("fixed inset-y-0 right-0 z-50 h-full w-3/4 max-w-md border-l bg-background p-6 shadow-lg overflow-y-auto", className)} {...props}>{children}</P.Content>
+  </P.Portal>
+));
+SheetContent.displayName = "SheetContent";
+export const SheetTitle = React.forwardRef<React.ElementRef<typeof P.Title>, React.ComponentPropsWithoutRef<typeof P.Title>>(({ className, ...props }, ref) => (
+  <P.Title ref={ref} className={cn("text-lg font-semibold mb-4", className)} {...props} />
+));
+SheetTitle.displayName = "SheetTitle";
+`,
+  "src/components/ui/tabs.tsx": `import * as React from "react";
+import * as P from "@radix-ui/react-tabs";
+import { cn } from "@/lib/utils";
+export const Tabs = P.Root;
+export const TabsList = React.forwardRef<React.ElementRef<typeof P.List>, React.ComponentPropsWithoutRef<typeof P.List>>(({ className, ...props }, ref) => (
+  <P.List ref={ref} className={cn("inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground", className)} {...props} />
+));
+TabsList.displayName = "TabsList";
+export const TabsTrigger = React.forwardRef<React.ElementRef<typeof P.Trigger>, React.ComponentPropsWithoutRef<typeof P.Trigger>>(({ className, ...props }, ref) => (
+  <P.Trigger ref={ref} className={cn("inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow", className)} {...props} />
+));
+TabsTrigger.displayName = "TabsTrigger";
+export const TabsContent = React.forwardRef<React.ElementRef<typeof P.Content>, React.ComponentPropsWithoutRef<typeof P.Content>>(({ className, ...props }, ref) => (
+  <P.Content ref={ref} className={cn("mt-3", className)} {...props} />
+));
+TabsContent.displayName = "TabsContent";
+`,
+  "src/components/ui/data-table.tsx": `import * as React from "react";
+import { useMemo, useState } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { formatCell } from "@/lib/format";
+export interface Column { field: string; label?: string; format?: string; }
+// A sortable + filterable table. Click a header to sort; type to filter across the shown columns.
+export function DataTable({ columns, rows, actions }: { columns: Column[]; rows: Record<string, unknown>[]; actions?: (row: Record<string, unknown>) => React.ReactNode }) {
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<{ field: string; dir: 1 | -1 } | null>(null);
+  const view = useMemo(() => {
+    let out = rows;
+    if (q) { const s = q.toLowerCase(); out = out.filter((r) => columns.some((c) => String(r[c.field] ?? "").toLowerCase().includes(s))); }
+    if (sort) { const { field, dir } = sort; out = [...out].sort((a, b) => (String(a[field] ?? "") > String(b[field] ?? "") ? dir : -dir)); }
+    return out;
+  }, [rows, q, sort, columns]);
+  const toggle = (field: string) => setSort((s) => (s && s.field === field ? { field, dir: (s.dir === 1 ? -1 : 1) as 1 | -1 } : { field, dir: 1 }));
+  return (
+    <div className="space-y-3">
+      <Input placeholder="Filter\u2026" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
+      <Table>
+        <TableHeader><TableRow>{columns.map((c) => (<TableHead key={c.field} className="cursor-pointer select-none" onClick={() => toggle(c.field)}>{c.label ?? c.field}{sort?.field === c.field ? (sort.dir === 1 ? " \u2191" : " \u2193") : ""}</TableHead>))}{actions ? <TableHead /> : null}</TableRow></TableHeader>
+        <TableBody>{view.map((r, i) => (<TableRow key={i}>{columns.map((c) => <TableCell key={c.field}>{formatCell(r[c.field], c.format)}</TableCell>)}{actions ? <TableCell className="text-right">{actions(r)}</TableCell> : null}</TableRow>))}</TableBody>
+      </Table>
+    </div>
+  );
+}
+`,
+  "src/components/charts/DistributionChart.tsx": `import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+// A bar chart of row counts grouped by a field (e.g. leads by stage) \u2014 derived from the loaded rows.
+export function DistributionChart({ title, rows, field }: { title: string; rows: Record<string, unknown>[]; field: string }) {
+  const counts: Record<string, number> = {};
+  for (const r of rows) { const k = String(r[field] ?? "\u2014"); counts[k] = (counts[k] ?? 0) + 1; }
+  const data = Object.entries(counts).map(([name, value]) => ({ name, value }));
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle></CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={data}><XAxis dataKey="name" fontSize={12} /><YAxis allowDecimals={false} width={24} fontSize={12} /><Tooltip /><Bar dataKey="value" fill="hsl(var(--primary))" radius={4} /></BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
 }
 `,
   "src/lib/api.ts": `/// <reference types="vite/client" />
@@ -3415,6 +3515,8 @@ function listPage(s, view) {
   const cardSub = has(card.subtitle) ? card.subtitle : void 0;
   const cardBadge = has(card.badge) ? card.badge : void 0;
   const cardMeta = (card.meta?.length ? card.meta : columns.map((c) => c.field).filter((f) => f !== titleField).slice(0, 3)).filter(has);
+  const isTable = layout === "table";
+  const chartField = layout !== "board" ? columns.find((c) => c.format === "badge")?.field ?? (has(view?.groupBy) ? view.groupBy : void 0) : void 0;
   const cardJsx = [
     `            <Card key={i}>`,
     `              <CardHeader className="pb-2"><CardTitle className="text-base flex items-center justify-between gap-2"><span>{String(r[${JSON.stringify(slug(titleField))}] ?? "")}</span>${cardBadge ? `<span>{${cell(cardBadge, "badge")}}</span>` : ""}</CardTitle>${cardSub ? `<p className="text-sm font-normal text-muted-foreground">{${cell(cardSub, fmtOf(cardSub))}}</p>` : ""}</CardHeader>`,
@@ -3445,15 +3547,20 @@ function listPage(s, view) {
       `      </div>`
     ].join("\n");
   } else {
+    const colsLiteral = JSON.stringify(columns.map((c) => ({ field: slug(c.field), label: c.field, format: c.format })));
     body = [
-      `      <Table>`,
-      `        <TableHeader><TableRow>${columns.map((c) => `<TableHead>{t(${JSON.stringify(`field.${s.entity}.${slug(c.field)}`)}, ${JSON.stringify(c.field)})}</TableHead>`).join("")}</TableRow></TableHeader>`,
-      `        <TableBody>`,
-      `          {rows.map((r, i) => (`,
-      `            <TableRow key={i}>${columns.map((c) => `<TableCell>{${cell(c.field, c.format)}}</TableCell>`).join("")}</TableRow>`,
-      `          ))}`,
-      `        </TableBody>`,
-      `      </Table>`
+      `      <DataTable columns={${colsLiteral}} rows={rows as Record<string, unknown>[]} actions={(r) => (`,
+      `        <DropdownMenu>`,
+      `          <DropdownMenuTrigger asChild><Button variant="ghost" size="sm">\u22EF</Button></DropdownMenuTrigger>`,
+      `          <DropdownMenuContent>`,
+      `            <DropdownMenuItem onClick={() => setPreview(r as ${s.typeName})}>{t("ui.view", "View")}</DropdownMenuItem>`,
+      `            <DropdownMenuItem asChild><Link to={${JSON.stringify(s.route + "/")} + String((r as { id?: string }).id ?? "")}>{t("ui.edit", "Edit")}</Link></DropdownMenuItem>`,
+      `            {actionCommands(${JSON.stringify(s.entity)}).map((c) => (`,
+      `              <DropdownMenuItem key={c.command} onClick={() => api.command(c.path.replace("{id}", String((r as { id?: string }).id ?? "")), r).then(load)}>{c.name}</DropdownMenuItem>`,
+      `            ))}`,
+      `          </DropdownMenuContent>`,
+      `        </DropdownMenu>`,
+      `      )} />`
     ].join("\n");
   }
   const metricsJsx = metrics.length ? [
@@ -3461,9 +3568,17 @@ function listPage(s, view) {
     ...metrics.map((m) => `        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-medium text-muted-foreground">{${JSON.stringify(m.label)}}</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{formatCell(metricValue(rows, ${JSON.stringify({ agg: m.agg, field: m.field })}), ${JSON.stringify(m.format ?? "text")})}</CardContent></Card>`),
     `      </div>`
   ].join("\n") : "";
+  const chartJsx = chartField ? `      <DistributionChart title=${JSON.stringify(`By ${chartField}`)} rows={rows as Record<string, unknown>[]} field={${JSON.stringify(slug(chartField))}} />` : "";
+  const sheetJsx = isTable ? [
+    `      <Sheet open={!!preview} onOpenChange={(o) => { if (!o) setPreview(null); }}>`,
+    `        <SheetContent>`,
+    `          <SheetTitle>{title}</SheetTitle>`,
+    `          {preview && (<div className="space-y-2 text-sm">${columns.map((c) => `<div className="flex justify-between gap-4"><span className="text-muted-foreground">{${JSON.stringify(c.field)}}</span><span>{formatCell((preview as Record<string, unknown>)[${JSON.stringify(slug(c.field))}], ${JSON.stringify(c.format)})}</span></div>`).join("")}</div>)}`,
+    `        </SheetContent>`,
+    `      </Sheet>`
+  ].join("\n") : "";
   const imports = [
     `import { useEffect, useState } from "react";`,
-    layout === "table" ? `import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";` : "",
     `import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";`,
     `import { Button } from "@/components/ui/button";`,
     `import { Link } from "react-router-dom";`,
@@ -3471,6 +3586,11 @@ function listPage(s, view) {
     `import { useI18n } from "@/i18n";`,
     `import { formatCell, metricValue } from "@/lib/format";`,
     `import { api } from "@/lib/api";`,
+    isTable ? `import { DataTable } from "@/components/ui/data-table";` : "",
+    isTable ? `import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";` : "",
+    isTable ? `import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";` : "",
+    isTable ? `import { actionCommands } from "@/lib/model";` : "",
+    chartField ? `import { DistributionChart } from "@/components/charts/DistributionChart";` : "",
     `import type { ${s.typeName} } from "@/types";`
   ].filter(Boolean);
   return [
@@ -3480,7 +3600,9 @@ function listPage(s, view) {
     `export default function ${T}List() {`,
     `  const { t } = useI18n();`,
     `  const [rows, setRows] = useState<${s.typeName}[]>([]);`,
-    `  useEffect(() => { api.list(${JSON.stringify(s.entity)}).then((d) => setRows(d as ${s.typeName}[])); }, []);`,
+    isTable ? `  const [preview, setPreview] = useState<${s.typeName} | null>(null);` : "",
+    `  const load = () => api.list(${JSON.stringify(s.entity)}).then((d) => setRows(d as ${s.typeName}[]));`,
+    `  useEffect(() => { load(); }, []);`,
     `  const title = t(${JSON.stringify(`nav.${s.route}`)}, ${JSON.stringify(s.title)});`,
     `  return (`,
     `    <div className="p-6 space-y-4">`,
@@ -3492,7 +3614,9 @@ function listPage(s, view) {
     `        </div>`,
     `      </div>`,
     metricsJsx,
+    chartJsx,
     body,
+    sheetJsx,
     `    </div>`,
     `  );`,
     `}`,
@@ -3516,23 +3640,23 @@ function detailPage(s, view) {
     return `        <div className="space-y-1"><Label htmlFor="${id}">${L}</Label><Input id="${id}" ${ctl.extra ?? ""} value={String(form[${K}] ?? "")} onChange={(e) => set(${K}, e.target.value)} /></div>`;
   };
   const needsTable = s.related.length > 0;
-  const relatedSection = (r) => {
-    const rt = `{t(${JSON.stringify(`nav.${r.route}`)}, ${JSON.stringify(r.title)})}`;
-    return [
-      `      <Card>`,
-      `        <CardHeader className="flex flex-row items-center justify-between">`,
-      `          <CardTitle className="text-base">${rt}</CardTitle>`,
-      `          <Button size="sm" asChild><Link to="${r.route}/new">{t("ui.add", "Add")} ${rt}</Link></Button>`,
-      `        </CardHeader>`,
-      `        <CardContent>`,
-      `          <Table>`,
-      `            <TableHeader><TableRow>${r.cols.map((c) => `<TableHead>${lbl(r.entity, c)}</TableHead>`).join("")}</TableRow></TableHeader>`,
-      `            <TableBody>{/* Related ${r.entity} \u2014 filter its list by ${slug(s.entity)}_id === id */}</TableBody>`,
-      `          </Table>`,
-      `        </CardContent>`,
-      `      </Card>`
-    ].join("\n");
-  };
+  const parentRef = slug(s.entity) + "_id";
+  const relatedContent = (r) => [
+    `        <TabsContent value=${JSON.stringify(r.entity)} className="space-y-2">`,
+    `          <div className="flex justify-end"><Button size="sm" asChild><Link to="${r.route}/new">{t("ui.add", "Add")}</Link></Button></div>`,
+    `          <Table>`,
+    `            <TableHeader><TableRow>${r.cols.map((c) => `<TableHead>${lbl(r.entity, c)}</TableHead>`).join("")}</TableRow></TableHeader>`,
+    `            <TableBody>{(related[${JSON.stringify(r.entity)}] || []).map((row, i) => (<TableRow key={i}>${r.cols.map((c) => `<TableCell>{String(row[${JSON.stringify(slug(c))}] ?? "")}</TableCell>`).join("")}</TableRow>))}</TableBody>`,
+    `          </Table>`,
+    `        </TabsContent>`
+  ].join("\n");
+  const relatedBlock = needsTable ? [
+    `      <Tabs defaultValue=${JSON.stringify(s.related[0].entity)}>`,
+    `        <TabsList>${s.related.map((r) => `<TabsTrigger value=${JSON.stringify(r.entity)}>{t(${JSON.stringify(`nav.${r.route}`)}, ${JSON.stringify(r.title)})}</TabsTrigger>`).join("")}</TabsList>`,
+    ...s.related.map(relatedContent),
+    `      </Tabs>`
+  ].join("\n") : "";
+  const relatedFetch = s.related.map((r) => `      api.list(${JSON.stringify(r.entity)}).then((rows) => setRelated((prev) => ({ ...prev, [${JSON.stringify(r.entity)}]: rows.filter((x) => String(x[${JSON.stringify(parentRef)}] ?? "") === id) })));`).join("\n");
   return [
     `// Generated by @kiln/codegen ui (shadcn) \u2014 detail/edit view for ${s.title}${needsTable ? " (master-detail)" : ""}.`,
     `import { useEffect, useState } from "react";`,
@@ -3543,7 +3667,8 @@ function detailPage(s, view) {
     `import { useI18n } from "@/i18n";`,
     `import { api } from "@/lib/api";`,
     `import { createCommand, actionCommands } from "@/lib/model";`,
-    needsTable ? `import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";` : "",
+    needsTable ? `import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";` : "",
+    needsTable ? `import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";` : "",
     importLines,
     "",
     `export default function ${T}Detail() {`,
@@ -3553,7 +3678,11 @@ function detailPage(s, view) {
     `  const isNew = !id || id === "new";`,
     `  const [form, setForm] = useState<Record<string, unknown>>({});`,
     `  const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));`,
+    needsTable ? `  const [related, setRelated] = useState<Record<string, Record<string, unknown>[]>>({});` : "",
     `  useEffect(() => { if (!isNew && id) api.get(${JSON.stringify(s.entity)}, id).then((r) => setForm(r || {})); }, [id]);`,
+    needsTable ? `  useEffect(() => { if (isNew || !id) return;
+${relatedFetch}
+  }, [id]);` : "",
     `  const save = async () => { const c = createCommand(${JSON.stringify(s.entity)}); if (c) await api.command(c.path, form); nav(${JSON.stringify(s.route)}); };`,
     `  const runAction = async (path: string) => { if (id) { await api.command(path.replace("{id}", id), form); nav(${JSON.stringify(s.route)}); } };`,
     `  return (`,
@@ -3570,7 +3699,7 @@ function detailPage(s, view) {
     `          </div>`,
     `        </CardContent>`,
     `      </Card>`,
-    s.related.map(relatedSection).join("\n"),
+    relatedBlock,
     `    </div>`,
     `  );`,
     `}`,

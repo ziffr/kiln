@@ -509,6 +509,10 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
   const cardSub = has(card.subtitle) ? card.subtitle : undefined;
   const cardBadge = has(card.badge) ? card.badge : undefined;
   const cardMeta = (card.meta?.length ? card.meta : columns.map((c) => c.field).filter((f) => f !== titleField).slice(0, 3)).filter(has);
+  const isTable = layout === "table";
+  // A distribution bar chart makes sense when there's a status-like field to break down by (not for a board,
+  // which already shows the split as columns).
+  const chartField = layout !== "board" ? (columns.find((c) => c.format === "badge")?.field ?? (has(view?.groupBy) ? view!.groupBy : undefined)) : undefined;
 
   const cardJsx = [
     `            <Card key={i}>`,
@@ -541,15 +545,21 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
       `      </div>`,
     ].join("\n");
   } else {
+    // Table layout → the sortable/filterable DataTable with a per-row action menu (view / edit / commands).
+    const colsLiteral = JSON.stringify(columns.map((c) => ({ field: slug(c.field), label: c.field, format: c.format })));
     body = [
-      `      <Table>`,
-      `        <TableHeader><TableRow>${columns.map((c) => `<TableHead>{t(${JSON.stringify(`field.${s.entity}.${slug(c.field)}`)}, ${JSON.stringify(c.field)})}</TableHead>`).join("")}</TableRow></TableHeader>`,
-      `        <TableBody>`,
-      `          {rows.map((r, i) => (`,
-      `            <TableRow key={i}>${columns.map((c) => `<TableCell>{${cell(c.field, c.format)}}</TableCell>`).join("")}</TableRow>`,
-      `          ))}`,
-      `        </TableBody>`,
-      `      </Table>`,
+      `      <DataTable columns={${colsLiteral}} rows={rows as Record<string, unknown>[]} actions={(r) => (`,
+      `        <DropdownMenu>`,
+      `          <DropdownMenuTrigger asChild><Button variant="ghost" size="sm">⋯</Button></DropdownMenuTrigger>`,
+      `          <DropdownMenuContent>`,
+      `            <DropdownMenuItem onClick={() => setPreview(r as ${s.typeName})}>{t("ui.view", "View")}</DropdownMenuItem>`,
+      `            <DropdownMenuItem asChild><Link to={${JSON.stringify(s.route + "/")} + String((r as { id?: string }).id ?? "")}>{t("ui.edit", "Edit")}</Link></DropdownMenuItem>`,
+      `            {actionCommands(${JSON.stringify(s.entity)}).map((c) => (`,
+      `              <DropdownMenuItem key={c.command} onClick={() => api.command(c.path.replace("{id}", String((r as { id?: string }).id ?? "")), r).then(load)}>{c.name}</DropdownMenuItem>`,
+      `            ))}`,
+      `          </DropdownMenuContent>`,
+      `        </DropdownMenu>`,
+      `      )} />`,
     ].join("\n");
   }
 
@@ -561,9 +571,22 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
       ].join("\n")
     : "";
 
+  const chartJsx = chartField
+    ? `      <DistributionChart title=${JSON.stringify(`By ${chartField}`)} rows={rows as Record<string, unknown>[]} field={${JSON.stringify(slug(chartField))}} />`
+    : "";
+  const sheetJsx = isTable
+    ? [
+        `      <Sheet open={!!preview} onOpenChange={(o) => { if (!o) setPreview(null); }}>`,
+        `        <SheetContent>`,
+        `          <SheetTitle>{title}</SheetTitle>`,
+        `          {preview && (<div className="space-y-2 text-sm">${columns.map((c) => `<div className="flex justify-between gap-4"><span className="text-muted-foreground">{${JSON.stringify(c.field)}}</span><span>{formatCell((preview as Record<string, unknown>)[${JSON.stringify(slug(c.field))}], ${JSON.stringify(c.format)})}</span></div>`).join("")}</div>)}`,
+        `        </SheetContent>`,
+        `      </Sheet>`,
+      ].join("\n")
+    : "";
+
   const imports = [
     `import { useEffect, useState } from "react";`,
-    layout === "table" ? `import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";` : "",
     `import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";`,
     `import { Button } from "@/components/ui/button";`,
     `import { Link } from "react-router-dom";`,
@@ -571,6 +594,11 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
     `import { useI18n } from "@/i18n";`,
     `import { formatCell, metricValue } from "@/lib/format";`,
     `import { api } from "@/lib/api";`,
+    isTable ? `import { DataTable } from "@/components/ui/data-table";` : "",
+    isTable ? `import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";` : "",
+    isTable ? `import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";` : "",
+    isTable ? `import { actionCommands } from "@/lib/model";` : "",
+    chartField ? `import { DistributionChart } from "@/components/charts/DistributionChart";` : "",
     `import type { ${s.typeName} } from "@/types";`,
   ].filter(Boolean);
 
@@ -581,7 +609,9 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
     `export default function ${T}List() {`,
     `  const { t } = useI18n();`,
     `  const [rows, setRows] = useState<${s.typeName}[]>([]);`,
-    `  useEffect(() => { api.list(${JSON.stringify(s.entity)}).then((d) => setRows(d as ${s.typeName}[])); }, []);`,
+    isTable ? `  const [preview, setPreview] = useState<${s.typeName} | null>(null);` : "",
+    `  const load = () => api.list(${JSON.stringify(s.entity)}).then((d) => setRows(d as ${s.typeName}[]));`,
+    `  useEffect(() => { load(); }, []);`,
     `  const title = t(${JSON.stringify(`nav.${s.route}`)}, ${JSON.stringify(s.title)});`,
     `  return (`,
     `    <div className="p-6 space-y-4">`,
@@ -593,7 +623,9 @@ function listPage(s: UiScreen, view?: ViewSpecInput): string {
     `        </div>`,
     `      </div>`,
     metricsJsx,
+    chartJsx,
     body,
+    sheetJsx,
     `    </div>`,
     `  );`,
     `}`,
@@ -621,23 +653,26 @@ function detailPage(s: UiScreen, view?: ViewSpecInput): string {
     return `        <div className="space-y-1"><Label htmlFor="${id}">${L}</Label><Input id="${id}" ${ctl.extra ?? ""} value={String(form[${K}] ?? "")} onChange={(e) => set(${K}, e.target.value)} /></div>`;
   };
   const needsTable = s.related.length > 0;
-  const relatedSection = (r: UiScreen["related"][number]) => {
-    const rt = `{t(${JSON.stringify(`nav.${r.route}`)}, ${JSON.stringify(r.title)})}`;
-    return [
-      `      <Card>`,
-      `        <CardHeader className="flex flex-row items-center justify-between">`,
-      `          <CardTitle className="text-base">${rt}</CardTitle>`,
-      `          <Button size="sm" asChild><Link to="${r.route}/new">{t("ui.add", "Add")} ${rt}</Link></Button>`,
-      `        </CardHeader>`,
-      `        <CardContent>`,
-      `          <Table>`,
-      `            <TableHeader><TableRow>${r.cols.map((c) => `<TableHead>${lbl(r.entity, c)}</TableHead>`).join("")}</TableRow></TableHeader>`,
-      `            <TableBody>{/* Related ${r.entity} — filter its list by ${slug(s.entity)}_id === id */}</TableBody>`,
-      `          </Table>`,
-      `        </CardContent>`,
-      `      </Card>`,
-    ].join("\n");
-  };
+  const parentRef = slug(s.entity) + "_id"; // how a child row points back at this record
+  // Each related entity becomes a Tab, showing that entity's rows filtered to this record.
+  const relatedContent = (r: UiScreen["related"][number]) => [
+    `        <TabsContent value=${JSON.stringify(r.entity)} className="space-y-2">`,
+    `          <div className="flex justify-end"><Button size="sm" asChild><Link to="${r.route}/new">{t("ui.add", "Add")}</Link></Button></div>`,
+    `          <Table>`,
+    `            <TableHeader><TableRow>${r.cols.map((c) => `<TableHead>${lbl(r.entity, c)}</TableHead>`).join("")}</TableRow></TableHeader>`,
+    `            <TableBody>{(related[${JSON.stringify(r.entity)}] || []).map((row, i) => (<TableRow key={i}>${r.cols.map((c) => `<TableCell>{String(row[${JSON.stringify(slug(c))}] ?? "")}</TableCell>`).join("")}</TableRow>))}</TableBody>`,
+    `          </Table>`,
+    `        </TabsContent>`,
+  ].join("\n");
+  const relatedBlock = needsTable
+    ? [
+        `      <Tabs defaultValue=${JSON.stringify(s.related[0].entity)}>`,
+        `        <TabsList>${s.related.map((r) => `<TabsTrigger value=${JSON.stringify(r.entity)}>{t(${JSON.stringify(`nav.${r.route}`)}, ${JSON.stringify(r.title)})}</TabsTrigger>`).join("")}</TabsList>`,
+        ...s.related.map(relatedContent),
+        `      </Tabs>`,
+      ].join("\n")
+    : "";
+  const relatedFetch = s.related.map((r) => `      api.list(${JSON.stringify(r.entity)}).then((rows) => setRelated((prev) => ({ ...prev, [${JSON.stringify(r.entity)}]: rows.filter((x) => String(x[${JSON.stringify(parentRef)}] ?? "") === id) })));`).join("\n");
   return [
     `// Generated by @kiln/codegen ui (shadcn) — detail/edit view for ${s.title}${needsTable ? " (master-detail)" : ""}.`,
     `import { useEffect, useState } from "react";`,
@@ -648,7 +683,8 @@ function detailPage(s: UiScreen, view?: ViewSpecInput): string {
     `import { useI18n } from "@/i18n";`,
     `import { api } from "@/lib/api";`,
     `import { createCommand, actionCommands } from "@/lib/model";`,
-    needsTable ? `import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";` : "",
+    needsTable ? `import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";` : "",
+    needsTable ? `import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";` : "",
     importLines,
     "",
     `export default function ${T}Detail() {`,
@@ -658,7 +694,9 @@ function detailPage(s: UiScreen, view?: ViewSpecInput): string {
     `  const isNew = !id || id === "new";`,
     `  const [form, setForm] = useState<Record<string, unknown>>({});`,
     `  const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));`,
+    needsTable ? `  const [related, setRelated] = useState<Record<string, Record<string, unknown>[]>>({});` : "",
     `  useEffect(() => { if (!isNew && id) api.get(${JSON.stringify(s.entity)}, id).then((r) => setForm(r || {})); }, [id]);`,
+    needsTable ? `  useEffect(() => { if (isNew || !id) return;\n${relatedFetch}\n  }, [id]);` : "",
     `  const save = async () => { const c = createCommand(${JSON.stringify(s.entity)}); if (c) await api.command(c.path, form); nav(${JSON.stringify(s.route)}); };`,
     `  const runAction = async (path: string) => { if (id) { await api.command(path.replace("{id}", id), form); nav(${JSON.stringify(s.route)}); } };`,
     `  return (`,
@@ -675,7 +713,7 @@ function detailPage(s: UiScreen, view?: ViewSpecInput): string {
     `          </div>`,
     `        </CardContent>`,
     `      </Card>`,
-    s.related.map(relatedSection).join("\n"),
+    relatedBlock,
     `    </div>`,
     `  );`,
     `}`,
@@ -891,7 +929,7 @@ export function shadcnAdapter(caps: CapabilityDoc, domain: DomainDoc, contexts?:
       null,
       2,
     ),
-    "THEME.md": `# Skin: "${theme.name}"\n\nThe structure (nav, screens, fields, actions) is derived from the business model.\nThe **skin** is this theme — edit the tokens in \`src/index.css\` (or swap this whole Theme) to rebrand.\nComponents are shadcn/ui: run \`npx shadcn@latest add table button card input label switch select\`.\n`,
+    "THEME.md": `# Skin: "${theme.name}"\n\nThe structure (nav, screens, fields, actions) is derived from the business model.\nThe **skin** is this theme — edit the tokens in \`src/index.css\` (or swap this whole Theme) to rebrand.\nComponents are shadcn/ui (table, button, card, input, label, switch, select, badge, data-table, dropdown-menu, sheet, tabs) + a recharts chart.\nData comes from the generated spine — set \`VITE_API_URL\` (and \`VITE_API_TOKEN\` if the spine's \`API_TOKEN\` is set).\n`,
   };
   for (const s of struct.screens) {
     files[`src/pages/${pascal(s.title)}List.tsx`] = listPage(s, views?.[s.entity]);

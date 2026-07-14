@@ -16,7 +16,11 @@ permissions, processes, agents, and deployment. The toolbar groups three things:
 - **Export** — download just the scaffold, a runnable app with AI-written logic, or the whole
   **Full-Stack** project as a zip.
 
-It's scaffolding, not the finished software — a base that developers extend by hand.
+The **Full-Stack** export is a runnable app, not just a mockup: the shadcn UI **fetches real data** from
+the generated command API (spine) and drives its actions, and it uses real shadcn components — a
+sortable/filterable **data table** with per-row action menus, a slide-over **detail sheet**, **tabs** for
+related records, and a **chart** of the KPI breakdown. Point it at the backend with `VITE_API_URL`. It's
+still a starting point developers extend by hand — but a running one.
 
 ## ✨ Polish UI — an automatic design pass
 

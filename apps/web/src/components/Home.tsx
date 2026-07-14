@@ -7,16 +7,20 @@ import type { StageId } from "./StageRail";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 
-export function Home({ stages, onStart, onExample, docsUrl, onPickStage, t }: {
+export function Home({ stages, onStart, onExample, docsUrl, onToggleSidebar, onPickStage, t }: {
   stages: { id: StageId; label: string }[];
   onStart: () => void;
   onExample: () => void;
   docsUrl: string;
+  onToggleSidebar: () => void;
   onPickStage: (s: StageId) => void;
   t: T;
 }): React.JSX.Element {
   return (
     <div className="home">
+      <div className="home-top">
+        <button className="side-toggle" onClick={onToggleSidebar} aria-label={t("stages")}><Icon name="menu" size={18} /></button>
+      </div>
       <div className="home-inner">
         <div className="home-hero">
           <div className="home-mark"><Icon name="flame" size={28} /></div>

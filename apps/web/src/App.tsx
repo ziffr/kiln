@@ -251,7 +251,8 @@ export default function App(): React.JSX.Element {
   // The welcome screen is the default landing so a newcomer gets oriented before the mid-pipeline map.
   const [showHome, setShowHome] = useState(true);
   const [showIssues, setShowIssues] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Open by default on desktop; collapsed on a phone (where the sidebar is an off-canvas overlay).
+  const [sidebarOpen, setSidebarOpen] = useState(() => (typeof window === "undefined" ? true : window.innerWidth > 720));
   const [showSettings, setShowSettings] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [stage, setStage] = useState<StageId>("capabilities");
@@ -1340,6 +1341,8 @@ export default function App(): React.JSX.Element {
         </div>
       )}
       <div className="shell">
+      {/* Tap-to-close backdrop for the mobile off-canvas sidebar (hidden on desktop via CSS). */}
+      <button className="sidebar-backdrop" aria-label={t("close")} onClick={() => setSidebarOpen(false)} />
       <aside className="side">
         <button className="side-team" onClick={() => setShowHome(true)} title={t("homeOpen")} aria-label={t("homeOpen")}>
           <div className="side-mark"><Icon name="flame" size={17} /></div>
@@ -1416,6 +1419,7 @@ export default function App(): React.JSX.Element {
             onStart={() => navRoot("narrative")}
             onExample={() => { setShowHome(false); setShowExamples(true); }}
             docsUrl={DOCS_URL}
+            onToggleSidebar={() => setSidebarOpen((v) => !v)}
             onPickStage={(s) => navRoot(s)}
             t={t}
           />

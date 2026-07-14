@@ -966,8 +966,9 @@ textarea {
 .inset { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 8px; }
 
 /* Home / welcome screen */
-.home { flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
-.home-inner { max-width: 760px; margin: 0 auto; padding: 56px 32px 48px; display: flex; flex-direction: column; gap: 40px; }
+.home { flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); display: flex; flex-direction: column; }
+.home-top { flex: none; display: flex; align-items: center; padding: 8px 10px 0; }
+.home-inner { max-width: 760px; width: 100%; margin: 0 auto; padding: 40px 32px 48px; display: flex; flex-direction: column; gap: 40px; }
 .home-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .home-mark { width: 56px; height: 56px; border-radius: 14px; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; margin-bottom: 6px; }
 .home-hero h1 { font-size: 30px; margin: 0; }
@@ -990,6 +991,29 @@ textarea {
 .inset-top { display: flex; align-items: center; gap: 12px; height: 48px; flex: none; padding: 0 12px; border: 1px solid var(--border); border-bottom: none; border-radius: 12px 12px 0 0; background: var(--panel); }
 .side-toggle { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--muted); font-size: 17px; cursor: pointer; padding: 4px 8px; border-radius: 6px; line-height: 1; }
 .side-toggle:hover { background: var(--panel-2); color: var(--fg); }
+
+/* The mobile off-canvas backdrop is hidden on desktop; the media query below reveals it. */
+.sidebar-backdrop { display: none; }
+
+/* ── Responsive: on a phone the 250px sidebar becomes an off-canvas overlay so content gets the full
+   width. The ☰ toggle (in the inset topbar and on Home) slides it in; the backdrop taps it closed. ── */
+@media (max-width: 720px) {
+  .side {
+    position: fixed; top: 0; left: 0; bottom: 0; width: min(84vw, 300px); z-index: 60;
+    transform: translateX(-100%); transition: transform .2s ease; box-shadow: 6px 0 30px rgba(0, 0, 0, 0.3);
+  }
+  /* Keep it mounted off-canvas even when "collapsed" (overrides the desktop display:none). */
+  .app.sidebar-collapsed .side { display: flex; transform: translateX(-100%); }
+  .app:not(.sidebar-collapsed) .side { display: flex; transform: translateX(0); }
+  .sidebar-backdrop {
+    position: fixed; inset: 0; z-index: 55; background: rgba(0, 0, 0, 0.42); border: none; padding: 0; cursor: pointer;
+  }
+  .app.sidebar-collapsed .sidebar-backdrop { display: none; }
+  .app:not(.sidebar-collapsed) .sidebar-backdrop { display: block; }
+  /* Tighter content padding + a smaller inset gutter on small screens. */
+  .inset { padding: 6px; }
+  .home-inner { padding: 24px 18px 36px; gap: 28px; }
+}
 .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; overflow: hidden; }
 .crumb-seg { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .crumb-sep { color: var(--muted); flex: none; }

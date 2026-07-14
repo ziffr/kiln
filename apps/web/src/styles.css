@@ -915,7 +915,7 @@ textarea {
 .project-tools button:disabled { opacity: 0.4; cursor: default; }
 .side .stage-rail { flex: 1; min-height: 0; border-right: none; background: transparent; padding: 4px; }
 .side-foot { border-top: 1px solid var(--border); padding-top: 6px; display: flex; flex-direction: column; gap: 4px; }
-.side-foot-btn { text-align: left; background: transparent; border: none; color: var(--muted); font-size: 13px; padding: 5px 8px; border-radius: 6px; cursor: pointer; }
+.side-foot-btn { text-align: left; background: transparent; border: none; color: var(--muted); font-size: 13px; padding: 5px 8px; border-radius: 6px; cursor: pointer; text-decoration: none; }
 .side-foot-btn:hover { background: var(--panel); color: var(--fg); }
 .side .lang { padding: 4px 8px; }
 .side-user { display: flex; align-items: center; gap: 8px; padding: 6px; margin-top: 2px; border-top: 1px solid var(--border); }
@@ -984,7 +984,7 @@ textarea {
 .home-flow-n { display: grid; place-items: center; min-width: 18px; height: 18px; border-radius: 5px; background: var(--accent); color: var(--accent-fg); font-size: 10px; font-weight: 700; padding: 0 3px; }
 .home-flow-label { white-space: nowrap; }
 .home-flow-legend { margin: 16px 0 0; font-size: 13px; line-height: 1.5; }
-.home-guide-link { align-self: center; display: inline-flex; align-items: center; gap: 7px; background: none; border: none; color: var(--accent); cursor: pointer; font-size: 14px; padding: 4px; }
+.home-guide-link { align-self: center; display: inline-flex; align-items: center; gap: 7px; background: none; border: none; color: var(--accent); cursor: pointer; font-size: 14px; padding: 4px; text-decoration: none; }
 .home-guide-link:hover { text-decoration: underline; }
 .inset-top { display: flex; align-items: center; gap: 12px; height: 48px; flex: none; padding: 0 12px; border: 1px solid var(--border); border-bottom: none; border-radius: 12px 12px 0 0; background: var(--panel); }
 .side-toggle { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--muted); font-size: 17px; cursor: pointer; padding: 4px 8px; border-radius: 6px; line-height: 1; }

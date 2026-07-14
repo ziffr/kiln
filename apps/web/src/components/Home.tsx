@@ -1,17 +1,17 @@
 // The welcome / orientation screen. First thing a newcomer sees: what Kiln is in one breath, the
 // whole pipeline as a single glanceable diagram (so the left rail stops being a mystery), and two
 // ways in — start from your own description, or open a worked example. The full methodology lives in
-// the Guide; this is the 20-second version.
+// the external documentation site; this is the 20-second version, with a link out to the docs.
 import { Icon } from "./Icon";
 import type { StageId } from "./StageRail";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 
-export function Home({ stages, onStart, onExample, onGuide, onPickStage, t }: {
+export function Home({ stages, onStart, onExample, docsUrl, onPickStage, t }: {
   stages: { id: StageId; label: string }[];
   onStart: () => void;
   onExample: () => void;
-  onGuide: () => void;
+  docsUrl: string;
   onPickStage: (s: StageId) => void;
   t: T;
 }): React.JSX.Element {
@@ -46,9 +46,9 @@ export function Home({ stages, onStart, onExample, onGuide, onPickStage, t }: {
           <p className="home-flow-legend muted">{t("homePipeLegend")}</p>
         </div>
 
-        <button className="home-guide-link" onClick={onGuide}>
+        <a className="home-guide-link" href={docsUrl} target="_blank" rel="noreferrer">
           <Icon name="book" size={15} />{t("homeGuideLink")}
-        </button>
+        </a>
       </div>
     </div>
   );

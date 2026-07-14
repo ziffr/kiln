@@ -46,7 +46,6 @@ type DialogState =
   | { kind: "input"; title: string; label?: string; initial?: string; multiline?: boolean; submitLabel: string; onSubmit: (value: string) => void }
   | { kind: "confirm"; title: string; message: string; confirmLabel: string; danger?: boolean; onConfirm: () => void };
 import { ReviewPanel } from "./components/ReviewPanel";
-import { Guide } from "./components/Guide";
 import { Home } from "./components/Home";
 import { VersionsModal } from "./components/VersionsModal";
 import { ExamplesModal } from "./components/ExamplesModal";
@@ -61,7 +60,7 @@ import {
 } from "./projects";
 import { serverListProjects, serverSaveProject, serverDeleteProject } from "./projectStore";
 import { assembleModel, parseModel } from "./model";
-import { SERVICE_URL } from "./config";
+import { SERVICE_URL, DOCS_URL } from "./config";
 
 
 
@@ -247,7 +246,6 @@ export default function App(): React.JSX.Element {
   const agentsDoc = active.agents ?? mockAgentsDoc;
   const agentFindings = useMemo(() => validateAgents(agentsDoc, activeDoc.capabilities.map((c) => c.id)), [agentsDoc, activeDoc]);
   const [agentsBusy, setAgentsBusy] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   // The welcome screen is the default landing so a newcomer gets oriented before the mid-pipeline map.
@@ -1247,7 +1245,6 @@ export default function App(): React.JSX.Element {
           onSubmit={(v) => { if (v.trim()) localStorage.setItem(STUDIO_TOKEN_KEY, v.trim()); }}
           onClose={() => setStudioLocked(false)} />
       )}
-      {showGuide && <Guide onClose={() => setShowGuide(false)} />}
       {showExamples && <ExamplesModal onPick={pickExample} onClose={() => setShowExamples(false)} t={t} />}
       {showVersions && (
         <VersionsModal
@@ -1387,7 +1384,7 @@ export default function App(): React.JSX.Element {
         <StageRail stages={stages} active={showHome ? ("" as StageId) : stage} onSelect={(s) => navRoot(s)} t={t} />
 
         <div className="side-foot">
-          <button className="side-foot-btn" onClick={() => setShowGuide(true)}><Icon name="book" size={15} /> {t("guideOpen")}</button>
+          <a className="side-foot-btn" href={DOCS_URL} target="_blank" rel="noreferrer"><Icon name="book" size={15} /> {t("docsOpen")}</a>
           {/* Version history is git-backed → only when a persistent workspace backend is reachable (SPEC-011). */}
           {serverUp && <button className="side-foot-btn" onClick={() => setShowVersions(true)}><Icon name="refresh" size={15} /> {t("versionsOpen")}</button>}
           <button className="side-foot-btn" onClick={() => setShowSettings(true)}><Icon name="settings" size={15} /> {t("settingsOpen")}</button>
@@ -1418,7 +1415,7 @@ export default function App(): React.JSX.Element {
             stages={stages}
             onStart={() => navRoot("narrative")}
             onExample={() => { setShowHome(false); setShowExamples(true); }}
-            onGuide={() => setShowGuide(true)}
+            docsUrl={DOCS_URL}
             onPickStage={(s) => navRoot(s)}
             t={t}
           />

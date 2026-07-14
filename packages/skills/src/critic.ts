@@ -215,15 +215,22 @@ export function critiqueToFeedback(findings: CritiqueFinding[]): string {
 // Apply is generative (it regenerates the whole layer) and the critic is a fresh subjective pass, so a
 // re-review returns a NEW finding list with no stable identity to the previous one (the id is a hash of
 // the exact wording). To tell "progress" from "churn" we match findings across rounds by the node they
-// target and by wording overlap, and label each still-open / new, plus which prior ones were resolved.
+// target and by wording overlap, and label each still-open / new / recurring, plus which prior resolved.
+//
+// "recurring" is the important one: a generative Apply often fixes the flagged items but re-breaks others
+// it fixed a round or two ago, so the layer OSCILLATES between two sets of concerns. Comparing only to the
+// previous round hides that (a concern that vanished last round and is back now looks "new"). So we also
+// pass the union of ALL earlier rounds and flag anything seen before-but-not-last as recurring — the
+// signal that re-applying is going in circles rather than converging.
 
-/** The delta between a review round and the one before it. */
+/** The delta between a review round and the ones before it. */
 export interface CritiqueDiff {
-  /** current finding id → did it persist from the previous round ("still") or is it fresh ("new"). */
-  statuses: Record<string, "new" | "still">;
+  /** current finding id → persisted from the previous round ("still"), seen in an earlier round and back
+   *  ("recurring" — a loop), or genuinely fresh ("new"). */
+  statuses: Record<string, "new" | "still" | "recurring">;
   /** previous findings absent from the current round — addressed since the last review. */
   resolved: CritiqueFinding[];
-  counts: { resolved: number; still: number; new: number };
+  counts: { resolved: number; still: number; new: number; recurring: number };
 }
 
 const DIFF_STOP = new Set("der die das und oder ein eine the a an of to for is are be on in with no not it its this that and or as at".split(" "));
@@ -241,24 +248,35 @@ function messageSim(a: string, b: string): number {
   return inter / (ta.size + tb.size - inter);
 }
 /** Two findings describe "the same concern" if they name the same node (with related wording), or —
- *  when neither carries a target — their wording overlaps strongly. Different targets ⇒ different concern. */
+ *  when neither carries a target — their wording overlaps strongly. Different targets ⇒ different concern.
+ *  Used for the strict consecutive-round match (still-open / resolved). */
 function sameConcern(a: CritiqueFinding, b: CritiqueFinding): boolean {
   const at = a.target?.trim().toLowerCase(), bt = b.target?.trim().toLowerCase();
   if (at && bt) return at === bt && messageSim(a.message, b.message) >= 0.3;
   return messageSim(a.message, b.message) >= 0.55;
 }
+/** Looser match for recurrence across NON-consecutive rounds. A generative Apply that keeps re-touching
+ *  the same node is a loop signal even when the critic rewords the concern each time, so the same target
+ *  alone qualifies here (falling back to wording overlap when there's no target). */
+function recurs(a: CritiqueFinding, b: CritiqueFinding): boolean {
+  const at = a.target?.trim().toLowerCase(), bt = b.target?.trim().toLowerCase();
+  if (at && bt) return at === bt;
+  return messageSim(a.message, b.message) >= 0.5;
+}
 
-/** Compare a fresh review (`next`) to the previous one (`prev`): flag each still-open/new, list resolved. */
-export function diffCritique(prev: CritiqueFinding[], next: CritiqueFinding[]): CritiqueDiff {
-  const statuses: Record<string, "new" | "still"> = {};
-  let still = 0, fresh = 0;
+/** Compare a fresh review (`next`) to the previous round (`prev`) and, for recurrence detection, to the
+ *  flattened findings of all rounds before that (`earlier`). Flags each finding still-open / recurring /
+ *  new and lists which of `prev` were resolved. Pass `earlier = []` to compare only two rounds. */
+export function diffCritique(prev: CritiqueFinding[], next: CritiqueFinding[], earlier: CritiqueFinding[] = []): CritiqueDiff {
+  const statuses: Record<string, "new" | "still" | "recurring"> = {};
+  let still = 0, fresh = 0, recurring = 0;
   for (const n of next) {
-    const persisted = prev.some((p) => sameConcern(p, n));
-    statuses[n.id] = persisted ? "still" : "new";
-    if (persisted) still++; else fresh++;
+    if (prev.some((p) => sameConcern(p, n))) { statuses[n.id] = "still"; still++; }
+    else if (earlier.some((e) => recurs(e, n))) { statuses[n.id] = "recurring"; recurring++; }
+    else { statuses[n.id] = "new"; fresh++; }
   }
   const resolved = prev.filter((p) => !next.some((n) => sameConcern(p, n)));
-  return { statuses, resolved, counts: { resolved: resolved.length, still, new: fresh } };
+  return { statuses, resolved, counts: { resolved: resolved.length, still, new: fresh, recurring } };
 }
 
 /** Resolve a finding's target to a canonical id the UI can select, given the whole model. */

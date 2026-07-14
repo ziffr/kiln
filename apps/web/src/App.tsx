@@ -191,14 +191,16 @@ export default function App(): React.JSX.Element {
   // post-Apply re-review is compared against what was applied.
   const [critiqueDiff, setCritiqueDiff] = useState<Partial<Record<LayerKind, CritiqueDiff>>>({});
   const [reviewCount, setReviewCount] = useState<Partial<Record<LayerKind, number>>>({});
-  const lastReviewedRef = useRef<Partial<Record<LayerKind, CritiqueFinding[]>>>({});
+  // Every review round's findings per layer (this session). The last entry is the baseline for the next
+  // diff; the union of all-but-last powers recurrence detection (spotting an oscillating layer).
+  const reviewHistoryRef = useRef<Partial<Record<LayerKind, CritiqueFinding[][]>>>({});
   const capSig = activeDoc.capabilities.map((c) => c.id).join(",");
   useEffect(() => {
     // A capability change (or project switch) restarts the review dialogue from scratch.
     setCritique({});
     setCritiqueDiff({});
     setReviewCount({});
-    lastReviewedRef.current = {};
+    reviewHistoryRef.current = {};
   }, [capSig]);
   // Auto mode: run the whole Review→Refine→Re-review loop to closure, layer by layer.
   const [autoRunning, setAutoRunning] = useState(false);
@@ -610,11 +612,14 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       const findings = (data.findings ?? []) as CritiqueFinding[];
-      // Diff against the previous round (if any) so the panel can show progress vs churn, then make
-      // this round the new baseline and count it. First review of a layer has no prior → no diff.
-      const prior = lastReviewedRef.current[layer];
-      setCritiqueDiff((d) => ({ ...d, [layer]: prior ? diffCritique(prior, findings) : undefined }));
-      lastReviewedRef.current[layer] = findings;
+      // Diff against the previous round for progress-vs-churn, and against all earlier rounds for
+      // recurrence (an oscillating layer). Then append this round to the history and count it. First
+      // review of a layer has no prior → no diff.
+      const history = reviewHistoryRef.current[layer] ?? [];
+      const prior = history[history.length - 1];
+      const earlier = history.slice(0, -1).flat();
+      setCritiqueDiff((d) => ({ ...d, [layer]: prior ? diffCritique(prior, findings, earlier) : undefined }));
+      reviewHistoryRef.current[layer] = [...history, findings];
       setReviewCount((c) => ({ ...c, [layer]: (c[layer] ?? 0) + 1 }));
       setCritique((prev) => ({ ...prev, [layer]: findings }));
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });

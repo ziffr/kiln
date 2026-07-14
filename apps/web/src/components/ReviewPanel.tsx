@@ -126,12 +126,14 @@ function LayerReviewRow({ row, findings, diff, reviewCount, isBusy, active, canA
   const showApplied = applied !== null && findings === undefined;
   const selectedCount = open ? findings!.filter((f) => sel[f.id]).length : 0;
 
-  // Round-over-round delta + a stop-here nudge. The delta summary shows after a re-review (there's a
-  // prior round to compare against); the nudge fires when only subjective suggestions remain or the
-  // layer has already been refined a few times — the loop rarely converges to zero, so we say so.
+  // Round-over-round delta + stop-here signals. The delta summary shows after a re-review. When findings
+  // recur (seen in an earlier round, gone, now back) the layer is oscillating — a generative Apply keeps
+  // re-introducing what it fixed before — so we raise an explicit warning instead of the softer nudge.
   const showDelta = Boolean(diff) && (open || clean);
+  const recurring = diff?.counts.recurring ?? 0;
+  const oscillating = open && recurring > 0;
   const onlySuggestions = open && findings!.every((f) => f.severity !== "concern");
-  const showNudge = open && (onlySuggestions || reviewCount >= 3);
+  const showNudge = open && !oscillating && (onlySuggestions || reviewCount >= 3);
   const nudgeText = onlySuggestions ? t("aiOnlySuggestions") : t("aiRefinedTimes", { count: reviewCount });
 
   const statusText = isBusy
@@ -181,9 +183,14 @@ function LayerReviewRow({ row, findings, diff, reviewCount, isBusy, active, canA
           <span className="muted">{t("aiSinceReview")}</span>
           {diff!.counts.resolved > 0 && <span className="delta-chip resolved" title={t("aiDeltaResolvedHint")}>✓ {t("aiDeltaResolved", { count: diff!.counts.resolved })}</span>}
           {diff!.counts.still > 0 && <span className="delta-chip still" title={t("aiDeltaStillHint")}>↻ {t("aiDeltaStill", { count: diff!.counts.still })}</span>}
+          {recurring > 0 && <span className="delta-chip recurring" title={t("aiDeltaRecurringHint")}>↺ {t("aiDeltaRecurring", { count: recurring })}</span>}
           {diff!.counts.new > 0 && <span className="delta-chip new" title={t("aiDeltaNewHint")}>✦ {t("aiDeltaNew", { count: diff!.counts.new })}</span>}
           {clean && <span className="delta-chip resolved">✓ {t("aiReviewOk")}</span>}
         </div>
+      )}
+
+      {oscillating && (
+        <div className="review-oscillation">⚠ {t("aiOscillating")}</div>
       )}
 
       {showDelta && diff!.resolved.length > 0 && (
@@ -212,8 +219,8 @@ function LayerReviewRow({ row, findings, diff, reviewCount, isBusy, active, canA
                     />
                   )}
                   {delta && (
-                    <span className={`finding-delta ${delta}`} title={delta === "new" ? t("aiDeltaNewHint") : t("aiDeltaStillHint")}>
-                      {delta === "new" ? "✦" : "↻"}
+                    <span className={`finding-delta ${delta}`} title={delta === "new" ? t("aiDeltaNewHint") : delta === "recurring" ? t("aiDeltaRecurringHint") : t("aiDeltaStillHint")}>
+                      {delta === "new" ? "✦" : delta === "recurring" ? "↺" : "↻"}
                     </span>
                   )}
                   <span className={f.target ? "finding-msg clickable" : "finding-msg"} onClick={() => f.target && onSelect(f)}>

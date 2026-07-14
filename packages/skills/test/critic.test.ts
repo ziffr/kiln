@@ -143,4 +143,37 @@ test("diffCritique against an empty prior round marks everything new", () => {
   const d = diffCritique([], [f("n1", "something", "x")]);
   assert.equal(d.statuses["n1"], "new");
   assert.equal(d.counts.resolved, 0);
+  assert.equal(d.counts.recurring, 0);
+});
+
+test("diffCritique flags a concern back from an earlier round as recurring, not new", () => {
+  // Round 1 flagged the ceremony gap; round 2 (prev) resolved it but raised the license gap;
+  // round 3 (next) resolves the license gap and re-raises the ceremony gap → oscillation.
+  const earlier = [f("e1", "No automation schedules the ceremony", "ceremony")]; // round 1
+  const prev = [f("p1", "License reactivates on partial payment", "license")]; // round 2
+  const next = [f("n1", "No automation schedules the ceremony after finalize", "ceremony")]; // round 3
+  const d = diffCritique(prev, next, earlier);
+  assert.equal(d.statuses["n1"], "recurring"); // seen in round 1, absent in round 2, back now
+  assert.equal(d.counts.recurring, 1);
+  assert.equal(d.counts.new, 0);
+  assert.equal(d.counts.resolved, 1); // the license concern from round 2 is gone
+});
+
+test("diffCritique flags a reworded concern on the same node as recurring (rewording shouldn't hide a loop)", () => {
+  const earlier = [f("e1", "Offer accepted does not schedule the installation", "offer_accepted")];
+  const prev = [f("p1", "Unrelated concern about billing", "invoice")];
+  // same target as round 1, but the critic worded it completely differently
+  const next = [f("n1", "Nothing hands off to install once a quote is signed", "offer_accepted")];
+  const d = diffCritique(prev, next, earlier);
+  assert.equal(d.statuses["n1"], "recurring");
+  assert.equal(d.counts.recurring, 1);
+});
+
+test("diffCritique prefers still over recurring when a concern is in both prev and earlier", () => {
+  const earlier = [f("e1", "Invoice has no total", "invoice")];
+  const prev = [f("p1", "Invoice has no total field", "invoice")];
+  const next = [f("n1", "Invoice still has no total", "invoice")];
+  const d = diffCritique(prev, next, earlier);
+  assert.equal(d.statuses["n1"], "still"); // persistent, not a loop
+  assert.equal(d.counts.recurring, 0);
 });

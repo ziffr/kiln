@@ -442,16 +442,23 @@ textarea {
 .delta-chip { border-radius: 4px; padding: 0 6px; font-size: 11px; border: 1px solid transparent; white-space: nowrap; }
 .delta-chip.resolved { color: var(--ok-fg, #3fb950); background: color-mix(in srgb, var(--ok-fg, #3fb950) 12%, transparent); }
 .delta-chip.still { color: var(--warn-fg); background: color-mix(in srgb, var(--warn-fg) 12%, transparent); }
+.delta-chip.recurring { color: var(--err-fg); background: color-mix(in srgb, var(--err-fg) 14%, transparent); font-weight: 600; }
 .delta-chip.new { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 12%, transparent); }
 .review-resolved { list-style: none; margin: 2px 0 2px; padding: 0 0 0 24px; }
 .review-resolved li { padding: 2px 0; font-size: 12px; line-height: 1.35; }
 .review-resolved s { color: var(--muted); }
 .delta-mark.resolved { color: var(--ok-fg, #3fb950); }
 
-/* Per-finding status marker (↻ still open · ✦ new) so a re-review is legible finding-by-finding. */
+/* Per-finding status marker (↻ still open · ↺ recurring · ✦ new) so a re-review is legible per finding. */
 .finding-delta { flex: none; font-size: 12px; line-height: 1.4; }
 .finding-delta.still { color: var(--warn-fg); }
+.finding-delta.recurring { color: var(--err-fg); }
 .finding-delta.new { color: var(--accent-2); }
+
+/* Oscillation warning — the layer is looping (generative Apply keeps re-introducing earlier concerns). */
+.review-oscillation { margin: 4px 0 2px 24px; padding: 6px 9px; font-size: 12px; line-height: 1.45;
+  color: var(--err-fg); background: color-mix(in srgb, var(--err-fg) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--err-fg) 30%, transparent); border-radius: 6px; }
 
 /* Diminishing-returns nudge — the loop rarely converges to zero; say when it's fine to stop. */
 .review-nudge { padding: 4px 0 2px 24px; font-size: 12px; line-height: 1.4; }

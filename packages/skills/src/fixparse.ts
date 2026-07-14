@@ -9,9 +9,14 @@ import type { LayerKind } from "./critic.ts";
 export type FixIntent =
   | { kind: "addPolicy"; on: string; then: string }
   | { kind: "addAttribute"; entity: string; attrs: { name: string; type: string }[] }
-  | { kind: "addReference"; entity: string; to: string };
+  | { kind: "addReference"; entity: string; to: string }
+  // roles/areas/agents: wire a capability into a container. Which ref is the capability vs the container
+  // is left to the app (it resolves them against the model) — here we just gather the candidate names.
+  | { kind: "assignCapability"; refs: string[] }
+  | { kind: "addWorkflowStep"; workflow: string; refs: string[] };
 
 const ATTR_TYPE = "(?:text|number|boolean|date|money|reference)";
+const refsIn = (text: string): string[] => Array.from(new Set((text.match(/[A-Za-z][A-Za-z0-9_]{2,}/g) ?? []).map((s) => s.toLowerCase())));
 
 /** Best-effort parse of a finding's suggestion into a concrete edit, or null if it isn't a shape we can
  *  apply safely. Only the additive patterns the critic actually emits are handled. */
@@ -42,6 +47,23 @@ export function parseFinding(
     const ref = text.match(/\b([A-Za-z0-9_]+)\s+reference\s+to\s+(?:the\s+)?([A-Za-z0-9_]+)/i);
     if (ref) return { kind: "addReference", entity: ref[2], to: ref[1] };
     return null;
+  }
+
+  if (layer === "roles" || layer === "areas" || layer === "agents") {
+    // Only assignment-shaped suggestions (a capability joining a role/area/agent). Splits/merges and
+    // vague "assign a role" don't resolve to a single pair → the app falls back to manual.
+    if (!/\b(assign|give|add|move|belongs?|responsible|owns?|handles?)\b/i.test(text)) return null;
+    const refs = refsIn(text);
+    if (finding.target) refs.push(finding.target.toLowerCase());
+    const uniq = Array.from(new Set(refs));
+    return uniq.length ? { kind: "assignCapability", refs: uniq } : null;
+  }
+
+  if (layer === "workflows") {
+    // "append X → then Y" / "add step Z" → the app resolves the command refs and the target workflow.
+    if (!/\b(append|add)\b/i.test(text) || !finding.target) return null;
+    const refs = refsIn(text);
+    return refs.length ? { kind: "addWorkflowStep", workflow: finding.target, refs } : null;
   }
 
   return null;

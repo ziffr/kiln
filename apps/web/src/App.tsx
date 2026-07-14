@@ -537,6 +537,29 @@ export default function App(): React.JSX.Element {
       if (!agg || !to || (agg.references ?? []).includes(to.id)) return null;
       return () => editAggregate({ ...agg, references: [...(agg.references ?? []), to.id] } as AggregateInput);
     }
+    if (intent.kind === "assignCapability") {
+      // Resolve the refs against capabilities AND the layer's containers; apply only when EXACTLY one of
+      // each lands (else it's ambiguous → fall back to manual, never wire the wrong pair).
+      const containers = layer === "roles" ? rolesDoc.roles : layer === "agents" ? agentsDoc.agents : contextsDoc.contexts;
+      const capIds = new Set(intent.refs.map((r) => resolveNode(r, activeDoc.capabilities)?.id).filter(Boolean));
+      const contIds = new Set(intent.refs.map((r) => resolveNode(r, containers as { id: string; name: string }[])?.id).filter(Boolean));
+      if (capIds.size !== 1 || contIds.size !== 1) return null;
+      const capId = [...capIds][0]!;
+      const contId = [...contIds][0]!;
+      const cont = containers.find((c) => c.id === contId) as { capabilities?: string[] } | undefined;
+      if ((cont?.capabilities ?? []).includes(capId)) return null; // already wired
+      if (layer === "areas") return () => reassignCapabilityArea(capId, contId);
+      if (layer === "roles") return () => patchActive({ roles: { ...rolesDoc, roles: rolesDoc.roles.map((r) => (r.id === contId ? { ...r, capabilities: [...(r.capabilities ?? []), capId], meta: { ...(r.meta ?? {}), origin: "authored" } } : r)) } });
+      return () => patchActive({ agents: { ...agentsDoc, agents: agentsDoc.agents.map((a) => (a.id === contId ? { ...a, capabilities: [...(a.capabilities ?? []), capId], meta: { ...(a.meta ?? {}), origin: "authored" } } : a)) } });
+    }
+    if (intent.kind === "addWorkflowStep") {
+      const wf = resolveNode(intent.workflow, workflowsDoc.workflows);
+      if (!wf) return null;
+      const cmdIds = intent.refs.map((r) => resolveNode(r, behaviourDoc.commands ?? [])?.id).filter(Boolean) as string[];
+      const add = [...new Set(cmdIds)].filter((id) => !(wf.steps ?? []).includes(id));
+      if (!add.length) return null;
+      return () => patchActive({ workflows: { ...workflowsDoc, workflows: workflowsDoc.workflows.map((w) => (w.id === wf.id ? { ...w, steps: [...(w.steps ?? []), ...add], meta: { ...(w.meta ?? {}), origin: "authored" } } : w)) } });
+    }
     return null;
   }
 
@@ -1088,13 +1111,22 @@ export default function App(): React.JSX.Element {
   const isAuthored = (x: { meta?: { origin?: string } }): boolean => x.meta?.origin === "authored";
   const authoredAggN = domainDoc.aggregates.filter(isAuthored).length;
   const authoredPolN = (flowDoc.policies ?? []).filter(isAuthored).length;
+  const authoredCtxN = (active.contexts?.contexts ?? []).filter(isAuthored).length;
+  const authoredRoleN = (active.roles?.roles ?? []).filter(isAuthored).length;
+  const authoredWfN = (active.workflows?.workflows ?? []).filter(isAuthored).length;
+  const authoredAgentN = (active.agents?.agents ?? []).filter(isAuthored).length;
   function atRiskCount(stage: StageId): number {
     switch (stage) {
       case "capabilities": // regenerating capabilities resets every downstream layer
+        return authoredAggN + authoredPolN + authoredCtxN + authoredRoleN + authoredWfN + authoredAgentN;
       case "entities": return authoredAggN + authoredPolN; // entities regen also drops behaviour + automations
       case "behaviour":
       case "automations": return authoredPolN;
-      default: return 0; // areas/roles/workflows/agents gain a count as they get surgical fixes (Build B)
+      case "areas": return authoredCtxN;
+      case "roles": return authoredRoleN;
+      case "workflows": return authoredWfN;
+      case "agents": return authoredAgentN;
+      default: return 0;
     }
   }
   function guardRegen(stage: StageId, proceed: () => void): void {

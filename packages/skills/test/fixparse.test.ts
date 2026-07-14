@@ -34,6 +34,32 @@ test("parseFinding reads an add-reference suggestion (entity is the 'to' side)",
   assert.deepEqual(i, { kind: "addReference", entity: "purchase_order", to: "supplier" });
 });
 
+test("parseFinding gathers refs for a role assignment (app disambiguates cap vs container)", () => {
+  const i = parseFinding("roles", {
+    message: "billing has no owning role.",
+    suggestion: "Assign billing to the finance role.",
+    target: "billing",
+  });
+  assert.equal(i?.kind, "assignCapability");
+  assert.ok((i as { refs: string[] }).refs.includes("billing"));
+  assert.ok((i as { refs: string[] }).refs.includes("finance"));
+});
+
+test("parseFinding skips role splits/merges (not a single assignment)", () => {
+  assert.equal(parseFinding("roles", { message: "x", suggestion: "Split Employee into Sales, Field Operations and Finance roles." }), null);
+});
+
+test("parseFinding reads a workflow step append (refs + target workflow)", () => {
+  const i = parseFinding("workflows", {
+    message: "install workflow never completes.",
+    suggestion: "Append complete_installation → issue_invoice.",
+    target: "installation",
+  });
+  assert.equal(i?.kind, "addWorkflowStep");
+  assert.equal((i as { workflow: string }).workflow, "installation");
+  assert.ok((i as { refs: string[] }).refs.includes("complete_installation"));
+});
+
 test("parseFinding returns null for prose it can't turn into a concrete edit", () => {
   assert.equal(parseFinding("automations", { message: "x", suggestion: "Reconsider whether this reaction should exist at all." }), null);
   assert.equal(parseFinding("entities", { message: "x", suggestion: "Think about whether Invoice is even the right aggregate." }), null);

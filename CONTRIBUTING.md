@@ -100,9 +100,20 @@ are documented in the ADRs under `docs/`.)
 
 ## Documentation
 
-All plans, specs, reviews, and decisions live under `docs/` and follow
-[`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) — ID prefixes, required frontmatter, and a status
-lifecycle. If you add or change a governed doc, update `docs/INDEX.md`.
+There are **two** kinds of docs, in two places:
+
+- **Governance docs** — plans, specs, reviews, and decisions — live under `docs/` and follow
+  [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) (ID prefixes, required frontmatter, status lifecycle).
+  If you add or change a governed doc, update `docs/INDEX.md`.
+- **The user-facing documentation site** lives under [`docs-site/`](docs-site/) (Docusaurus, published to
+  GitHub Pages). **Contributions are welcome and expected** — if you add a feature, a connector, a backend
+  adapter, or anything a user needs to configure (e.g. where API keys go), document it here in the same PR.
+  Add a markdown page under `docs-site/docs/`; the sidebar picks it up automatically. See
+  [`docs-site/README.md`](docs-site/README.md) for how to add a page and preview it locally. The docs site
+  is **not** part of the root `npm install` — you only install its tooling if you want to preview.
+
+Both merge through the normal PR flow; `docs-site/**` is code-owned, so a maintainer reviews every docs
+change just like code.
 
 ## Automation
 

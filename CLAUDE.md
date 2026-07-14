@@ -98,7 +98,7 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
   on `main`, so **CI won't catch a missing doc for our own commits; this rule is the enforcement.** Docs
   are English-first; the German locale (`docs-site/i18n/de/`) follows. Purely-internal changes (refactors,
   tests, tooling) need no docs.
-- **The docs site is VERSIONED and pins `lastVersion` (currently `0.1.0`), so the version users see by
+- **The docs site is VERSIONED and pins `lastVersion` (currently `0.2.0`), so the version users see by
   default is the snapshot under `docs-site/versioned_docs/version-<X>/` — the unversioned `docs/` folder is
   served only under `/next`.** A page added/edited ONLY in `docs/` is invisible on the default site. So for
   a shipped user-facing change, **edit the matching page in `versioned_docs/version-<lastVersion>/` too (mirror
@@ -113,6 +113,23 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
 - `.env`, `node_modules/`, `.kiln/`, `dist/` are gitignored — never commit them.
 
 ## Status (keep current)
+- **v0.2.0 — Studio UX overhaul + adaptive models + export engine parity SHIPPED.** (1) **View-code action
+  bar** redesigned from a flat 10-button toolbar into three self-explaining controls — an **Improve with AI**
+  menu (code review/auto-fix, verify/auto-fix, **Polish layout** + **Visual review** — renamed from Polish
+  UI/Visual polish), **Run app**, and an **Export** menu (scaffold / AI-logic / full-stack) — each item
+  describing what it does (new reusable `components/Menu.tsx`). (2) **Adaptive per-stage Anthropic model
+  defaults RESTORED** (commit 368adbf had flattened everything to sonnet/medium): `adaptive` (default on) →
+  a stage with no override on Anthropic picks model+effort from `LAYER_TIER` (heavy→Opus/high, standard→
+  Sonnet, light→Haiku); per-stage `stages` overrides + gateways unchanged; one-time `kiln.adaptiveReset`
+  migration clears stale `adaptiveModel:false`. Settings gained per-stage **hover tooltips** (ⓘ, saves the
+  vertical space the inline text took), an **Adaptive** toggle + a docs link; fixed missing EN
+  `code_mcp`/`code_react`. (3) **Export engine parity**: the generated Node agent runtime now runs on the
+  SAME engines as the Studio — the OpenRouter path is generalized into ONE **OpenAI-compatible** provider
+  (`agents/src/providers/openaiCompatible.ts`) resolving OpenRouter/omniroute/any gateway from env (closes
+  the omniroute gap); a new `binding.agent` bakes the built-on engine+model into `agents/.env.example` so a
+  gateway-built app ships pre-pointed at it, not Anthropic-first (round-trips via model.json; `assembleModel`
+  fills it from `agentExportDefault()`). Docs (view-code + choosing-an-engine, both `docs/` and versioned)
+  updated; **331 tests**; version 0.1.0→**0.2.0**, docs-site `version-0.2.0` cut + `lastVersion` bumped.
 - **Multi-engine seam + local "Run app" BUILT.** (1) **Alternative AI engines** (open-source): Anthropic
   stays default/preferred, but OpenAI-compatible gateways — **OpenRouter** (`KILN_OPENROUTER_API_KEY`) and
   **omniroute** (`KILN_OMNIROUTE_API_KEY` + base URL) — are now selectable. ONE new adapter serves both

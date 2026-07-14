@@ -339,6 +339,49 @@ export default function App(): React.JSX.Element {
     setSelected(null);
   }
 
+  // ── Narrative sync (one-way, human-reviewed) ────────────────────────────────────────────────────
+  // Hand-made fixes land in the model but not in the narrative, so the prose silently falls behind. This
+  // proposes narrative sentences for the model's business rules the narrative doesn't state; the human
+  // reviews and appends. It's a RECONCILING edit — bring the narrative up to date WITH the model — so it
+  // does NOT reset downstream (unlike setNarrative). It keeps the prose honest; it is NOT a promise that
+  // regenerating from the narrative would reproduce these exact facts.
+  const [narrativeSyncBusy, setNarrativeSyncBusy] = useState(false);
+  function appendNarrative(block: string): void {
+    const b = block.trim();
+    if (!b) return;
+    const base = (active.narrative ?? "").trimEnd();
+    patchActive({ narrative: base ? `${base}\n\n${b}\n` : `${b}\n` });
+  }
+  async function syncNarrativeModel(): Promise<void> {
+    const facts = (flowDoc.policies ?? []).map((p) => `When ${nameFor(p.on)} happens, ${nameFor(p.then)} is triggered.`);
+    if (!facts.length) return;
+    setNarrativeSyncBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/narrative-sync`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ narrative: active.narrative ?? "", facts, model: modelFor("capabilities"), effort: active.effort }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      const additions = (data.additions ?? []) as string[];
+      if (!additions.length) {
+        setDialog({ kind: "confirm", title: t("narrativeSyncTitle"), message: t("narrativeSyncClean"), confirmLabel: t("aiDone"), onConfirm: () => {} });
+        return;
+      }
+      const block = `## ${t("narrativeSyncHeading")}\n${additions.map((a) => `- ${a}`).join("\n")}`;
+      setDialog({
+        kind: "input", title: t("narrativeSyncTitle"), label: t("narrativeSyncLabel"),
+        initial: block, multiline: true, submitLabel: t("narrativeSyncApply"), onSubmit: appendNarrative,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setNarrativeSyncBusy(false);
+    }
+  }
+
   async function generate(): Promise<void> {
     setBusy(true);
     setError(null);
@@ -1513,6 +1556,14 @@ export default function App(): React.JSX.Element {
                   onTranscript={(tr) => patchActive({ coachTranscript: tr })}
                   lang={i18n.language}
                 />
+                {(flowDoc.policies?.length ?? 0) > 0 && text.trim() && (
+                  <div className="narrative-sync">
+                    <button className="narrative-sync-btn" onClick={() => void syncNarrativeModel()} disabled={narrativeSyncBusy} title={t("narrativeSyncHint")}>
+                      <Icon name="refresh" size={14} /> {narrativeSyncBusy ? t("narrativeSyncBusy") : t("narrativeSyncBtn")}
+                    </button>
+                    <span className="muted">{t("narrativeSyncHint")}</span>
+                  </div>
+                )}
                 <div className="lists narrative-summary">
                   <div><h3>{t("outcomes")}</h3><ul>{businessOutcomes(doc).map((o) => <li key={o}>{o}</li>)}</ul></div>
                   <div><h3>{t("activities")}</h3><ul>{coreActivities(doc).map((a) => <li key={a}>{a}</li>)}</ul></div>

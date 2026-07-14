@@ -474,6 +474,13 @@ textarea {
 .review-restore { display: inline-flex; align-items: center; gap: 5px; margin: 4px 0 2px 24px; background: none; border: none; font-size: 12px; cursor: pointer; padding: 0; }
 .review-restore:hover { color: var(--accent); }
 
+/* Narrative sync (one-way, reviewed): reconcile the prose with hand-made model changes. */
+.narrative-sync { display: flex; align-items: center; gap: 10px; margin: 10px 0 2px; flex-wrap: wrap; }
+.narrative-sync-btn { display: inline-flex; align-items: center; gap: 6px; flex: none; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 13px; color: var(--fg); cursor: pointer; }
+.narrative-sync-btn:hover:not(:disabled) { border-color: var(--accent); }
+.narrative-sync-btn:disabled { opacity: 0.6; cursor: default; }
+.narrative-sync .muted { font-size: 12px; flex: 1; min-width: 200px; }
+
 /* Settings modal + effort transparency */
 .review-effort { font-size: 11px; border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; color: #9aa4b2; }
 .settings-modal { max-width: 560px; }

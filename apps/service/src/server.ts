@@ -36,6 +36,7 @@ import {
   generateExternalServices,
   translateMessages,
   structureNarrative,
+  syncNarrative,
   ENRICH_WEB_SYSTEM_PROMPT,
   ENRICH_LAYER_SYSTEM_PROMPT,
   renderEnrichWebUserPrompt,
@@ -604,6 +605,24 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       return send(res, 200, { narrative: result.narrative, structured: result.structured, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
+    // Narrative sync: propose narrative sentences for model facts the narrative doesn't yet state (a
+    // one-way, human-reviewed reconcile so hand-made model fixes don't silently fall out of the prose).
+    if (req.method === "POST" && req.url === "/api/narrative-sync") {
+      if (!client) return send(res, 500, { error: "No LLM key set on the server (KILN_ANTHROPIC_API_KEY or KILN_LANGDOCK_API_KEY)" });
+      const body = JSON.parse((await readBody(req)) || "{}") as { narrative?: string; facts?: string[]; model?: string; effort?: string };
+      const facts = Array.isArray(body.facts) ? body.facts.filter((x) => typeof x === "string") : [];
+      if (!facts.length) return send(res, 400, { error: "facts are required" });
+      const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
+      const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+      const result = await syncNarrative(body.narrative ?? "", facts, provider);
+      const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
+      const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+      return send(res, 200, { additions: result.additions, model: model.id, usage, estCostUsd, sessionSpendUsd });
     }
 
     // i18n: translate the generated app's UI string bundle into a target language (automated LLM).

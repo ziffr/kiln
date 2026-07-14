@@ -21,7 +21,7 @@ import {
   type AgentsDoc,
 } from "@kiln/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@kiln/validation";
-import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, diffCritique, concernsMatch, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding, type CritiqueDiff } from "@kiln/skills";
+import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, diffCritique, concernsMatch, parseFinding, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type LayerKind, type CritiqueFinding, type CritiqueDiff } from "@kiln/skills";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
 import { EnrichPanel } from "./components/EnrichPanel";
@@ -485,6 +485,59 @@ export default function App(): React.JSX.Element {
       confirmLabel: t("del"), danger: true,
       onConfirm: () => patchActive({ domain: { ...base, policies: base.policies!.filter((p) => p.id !== id) } }),
     });
+  }
+
+  // ---- Surgical single-finding fix (SPEC-005/002 closure) ----------------------------------------
+  // Turn a parseable critique suggestion into ONE deterministic model edit — add the reaction, type the
+  // field, wire the reference — instead of regenerating the whole layer. This is the CONVERGENT fix: the
+  // concern is genuinely gone, so a re-review won't re-raise it. Returns an apply-fn, or null when the
+  // suggestion can't be resolved to real nodes (the UI then offers only "fix by hand").
+  const normId = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const attrNameOf = (x: unknown): string => (typeof x === "string" ? x : (x as { name: string }).name);
+  const tokenize = (s: string): Set<string> => new Set(s.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+  const subset = (a: Set<string>, b: Set<string>): boolean => a.size > 0 && [...a].every((w) => b.has(w));
+  // Resolve an LLM-referenced name/id to a real node. Exact (normalized) match first; else a UNIQUE
+  // token-subset match (the critic often abbreviates an id) — ambiguous or absent ⇒ null, so we never
+  // silently wire the wrong node (the UI then offers only manual fix).
+  function resolveNode<T extends { id: string; name: string }>(ref: string, list: T[]): T | undefined {
+    const exact = list.find((x) => normId(x.id) === normId(ref) || normId(x.name) === normId(ref));
+    if (exact) return exact;
+    const rt = tokenize(ref);
+    const cand = list.filter((x) => subset(rt, tokenize(x.id)) || subset(rt, tokenize(x.name)));
+    return cand.length === 1 ? cand[0] : undefined;
+  }
+  function resolveFix(layer: LayerKind, f: CritiqueFinding): (() => void) | null {
+    const intent = parseFinding(layer, f);
+    if (!intent) return null;
+    if (intent.kind === "addPolicy") {
+      const ev = resolveNode(intent.on, behaviourDoc.events ?? []);
+      const cmd = resolveNode(intent.then, behaviourDoc.commands ?? []);
+      if (!ev || !cmd) return null;
+      const policies = flowDoc.policies ?? [];
+      if (policies.some((p) => p.on === ev.id && p.then === cmd.id)) return null; // already wired
+      return () => {
+        let n = policies.length + 1;
+        let id = `policy_${n}`;
+        while (policies.some((p) => p.id === id)) id = `policy_${++n}`;
+        const pol = { id, name: `${ev.name} → ${cmd.name}`, on: ev.id, then: cmd.id, meta: { origin: "authored" } };
+        patchActive({ domain: { ...flowDoc, policies: [...policies, pol] } });
+      };
+    }
+    if (intent.kind === "addAttribute") {
+      const agg = resolveNode(intent.entity, domainDoc.aggregates);
+      if (!agg) return null;
+      const have = new Set((agg.attributes ?? []).map((x) => normId(attrNameOf(x))));
+      const add = intent.attrs.filter((x) => !have.has(normId(x.name)));
+      if (!add.length) return null;
+      return () => editAggregate({ ...agg, attributes: [...(agg.attributes ?? []), ...add] } as AggregateInput);
+    }
+    if (intent.kind === "addReference") {
+      const agg = resolveNode(intent.entity, domainDoc.aggregates);
+      const to = resolveNode(intent.to, domainDoc.aggregates);
+      if (!agg || !to || (agg.references ?? []).includes(to.id)) return null;
+      return () => editAggregate({ ...agg, references: [...(agg.references ?? []), to.id] } as AggregateInput);
+    }
+    return null;
   }
 
   // ---- Business-areas: generate + editing (SPEC-003; the model proposes, the human decides) ----
@@ -1161,6 +1214,14 @@ export default function App(): React.JSX.Element {
                 onReview={(k) => void reviewLayer(k)}
                 onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
                 onSelect={(f) => { selectFinding(f); setShowReview(false); }}
+                canFix={(k, f) => resolveFix(k, f) !== null}
+                onFix={(k, f) => {
+                  const apply = resolveFix(k, f);
+                  if (!apply) return;
+                  apply();
+                  // Fixed for real (the model changed) → drop it from the list; a re-review confirms.
+                  setCritique((c) => ({ ...c, [k]: (c[k] ?? []).filter((x) => x.id !== f.id) }));
+                }}
                 onIgnore={(k, f) => {
                   ignoreCritFinding(k, f);
                   // Remove it from the current list right away so accepting feels immediate; it also

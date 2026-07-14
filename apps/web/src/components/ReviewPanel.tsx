@@ -27,6 +27,8 @@ interface Props {
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
   onSelect: (f: CritiqueFinding) => void;
   onIgnore: (k: LayerKind, f: CritiqueFinding) => void;
+  canFix: (k: LayerKind, f: CritiqueFinding) => boolean;
+  onFix: (k: LayerKind, f: CritiqueFinding) => void;
   ignoredCount: (k: LayerKind) => number;
   onRestoreIgnored: (k: LayerKind) => void;
   autoRunning: boolean;
@@ -37,7 +39,7 @@ interface Props {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-export function ReviewPanel({ layers, critique, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, onSelect, onIgnore, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
+export function ReviewPanel({ layers, critique, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, onSelect, onIgnore, canFix, onFix, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
   const autoLabel = autoLayer ? layers.find((l) => l.kind === autoLayer)?.label ?? autoLayer : "";
   return (
     <div className="review-panel">
@@ -80,6 +82,8 @@ export function ReviewPanel({ layers, critique, diffs, reviewCount, busy, refina
           onApply={onApply}
           onSelect={onSelect}
           onIgnore={onIgnore}
+          canFix={canFix}
+          onFix={onFix}
           onRestoreIgnored={onRestoreIgnored}
           t={t}
         />
@@ -104,11 +108,13 @@ interface RowProps {
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
   onSelect: (f: CritiqueFinding) => void;
   onIgnore: (k: LayerKind, f: CritiqueFinding) => void;
+  canFix: (k: LayerKind, f: CritiqueFinding) => boolean;
+  onFix: (k: LayerKind, f: CritiqueFinding) => void;
   onRestoreIgnored: (k: LayerKind) => void;
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, canApply, effort, modelLabel, autoRunning, onReview, onApply, onSelect, onIgnore, onRestoreIgnored, t }: RowProps): React.JSX.Element {
+function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, canApply, effort, modelLabel, autoRunning, onReview, onApply, onSelect, onIgnore, canFix, onFix, onRestoreIgnored, t }: RowProps): React.JSX.Element {
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -255,7 +261,11 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
                   </div>
                 )}
                 <div className="finding-acts">
-                  {f.target && <button className="finding-act" onClick={() => onSelect(f)} title={t("aiGoFixHint")}><Icon name="pencil" size={12} /> {t("aiGoFix")}</button>}
+                  {canFix(row.kind, f) ? (
+                    <button className="finding-act fix" onClick={() => onFix(row.kind, f)} title={t("aiSurgicalFixHint")}><Icon name="zap" size={12} /> {t("aiSurgicalFix")}</button>
+                  ) : (
+                    f.target && <button className="finding-act" onClick={() => onSelect(f)} title={t("aiGoFixHint")}><Icon name="pencil" size={12} /> {t("aiGoFix")}</button>
+                  )}
                   <button className="finding-act ignore" onClick={() => onIgnore(row.kind, f)} title={t("aiIgnoreHint")}><Icon name="x" size={12} /> {t("aiIgnore")}</button>
                 </div>
               </li>

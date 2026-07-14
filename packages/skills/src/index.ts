@@ -131,6 +131,7 @@ export {
   type CritiqueFinding,
   type CritiqueDiff,
 } from "./critic.ts";
+export { parseFinding, type FixIntent } from "./fixparse.ts";
 export { generateAppLogic, APP_LOGIC_SCHEMA, APP_LOGIC_SYSTEM_PROMPT, type AppLogicResult } from "./applogic.ts";
 export { reviewGeneratedCode, CODE_REVIEW_SCHEMA, CODE_REVIEW_SYSTEM_PROMPT, type CodeReviewResult, type CodeFinding, type CodeLens } from "./codereview.ts";
 export { generateComponents, COMPONENTS_SCHEMA, COMPONENTS_SYSTEM_PROMPT, type ComponentsResult, type ViewSpec } from "./components.ts";

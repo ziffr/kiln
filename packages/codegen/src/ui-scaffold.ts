@@ -147,6 +147,19 @@ export function Badge({ className, variant = "secondary", ...props }: React.HTML
   return <div className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize", styles[variant], className)} {...props} />;
 }
 `,
+  "src/lib/api.ts": `/// <reference types="vite/client" />
+// Talks to the generated spine: GET /<entity>s (list) + /<entity>s/:id (read); POST command routes (see model.ts).
+// Point at the backend with VITE_API_URL (default: same origin); optional VITE_API_TOKEN sends a Bearer header.
+const BASE = (import.meta.env.VITE_API_URL as string | undefined) || "";
+const TOKEN = (import.meta.env.VITE_API_TOKEN as string | undefined) || "";
+const headers = (): Record<string, string> => ({ "content-type": "application/json", ...(TOKEN ? { authorization: "Bearer " + TOKEN } : {}) });
+const j = (r: Response) => r.json();
+export const api = {
+  list: (entity: string): Promise<Record<string, unknown>[]> => fetch(BASE + "/" + entity + "s", { headers: headers() }).then(j).catch(() => []),
+  get: (entity: string, id: string): Promise<Record<string, unknown>> => fetch(BASE + "/" + entity + "s/" + id, { headers: headers() }).then(j),
+  command: (path: string, body?: unknown): Promise<Record<string, unknown>> => fetch(BASE + path, { method: "POST", headers: headers(), body: JSON.stringify(body ?? {}) }).then(j),
+};
+`,
   "src/lib/format.tsx": `// Format-aware cell + KPI helpers, shared by every generated list page (the polished view-spec formats).
 import { Badge } from "@/components/ui/badge";
 export function formatCell(v: unknown, format?: string) {

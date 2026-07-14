@@ -64,8 +64,12 @@ test("shadcnAdapter emits a themeable scaffold: theme css, router, sidebar, page
   // boolean field → Switch, money field → number input (structure derived from typed attributes)
   assert.match(files["src/pages/LeadDetail.tsx"], /Switch/);
   assert.match(files["src/pages/InvoiceDetail.tsx"], /type="number"/);
-  // actions become buttons
-  assert.match(files["src/pages/LeadDetail.tsx"], /Qualify Lead/);
+  // actions become buttons, now wired dynamically from the command routes in model.ts
+  assert.match(files["src/lib/model.ts"], /Qualify Lead/);
+  assert.match(files["src/pages/LeadDetail.tsx"], /actionCommands/);
+  // list pages fetch real data from the spine's read endpoints
+  assert.match(files["src/pages/LeadList.tsx"], /api\.list/);
+  assert.ok(files["src/lib/api.ts"], "api client emitted");
   // sidebar groups by area
   assert.match(files["src/components/AppSidebar.tsx"], /area: "Sales"/);
 });

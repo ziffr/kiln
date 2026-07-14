@@ -2845,6 +2845,19 @@ export function Badge({ className, variant = "secondary", ...props }: React.HTML
   return <div className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize", styles[variant], className)} {...props} />;
 }
 `,
+  "src/lib/api.ts": `/// <reference types="vite/client" />
+// Talks to the generated spine: GET /<entity>s (list) + /<entity>s/:id (read); POST command routes (see model.ts).
+// Point at the backend with VITE_API_URL (default: same origin); optional VITE_API_TOKEN sends a Bearer header.
+const BASE = (import.meta.env.VITE_API_URL as string | undefined) || "";
+const TOKEN = (import.meta.env.VITE_API_TOKEN as string | undefined) || "";
+const headers = (): Record<string, string> => ({ "content-type": "application/json", ...(TOKEN ? { authorization: "Bearer " + TOKEN } : {}) });
+const j = (r: Response) => r.json();
+export const api = {
+  list: (entity: string): Promise<Record<string, unknown>[]> => fetch(BASE + "/" + entity + "s", { headers: headers() }).then(j).catch(() => []),
+  get: (entity: string, id: string): Promise<Record<string, unknown>> => fetch(BASE + "/" + entity + "s/" + id, { headers: headers() }).then(j),
+  command: (path: string, body?: unknown): Promise<Record<string, unknown>> => fetch(BASE + path, { method: "POST", headers: headers(), body: JSON.stringify(body ?? {}) }).then(j),
+};
+`,
   "src/lib/format.tsx": `// Format-aware cell + KPI helpers, shared by every generated list page (the polished view-spec formats).
 import { Badge } from "@/components/ui/badge";
 export function formatCell(v: unknown, format?: string) {
@@ -3449,6 +3462,7 @@ function listPage(s, view) {
     `      </div>`
   ].join("\n") : "";
   const imports = [
+    `import { useEffect, useState } from "react";`,
     layout === "table" ? `import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";` : "",
     `import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";`,
     `import { Button } from "@/components/ui/button";`,
@@ -3456,6 +3470,7 @@ function listPage(s, view) {
     `import { HelpButton } from "@/components/HelpButton";`,
     `import { useI18n } from "@/i18n";`,
     `import { formatCell, metricValue } from "@/lib/format";`,
+    `import { api } from "@/lib/api";`,
     `import type { ${s.typeName} } from "@/types";`
   ].filter(Boolean);
   return [
@@ -3464,7 +3479,8 @@ function listPage(s, view) {
     "",
     `export default function ${T}List() {`,
     `  const { t } = useI18n();`,
-    `  const rows: ${s.typeName}[] = []; // TODO: fetch from the bound backend`,
+    `  const [rows, setRows] = useState<${s.typeName}[]>([]);`,
+    `  useEffect(() => { api.list(${JSON.stringify(s.entity)}).then((d) => setRows(d as ${s.typeName}[])); }, []);`,
     `  const title = t(${JSON.stringify(`nav.${s.route}`)}, ${JSON.stringify(s.title)});`,
     `  return (`,
     `    <div className="p-6 space-y-4">`,
@@ -3493,13 +3509,13 @@ function detailPage(s, view) {
   const field = (f) => {
     const ctl = f.type ? CONTROL[f.type] : CONTROL.text;
     const id = slug(f.name);
+    const K = JSON.stringify(id);
     const L = lbl(s.entity, f.name);
-    if (ctl.comp === "Switch") return `        <div className="flex items-center gap-2"><Switch id="${id}" /><Label htmlFor="${id}">${L}</Label></div>`;
+    if (ctl.comp === "Switch") return `        <div className="flex items-center gap-2"><Switch id="${id}" checked={!!form[${K}]} onCheckedChange={(v) => set(${K}, v)} /><Label htmlFor="${id}">${L}</Label></div>`;
     if (ctl.comp === "Select") return `        <div className="space-y-1"><Label htmlFor="${id}">${L}</Label><Select><SelectTrigger id="${id}"><SelectValue placeholder=${JSON.stringify(f.name)} /></SelectTrigger><SelectContent /></Select></div>`;
-    return `        <div className="space-y-1"><Label htmlFor="${id}">${L}</Label><Input id="${id}" ${ctl.extra ?? ""} /></div>`;
+    return `        <div className="space-y-1"><Label htmlFor="${id}">${L}</Label><Input id="${id}" ${ctl.extra ?? ""} value={String(form[${K}] ?? "")} onChange={(e) => set(${K}, e.target.value)} /></div>`;
   };
   const needsTable = s.related.length > 0;
-  const needsLink = s.related.length > 0;
   const relatedSection = (r) => {
     const rt = `{t(${JSON.stringify(`nav.${r.route}`)}, ${JSON.stringify(r.title)})}`;
     return [
@@ -3511,7 +3527,7 @@ function detailPage(s, view) {
       `        <CardContent>`,
       `          <Table>`,
       `            <TableHeader><TableRow>${r.cols.map((c) => `<TableHead>${lbl(r.entity, c)}</TableHead>`).join("")}</TableRow></TableHeader>`,
-      `            <TableBody>{/* TODO: rows where ${r.entity}.${slug(s.entity)} == this record */}</TableBody>`,
+      `            <TableBody>{/* Related ${r.entity} \u2014 filter its list by ${slug(s.entity)}_id === id */}</TableBody>`,
       `          </Table>`,
       `        </CardContent>`,
       `      </Card>`
@@ -3519,16 +3535,27 @@ function detailPage(s, view) {
   };
   return [
     `// Generated by @kiln/codegen ui (shadcn) \u2014 detail/edit view for ${s.title}${needsTable ? " (master-detail)" : ""}.`,
+    `import { useEffect, useState } from "react";`,
+    `import { useParams, useNavigate, Link } from "react-router-dom";`,
     `import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";`,
     `import { Button } from "@/components/ui/button";`,
     `import { Label } from "@/components/ui/label";`,
     `import { useI18n } from "@/i18n";`,
+    `import { api } from "@/lib/api";`,
+    `import { createCommand, actionCommands } from "@/lib/model";`,
     needsTable ? `import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";` : "",
-    needsLink ? `import { Link } from "react-router-dom";` : "",
     importLines,
     "",
     `export default function ${T}Detail() {`,
     `  const { t } = useI18n();`,
+    `  const { id } = useParams();`,
+    `  const nav = useNavigate();`,
+    `  const isNew = !id || id === "new";`,
+    `  const [form, setForm] = useState<Record<string, unknown>>({});`,
+    `  const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));`,
+    `  useEffect(() => { if (!isNew && id) api.get(${JSON.stringify(s.entity)}, id).then((r) => setForm(r || {})); }, [id]);`,
+    `  const save = async () => { const c = createCommand(${JSON.stringify(s.entity)}); if (c) await api.command(c.path, form); nav(${JSON.stringify(s.route)}); };`,
+    `  const runAction = async (path: string) => { if (id) { await api.command(path.replace("{id}", id), form); nav(${JSON.stringify(s.route)}); } };`,
     `  return (`,
     `    <div className="p-6 max-w-3xl space-y-6">`,
     `      <Card>`,
@@ -3536,8 +3563,10 @@ function detailPage(s, view) {
     `        <CardContent className="space-y-4">`,
     formFields.length ? formFields.map(field).join("\n") : `          <p className="text-muted-foreground">No fields modelled.</p>`,
     `          <div className="flex flex-wrap gap-2 pt-2">`,
-    `            <Button>{t("ui.save", "Save")}</Button>`,
-    s.actions.map((a) => `            <Button variant="secondary">{t(${JSON.stringify(`action.${slug(a)}`)}, ${JSON.stringify(a)})}</Button>`).join("\n") || "",
+    `            <Button onClick={save}>{t("ui.save", "Save")}</Button>`,
+    `            {!isNew && actionCommands(${JSON.stringify(s.entity)}).map((c) => (`,
+    `              <Button key={c.command} variant="secondary" onClick={() => runAction(c.path)}>{t("action." + c.action, c.name)}</Button>`,
+    `            ))}`,
     `          </div>`,
     `        </CardContent>`,
     `      </Card>`,
@@ -3701,6 +3730,23 @@ import ${pascal2(s.title)}Detail from "./pages/${pascal2(s.title)}Detail";`).joi
     ""
   ].join("\n");
 }
+var UI_CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+function uiCommandsTs(domain) {
+  const cmds = (domain.commands ?? []).map((c) => {
+    const entity = slug(c.aggregate);
+    const action = slug(c.name || c.id);
+    const create = UI_CREATE_VERB.test(`${action}_`);
+    return { command: slug(c.id), name: c.name || c.id, entity, action, create, path: create ? `/${entity}s` : `/${entity}s/{id}/${action}` };
+  });
+  return [
+    `// Generated by @kiln/codegen ui \u2014 command routes (mirror of the spine). "{id}" is replaced with the record id at call time.`,
+    `export interface CommandRoute { command: string; name: string; entity: string; action: string; create: boolean; path: string; }`,
+    `export const commands: CommandRoute[] = ${JSON.stringify(cmds, null, 2)};`,
+    `export const createCommand = (entity: string): CommandRoute | undefined => commands.find((c) => c.entity === entity && c.create);`,
+    `export const actionCommands = (entity: string): CommandRoute[] => commands.filter((c) => c.entity === entity && !c.create);`,
+    ""
+  ].join("\n");
+}
 function shadcnAdapter(caps, domain, contexts, theme = DEFAULT_THEME, workflows, roles, i18n, views) {
   if (!domain.aggregates.length) return {};
   const struct = uiStructure(caps, domain, contexts);
@@ -3711,6 +3757,8 @@ function shadcnAdapter(caps, domain, contexts, theme = DEFAULT_THEME, workflows,
     // package.json, vite/tailwind/tsconfig, shadcn components — a runnable project
     "src/types.ts": entityTypesTs(domain),
     // entity interfaces from the model (shared shape with the spine)
+    "src/lib/model.ts": uiCommandsTs(domain),
+    // command routes (mirror of the spine) for wiring buttons/forms
     "src/index.css": themeCss(theme),
     "src/App.tsx": appTsx(struct),
     "src/components/AppSidebar.tsx": sidebar(struct, caps.domain ?? "App"),
@@ -4350,6 +4398,18 @@ export function createApp(): Express {
 
   // ctx gives handlers read access to the stores without touching SQL.
   const ctx: Ctx = { all, find };
+
+  // Read endpoints (list + by id) so a UI can render data \u2014 the command routes below are the write side.
+  // Same opt-in bearer auth as writes; entity == table (both the aggregate slug). Keep them before the
+  // command routes so a command path can't shadow a read.
+  for (const entity of Object.keys(columns)) {
+    const res = entity + "s"; // match the command routes' plural resource (POST /<entity>s creates)
+    app.get("/" + res, requireAuth, async (_req: Request, response: Response) => { response.json(await all(entity)); });
+    app.get("/" + res + "/:id", requireAuth, async (req: Request, response: Response) => {
+      const row = await find(entity, req.params.id);
+      if (row) response.json(row); else response.status(404).json({ error: "not found" });
+    });
+  }
 
   for (const r of routes) {
     const path = r.path.replace("{id}", ":id");

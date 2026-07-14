@@ -319,6 +319,18 @@ export function createApp(): Express {
   // ctx gives handlers read access to the stores without touching SQL.
   const ctx: Ctx = { all, find };
 
+  // Read endpoints (list + by id) so a UI can render data — the command routes below are the write side.
+  // Same opt-in bearer auth as writes; entity == table (both the aggregate slug). Keep them before the
+  // command routes so a command path can't shadow a read.
+  for (const entity of Object.keys(columns)) {
+    const res = entity + "s"; // match the command routes' plural resource (POST /<entity>s creates)
+    app.get("/" + res, requireAuth, async (_req: Request, response: Response) => { response.json(await all(entity)); });
+    app.get("/" + res + "/:id", requireAuth, async (req: Request, response: Response) => {
+      const row = await find(entity, req.params.id);
+      if (row) response.json(row); else response.status(404).json({ error: "not found" });
+    });
+  }
+
   for (const r of routes) {
     const path = r.path.replace("{id}", ":id");
     app.post(path, requireAuth, async (req: Request, res: Response) => {

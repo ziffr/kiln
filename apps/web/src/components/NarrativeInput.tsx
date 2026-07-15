@@ -16,6 +16,23 @@ import { Icon } from "./Icon";
  * A quiet "Direkt bearbeiten" reveals the raw structured narrative for power users. All roads produce the
  * one artifact — the structured narrative (source of truth).
  */
+/** Render the heading-anchored narrative draft readably (no raw markdown) so the owner can judge it
+ *  before applying — the coach says "here it is", so it needs to actually be there. */
+function DraftPreview({ md }: { md: string }): React.JSX.Element {
+  return (
+    <div className="nd-draft">
+      {md.split("\n").map((line, i) => {
+        const l = line.trimEnd();
+        if (l.startsWith("## ")) return <div className="nd-draft-h" key={i}>{l.slice(3)}</div>;
+        if (l.startsWith("# ")) return <div className="nd-draft-title" key={i}>{l.slice(2)}</div>;
+        if (l.startsWith("- ") && l.slice(2).trim()) return <div className="nd-draft-li" key={i}>{l.slice(2)}</div>;
+        if (l.trim() && l.trim() !== "-") return <div className="nd-draft-p" key={i}>{l}</div>;
+        return null;
+      })}
+    </div>
+  );
+}
+
 export function NarrativeInput({
   narrative,
   onNarrative,
@@ -257,7 +274,11 @@ export function NarrativeInput({
 
         {pending && (
           <div className="coach-apply">
-            {t("coachDraftReady")} <button onClick={applyPending}>{t("coachApply")}</button>
+            <div className="coach-apply-bar">
+              <span>{t("coachDraftReady")}</span>
+              <button onClick={applyPending}>{t("coachApply")}</button>
+            </div>
+            <DraftPreview md={pending} />
           </div>
         )}
         {errLine}

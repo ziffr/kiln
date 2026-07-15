@@ -6,7 +6,7 @@ type Fix = { de: string; en: string };
 
 const FIX: Record<string, Fix> = {
   // Capabilities (V*)
-  "V4.orphan": { de: "Diese Fähigkeit hängt mit keiner anderen zusammen. Auf der Capability-Map eine Abhängigkeit verdrahten – oder als eigenständig akzeptieren (ausblenden).", en: "This capability connects to no other. Wire a dependency on the Capability Map — or accept it as standalone (dismiss)." },
+  "V4.orphan": { de: "Diese Fähigkeit hängt mit keiner anderen zusammen. Die Fähigkeit öffnen (klicken) und im Detailbereich unter „Hängt ab von“ eine andere Fähigkeit auswählen – oder als eigenständig akzeptieren (ausblenden).", en: "This capability connects to no other. Open it (click) and pick another capability under “Depends on” in the detail panel — or accept it as standalone (dismiss)." },
   // Business areas (BC*)
   "BC2.unassigned": { de: "Diese Fähigkeit gehört zu keinem Geschäftsbereich. Auf dem Bereiche-Screen einem Bereich zuordnen.", en: "This capability isn't in any business area. Assign it to one on the Areas screen." },
   "BC9.cohesion": { de: "Die Fähigkeiten dieses Bereichs hängen kaum voneinander ab. Bereich ggf. zusammenlegen oder neu aufteilen.", en: "This area's capabilities barely depend on each other. Consider merging or re-splitting the area." },

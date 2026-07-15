@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { attributeSpecs, type AggregateInput, type AttributeSpec, type AttrType, type CapabilityDoc, type CapabilityInput, type CommandInput, type EventInput, type PolicyInput } from "@kiln/compiler";
+import type { StageId } from "./StageRail";
 
 const ATTR_TYPES: AttrType[] = ["text", "number", "boolean", "date", "money", "reference"];
 
@@ -161,6 +162,118 @@ function EntityBehaviour({
   );
 }
 
+/**
+ * Resolving reference picker — a combobox over a fixed set of sibling model elements. Stores each
+ * pick's `id` (edges resolve by id: depends_on compiler §284, entity references §308) but shows its
+ * `name`. Because it only offers elements that exist, a pure picker (allowCreate=false) cannot author
+ * a dangling edge — the orphan/dangling-target warnings V4/V5/DM raise from free-text ids become
+ * unreachable. `allowCreate` opens an escape hatch (adds the raw typed value) for label-based fields
+ * where the target set may not exist yet — e.g. Actors, which are derived labels, not id references.
+ */
+function RefPicker({
+  label,
+  values,
+  options,
+  onChange,
+  placeholder,
+  allowCreate = false,
+  manage,
+}: {
+  label: string;
+  values: string[];
+  options: { id: string; name: string }[];
+  onChange: (next: string[]) => void;
+  placeholder: string;
+  allowCreate?: boolean;
+  // Cross-screen link: when the value set is owned by another stage (roles, entities), offer a jump to
+  // that screen so the user can author the missing value in its home and stay in the flow.
+  manage?: { label: string; onClick: () => void };
+}): React.JSX.Element {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState("");
+  const [open, setOpen] = useState(false);
+  const nameOf = (id: string): string => options.find((o) => o.id === id)?.name || id;
+  const q = draft.trim().toLowerCase();
+  const candidates = options.filter(
+    (o) => !values.includes(o.id) && (q === "" || o.name.toLowerCase().includes(q) || o.id.toLowerCase().includes(q)),
+  );
+  // Offer the raw draft only when it resolves to nothing existing and isn't already picked.
+  const canCreate =
+    allowCreate && q !== "" &&
+    !options.some((o) => o.name.toLowerCase() === q || o.id.toLowerCase() === q) &&
+    !values.some((v) => v.toLowerCase() === q || nameOf(v).toLowerCase() === q);
+  const add = (id: string): void => {
+    const v = id.trim();
+    if (v && !values.includes(v)) onChange([...values, v]);
+    setDraft("");
+    setOpen(false);
+  };
+  return (
+    <div className="nd-row">
+      <span className="nd-label">{label}</span>
+      <div className="nd-chips">
+        {values.map((v) => (
+          <span className="nd-chip" key={v}>
+            {nameOf(v)}
+            <button className="chip-x" onClick={() => onChange(values.filter((x) => x !== v))} aria-label="remove">×</button>
+          </span>
+        ))}
+      </div>
+      <div className="nd-combo">
+        <input
+          className="nd-tag-input"
+          value={draft}
+          placeholder={placeholder}
+          onChange={(e) => { setDraft(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              if (candidates.length > 0) { e.preventDefault(); add(candidates[0].id); }
+              else if (canCreate) { e.preventDefault(); add(draft); }
+            } else if (e.key === "Escape") {
+              setOpen(false);
+            }
+          }}
+        />
+        {open && (candidates.length > 0 || canCreate || manage || q !== "") && (
+          <div className="nd-combo-menu">
+            {candidates.map((o) => (
+              <button
+                className="nd-combo-opt"
+                key={o.id}
+                // onMouseDown (not onClick): fire before the input's onBlur closes the menu.
+                onMouseDown={(e) => { e.preventDefault(); add(o.id); }}
+              >
+                {o.name}{o.id !== o.name && <code className="nd-combo-id">{o.id}</code>}
+              </button>
+            ))}
+            {canCreate && (
+              <button
+                className="nd-combo-opt nd-combo-create"
+                onMouseDown={(e) => { e.preventDefault(); add(draft); }}
+              >
+                {t("pickerCreate", { val: draft.trim() })}
+              </button>
+            )}
+            {q !== "" && candidates.length === 0 && !canCreate && (
+              <div className="nd-combo-empty">{t("pickerNoMatch")}</div>
+            )}
+            {manage && (
+              <button
+                className="nd-combo-opt nd-combo-manage"
+                onMouseDown={(e) => { e.preventDefault(); manage.onClick(); }}
+              >
+                {manage.label}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function NodeDetail({
   doc,
   aggregates = [],
@@ -168,9 +281,11 @@ export function NodeDetail({
   events = [],
   policies = [],
   capRoles = [],
+  roles = [],
   areas = [],
   capAreaId,
   onReassignArea,
+  onNavigate,
   selectedId,
   onEdit,
   onDelete,
@@ -185,9 +300,11 @@ export function NodeDetail({
   events?: EventInput[];
   policies?: PolicyInput[];
   capRoles?: string[];
+  roles?: { id: string; name: string }[];
   areas?: { id: string; name: string }[];
   capAreaId?: string;
   onReassignArea?: (capId: string, areaId: string) => void;
+  onNavigate?: (stage: StageId) => void;
   selectedId: string | null;
   onEdit: (cap: CapabilityInput) => void;
   onDelete: (id: string) => void;
@@ -241,11 +358,46 @@ export function NodeDetail({
         </div>
       )}
 
+      {/* Outcomes are open prose (no owning catalog) — a plain tag list is right. */}
       <TagList label={t("outcomes")} values={cap.outcomes ?? []} onChange={(v) => patch({ outcomes: v })} />
-      <TagList label={t("ndActors")} values={cap.actors ?? []} onChange={(v) => patch({ actors: v })} />
-      <TagList label={t("ndDependsOn")} values={cap.depends_on ?? []} onChange={(v) => patch({ depends_on: v })} />
-      <TagList label={t("ndProduces")} values={cap.produces ?? []} onChange={(v) => patch({ produces: v })} />
-      <TagList label={t("ndConsumes")} values={cap.consumes ?? []} onChange={(v) => patch({ consumes: v })} />
+      <RefPicker
+        label={t("ndActors")}
+        values={cap.actors ?? []}
+        // Actors resolve to roles — a fixed set OWNED by the Roles stage (permissions depend on them), so
+        // don't invent one here: pick a modelled role, or jump to Roles to author it and come back.
+        options={roles.map((r) => ({ id: r.name, name: r.name }))}
+        onChange={(v) => patch({ actors: v })}
+        placeholder={t("actorPick")}
+        manage={onNavigate ? { label: t("pickerManage", { screen: t("roles") }), onClick: () => onNavigate("roles") } : undefined}
+      />
+      <RefPicker
+        label={t("ndDependsOn")}
+        values={cap.depends_on ?? []}
+        options={doc.capabilities.filter((c) => c.id !== cap.id).map((c) => ({ id: c.id, name: c.name }))}
+        onChange={(v) => patch({ depends_on: v })}
+        placeholder={t("dependsOnPick")}
+      />
+      {/* Produced/consumed objects map to entities by slug (compiler §238); offer the modelled entities so
+          a producer and consumer line up on the same name, but allow a free object (not everything is a
+          stored entity). Link to Entities to make one formal. */}
+      <RefPicker
+        label={t("ndProduces")}
+        values={cap.produces ?? []}
+        options={aggregates.map((a) => ({ id: a.name, name: a.name }))}
+        onChange={(v) => patch({ produces: v })}
+        placeholder={t("objectPick")}
+        allowCreate
+        manage={onNavigate ? { label: t("pickerManage", { screen: t("entities") }), onClick: () => onNavigate("entities") } : undefined}
+      />
+      <RefPicker
+        label={t("ndConsumes")}
+        values={cap.consumes ?? []}
+        options={aggregates.map((a) => ({ id: a.name, name: a.name }))}
+        onChange={(v) => patch({ consumes: v })}
+        placeholder={t("objectPick")}
+        allowCreate
+        manage={onNavigate ? { label: t("pickerManage", { screen: t("entities") }), onClick: () => onNavigate("entities") } : undefined}
+      />
 
       {derivedFrom.length > 0 && (
         <div className="nd-row">
@@ -289,10 +441,15 @@ export function NodeDetail({
                   {openEntity === a.id && (
                     <>
                       <code className="nd-id sm">{a.id}</code>
-                      <TagList
+                      <RefPicker
                         label={t("references")}
                         values={a.references ?? []}
+                        // References are aggregate ids (compiler §308) — offer the other entities only,
+                        // so a reference can't dangle to a non-existent entity.
+                        options={aggregates.filter((x) => x.id !== a.id).map((x) => ({ id: x.id, name: x.name }))}
                         onChange={(v) => onEditAggregate?.({ ...a, references: v })}
+                        placeholder={t("refPick")}
+                        manage={onNavigate ? { label: t("pickerManage", { screen: t("entities") }), onClick: () => onNavigate("entities") } : undefined}
                       />
                       <AttributeList
                         specs={attributeSpecs(a)}

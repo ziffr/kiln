@@ -1820,9 +1820,11 @@ export default function App(): React.JSX.Element {
                 events={behaviourDoc.events ?? []}
                 policies={flowDoc.policies ?? []}
                 capRoles={rolesForCap(selected)}
+                roles={rolesDoc.roles.map((r) => ({ id: r.id, name: r.name || r.id }))}
                 areas={contextsDoc.contexts.map((c) => ({ id: c.id, name: c.name }))}
                 capAreaId={areaOf.get(selected)?.id}
                 onReassignArea={reassignCapabilityArea}
+                onNavigate={(s) => navTo(s, null)}
                 selectedId={selected}
                 onEdit={editCapability}
                 onDelete={deleteCapability}

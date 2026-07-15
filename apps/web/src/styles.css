@@ -220,6 +220,18 @@ textarea {
   border: 1px solid color-mix(in srgb, var(--err-fg) 40%, var(--edge)); border-left-width: 3px;
   border-radius: 8px; background: color-mix(in srgb, var(--err-fg) 10%, transparent); color: var(--err-fg); }
 .err-banner > svg { flex: none; margin-top: 1px; }
+
+/* "What do I do here" stage guide — dismissible, plain-language */
+.stage-guide { display: flex; gap: 11px; align-items: flex-start; margin: 0 0 12px; padding: 12px 14px;
+  border: 1px solid var(--edge); border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel-2); }
+.stage-guide-ic { flex: none; color: var(--accent); margin-top: 1px; }
+.stage-guide-body { min-width: 0; flex: 1; }
+.stage-guide-lead { margin: 0 0 6px; font-size: 13px; line-height: 1.5; }
+.stage-guide-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.stage-guide-list li { font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.stage-guide-list li strong { color: var(--fg); font-weight: 650; }
+.stage-guide-x { flex: none; background: none; border: 0; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.stage-guide-x:hover { color: var(--fg); }
 .err-banner-text { min-width: 0; }
 .err-banner-text code { color: var(--err-fg); font-size: 13px; word-break: break-word; }
 .err-banner-hint { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
@@ -680,6 +692,12 @@ textarea {
 .dot-ready { background: var(--ok-fg); }
 .stage-badge { flex: none; height: 16px; padding: 0 5px 0 4px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
 .stage-badge svg { flex: none; }
+/* Wizard "do this next" cue on the recommended next step */
+.stage-item.next .stage-label { color: var(--accent); font-weight: 600; }
+.stage-item.next .stage-n { background: var(--accent-soft); color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.stage-next-cue { flex: none; color: var(--accent); animation: stage-next-nudge 1.6s ease-in-out infinite; }
+@keyframes stage-next-nudge { 0%, 100% { transform: translateX(0); opacity: 0.6; } 50% { transform: translateX(2px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .stage-next-cue { animation: none; } }
 
 /* Center: the active stage */
 .stage-main { display: flex; flex-direction: column; padding: 16px 20px; overflow-y: auto; min-width: 0; }

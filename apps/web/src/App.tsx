@@ -29,6 +29,7 @@ import { mockExternalServices } from "@kiln/codegen";
 import { SettingsModal } from "./components/SettingsModal";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { StageRail, type StageId, type StageInfo } from "./components/StageRail";
+import { StageGuide } from "./components/StageGuide";
 import { BehaviourView, AutomationsView, RolesMatrix, WorkflowsView } from "./components/StageViews";
 import { EntityDiagram } from "./components/EntityDiagram";
 import { AreaDiagram } from "./components/AreaDiagram";
@@ -1560,7 +1561,7 @@ export default function App(): React.JSX.Element {
           </button>
         </div>
 
-        <StageRail stages={stages} active={showHome ? ("" as StageId) : stage} onSelect={(s) => navRoot(s)} t={t} />
+        <StageRail stages={stages} active={showHome ? ("" as StageId) : stage} nextStep={stages.find((s) => s.id !== "code" && s.status !== "ready")?.id} onSelect={(s) => navRoot(s)} t={t} />
 
         <div className="side-foot">
           <a className="side-foot-btn" href={DOCS_URL} target="_blank" rel="noreferrer"><Icon name="book" size={15} /> {t("docsOpen")}</a>
@@ -1656,6 +1657,16 @@ export default function App(): React.JSX.Element {
               )}
             </div>
           </div>
+
+          {/* "What do I do on this screen?" — the non-technical owner's first question. Dismissible. */}
+          {!["narrative", "code"].includes(stage) && (
+            <StageGuide
+              stage={stage}
+              hasGenerate={!!stageGen[stage]}
+              hasEnrich={(["entities", "capabilities", "roles", "agents"] as string[]).includes(stage)}
+              t={t}
+            />
+          )}
 
           {error && (
             <div className="err-banner" role="alert">

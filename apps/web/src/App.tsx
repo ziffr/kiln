@@ -55,9 +55,14 @@ import {
   loadProjects,
   saveProjects,
   newProject,
+  NARRATIVE_TEMPLATE,
   type Project,
   type ProjectState,
 } from "./projects";
+
+/** True only when the narrative has real content — an untouched new-project template counts as empty, so
+ *  a fresh project shows the welcome hero (not a zeros dashboard) and skips the auto-summary LLM call. */
+const hasRealNarrative = (n: string): boolean => n.trim().length > 0 && n.trim() !== NARRATIVE_TEMPLATE.trim();
 import { serverListProjects, serverSaveProject, serverDeleteProject } from "./projectStore";
 import { assembleModel, parseModel } from "./model";
 import { SERVICE_URL, DOCS_URL } from "./config";
@@ -810,7 +815,7 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     if (!showHome) return;
     const p = active;
-    if (!p || p.homeSummary || !p.narrative.trim() || summaryTried.current.has(p.id)) return;
+    if (!p || p.homeSummary || !hasRealNarrative(p.narrative) || summaryTried.current.has(p.id)) return;
     summaryTried.current.add(p.id);
     setSummaryBusy(true);
     void fetch(`${SERVICE_URL}/api/summary`, {
@@ -1293,7 +1298,7 @@ export default function App(): React.JSX.Element {
   // ---- Stage pipeline (progressive disclosure) ----
   const layerStatus = (authored: unknown, live: number): "empty" | "mock" | "ready" => (authored ? "ready" : live > 0 ? "mock" : "empty");
   const stages: StageInfo[] = [
-    { id: "narrative", label: t("narrative"), status: text.trim() ? "ready" : "empty", findings: liveCount(narrativeFindings) },
+    { id: "narrative", label: t("narrative"), status: hasRealNarrative(text) ? "ready" : "empty", findings: liveCount(narrativeFindings) },
     { id: "capabilities", label: t("capabilities"), status: layerStatus(active.capabilities, activeDoc.capabilities.length), findings: liveCount(capFindings) },
     { id: "areas", label: t("areas"), status: layerStatus(active.contexts, contextsDoc.contexts.length), findings: liveCount(contextFindings) },
     { id: "entities", label: t("entities"), status: layerStatus(active.domain, domainDoc.aggregates.length), findings: liveCount(domainFindings) },

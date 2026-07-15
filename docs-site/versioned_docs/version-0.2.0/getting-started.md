@@ -29,8 +29,11 @@ there:
 
 ## Working through the layers
 
-Use the **left rail** to move through the layers in order. Each one has a **Generate** button that derives
-it from the layers above. You can stop at any point — a half-built model is still useful.
+Use the **left rail** to move through the layers in order — it doubles as a progress guide, highlighting
+the **recommended next step** with an arrow. Each layer opens with a short, dismissible note explaining
+what to do there: **Generate with LLM** builds a fully worked-out version, **Enrich** adds building blocks
+typical for your industry, and you can click any item to edit it. You can stop at any point — a half-built
+model is still useful.
 
 The **Home screen** (click the flame, top-left) is your project home. It opens with an AI-written,
 plain-language summary of what Kiln understands about your business (in your own language), a snapshot

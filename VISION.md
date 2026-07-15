@@ -65,10 +65,10 @@ place. Kiln moves it:
 - **vs. ERPs / monoliths** — they buy coherence through *centralization*: one platform's data model,
   one vendor, one opinion about how your business should work. Kiln buys coherence through
   *compilation*: your model, projected onto any platforms you choose.
-- **vs. low-code / app builders** — the *app* is the artifact you own and maintain forever, screen by
-  screen. In Kiln the *model* is the artifact; the app is disposable output you can throw away and
-  regenerate.
-- **vs. AI code generators ("vibe coding")** — they generate code from a prompt, and the code
+- **vs. low-code / app builders** (Mendix, OutSystems, Bubble) — the *app* is the artifact you own and
+  maintain forever, screen by screen. In Kiln the *model* is the artifact; the app is disposable output
+  you can throw away and regenerate.
+- **vs. AI code generators ("vibe coding" — Lovable, Bolt, v0)** — they generate code from a prompt, and the code
   instantly becomes the truth: unvalidated, drifting, a black box, and only ever *one app*. Kiln
   generates from a *validated model that stays the truth* — reviewable, regenerable, and producing a
   whole coordinated landscape, not a single app.
@@ -93,6 +93,38 @@ it's the **source-of-truth and coherence layer over the generation** — the thi
 parts of a business are agents, which are workflows, which are data, and keeps them one system a
 human still understands and owns. In an agentic world the winning primitive isn't *an agent*. It's
 the **model that governs the whole landscape**.
+
+## The lineage — a 40-year-old idea, finally buildable
+
+Kiln's ambition isn't new. It's the oldest dream in enterprise software, and it has a name: **CASE** —
+Computer-Aided Software Engineering, the tools of the 1980s. You drew the business as formal models —
+entity-relationship diagrams, data-flow diagrams — and the tool generated the system from them. At its
+early-'90s peak there were nearly 200 of them; governments spent millions. By the mid-'90s the whole
+movement had **collapsed** — for two reasons worth remembering, because they are the same two reasons
+every attempt since has failed the same way:
+
+1. **Building the formal model by hand was too expensive.** A trained analyst had to sit down and draw
+   every diagram. The model was the tax, and most businesses couldn't pay it.
+2. **The generators were rigid black boxes, and the model rotted.** The code generator was hard-coded by
+   the vendor, mapped poorly to real platforms, and locked you in. And the moment a human edited the
+   generated code, the diagram and the code diverged with no honest way to reconcile them — so people
+   abandoned the model and kept the code.
+
+Both blockers are gone now — and *that*, not "AI is exciting," is why Kiln can exist:
+
+- **LLMs derive the model.** You describe the business in plain words; the machine proposes the formal
+  model. The hand-drawing tax that killed CASE is now paid by the compiler, not by an analyst.
+- **The generator is a swappable, open seam — and the model can't rot.** No vendor black box: every
+  engine is a pluggable adapter emitting a standard stack you own. And the round-trip problem is solved
+  by construction — the *description* is the truth, the code is a disposable projection. There is nothing
+  to reconcile because there is nothing to diverge from. You regenerate; you don't maintain.
+
+Everything between CASE and now — UML and Model-Driven Architecture, domain-specific modeling, today's
+low-code platforms — kept CASE's good idea (a model as the source of truth) but re-inherited one of its
+fatal bugs: the model locked inside a proprietary runtime you rent. And the loudest thing in the market
+today, **AI "vibe coding,"** throws the good idea away entirely — the prompt is disposable, the *code*
+becomes the truth, and the round-trip rot that killed CASE returns on day one, unvalidated and drifting.
+Kiln is the third path: **CASE's original ambition, with the two things that killed it finally removed.**
 
 ## The principles we build by
 

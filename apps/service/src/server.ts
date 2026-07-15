@@ -40,6 +40,7 @@ import {
   generateExternalServices,
   translateMessages,
   structureNarrative,
+  summarizeBusiness,
   syncNarrative,
   ENRICH_WEB_SYSTEM_PROMPT,
   ENRICH_LAYER_SYSTEM_PROMPT,
@@ -806,6 +807,23 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       return send(res, 200, { narrative: result.narrative, structured: result.structured, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
+    // Home greeting: a warm, plain-language 1–2 sentence summary of the business (in the owner's language),
+    // for the "advisor mirrors you back" home screen. Cheap, cached client-side per project.
+    if (req.method === "POST" && req.url === "/api/summary") {
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
+      const body = JSON.parse((await readBody(req)) || "{}") as { narrative?: string; model?: string; effort?: string };
+      if (!body.narrative || !body.narrative.trim()) return send(res, 400, { error: "narrative is required" });
+      const model = resolveModel(body);
+      const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const provider = makeProvider(model, effort, usage);
+      const result = await summarizeBusiness(body.narrative, provider);
+      const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
+      const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+      return send(res, 200, { summary: result.summary, model: model.id, usage, estCostUsd, sessionSpendUsd });
     }
 
     // Narrative sync: propose narrative sentences for model facts the narrative doesn't yet state (a

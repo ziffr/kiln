@@ -46,6 +46,7 @@ export { generateIntegrations, coerceIntegrations, INTEGRATIONS_SCHEMA, INTEGRAT
 export { generateExternalServices, coerceExternalServices, EXTERNAL_SERVICES_SCHEMA, EXTERNAL_SERVICES_SYSTEM_PROMPT } from "./services.ts";
 export { translateMessages, TRANSLATE_SCHEMA, TRANSLATE_SYSTEM_PROMPT } from "./translate.ts";
 export { structureNarrative, renderNarrativeMd, STRUCTURE_SCHEMA, STRUCTURE_SYSTEM_PROMPT, type StructuredNarrative, type StructureResult } from "./structure.ts";
+export { summarizeBusiness, SUMMARY_SCHEMA, SUMMARY_SYSTEM_PROMPT, type SummaryResult } from "./summary.ts";
 export { syncNarrative, NARRATIVE_SYNC_SCHEMA, NARRATIVE_SYNC_SYSTEM_PROMPT, type NarrativeSyncResult } from "./narrativeSync.ts";
 export {
   mockGroupContexts,

@@ -221,6 +221,14 @@ export default function App(): React.JSX.Element {
     sessionSpendUsd: number;
     usage: { input: number; output: number };
   } | null>(null);
+  // Cumulative tokens this page-session (the per-call `usage` above is only the latest call). Feeds the
+  // Home usage KPI; cost uses the server's running `sessionSpendUsd`. Both reset on reload (ballpark).
+  const [sessionTokens, setSessionTokens] = useState(0);
+  const [summaryBusy, setSummaryBusy] = useState(false);
+  const applySpend = (data: { estCostUsd: number; sessionSpendUsd: number; usage: { input: number; output: number } }): void => {
+    setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+    setSessionTokens((n) => n + (data.usage?.input ?? 0) + (data.usage?.output ?? 0));
+  };
 
   const text = active.narrative;
   const doc = useMemo(() => parseNarrative(text), [text]);
@@ -397,7 +405,7 @@ export default function App(): React.JSX.Element {
   // so clicking a finding opens the right place (subject is a capability id or an aggregate id).
   function setNarrative(v: string): void {
     // Editing invalidates prior LLM snapshots (capabilities/domain/areas/roles) → fall back to mock.
-    patchActive({ narrative: v, capabilities: null, provider: null, domain: null, contexts: null, roles: null, workflows: null, agents: null });
+    patchActive({ narrative: v, homeSummary: undefined, capabilities: null, provider: null, domain: null, contexts: null, roles: null, workflows: null, agents: null });
     setSelected(null);
   }
 
@@ -426,7 +434,7 @@ export default function App(): React.JSX.Element {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
       const additions = (data.additions ?? []) as string[];
       if (!additions.length) {
         setDialog({ kind: "confirm", title: t("narrativeSyncTitle"), message: t("narrativeSyncClean"), confirmLabel: t("aiDone"), onConfirm: () => {} });
@@ -457,7 +465,7 @@ export default function App(): React.JSX.Element {
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       // A fresh capability set invalidates prior domain/areas/roles snapshots → back to the live mock.
       patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string, domain: null, contexts: null, roles: null, workflows: null, agents: null });
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -478,7 +486,7 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ domain: data.doc });
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -681,7 +689,7 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ contexts: data.doc as ContextsDoc });
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -703,7 +711,7 @@ export default function App(): React.JSX.Element {
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       // Fresh commands/events invalidate any prior reactions (they referenced old ids) → drop them.
       patchActive({ domain: { ...data.doc, policies: undefined } });
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -724,7 +732,7 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ domain: data.doc }); // merges policies onto the behaviour doc
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -745,7 +753,7 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ roles: data.doc });
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -794,6 +802,30 @@ export default function App(): React.JSX.Element {
   // The full {model, effort, provider} a request should send for a stage. Spread into the body.
   const stageCfg = (stage: string, review = false): { model: string; effort: string; provider: string } => ({ model: modelFor(stage), effort: effortFor(stage, review), provider: providerFor(stage) });
   const supportsEffortFor = (stage: string): boolean => MODELS.find((m) => m.id === modelFor(stage))?.supportsEffort ?? true;
+
+  // Home greeting: one warm plain-language summary of the business, generated once per project and cached
+  // (invalidated when the narrative changes). Fired lazily on the home screen; on failure (e.g. no key on
+  // the demo) it silently falls back to the description. Tried at most once per project per session.
+  const summaryTried = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!showHome) return;
+    const p = active;
+    if (!p || p.homeSummary || !p.narrative.trim() || summaryTried.current.has(p.id)) return;
+    summaryTried.current.add(p.id);
+    setSummaryBusy(true);
+    void fetch(`${SERVICE_URL}/api/summary`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ narrative: p.narrative, ...stageCfg("capabilities") }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { summary?: string; estCostUsd: number; sessionSpendUsd: number; usage: { input: number; output: number } } | null) => {
+        if (data?.summary) { patchActive({ homeSummary: data.summary }); applySpend(data); }
+      })
+      .catch(() => {/* offline / no key → keep the description fallback */})
+      .finally(() => setSummaryBusy(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHome, active?.id, active?.homeSummary, active?.narrative]);
   // The engine default baked into the EXPORTED agents runtime (.env.example): the provider + model the
   // agents stage resolves to now, so an app built on a gateway ships pre-pointed at it. Native gateway ids
   // map through; anything else → the generic OpenAI-compatible path.
@@ -843,7 +875,7 @@ export default function App(): React.JSX.Element {
       setReviewCount((c) => ({ ...c, [layer]: (c[layer] ?? 0) + 1 }));
       setCritique((prev) => ({ ...prev, [layer]: findings }));
       setStaleReview((s) => { if (!s[layer]) return s; const n = { ...s }; delete n[layer]; return n; }); // reviewed → no longer "changed upstream"
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
       return findings;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -899,7 +931,7 @@ export default function App(): React.JSX.Element {
         for (const d of nowStale) n[d] = true;
         return n;
       });
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
       return override;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -1006,7 +1038,7 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ workflows: data.doc });
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setWorkflowsBusy(false); }
   }
 
@@ -1040,7 +1072,7 @@ export default function App(): React.JSX.Element {
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ workflows: data.workflows }); // modes folded onto the workflows (source of truth)
       setOrchestrationRationales(Object.fromEntries((data.doc?.decisions ?? []).map((d: { id: string; rationale: string }) => [d.id, d.rationale])));
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setOrchestrationBusy(false); }
   }
   async function generateAgentsModel(): Promise<void> {
@@ -1050,7 +1082,7 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ agents: data.doc });
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setAgentsBusy(false); }
   }
 
@@ -1200,7 +1232,7 @@ export default function App(): React.JSX.Element {
           ? flattenEnrichment(data.enrichment, flowDoc, "web", {}, cite)
           : flattenLayerItems(enrichLayer, data.items ?? [], existingIds(enrichLayer), validCaps(), capNameOf, "web", cite),
       );
-      setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+      applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -1553,6 +1585,17 @@ export default function App(): React.JSX.Element {
         {showHome ? (
           <Home
             stages={stages}
+            projectName={active.name}
+            summary={active.homeSummary || active.description || ""}
+            summaryLoading={summaryBusy}
+            counts={{
+              capabilities: activeDoc.capabilities.length,
+              entities: domainDoc.aggregates.length,
+              roles: rolesDoc.roles.length,
+              workflows: workflowsDoc.workflows.length,
+            }}
+            tokens={sessionTokens}
+            costUsd={spend?.sessionSpendUsd ?? 0}
             onStart={() => navRoot("narrative")}
             onExample={() => { setShowHome(false); setShowExamples(true); }}
             docsUrl={DOCS_URL}
@@ -1740,14 +1783,14 @@ export default function App(): React.JSX.Element {
                   const res = await fetch(`${SERVICE_URL}/api/app-logic`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, feedback, ...stageCfg("behaviour") }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-                  setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                  applySpend(data);
                   return data as { handlers: Record<string, string>; written: number; skipped: number };
                 }}
                 requestAppComponents={async () => {
                   const res = await fetch(`${SERVICE_URL}/api/app-components`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, ...stageCfg("entities") }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-                  setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                  applySpend(data);
                   return data as { views: Record<string, unknown>; written: number; skipped: number };
                 }}
                 requestVerify={async (files) => {
@@ -1764,7 +1807,7 @@ export default function App(): React.JSX.Element {
                   const res = await fetch(`${SERVICE_URL}/api/polish-ui`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, views, ...stageCfg("polish") }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-                  setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                  applySpend(data);
                   return { views: data.views ?? {}, improvements: data.improvements ?? {} };
                 }}
                 requestPolishVisual={serverUp ? async (views) => {
@@ -1772,14 +1815,14 @@ export default function App(): React.JSX.Element {
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
                   if (data.unavailable) return { views: {}, improvements: {}, unavailable: true, error: data.error };
-                  setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                  applySpend(data);
                   return { views: data.views ?? {}, improvements: data.improvements ?? {} };
                 } : undefined}
                 requestCodeReview={async (handlerCode) => {
                   const res = await fetch(`${SERVICE_URL}/api/code-review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, domain: flowDoc, contexts: contextsDoc, roles: rolesDoc, handlerCode, model: modelFor("behaviour"), provider: providerFor("behaviour") }) });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-                  setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
+                  applySpend(data);
                   return data.findings ?? [];
                 }}
                 buildModel={() =>

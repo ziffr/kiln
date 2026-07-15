@@ -27,10 +27,16 @@ On the first stage (**Business Narrative**) you have three tabs:
 Use the **left rail** to move through the layers in order. Each one has a **Generate** button that derives
 it from the layers above. You can stop at any point — a half-built model is still useful.
 
-The **Home screen** (click the flame, top-left) shows the whole pipeline at a glance.
+The **Home screen** (click the flame, top-left) is your project home. It opens with an AI-written,
+plain-language summary of what Kiln understands about your business (in your own language), a snapshot
+of what you've built so far — **capabilities, records, roles, processes** — a simple
+**Describe → Shape → Launch** progress journey, and **one clear next action**, plus any open findings to
+fix. The full nine-layer pipeline is tucked into an expandable **"How Kiln works"** below, so the greeting
+stays about your business, not our machinery.
 
 ## A note on cost
 
 Each **Generate**, **Enrich**, or **AI Review** action asks an AI model to do the work, which costs a
-small amount per click (shown as a spend estimate). Browsing and editing are free. Running your own
+small amount per click (shown as a spend estimate). The home screen's plain-language summary is one such
+small call, made once per project and then cached. Browsing and editing are free. Running your own
 instance requires an Anthropic API key; the public demo is keyless and pre-baked.

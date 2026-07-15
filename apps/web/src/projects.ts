@@ -25,6 +25,8 @@ export interface Project {
   name: string;
   /** short one-line summary of the business (distinct from the full narrative) — shown on the project card. */
   description?: string;
+  /** LLM-written plain-language home greeting (cached; regenerated when the narrative changes). */
+  homeSummary?: string;
   narrative: string;
   model: string;
   effort: string;

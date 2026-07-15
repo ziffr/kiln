@@ -16,6 +16,7 @@ export interface LayerRow {
 interface Props {
   layers: LayerRow[];
   critique: Partial<Record<LayerKind, CritiqueFinding[]>>;
+  staleReview: Partial<Record<LayerKind, boolean>>;
   diffs: Partial<Record<LayerKind, CritiqueDiff>>;
   reviewCount: Partial<Record<LayerKind, number>>;
   busy: LayerKind | null;
@@ -25,6 +26,7 @@ interface Props {
   showModel: boolean;
   onReview: (k: LayerKind) => void;
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
+  applyResetHint: (k: LayerKind) => string | null;
   onSelect: (f: CritiqueFinding) => void;
   onIgnore: (k: LayerKind, f: CritiqueFinding) => void;
   canFix: (k: LayerKind, f: CritiqueFinding) => boolean;
@@ -39,8 +41,55 @@ interface Props {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-export function ReviewPanel({ layers, critique, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, onSelect, onIgnore, canFix, onFix, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
+export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, applyResetHint, onSelect, onIgnore, canFix, onFix, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
   const autoLabel = autoLayer ? layers.find((l) => l.kind === autoLayer)?.label ?? autoLayer : "";
+
+  // Dependency-aware ordering. Layers render in arc order (each builds on the one above), so a finding
+  // downstream is only meaningful once its upstream is sound — and applying an upstream layer regenerates
+  // the ones below. gateIdx = the highest layer with a real problem (a "concern"); everything below it is
+  // dimmed as "resolve X first". startIdx = where to begin: that gate, or the highest layer with anything
+  // open if only optional suggestions remain.
+  const hasConcern = (k: LayerKind): boolean => (critique[k] ?? []).some((f) => f.severity === "concern");
+  const isOpen = (k: LayerKind): boolean => (critique[k]?.length ?? 0) > 0;
+  // The holistic pass is a cross-layer, root-cause view, not a step in the top-down worklist — pull it out
+  // and present it above, so chain-break issues are visible before per-layer polish. Gate math runs over
+  // the stage layers only (holistic never becomes "start here" nor blocks anything).
+  const holistic = layers.find((l) => l.kind === "holistic");
+  const stageLayers = layers.filter((l) => l.kind !== "holistic");
+  const gateIdx = stageLayers.findIndex((l) => hasConcern(l.kind));
+  const startIdx = gateIdx >= 0 ? gateIdx : stageLayers.findIndex((l) => isOpen(l.kind));
+  const gateLabel = gateIdx >= 0 ? stageLayers[gateIdx].label : "";
+
+  const renderRow = (row: LayerRow, opts: { startHere?: boolean; blocked?: boolean; blockedBy?: string } = {}): React.JSX.Element => (
+    <LayerReviewRow
+      key={row.kind}
+      row={row}
+      findings={critique[row.kind]}
+      diff={diffs[row.kind]}
+      reviewCount={reviewCount[row.kind] ?? 0}
+      ignoredCount={ignoredCount(row.kind)}
+      isBusy={busy === row.kind}
+      active={autoLayer === row.kind}
+      startHere={opts.startHere ?? false}
+      blocked={opts.blocked ?? false}
+      blockedBy={opts.blockedBy ?? ""}
+      stale={Boolean(staleReview[row.kind])}
+      canApply={refinable(row.kind)}
+      resetHint={applyResetHint(row.kind)}
+      effort={effortFor(row.kind)}
+      modelLabel={showModel ? modelLabelFor(row.kind) : ""}
+      autoRunning={autoRunning}
+      onReview={onReview}
+      onApply={onApply}
+      onSelect={onSelect}
+      onIgnore={onIgnore}
+      canFix={canFix}
+      onFix={onFix}
+      onRestoreIgnored={onRestoreIgnored}
+      t={t}
+    />
+  );
+
   return (
     <div className="review-panel">
       <div className="review-head">
@@ -60,34 +109,28 @@ export function ReviewPanel({ layers, critique, diffs, reviewCount, busy, refina
         </span>
       </div>
       <p className="review-sub muted">{t("aiReviewSub")}</p>
+
+      {holistic && (
+        <div className="review-crosscut">
+          <div className="review-section-head"><Icon name="route" size={13} /> {t("aiCrossCutTitle")}</div>
+          <p className="review-section-sub muted">{t("aiCrossCutSub")}</p>
+          {renderRow(holistic)}
+        </div>
+      )}
+
+      <div className="review-section-head">{t("aiLayersTitle")}</div>
+      <p className="review-topdown muted">{t("aiReviewTopDown")}</p>
       <details className="review-how">
         <summary>{t("aiHowTitle")}</summary>
         <p>{t("aiHowBody")}</p>
       </details>
-      {layers.map((row) => (
-        <LayerReviewRow
-          key={row.kind}
-          row={row}
-          findings={critique[row.kind]}
-          diff={diffs[row.kind]}
-          reviewCount={reviewCount[row.kind] ?? 0}
-          ignoredCount={ignoredCount(row.kind)}
-          isBusy={busy === row.kind}
-          active={autoLayer === row.kind}
-          canApply={refinable(row.kind)}
-          effort={effortFor(row.kind)}
-          modelLabel={showModel ? modelLabelFor(row.kind) : ""}
-          autoRunning={autoRunning}
-          onReview={onReview}
-          onApply={onApply}
-          onSelect={onSelect}
-          onIgnore={onIgnore}
-          canFix={canFix}
-          onFix={onFix}
-          onRestoreIgnored={onRestoreIgnored}
-          t={t}
-        />
-      ))}
+      {stageLayers.map((row, i) =>
+        renderRow(row, {
+          startHere: !autoRunning && startIdx >= 0 && i === startIdx,
+          blocked: !autoRunning && gateIdx >= 0 && i > gateIdx && (critique[row.kind]?.length ?? 0) > 0,
+          blockedBy: gateLabel,
+        }),
+      )}
     </div>
   );
 }
@@ -100,7 +143,12 @@ interface RowProps {
   ignoredCount: number;
   isBusy: boolean;
   active: boolean;
+  startHere: boolean;
+  blocked: boolean;
+  blockedBy: string;
+  stale: boolean;
   canApply: boolean;
+  resetHint: string | null;
   effort: string;
   modelLabel: string;
   autoRunning: boolean;
@@ -114,12 +162,13 @@ interface RowProps {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, canApply, effort, modelLabel, autoRunning, onReview, onApply, onSelect, onIgnore, canFix, onFix, onRestoreIgnored, t }: RowProps): React.JSX.Element {
+function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, startHere, blocked, blockedBy, stale, canApply, resetHint, effort, modelLabel, autoRunning, onReview, onApply, onSelect, onIgnore, canFix, onFix, onRestoreIgnored, t }: RowProps): React.JSX.Element {
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
   const [applied, setApplied] = useState<number | null>(null); // shown after Apply, until re-review or dismissed
   const [applying, setApplying] = useState(false);
+  const [override, setOverride] = useState(false); // "Review anyway" — expand a blocked (downstream) layer
 
   // A fresh review (findings present) resets the per-finding selection/edits and clears any prior
   // "applied" banner. findings→undefined (post-apply) intentionally does NOT reset, so the banner survives.
@@ -139,7 +188,11 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
   const open = Boolean(findings && findings.length > 0);
   const clean = reviewed && findings!.length === 0;
   const showApplied = applied !== null && findings === undefined;
+  // Cleared by an upstream Apply, previously reviewed → "changed upstream", not "not reviewed".
+  const showStale = stale && !reviewed && !showApplied;
   const selectedCount = open ? findings!.filter((f) => sel[f.id]).length : 0;
+  // Concerns (real problems) before suggestions (optional polish) — stable within each group.
+  const ordered = open ? [...findings!].sort((a, b) => (a.severity === "concern" ? 0 : 1) - (b.severity === "concern" ? 0 : 1)) : [];
 
   // Round-over-round delta + stop-here signals. The delta summary shows after a re-review. When findings
   // recur (seen in an earlier round, gone, now back) the layer is oscillating — a generative Apply keeps
@@ -159,7 +212,9 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
         ? t("findingsCount", { count: findings!.length })
         : showApplied
           ? t("aiAppliedShort", { count: applied })
-          : t("aiReviewIdle");
+          : showStale
+            ? t("aiChangedUpstream")
+            : t("aiReviewIdle");
 
   async function applySelected(): Promise<void> {
     if (!findings) return;
@@ -171,19 +226,38 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
     if (ok) setApplied(chosen.length); // parent clears findings → the "applied" banner takes over
   }
 
+  // A downstream layer whose upstream still has an open concern: collapse it to one dimmed line so the
+  // list shrinks to what's actionable now. "Review anyway" expands it for anyone who wants to look ahead.
+  if (blocked && !override && !active) {
+    return (
+      <div className="review-row blocked">
+        <div className="review-row-head">
+          <span className="review-dot blocked" aria-hidden><Icon name="lock" size={13} /></span>
+          <span className="review-label">{row.label}</span>
+          <span className="review-status muted">{open ? t("findingsCount", { count: findings!.length }) : showStale ? t("aiChangedUpstream") : t("aiReviewIdle")}</span>
+          <span className="review-actions">
+            <span className="review-blocked-hint muted" title={t("aiBlockedHint", { layer: blockedBy })}>{t("aiBlockedBy", { layer: blockedBy })}</span>
+            <button className="review-btn" onClick={() => setOverride(true)}>{t("aiReviewAnyway")}</button>
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`review-row ${open ? "has-findings" : ""} ${active ? "auto-active" : ""}`}>
+    <div className={`review-row ${open ? "has-findings" : ""} ${active ? "auto-active" : ""} ${startHere ? "start-here" : ""} ${showStale ? "stale" : ""}`}>
       <div className="review-row-head">
-        <span className={`review-dot ${clean ? "clean" : open ? "warn" : showApplied ? "clean" : "idle"}`} aria-hidden>
-          {clean || showApplied ? "✓" : open ? "⚠" : "○"}
+        <span className={`review-dot ${clean ? "clean" : open ? "warn" : showApplied ? "clean" : showStale ? "stale" : "idle"}`} aria-hidden>
+          {clean || showApplied ? "✓" : open ? "⚠" : showStale ? "↻" : "○"}
         </span>
         <span className="review-label">{row.label}</span>
+        {startHere && <span className="review-start" title={t("aiStartHereHint")}><Icon name="chevronDown" size={12} /> {t("aiStartHere")}</span>}
         {modelLabel && <span className="review-effort muted" title={t("settingsModel")}>{modelLabel}</span>}
         <span className="review-effort muted" title={t("settingsEffort")}>{effort}</span>
         <span className="review-status muted">{statusText}</span>
         <span className="review-actions">
           <button className="review-btn" onClick={() => onReview(row.kind)} disabled={isBusy || applying || autoRunning}>
-            {reviewed || showApplied ? t("aiReviewAgain") : t("aiReviewGo")}
+            {reviewed || showApplied || showStale ? t("aiReviewAgain") : t("aiReviewGo")}
           </button>
           {open && canApply && (
             <button className="review-btn refine" onClick={() => void applySelected()} disabled={isBusy || applying || autoRunning || selectedCount === 0}>
@@ -192,6 +266,14 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
           )}
         </span>
       </div>
+
+      {blocked && (
+        <div className="review-blocked-note muted"><Icon name="lock" size={11} /> {t("aiBlockedHint", { layer: blockedBy })}</div>
+      )}
+
+      {open && canApply && resetHint && (
+        <div className="review-cascade-note muted"><Icon name="alert" size={11} /> {resetHint}</div>
+      )}
 
       {showDelta && (
         <div className="review-delta">
@@ -218,7 +300,7 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
 
       {open && (
         <ul className="review-findings">
-          {findings!.map((f) => {
+          {ordered.map((f) => {
             const sugg = edited[f.id] ?? f.suggestion ?? "";
             const delta = diff?.statuses[f.id];
             return (

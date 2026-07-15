@@ -28,6 +28,37 @@ stop. Findings are judgment calls, not a checklist that hits zero. The panel say
 you've refined a layer enough.
 :::
 
+## Cross-cutting root issues
+
+Above the per-layer list sits a **Cross-cutting** section — the whole-model pass. It looks across every
+layer at once for a **broken chain**: a capability with no entity, a role that owns nothing, an entity no
+command ever touches. These are *root causes* — fixing one at its source often clears several per-layer
+symptoms below, so it's the first thing worth checking. Each finding links straight to the element on the
+map.
+
+## Where to start — work top-down
+
+Your model is a stack: each layer builds on the one above it, so a finding on a lower layer only makes
+sense once the layers above it are sound. The panel reflects that dependency order instead of showing one
+flat list:
+
+- Layers are listed **top-down**, and within a layer **concerns** (real problems) sort above optional
+  **suggestions**.
+- The highest layer with a real problem is marked **Start here** — fix that one first.
+- Layers below an unresolved one are **dimmed** with *"Resolve X first"*. That's not just tidiness:
+  **Apply** on an upstream layer regenerates the layers beneath it, so fixing a lower layer first can be
+  undone the moment you fix the one above. Choose **Review anyway** to look ahead when you want to.
+- When applying a layer *will* regenerate the ones below it (Entities and Behaviour share one model doc
+  with Automations), the **Apply** button spells it out — naming those layers and counting the open
+  findings there that the regeneration resets — so it's never a silent surprise.
+- After you apply, each regenerated layer that you'd already reviewed is flagged **"changed upstream —
+  re-review"** rather than a bare "not reviewed" — so you can tell at a glance which layers a quick,
+  cheap re-check will confirm. Nothing is re-scanned automatically (that would spend tokens); a re-review
+  is always yours to trigger, and it clears the flag.
+
+Drive the highest open layer to clean, re-review, and the ones below reappear — usually a shorter list,
+because fixing a root cause upstream often removes its knock-on findings.
+
 ## Apply vs. Fix
 
 There are two different "make it better" actions, and the difference matters:

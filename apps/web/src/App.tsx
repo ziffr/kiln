@@ -107,6 +107,15 @@ interface ModelOverride {
   agents?: AgentsDoc;
 }
 
+// Entities, behaviour and automations all live on the single `domain` doc, so applying (regenerating) an
+// upstream one overwrites the downstream ones: entities' fresh domain has no commands/events/policies, and
+// behaviour's refine drops policies. Areas/roles/workflows/agents own separate docs → they reset nothing
+// below. This map is the real Apply cascade (narrower than the destructive-Generate guard's atRiskCount).
+const APPLY_RESETS_BELOW: Partial<Record<LayerKind, LayerKind[]>> = {
+  entities: ["behaviour", "automations"],
+  behaviour: ["automations"],
+};
+
 export default function App(): React.JSX.Element {
   const { t, i18n } = useTranslation();
 
@@ -233,6 +242,11 @@ export default function App(): React.JSX.Element {
   // layer, so all critique goes stale → clear it.
   const [critique, setCritique] = useState<Partial<Record<LayerKind, CritiqueFinding[]>>>({});
   const [reviewBusy, setReviewBusy] = useState<LayerKind | null>(null);
+  // Layers whose (previously reviewed) AI critique was invalidated because an upstream Apply regenerated
+  // them (see APPLY_RESETS_BELOW). We can't know for free whether the regenerated content is now clean —
+  // that's an LLM judgment — so instead of a misleading "not reviewed" we flag "changed upstream", nudging
+  // a cheap re-review. Cleared when the layer is reviewed or applied.
+  const [staleReview, setStaleReview] = useState<Partial<Record<LayerKind, boolean>>>({});
   // Round-over-round: the delta of the latest review vs the previous one (still-open/new/resolved), and
   // how many times each layer has been reviewed (drives the "diminishing returns" nudge). `lastReviewedRef`
   // holds the prior round's findings to diff against — it survives an Apply (which clears `critique`) so a
@@ -828,6 +842,7 @@ export default function App(): React.JSX.Element {
       reviewHistoryRef.current[layer] = [...history, findings];
       setReviewCount((c) => ({ ...c, [layer]: (c[layer] ?? 0) + 1 }));
       setCritique((prev) => ({ ...prev, [layer]: findings }));
+      setStaleReview((s) => { if (!s[layer]) return s; const n = { ...s }; delete n[layer]; return n; }); // reviewed → no longer "changed upstream"
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
       return findings;
     } catch (e) {
@@ -865,7 +880,25 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       const override = applyDoc(data.doc);
-      setCritique((prev) => ({ ...prev, [layer]: undefined })); // refined → re-review to confirm closure
+      // Refined → re-review to confirm closure. This layer's regen also overwrote the layers below it
+      // (see APPLY_RESETS_BELOW), so their prior findings are now stale → clear them too, honestly
+      // matching the "resets N below" warning on the Apply button.
+      const resetBelow = APPLY_RESETS_BELOW[layer] ?? [];
+      // Downstream layers that had actually been reviewed (critique entry present) are now "changed
+      // upstream" — flag them so they read as re-reviewable, not as never-touched. Never-reviewed ones
+      // need no nudge (the user reaches them in the normal top-down flow).
+      const nowStale = resetBelow.filter((d) => critique[d] !== undefined);
+      setCritique((prev) => {
+        const next = { ...prev, [layer]: undefined };
+        for (const d of resetBelow) next[d] = undefined;
+        return next;
+      });
+      setStaleReview((s) => {
+        const n = { ...s };
+        delete n[layer]; // the applied layer is fresh, not stale
+        for (const d of nowStale) n[d] = true;
+        return n;
+      });
       setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
       return override;
     } catch (e) {
@@ -953,6 +986,17 @@ export default function App(): React.JSX.Element {
     .filter((r) => r.count > 0 || r.kind === "automations")
     // The cross-layer consistency pass — always available; reasons over the whole model at once.
     .concat([{ kind: "holistic", label: t("holistic"), count: activeDoc.capabilities.length }]);
+
+  // For the review panel's Apply button: applying entities/behaviour regenerates the layers below them
+  // (they share the domain doc), so name those layers and count the open findings there that Apply will
+  // reset. Null when Apply resets nothing below (areas/automations/roles/workflows/agents own their docs).
+  const applyResetHint = (k: LayerKind): string | null => {
+    const below = (APPLY_RESETS_BELOW[k] ?? []).filter((d) => reviewLayers.some((l) => l.kind === d));
+    if (below.length === 0) return null;
+    const layers = below.map((d) => reviewLayers.find((l) => l.kind === d)!.label).join(" + ");
+    const count = below.reduce((n, d) => n + (critique[d]?.length ?? 0), 0);
+    return count > 0 ? t("aiApplyResetsN", { layers, count }) : t("aiApplyResets", { layers });
+  };
 
   // SPEC-007/008: generate workflows (from behaviour) and agents (from capabilities) via the LLM.
   async function generateWorkflowsModel(): Promise<void> {
@@ -1394,6 +1438,7 @@ export default function App(): React.JSX.Element {
               <ReviewPanel
                 layers={reviewLayers}
                 critique={critique}
+                staleReview={staleReview}
                 diffs={critiqueDiff}
                 reviewCount={reviewCount}
                 busy={reviewBusy}
@@ -1403,6 +1448,7 @@ export default function App(): React.JSX.Element {
                 showModel={Object.keys(active.stages ?? {}).length > 0}
                 onReview={(k) => void reviewLayer(k)}
                 onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
+                applyResetHint={applyResetHint}
                 onSelect={(f) => { selectFinding(f); setShowReview(false); }}
                 canFix={(k, f) => resolveFix(k, f) !== null}
                 onFix={(k, f) => {

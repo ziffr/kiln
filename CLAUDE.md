@@ -113,6 +113,23 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
 - `.env`, `node_modules/`, `.kiln/`, `dist/` are gitignored — never commit them.
 
 ## Status (keep current)
+- **AI-review panel → dependency-aware worklist BUILT (presentation-only, no engine change).** The whole-model
+  "AI review" (`ReviewPanel` + `autoReview`) no longer shows a flat, equal list — it now reflects the arc's
+  dependency order the engine already walked. (1) **Severity sort** — concerns before optional suggestions
+  within a layer. (2) **Top-down gating** — a **"Start here"** marker on the highest layer with a concern;
+  layers below an unresolved one collapse to a dimmed *"Resolve X first"* line (with **Review anyway**),
+  shrinking the wall to what's actionable. (3) **Apply cascade warning** — because Entities/Behaviour/Automations
+  share one `domain` doc, applying Entities/Behaviour regenerates the layers below; the Apply button now names
+  them + counts the open findings it will reset (real cascade `APPLY_RESETS_BELOW`, narrower than the
+  destructive-Generate `atRiskCount`), and `refineLayer` **clears** those stale downstream findings so the
+  claim is literally true. (4) **Cross-cutting section** — the `holistic` pass (per-capability chain-break
+  root-cause analysis) lifted out of the bottom into a distinct boxed section at the TOP (no fabricated
+  per-finding causal nesting — the `CritiqueFinding` shape has no causal links, so that would be dishonest).
+  (5) **"changed upstream — re-review"** — a downstream layer reset by an upstream Apply is flagged (↻, amber)
+  instead of a bare "not reviewed", cleared on re-review; **nothing is auto-rescanned** (cost-conscious: the
+  flag is free, re-review is opt-in). New `ReviewPanel` props (`staleReview`, `applyResetHint`), `lock` icon,
+  ~9 i18n keys (EN+DE), CSS. Verified in-browser end-to-end with stubbed `/api/critique`+`/api/domain` (zero
+  LLM cost); docs `reviewing/ai-review.md` (+ versioned mirror) updated. 331 tests; web build green.
 - **v0.2.0 — Studio UX overhaul + adaptive models + export engine parity SHIPPED.** (1) **View-code action
   bar** redesigned from a flat 10-button toolbar into three self-explaining controls — an **Improve with AI**
   menu (code review/auto-fix, verify/auto-fix, **Polish layout** + **Visual review** — renamed from Polish

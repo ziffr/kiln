@@ -1261,6 +1261,23 @@ export default function App(): React.JSX.Element {
     const agent = agentsDoc.agents.find((a) => a.id === id); if (agent) return agent.name || id;
     return id;
   };
+  // A policy has no meaningful name of its own — describe it by its hand-off (event → command) so a hint
+  // reads "'Roll Presented For Sale → Discard Roll'" instead of "'pol_afcedb7e'".
+  const policyLabel = (id: string): string => {
+    const p = (flowDoc.policies ?? []).find((x) => x.id === id);
+    if (!p) return id;
+    if (p.name && p.name.trim() && p.name !== id && !/^pol[_-]/.test(p.name)) return p.name;
+    const ev = p.on ? nameFor(p.on) : "", cmd = p.then ? nameFor(p.then) : "";
+    return ev && cmd ? `${ev} → ${cmd}` : (p.name || id);
+  };
+  // Findings from the pure validators embed raw ids in quotes (e.g. 'pol_afcedb7e', 'prepared_roll').
+  // Swap each quoted snake-id for its business name so the hint reads like a person wrote it.
+  const humanizeMsg = (msg: string): string =>
+    msg.replace(/'([a-z][a-z0-9_:]*)'/g, (m, id: string) => {
+      const isPolicy = (flowDoc.policies ?? []).some((p) => p.id === id);
+      const label = isPolicy ? policyLabel(id) : nameFor(id);
+      return label && label !== id ? `'${label}'` : m;
+    });
 
   // ---- Findings the human has chosen to IGNORE (acknowledged / can't-fix-yet) — excluded from badge
   // counts + lists. Keyed on the hint's MEANING (code + the NAMES of the artifacts it's about), not the
@@ -1713,7 +1730,7 @@ export default function App(): React.JSX.Element {
                           return (
                             <li key={f.id} className={subj ? "clickable" : ""} onClick={() => subj && navTo(stage, subj)} onMouseEnter={() => subj && setHovered(subj)} onMouseLeave={() => setHovered(null)} title={`${f.code}${subj ? " · " + t("findingGoHint") : ""}`}>
                               <span className="fi-text">
-                                <span className="fi-msg"><span className={`sev-pill sev-${f.severity}`}>{t(`sev_${f.severity}`)}</span> {f.message}</span>
+                                <span className="fi-msg"><span className={`sev-pill sev-${f.severity}`}>{t(`sev_${f.severity}`)}</span> {humanizeMsg(f.message)}</span>
                                 <span className="fi-fix">
                                   {fix}
                                   {removablePolicy && <button className="fi-action" onClick={(e) => { e.stopPropagation(); deletePolicy(removablePolicy); }}><Icon name="trash" size={11} /> {t("removeAutomation")}</button>}
@@ -1731,7 +1748,7 @@ export default function App(): React.JSX.Element {
                         {crit.length === 0 && <li className="muted">{t("aiReviewOk")}</li>}
                         {crit.map((f) => (
                           <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)} title={f.target ? t("findingGoHint") : undefined}>
-                            <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
+                            <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {humanizeMsg(f.message)}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
                             {layerKind && <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); ignoreCritFinding(layerKind, f); }}><Icon name="x" size={13} /></button>}
                           </li>
                         ))}

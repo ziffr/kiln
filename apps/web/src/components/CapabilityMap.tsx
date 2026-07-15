@@ -14,8 +14,17 @@ import type { IR } from "@kiln/ir";
 import { useTranslation } from "react-i18next";
 
 const elk = new ELK();
-const NODE_W = 190;
-const NODE_H = 54;
+const NODE_W = 210;
+const NODE_H = 54; // minimum height; taller labels grow the box (estNodeH)
+// Capability names can be long sentences — estimate the wrapped height so the box fits the text (and
+// elk spaces rows for it), instead of clipping a fixed 54px box and overlapping the edge labels.
+// Conservative chars/line (long German compound words break early in a 210px bold box) so elk reserves
+// enough vertical room for the auto-growing node — better to over-reserve than clip/overlap.
+const CHARS_PER_LINE = 17;
+function estNodeH(label: string): number {
+  const lines = Math.max(2, Math.ceil((label?.length ?? 0) / CHARS_PER_LINE));
+  return Math.max(NODE_H, 26 + lines * 19);
+}
 
 type Selectable = { selectedId: string | null; onSelect: (id: string | null) => void };
 type Bounds = { x: number; y: number; width: number; height: number };
@@ -89,6 +98,7 @@ export function CapabilityMap({
     // Drop dangling depends_on edges (target deleted) — V5 flags them; elk would otherwise throw.
     const depEdges = ir.edges.filter((e) => e.type === "depends_on" && capIds.has(e.from) && capIds.has(e.to));
     const labelOf = new Map(ir.nodes.map((n) => [n.id, n.label]));
+    const heightOf = new Map(caps.map((c) => [c.id, estNodeH(labelOf.get(c.id) ?? c.id)]));
 
     const graph = {
       id: "root",
@@ -99,7 +109,7 @@ export function CapabilityMap({
         "elk.spacing.nodeNode": "28",
         "elk.layered.spacing.nodeNodeBetweenLayers": "48",
       },
-      children: caps.map((c) => ({ id: c.id, width: NODE_W, height: NODE_H })),
+      children: caps.map((c) => ({ id: c.id, width: NODE_W, height: heightOf.get(c.id) ?? NODE_H })),
       edges: depEdges.map((e) => ({ id: e.id, sources: [e.from], targets: [e.to] })),
     };
 
@@ -113,7 +123,8 @@ export function CapabilityMap({
           position: pos.get(c.id) ?? { x: 0, y: 0 },
           data: { label: labelOf.get(c.id) ?? c.id },
           width: NODE_W,
-          height: NODE_H,
+          // No fixed height — a fixed React Flow height clips long labels. The box auto-grows to the text
+          // (style below); elk still reserved `heightOf` rows so growth doesn't overlap the next node.
         }));
         const edges: Edge[] = depEdges.map((e) => ({
           id: e.id,
@@ -125,7 +136,8 @@ export function CapabilityMap({
         }));
         const xs = nodes.map((n) => n.position.x), ys = nodes.map((n) => n.position.y);
         const minX = Math.min(...xs), minY = Math.min(...ys);
-        const maxX = Math.max(...xs.map((x) => x + NODE_W)), maxY = Math.max(...ys.map((y) => y + NODE_H));
+        const maxX = Math.max(...xs.map((x) => x + NODE_W));
+        const maxY = Math.max(...caps.map((c) => (pos.get(c.id)?.y ?? 0) + (heightOf.get(c.id) ?? NODE_H)));
         setLaid({ nodes, edges, bounds: { x: minX, y: minY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) } });
       })
       .catch(() => setLaid({ nodes: [], edges: [], bounds: { x: 0, y: 0, width: 1, height: 1 } }));
@@ -146,6 +158,12 @@ export function CapabilityMap({
           selected: sel,
           style: {
             width: NODE_W,
+            // Grow to the label instead of clipping a fixed box; minHeight keeps short names uniform.
+            height: "auto" as const,
+            minHeight: NODE_H,
+            display: "flex" as const,
+            alignItems: "center" as const,
+            justifyContent: "center" as const,
             padding: 11,
             paddingLeft: area ? 15 : 11,
             borderRadius: 10,
@@ -158,6 +176,7 @@ export function CapabilityMap({
             color: "var(--fg)",
             fontSize: 13,
             fontWeight: 600,
+            lineHeight: 1.35,
           },
         };
       }),

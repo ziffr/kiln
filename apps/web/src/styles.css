@@ -100,6 +100,40 @@ textarea {
 
 /* Narrative input: interview + markdown tabs */
 .narrative-input { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* ── Narrative as a dialogue: compose · review · interview ── */
+.narrative-input.dialogue { max-width: 720px; width: 100%; margin: 0 auto; }
+.nd-compose { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 12px; padding-top: 8px; }
+.nd-compose-lead { margin: 0; font-size: 15px; line-height: 1.55; color: var(--fg); }
+.nd-compose-box {
+  flex: 1; min-height: 220px; resize: vertical; background: var(--bg); color: var(--fg);
+  border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px; font-size: 15px;
+  line-height: 1.6; font-family: inherit;
+}
+.nd-compose-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.nd-upload {
+  display: inline-flex; align-items: center; gap: 7px; background: transparent; color: var(--fg);
+  border: 1px solid var(--edge); border-radius: 8px; padding: 9px 13px; cursor: pointer; font: inherit; font-size: 13px;
+}
+.nd-upload:hover:not(:disabled) { border-color: var(--accent); }
+.nd-understand { display: inline-flex; align-items: center; gap: 7px; }
+.nd-quiet-link { align-self: flex-start; background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; font-size: 12.5px; padding: 4px 0; text-decoration: underline; text-underline-offset: 2px; }
+.nd-quiet-link:hover { color: var(--accent); }
+
+.nd-review { display: flex; flex-direction: column; gap: 20px; padding-top: 8px; }
+.nd-eyebrow { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.nd-summary { margin: 0; font-size: 18px; line-height: 1.55; color: var(--fg); border-left: 3px solid var(--accent); padding: 4px 0 4px 16px; text-wrap: pretty; }
+.nd-understanding { display: flex; flex-direction: column; gap: 8px; }
+.nd-meter { height: 8px; border-radius: 99px; background: var(--card); overflow: hidden; }
+.nd-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--warn-bg, #d9a441)); border-radius: 99px; transition: width 0.3s; }
+.nd-meter-cap { margin: 0; font-size: 12.5px; }
+.nd-questions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.nd-question { border: 1px solid var(--edge); background: var(--card); border-radius: 999px; padding: 8px 13px; font-size: 13px; color: var(--fg); }
+.nd-question::before { content: "?"; color: var(--accent); font-weight: 700; margin-right: 7px; }
+.nd-review-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.nd-editor { margin-top: 6px; min-height: 200px; }
+.nd-interview-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+
 .tabs { display: flex; gap: 4px; margin-bottom: 8px; }
 .tabs button {
   background: transparent; color: var(--muted); border: 1px solid transparent;

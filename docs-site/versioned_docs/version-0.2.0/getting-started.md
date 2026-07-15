@@ -9,15 +9,20 @@ Open the app ([live demo](https://demo.kilnstudio.app) or your own instance) and
 example** or **start a description of your own**. Everything begins with the narrative — your
 plain-language account of the business.
 
-## Three ways to describe your business
+## Describe your business — a conversation, not a form
 
-On the first stage (**Business Narrative**) you have three tabs:
+The first stage (**Business Narrative**) is a single dialogue. Write a description of your business in
+your own words in the one input — or paste a meeting transcript / notes, or upload a `.txt`/`.md` file.
+No headings, no jargon.
 
-- **Interview** — answer questions from a friendly business analyst in your own words.
-- **From text / transcript** — paste a meeting transcript, notes, or a brief (or upload a `.txt`/`.md`)
-  and let the app structure it into the narrative for you.
-- **Markdown** — paste or write a description directly under the given headings (Purpose, Customers,
-  Business Outcomes, Core Activities, Constraints).
+Click **Understand** and Kiln reads it back to you: a plain-language **summary** of what it understood, a
+sense of how well it understands your business, and the **open questions** still worth answering. From
+there:
+
+- **Continue the conversation** hands off to a friendly business analyst who picks up the first open
+  question and helps you fill the gaps — your own words carry straight into the chat.
+- **Describe again** to start over, or **Edit directly** to hand-edit the structured text (Purpose,
+  Customers, Business Outcomes, Core Activities, Constraints) — the text is always the source of truth.
 
 > **Example.** "We are a solar installer. We find customers, design a system for their roof, order the
 > parts, install it, and send the invoice."

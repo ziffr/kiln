@@ -27,6 +27,8 @@ export interface Project {
   description?: string;
   /** LLM-written plain-language home greeting (cached; regenerated when the narrative changes). */
   homeSummary?: string;
+  /** Open questions from the last "understand" pass on the narrative screen (cached; cleared on edit). */
+  openQuestions?: string[];
   narrative: string;
   model: string;
   effort: string;

@@ -32,6 +32,7 @@ import polishUi from "./polish-ui.ts";
 import roles from "./roles.ts";
 import structure from "./structure.ts";
 import summary from "./summary.ts";
+import understand from "./understand.ts";
 import translate from "./translate.ts";
 import usage from "./usage.ts";
 import verify from "./verify.ts";
@@ -66,6 +67,7 @@ const routes: Record<string, Handler> = {
   roles,
   structure,
   summary,
+  understand,
   translate,
   usage,
   verify,

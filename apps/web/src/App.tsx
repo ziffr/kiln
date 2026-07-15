@@ -405,7 +405,7 @@ export default function App(): React.JSX.Element {
   // so clicking a finding opens the right place (subject is a capability id or an aggregate id).
   function setNarrative(v: string): void {
     // Editing invalidates prior LLM snapshots (capabilities/domain/areas/roles) → fall back to mock.
-    patchActive({ narrative: v, homeSummary: undefined, capabilities: null, provider: null, domain: null, contexts: null, roles: null, workflows: null, agents: null });
+    patchActive({ narrative: v, homeSummary: undefined, openQuestions: undefined, capabilities: null, provider: null, domain: null, contexts: null, roles: null, workflows: null, agents: null });
     setSelected(null);
   }
 
@@ -1739,6 +1739,10 @@ export default function App(): React.JSX.Element {
                   key={active.id}
                   narrative={text}
                   onNarrative={setNarrative}
+                  summary={active.homeSummary || active.description || ""}
+                  openQuestions={active.openQuestions ?? []}
+                  onUnderstood={(r) => { if (r.narrative) setNarrative(r.narrative); patchActive({ homeSummary: r.summary, openQuestions: r.openQuestions }); }}
+                  onSpend={applySpend}
                   model={globalModel}
                   effort={active.effort}
                   provider={engine}

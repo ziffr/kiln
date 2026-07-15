@@ -819,8 +819,17 @@ textarea {
 .agent-title svg, .ag-node-head svg { flex: none; }
 .wf-rationale { font-size: 12px; margin: 0 0 8px; font-style: italic; }
 .wf-mode-note { font-size: 12px; margin: 8px 0 0; color: var(--muted); border-left: 2px solid var(--accent-2); padding-left: 8px; }
-.workflow-card.wf-mode-agent { border-left: 3px solid var(--accent-2); }
+/* Distinct colour per run-mode so a process reads at a glance (matches the legend chips). */
+.workflow-card.wf-mode-workflow { border-left: 3px solid var(--accent-2); }
+.workflow-card.wf-mode-agent { border-left: 3px solid var(--ok-fg); }
 .workflow-card.wf-mode-external { border-left: 3px solid var(--accent); }
+.wf-mode-chip.wf-mode-workflow { border-color: var(--accent-2); color: var(--accent-2); }
+.wf-mode-chip.wf-mode-agent { border-color: var(--ok-fg); color: var(--ok-fg); }
+.wf-mode-chip.wf-mode-external { border-color: var(--accent); color: var(--accent); }
+.wf-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin: 0 0 14px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); font-size: 12px; }
+.wf-legend-item { display: inline-flex; align-items: center; gap: 7px; }
+.wf-legend-note svg { color: var(--accent); flex: none; }
 .wf-ext-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-left-color: var(--accent); }
 .wf-ext-pick select, .wf-delegate-row select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; }
 .wf-box-ext { border-color: var(--accent) !important; }

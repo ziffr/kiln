@@ -177,6 +177,16 @@ export function WorkflowsView({
           </button>
         )}
       </div>
+      {/* What the three run-modes mean, so a business owner can read each process at a glance. */}
+      <div className="wf-legend">
+        {(["workflow", "agent", "external"] as const).map((m) => (
+          <span className="wf-legend-item" key={m}>
+            <span className={`wf-mode-chip wf-mode-${m}`}><Icon name={MODE_ICON[m]} size={12} />{t(MODE_KEY[m])}</span>
+            <span className="muted">{t(`${MODE_KEY[m]}Desc`)}</span>
+          </span>
+        ))}
+        <span className="wf-legend-item wf-legend-note"><span className="muted">{t("stepExternalNote")}</span></span>
+      </div>
       {workflows.workflows.map((w) => {
         const mode = (w.mode ?? "workflow") as ProcessMode;
         const rationale = rationales?.[w.id];

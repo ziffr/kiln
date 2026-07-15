@@ -1765,11 +1765,15 @@ export default function App(): React.JSX.Element {
                     <span className="muted">{t("narrativeSyncHint")}</span>
                   </div>
                 )}
-                <div className="lists narrative-summary">
-                  <div><h3>{t("outcomes")}</h3><ul>{businessOutcomes(doc).map((o) => <li key={o}>{o}</li>)}</ul></div>
-                  <div><h3>{t("activities")}</h3><ul>{coreActivities(doc).map((a) => <li key={a}>{a}</li>)}</ul></div>
-                  <div><h3>{t("customers")}</h3><ul>{customers(doc).map((c) => <li key={c}>{c}</li>)}</ul></div>
-                </div>
+                {/* The extracted-sections preview appears only once there's a real description to reflect —
+                    empty boxes on a blank narrative are noise (understanding is built, not pre-drawn). */}
+                {hasRealNarrative(text) && (
+                  <div className="lists narrative-summary">
+                    <div><h3>{t("outcomes")}</h3><ul>{businessOutcomes(doc).map((o) => <li key={o}>{o}</li>)}</ul></div>
+                    <div><h3>{t("activities")}</h3><ul>{coreActivities(doc).map((a) => <li key={a}>{a}</li>)}</ul></div>
+                    <div><h3>{t("customers")}</h3><ul>{customers(doc).map((c) => <li key={c}>{c}</li>)}</ul></div>
+                  </div>
+                )}
               </div>
             )}
             {stage === "capabilities" && <div className="map-wrap"><CapabilityMap ir={ir} areaOf={new Map()} selectedId={highlightId} onSelect={(id) => navTo("capabilities", id)} /></div>}

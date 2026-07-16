@@ -420,5 +420,24 @@ export { mockExternalServices, externalServicesAdapter, type ExternalServicesDoc
 export { migrate, migratePostgres, type MigrationResult, type BreakingChange, type Dialect } from "./migrate.ts";
 export { diffModels, type ModelDiff, type LayerDiff, type DiffChange, type DiffModel } from "./modelDiff.ts";
 export { assembleFullStack, type FullStackInput } from "./fullstack.ts";
+// Completion briefs (Phase 1): a grounded per-command brief (LOCKED/FRAME/DECIDE) for the downstream completer.
+export { commandBriefs, briefsIndex, type CommandBrief, type BriefContext } from "./briefs.ts";
 // SPEC-010 engine plugin seam: the registry API + the adapter contract (add an engine by registering it).
 export { registerEngine, getEngineAdapter, registeredEngines, type EngineAdapter, type EngineContext, type EngineOutput } from "./engines/index.ts";
+// SPEC-012 deploy/placement: the placement axis + the deploy-target seam (add a deploy target by registering it).
+export {
+  resolvePlacement,
+  validatePlacement,
+  projectPlacement,
+  engineDescriptor,
+  reachEnvOf,
+  composeServiceOf,
+  fallbackTargetId,
+  ENGINE_URL_ENV,
+  ENGINE_COMPOSE_SERVICE,
+  type HostingMode,
+  type HostingSpec,
+  type PlacementReport,
+  type PlacementRow,
+} from "./targets.ts";
+export { registerDeployTarget, getDeployTarget, registeredDeployTargets, type DeployTarget, type DeployContext, type DeployOutput } from "./deploy/index.ts";

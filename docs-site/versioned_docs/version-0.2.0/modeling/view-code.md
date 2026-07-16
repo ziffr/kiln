@@ -27,6 +27,48 @@ sortable/filterable **data table** with per-row action menus, a slide-over **det
 related records, and a **chart** of the KPI breakdown. Point it at the backend with `VITE_API_URL`. It's
 still a starting point developers extend by hand — but a running one.
 
+## Completion briefs — a guided handoff for each command
+
+Kiln generates the **structure**; the actual business logic inside each command is left for a developer
+(or a coding agent) to complete. To make that handoff precise, every export now includes a **completion
+brief** per command — `briefs/<command>.md`, indexed by `BRIEFS.md` and linked from `TODO.md`.
+
+Each brief separates two things honestly:
+
+- **LOCKED by the model** — everything Kiln can derive: the command's typed **input fields**, what
+  **triggers** it (a workflow step or a policy reaction), the **events** it emits on success, the
+  **roles** allowed to call it, and whether any step is **delegated** to an external service. Each line
+  names its source in the model. These are regenerated on export — you change them in the model, not in
+  the brief.
+- **DECIDE — not in the model** — the genuine business logic Kiln *cannot* know: the precondition/guard,
+  the actual state change, side effects and ordering, error handling. These come as an explicit
+  checklist, never as invented pseudo-code that looks authoritative.
+
+The result is a completer — human or AI — that knows exactly what is already decided and what is theirs
+to write, without needing the original modeling session's context.
+
+## Where each engine runs — deployment placement
+
+Kiln's binding already says **which** engine hosts each part of your system (Postgres for data, n8n for
+orchestration, a generated spine for the rest). You can also say **where** each one runs — **local** (a
+docker-compose container), **selfhost** (the same image on your own remote box), or **managed** (a hosted
+service you only point at, like Neon Postgres, n8n Cloud, or the spine on Fly.io). Edit it in
+**Settings → Deployment placement** — a per-engine picker (where it runs, which target, its reach
+variable) that flags invalid combinations as you go — or directly under `binding.hosting` in `model.json`.
+
+When you place an engine remotely, the export adjusts itself: the managed engine is **pruned from
+`docker-compose.yml`** (you don't run RDS in a local container), its **reach variable** (`DATABASE_URL`,
+`N8N_BASE_URL`, …) is added to `.env.example` as a placeholder for you to fill (a credential is never
+baked in), per-target config is emitted where it applies (e.g. `spine/fly.toml`), and a **`PLACEMENT.md`**
+table plus a machine-readable `deployment.json` record exactly where everything runs. With no placement
+set, every engine defaults to local and the export is unchanged. This is what makes "run each part locally
+or remotely, in any combination" a real, exportable choice rather than hand-editing after the fact.
+
+Each entry in `binding.hosting` is `{ mode, target?, urlEnv?, url? }` where `mode` is `local`,
+`selfhost`, or `managed`. The built-in deploy `target`s are **`docker`** (local/self-hosted container),
+**`managed`** (any engine, reached via an env var), **`vercel`** (the UI), and **`fly`** (the spine); more
+can be added as plugins. `url` is a non-secret host hint only — put credentials in `.env` at deploy time.
+
 ## ✨ Polish layout — an automatic design pass
 
 Click **✨ Polish layout** and a senior-designer AI reviews every generated screen against UX best practices

@@ -29,6 +29,9 @@ import type { AgentsDoc } from "@kiln/compiler";
 // populated before it is read. NODE_SPINE is imported for `engineFor`'s spine fallback.
 import { registeredEngines, getEngineAdapter, type EngineContext, type EngineOutput } from "./engines/index.ts";
 import { NODE_SPINE } from "./engines/spine.ts";
+// SPEC-012 deploy-target seam: importing deploy/index.ts REGISTERS the four built-in targets as a side
+// effect, so placement validation + projection can look them up. Pure/isomorphic (no node:*).
+import { getDeployTarget, type DeployContext, type DeployOutput } from "./deploy/index.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. The technical-capability taxonomy — the pivot table between model and engines.
@@ -55,6 +58,19 @@ export interface Engine {
   /** the connector the seam layer uses to reach this engine from another. */
   reach: "http" | "sql" | "event" | "in-process";
   provides: Record<TechCapability, Fidelity>;
+  /** SPEC-012 — the env var the rest of the system reads to reach this engine when it runs remotely
+   *  (e.g. "DATABASE_URL"). Lets a THIRD-PARTY engine (SPEC-010) declare its own reach var so placement
+   *  works for it with NO core edit. The built-ins' defaults also live in `ENGINE_URL_ENV`. */
+  urlEnv?: string;
+  /** SPEC-012 — this engine's docker-compose service name, so a managed placement can prune the right
+   *  local service. Third-party engines declare it here; built-in defaults live in `ENGINE_COMPOSE_SERVICE`. */
+  composeService?: string;
+  /** SPEC-012 Phase 2b — a docker-compose service BLOCK (2-space-indented YAML, e.g. `  clickhouse:\n
+   *  image: …`) emitted for a THIRD-PARTY engine placed `local`, so a novel engine runs in the generated
+   *  compose the same way a built-in does. Built-ins leave this unset (their blocks are hand-written). */
+  dockerService?: string;
+  /** the named top-level volume this engine's dockerService references, added to the compose `volumes:` map. */
+  dockerVolume?: string;
   /**
    * True when the engine's operate/react/authorize only work on ITS OWN store — a full platform like
    * Odoo owns a whole vertical slice; you cannot run its methods against a table living elsewhere.
@@ -100,6 +116,210 @@ export interface Binding {
    *  gateway ships pre-pointed at it. provider: anthropic | openrouter | omniroute | openai-compatible.
    *  Unset → Anthropic-first (default). Always overridable at deploy time via env. */
   agent?: { provider?: string; model?: string; baseUrl?: string };
+  /** SPEC-012 — WHERE each engine runs, keyed by engine id. Orthogonal to WHICH capability it provides.
+   *  An engine with no entry defaults to `{ mode: "local" }`, reproducing today's all-local output byte
+   *  for byte. Generalizes `agentRuntime` (which stays as the agents-only shorthand). */
+  hosting?: Record<string, HostingSpec>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2b. Placement (SPEC-012) — WHERE an engine instance runs, orthogonal to its capability.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** local = a container we generate + run via docker-compose; selfhost = the same image on a remote box
+ *  the operator runs; managed = a third-party/SaaS instance we only point at (never provisioned here). */
+export type HostingMode = "local" | "selfhost" | "managed";
+
+export interface HostingSpec {
+  mode: HostingMode;
+  /** the DeployTarget that hosts it (e.g. "vercel", "fly", "managed"). Optional for plain local. */
+  target?: string;
+  /** the env var the rest of the system reads to reach this engine when remote (e.g. "DATABASE_URL").
+   *  Defaulted per engine when omitted; required-in-effect for managed (PB1). */
+  urlEnv?: string;
+  /** a literal reachable URL when known at authoring time (documented, never a secret). */
+  url?: string;
+}
+
+/** Per-engine default reach env var — the variable the rest of the system reads to find a remote instance. */
+export const ENGINE_URL_ENV: Record<string, string> = {
+  postgres: "DATABASE_URL",
+  sqlite: "DB_FILE",
+  n8n: "N8N_BASE_URL",
+  node: "SPINE_URL",
+  odoo: "ODOO_URL",
+  shadcn: "VITE_API_URL",
+};
+
+/** Per-engine docker-compose service name — used to PRUNE a managed engine's local service. */
+export const ENGINE_COMPOSE_SERVICE: Record<string, string> = {
+  postgres: "postgres",
+  n8n: "n8n",
+  odoo: "odoo",
+  node: "spine",
+  shadcn: "ui",
+};
+
+/**
+ * The engine descriptor from the LIVE registry (falls back to the `ENGINES` snapshot). Placement reads
+ * engine-declared fields (`urlEnv`/`composeService`/`dockerService`) through this so a THIRD-PARTY engine
+ * registered at import time is honoured even though the `ENGINES` snapshot was frozen before it registered.
+ */
+export function engineDescriptor(engineId: string): Engine | undefined {
+  return getEngineAdapter(engineId)?.engine ?? ENGINES[engineId];
+}
+
+/** The reach env var for an engine: explicit → the engine's own declaration (third-party) → built-in default. */
+export function reachEnvOf(engineId: string): string | undefined {
+  return engineDescriptor(engineId)?.urlEnv ?? ENGINE_URL_ENV[engineId];
+}
+
+/** The docker-compose service name for an engine: the engine's own declaration → built-in default → its id. */
+export function composeServiceOf(engineId: string): string {
+  return engineDescriptor(engineId)?.composeService ?? ENGINE_COMPOSE_SERVICE[engineId] ?? engineId;
+}
+
+/**
+ * Resolve an engine's placement: the authored `hosting` spec (with urlEnv defaulted) or the all-local
+ * default. Reconciles the legacy `agentRuntime` shorthand (SPEC-012 §4.1): a non-`node` agent runtime
+ * (e.g. Langdock) is a MANAGED placement of that runtime engine, so the two notions give ONE answer.
+ */
+export function resolvePlacement(binding: Binding, engineId: string): Required<Pick<HostingSpec, "mode">> & HostingSpec {
+  const spec = binding.hosting?.[engineId];
+  // agentRuntime reconciliation: if this engine IS the chosen non-local agent runtime and no explicit
+  // hosting overrides it, treat it as managed (a remote workspace we point at), not local.
+  const agentManaged = !spec && binding.agentRuntime && binding.agentRuntime !== "node" && binding.agentRuntime === engineId;
+  const mode: HostingMode = spec?.mode ?? (agentManaged ? "managed" : "local");
+  return { mode, target: spec?.target, url: spec?.url, urlEnv: spec?.urlEnv ?? reachEnvOf(engineId) };
+}
+
+/** One engine's resolved placement, structured for the projector to render (targets never format markdown). */
+export interface PlacementRow {
+  engineId: string;
+  engineName: string;
+  mode: HostingMode;
+  target: string;
+  /** the "how to reach / deploy" instruction cell (from the target's DeployOutput.reach). */
+  reach: string;
+}
+
+/** The placement projection: resolved specs per engine + the descriptors the deploy targets contribute. */
+export interface PlacementReport {
+  /** resolved placement per engine-in-play. `url` is redacted of any embedded credentials (REV-030). */
+  engines: Record<string, HostingSpec>;
+  /** config files the deploy targets emit (e.g. `spine/fly.toml`). */
+  files: Record<string, string>;
+  /** extra `.env.example` reach vars (var name → a COMMENTED placeholder line; never a credential). */
+  env: Record<string, string>;
+  /** docker-compose service names to prune (managed/remote engines). */
+  prunedComposeServices: string[];
+  /** structured placement rows, one per engine (deterministic order) — the projector renders the table. */
+  placements: PlacementRow[];
+  /** whether ANY engine is placed off-local (drives whether projection diverges from the all-local bytes). */
+  anyRemote: boolean;
+  /** true when at least one STORE engine is managed/remote — the projector warns about the RLS gap (REV-030). */
+  managedStore: boolean;
+}
+
+/** The deploy target an engine resolves to: explicit, else `managed` for managed, else `docker` (local/selfhost). */
+export function fallbackTargetId(place: Pick<HostingSpec, "mode" | "target">): string {
+  return place.target ?? (place.mode === "managed" ? "managed" : "docker");
+}
+
+/** Strip userinfo (`user:pass@`) from a URL so a mis-authored credential never lands in a committed file. */
+function redactUrl(url?: string): string | undefined {
+  return url?.replace(/\/\/[^/@]*:[^/@]*@/, "//");
+}
+
+/**
+ * Validate placement (SPEC-012 PB-series, additive beside TB1–TB5). Checks each engine-in-play's hosting.
+ * A pure function over the binding + the engine ids actually in play.
+ */
+export function validatePlacement(binding: Binding, enginesInPlay: string[], dialect: "postgres" | "sqlite" = "postgres"): BindingFinding[] {
+  const findings: BindingFinding[] = [];
+  for (const engineId of enginesInPlay) {
+    const place = resolvePlacement(binding, engineId);
+    const engineName = engineDescriptor(engineId)?.name ?? engineId;
+    // PB5 — a url carrying embedded credentials would be committed to a generated file. Reject it.
+    if (place.url && /\/\/[^/@]*:[^/@]*@/.test(place.url)) {
+      findings.push({ level: "error", code: "PB5", message: `${engineName} hosting.url embeds a credential ("user:pass@…"). Put the secret in .env at deploy time; hosting.url must be a scheme+host reachability hint only.` });
+    }
+    if (place.mode === "local") continue; // local needs no target and no reach var.
+    // PB1 — a remote engine with no way to be reached is unusable.
+    if (place.mode === "managed" && !place.url && !place.urlEnv) {
+      findings.push({ level: "error", code: "PB1", message: `${engineName} is managed but has neither a url nor a reach env var — nothing can reach it. Set hosting.${engineId}.urlEnv.` });
+    }
+    // Resolve the target we WILL use (explicit or the generic fallback), and check it can actually host
+    // this engine+mode — so a bare `managed` engine no target can generically place (e.g. the spine) is a
+    // hard error, not a silent local export (REV: technical-architecture / delivery-execution).
+    const targetId = fallbackTargetId(place);
+    const target = getDeployTarget(targetId);
+    if (!target) {
+      // fallback ids ("managed"/"docker") always exist; a miss means an explicit unknown target → PB3.
+      if (place.target) findings.push({ level: "error", code: "PB3", message: `${engineName} is placed on unknown deploy target "${place.target}".` });
+      continue;
+    }
+    const ctx: DeployContext = { engineId, engineName, hosting: place, dialect, domainSlug: "app", composeService: composeServiceOf(engineId) };
+    if (!target.hosts(ctx)) {
+      findings.push({ level: "error", code: "PB2", message: `${engineName} is ${place.mode} but ${target.name} cannot host it${place.target ? "" : " — set an explicit hosting.${engineId}.target (e.g. \"fly\" for the spine, \"vercel\" for the UI)"}.` });
+    } else if (!target.modes.includes(place.mode)) {
+      findings.push({ level: "error", code: "PB2", message: `Deploy target ${target.name} does not support "${place.mode}" hosting for ${engineName} (supports: ${target.modes.join(", ")}).` });
+    }
+  }
+  // PB4 — a store-coupled PLATFORM (an engine with couplesStore, e.g. Odoo) that owns a whole slice should
+  // be placed as a UNIT with the other stores it coexists with. Generalized over every couplesStore engine
+  // in play vs every other store engine in play (mirrors how TB5 generalizes over couplesStore for binding).
+  const storeEnginesInPlay = enginesInPlay.filter((id) => engineDescriptor(id)?.provides.store && engineDescriptor(id)!.provides.store !== "none");
+  for (const id of enginesInPlay) {
+    const eng = engineDescriptor(id);
+    if (!eng?.couplesStore) continue;
+    const place = resolvePlacement(binding, id);
+    if (place.mode === "local") continue;
+    for (const other of storeEnginesInPlay) {
+      if (other === id) continue;
+      const op = resolvePlacement(binding, other);
+      if (op.mode !== place.mode) {
+        findings.push({ level: "warn", code: "PB4", message: `${eng.name} (${place.mode}) owns its whole slice but store ${engineDescriptor(other)?.name ?? other} is ${op.mode} — place a platform and its store together.` });
+      }
+    }
+  }
+  return findings;
+}
+
+/**
+ * Project placement into deploy descriptors. Runs each engine's chosen deploy target (the explicit one, or
+ * the generic `managed`/`docker` fallback) and merges the outputs. When every engine is local, `anyRemote`
+ * is false and the caller keeps its all-local plumbing byte-for-byte. Targets return STRUCTURED data; this
+ * function assembles the rows (targets never touch markdown). `url` is redacted of credentials (REV-030).
+ */
+export function projectPlacement(binding: Binding, enginesInPlay: string[], dialect: "postgres" | "sqlite", domainSlug: string): PlacementReport {
+  const engines: Record<string, HostingSpec> = {};
+  const files: Record<string, string> = {};
+  const env: Record<string, string> = {};
+  const prunedComposeServices: string[] = [];
+  const placements: PlacementRow[] = [];
+  let anyRemote = false;
+  let managedStore = false;
+  const storeEngines = new Set(["postgres", "sqlite", "odoo"]);
+
+  for (const engineId of [...enginesInPlay].sort()) {
+    const place = resolvePlacement(binding, engineId);
+    engines[engineId] = { mode: place.mode, target: place.target, urlEnv: place.urlEnv, url: redactUrl(place.url) };
+    if (place.mode !== "local") anyRemote = true;
+    if (place.mode !== "local" && storeEngines.has(engineId)) managedStore = true;
+    const targetId = fallbackTargetId(place);
+    const target = getDeployTarget(targetId);
+    if (!target) continue; // PB3 reported it; skip projection.
+    const engineName = engineDescriptor(engineId)?.name ?? engineId;
+    const ctx: DeployContext = { engineId, engineName, hosting: place, dialect, domainSlug, composeService: composeServiceOf(engineId) };
+    if (!target.hosts(ctx)) continue; // PB2 reported; don't emit a nonsensical descriptor.
+    const out: DeployOutput = target.generate(ctx);
+    Object.assign(files, out.files ?? {});
+    Object.assign(env, out.env ?? {});
+    if (out.prunesComposeService) prunedComposeServices.push(...out.prunesComposeService);
+    placements.push({ engineId, engineName, mode: place.mode, target: targetId, reach: out.reach ?? "" });
+  }
+  return { engines, files, env, prunedComposeServices, placements, anyRemote, managedStore };
 }
 
 /** A sensible multi-backend default for the probe: data in Postgres, orchestration in n8n, rest = spine. */
@@ -584,6 +804,8 @@ export interface TargetsReport {
   coverage: Array<{ engineId: string; elements: number; byKind: Record<string, number> }>;
   /** what the multi-backend projection cannot yet do faithfully — the probe's central finding. */
   gaps: string[];
+  /** SPEC-012 — WHERE each engine runs + the deploy descriptors it contributes. All-local by default. */
+  placement: PlacementReport;
 }
 
 export function projectTargets(
@@ -639,6 +861,16 @@ export function projectTargets(
     engineOutputs[id] = adapter.generate(engCtx);
   }
 
+  // SPEC-012 2b — seam-URL auto-wiring for the LAYER workflows that also call the spine/agents (triggers,
+  // integrations, external-services). When the spine (`node`) or the agent runtime is placed remotely, point
+  // their n8n HTTP nodes at the reach var via an n8n env expression instead of the `*.local` placeholder.
+  // `undefined` when local → each adapter keeps its default → byte-identical. (comms doesn't call the spine.)
+  const spinePlace = resolvePlacement(binding, "node");
+  const spineEnv = spinePlace.urlEnv ?? "SPINE_URL";
+  const spineApiUrl = spinePlace.mode !== "local" ? `={{$env.${spineEnv}}}/api` : undefined; // triggers/services default `…/api`
+  const spineRootUrl = spinePlace.mode !== "local" ? `={{$env.${spineEnv}}}` : undefined; // integrations default has no `/api`
+  const agentUrl = binding.agentRuntime && binding.agentRuntime !== "node" ? "={{$env.AGENT_URL}}" : undefined;
+
   // Assemble the SAME `artifacts` shape as before, now SOURCED FROM the engine outputs (Phase 1 keeps
   // the named slots byte-identical; third-party engines ride the additive `engines` channel below).
   const artifacts = {
@@ -650,15 +882,15 @@ export function projectTargets(
     spine: engineOutputs["node"]?.files ?? {},
     engines: engineOutputs,
     comms: communicationsAdapter(commsDoc),
-    integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain),
+    integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain, spineRootUrl),
     agents: agentsAdapter(caps, domain, agents, commsDoc, workflows, servicesDoc, binding.agent),
     triggers: (() => {
       const doc = triggers ?? mockTriggers(caps, domain, workflows, agents);
-      return { doc, n8n: triggersAdapter(doc, domain) };
+      return { doc, n8n: triggersAdapter(doc, domain, spineApiUrl, agentUrl) };
     })(),
     services: (() => {
       const doc = servicesDoc;
-      return { doc, ...externalServicesAdapter(doc, domain) };
+      return { doc, ...externalServicesAdapter(doc, domain, spineApiUrl, agentUrl) };
     })(),
   };
   const seams = deriveSeams(resolved, domain, workflows);
@@ -672,15 +904,23 @@ export function projectTargets(
   }
   const coverageOut = [...byEngine].map(([engineId, c]) => ({ engineId, ...c }));
 
+  // SPEC-012 placement: WHERE each in-play engine runs + the deploy descriptors it contributes. PB
+  // findings merge into the SAME validation channel (so an unreachable managed engine shows in TODO's
+  // binding-errors section). With no `hosting` authored, every engine is local → validatePlacement
+  // returns nothing and projectPlacement reports anyRemote=false, so the caller's plumbing is unchanged.
+  const enginesInPlay = [...inPlay];
+  validation.push(...validatePlacement(binding, enginesInPlay, dialect));
+  const placement = projectPlacement(binding, enginesInPlay, dialect, slug(caps.domain || "app"));
+
   const gaps: string[] = [];
   const spineElems = resolved.filter((r) => r.engineId === "node");
   if (spineElems.length) gaps.push(`${spineElems.length} elements fall back to the generated spine (${[...new Set(spineElems.map((s) => s.kind))].join(", ")}) — no external engine natively covered them.`);
   const partials = validation.filter((f) => f.code === "TB3").length;
   if (partials) gaps.push(`${partials} elements sit on a PARTIAL-fidelity engine (lossy) — e.g. events on Postgres are LISTEN/NOTIFY, not a durable bus. Model the delivery guarantee if it matters.`);
   const errs = validation.filter((f) => f.level === "error").length;
-  if (errs) gaps.push(`${errs} bindings are INVALID (an engine asked to do what it cannot) — must rebind before generation.`);
+  if (errs) gaps.push(`${errs} binding/placement errors (an engine asked to do what it cannot, or placed where it cannot run) — must fix before generation.`);
   gaps.push("RLS row predicates are not modelled — Postgres policies emit `USING (true)`. Authorization needs a subject/tenant model to be faithful.");
   gaps.push("n8n artifacts are structurally faithful but not verified against a live n8n import — the next probe should round-trip one through a real n8n instance (reuse the Docker verifier).");
 
-  return { binding, resolved, validation, artifacts, seams, coverage: coverageOut, gaps, ui };
+  return { binding, resolved, validation, artifacts, seams, coverage: coverageOut, gaps, ui, placement };
 }

@@ -6,7 +6,7 @@ status: Approved
 version: 1.0.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
-updated: 2026-07-12
+updated: 2026-07-15
 ---
 
 # Documentation Index
@@ -26,6 +26,7 @@ Regenerated whenever a document is added or changes status. See `CONVENTIONS.md`
 | SPEC-008 | Agents — autonomous operators + codegen pipeline end | spec | Approved | 1.0.0 |
 | SPEC-010 | Engine Plugin Seam — contract + registry for pluggable engines | spec | Draft | 0.1.0 |
 | SPEC-011 | Versioned Workspaces — git-backed model history + semantic diff | spec | Draft | 0.1.0 |
+| SPEC-012 | Deployment Placement — where each engine runs, as a binding dimension | spec | Approved | 1.1.0 |
 | PLAN-001 | MVP Execution Plan (M0–M5) | plan | Approved | 0.4.0 |
 | RES-001 | Codegen probe — model → scaffolding, and what's missing | research | Approved | 1.0.0 |
 | RES-002 | Execution-engine binding — model → multi-backend deployment-target compiler | research | Draft | 0.5.0 |
@@ -67,3 +68,8 @@ Regenerated whenever a document is added or changes status. See `CONVENTIONS.md`
 | REV-024 | SPEC-005 | ai-llm-feasibility | Approve-with-changes | Approved |
 | REV-025 | SPEC-005 | technical-architecture | Approve-with-changes | Approved |
 | REV-026 | SPEC-005 | ux-hitl | Approve-with-changes | Approved |
+| REV-027 | SPEC-012 | technical-architecture | Approve-with-changes | Approved |
+| REV-028 | SPEC-012 | product-strategy | Approve-with-changes | Approved |
+| REV-029 | SPEC-012 | delivery-execution | Approve-with-changes | Approved |
+| REV-030 | SPEC-012 | security-data | Approve-with-changes | Approved |
+| REV-031 | SPEC-012 | extensibility-dx | Approve-with-changes | Approved |

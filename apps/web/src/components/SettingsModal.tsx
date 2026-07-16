@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Modal } from "./Modal";
 import { Icon } from "./Icon";
+import { PlacementEditor } from "./PlacementEditor";
+import type { Binding } from "@kiln/codegen";
 
 // AI-stage settings: a GLOBAL default (engine / model / effort) + optional PER-STAGE overrides.
 // Any stage can run on a different provider, model and effort than the default — e.g. capabilities on
@@ -31,11 +33,14 @@ interface Props {
   onSetStage: (key: string, field: Field, value: string | undefined) => void;
   onReset: () => void;
   onClose: () => void;
+  /** SPEC-012 — the project's execution-topology binding + a writer, for the deployment-placement editor. */
+  binding: Binding | null | undefined;
+  onBindingChange: (next: Binding) => void;
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
 export function SettingsModal(props: Props): React.JSX.Element {
-  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, t } = props;
+  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, t } = props;
   const providerOf = (id: string): ProviderOpt | undefined => providers.find((p) => p.id === id);
   const providerLabel = (id: string): string => providerOf(id)?.label ?? id;
   const modelLabel = (providerId: string, modelId: string): string => providerOf(providerId)?.models.find((m) => m.id === modelId)?.label ?? modelId;
@@ -205,6 +210,9 @@ export function SettingsModal(props: Props): React.JSX.Element {
               </table>
             </>
           )}
+
+          {/* ---- Deployment placement (SPEC-012) ---- */}
+          <PlacementEditor binding={binding} onChange={onBindingChange} />
       </div>
     </Modal>
   );

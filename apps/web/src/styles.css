@@ -598,6 +598,13 @@ textarea {
 .settings-doclink { font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--accent-2); text-decoration: none; }
 .settings-doclink:hover { text-decoration: underline; }
 .settings-stage-name { font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
+/* SPEC-012 deployment-placement editor (in the Settings modal). */
+.placement-editor { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 4px; }
+.placement-findings { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.placement-findings li { font-size: 12px; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border); }
+.placement-findings li strong { font-family: var(--mono, monospace); margin-right: 6px; }
+.placement-findings .pf-error { border-color: color-mix(in srgb, #e5484d 55%, var(--border)); background: color-mix(in srgb, #e5484d 9%, transparent); }
+.placement-findings .pf-warn { border-color: color-mix(in srgb, #f5a623 55%, var(--border)); background: color-mix(in srgb, #f5a623 9%, transparent); }
 /* Hover/focus info tooltip on a stage name — saves the vertical space the inline description took. */
 .tip-wrap { position: relative; display: inline-flex; color: var(--muted); cursor: help; outline: none; }
 .tip-wrap:hover, .tip-wrap:focus-visible { color: var(--accent-2); }

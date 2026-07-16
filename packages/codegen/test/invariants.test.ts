@@ -98,7 +98,7 @@ function lineOf(src: string, index: number): number {
 
 // ── Invariant #4: pure packages have no node:* / bare process. / require( ──────────────────────
 //
-// Scanned dirs = every browser-loaded pure source tree. The @kiln/codegen ENGINES dir is pure too.
+// Scanned dirs = every browser-loaded pure source tree. The @kiln/codegen ENGINES + DEPLOY dirs are pure too.
 const pureDirs = [
   "packages/ir/src",
   "packages/compiler/src",
@@ -107,6 +107,7 @@ const pureDirs = [
   "packages/skills/src",
   "packages/eval/src",
   "packages/codegen/src/engines",
+  "packages/codegen/src/deploy",
 ];
 
 /**

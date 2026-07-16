@@ -15,7 +15,7 @@ jobs:
       - name: Set up Node.js
         # Node 24: runs the packages' TypeScript sources directly (native type-stripping, no build
         # step). Node 20 cannot — `node --test *.ts` fails with ERR_UNKNOWN_FILE_EXTENSION.
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 

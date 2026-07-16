@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the repository level (see
 [RELEASING.md](RELEASING.md)).
 
+## [0.4.0](https://github.com/ziffr/kiln/compare/v0.3.0...v0.4.0) (2026-07-16)
+
+
+### Features
+
+* **web:** decouple layer-status glyph — shape=provenance, colour=health ([#29](https://github.com/ziffr/kiln/issues/29)) ([15850f9](https://github.com/ziffr/kiln/commit/15850f9f9f128f14943942f6338c5e036840f12a))
+
+
+### Documentation
+
+* adopt trunk-based branching (protected main, PR-per-change) ([#26](https://github.com/ziffr/kiln/issues/26)) ([82b0d13](https://github.com/ziffr/kiln/commit/82b0d13223e09783fed49292fe8cf1e5facef66d))
+* correct CLAUDE.md lastVersion pin (0.2.0 → 0.3.0) ([#30](https://github.com/ziffr/kiln/issues/30)) ([d8a4b25](https://github.com/ziffr/kiln/commit/d8a4b258554fee816132e6e449d3cd28bb23148e))
+* snapshot v0.3.0 ([#24](https://github.com/ziffr/kiln/issues/24)) ([b26a237](https://github.com/ziffr/kiln/commit/b26a237126840184a9e0b04aafef8529c894a8d9))
+* **vision:** fold in the CASE-tools lineage and named market comparators ([#23](https://github.com/ziffr/kiln/issues/23)) ([355eaf0](https://github.com/ziffr/kiln/commit/355eaf0dd4e11810798189e7d18038e53d53574f))
+
 ## [0.3.0](https://github.com/ziffr/kiln/compare/v0.2.0...v0.3.0) (2026-07-16)
 
 

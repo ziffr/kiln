@@ -18,19 +18,22 @@ There are two ways in:
 
 ## The loop
 
-The AI Review dashboard is a **closure dashboard**: each layer shows a status and the
-**Review → act → re-review** loop. It opens with a **one-line summary** of what to do next (where to
-start, or "all reviewed — looks clean") and a thin **progress gauge** showing how many layers are
-reviewed and how many are flagged; a **Show details** toggle reveals the per-layer model and effort if
-you're tuning engines.
+The AI Review dashboard is a **closure dashboard**. It opens with a **one-line summary** of what to do
+next (where to start, or "all reviewed — looks clean"), a thin **progress gauge** showing how many
+layers are reviewed and how many are flagged, and one headline action:
 
-1. **Review** a layer → the AI returns a list of **findings**, each with a severity (a *concern* vs. a
-   subjective *suggestion*), a message, and a concrete suggestion.
+1. **Review all layers** → runs every reviewer top-to-bottom, read-only — a second opinion on the whole
+   model that never changes it. Each layer then shows its **findings**, each with a severity (a *concern*
+   vs. a subjective *suggestion*), a message, and a concrete suggestion.
 2. For each finding, choose how to close it:
    - **Fix** — apply the suggestion (see [Fixing concerns](fixing-concerns));
    - **Ignore** — accept it for good (see [Ignoring concerns](ignoring-concerns)).
-3. **Re-review** to confirm — the panel shows you exactly what changed (see
-   [Progress & loops](progress-and-loops)).
+
+Everything else is a power tool, tucked behind the **Advanced** toggle: reviewing (or re-reviewing) a
+**single layer**, the per-layer model/effort labels, and **Auto-fix all** — a review-*and-regenerate*
+loop that drives every flagged layer to clean but **changes your model** (see
+[Progress & loops](progress-and-loops)). For a quick single-layer check you can also use the **AI review**
+button on that layer's own stage.
 
 :::info It's advisory, and it doesn't converge to zero
 The AI reviewer is calibrated to *always find something* — a few subjective suggestions is a fine place to

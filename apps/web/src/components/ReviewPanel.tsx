@@ -36,13 +36,14 @@ interface Props {
   onRestoreIgnored: (k: LayerKind) => void;
   autoRunning: boolean;
   autoLayer: LayerKind | null;
+  onReviewAll: () => void;
   onAuto: () => void;
   onStop: () => void;
   onSettings: () => void;
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, applyResetHint, onSelect, onIgnore, canFix, onFix, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
+export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, applyResetHint, onSelect, onIgnore, canFix, onFix, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onReviewAll, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
   const autoLabel = autoLayer ? layers.find((l) => l.kind === autoLayer)?.label ?? autoLayer : "";
   // Progressive disclosure: the per-row technical chrome (which model / effort each layer runs at) is off
   // by default — it only matters to someone tuning engines in Settings. Off keeps the panel readable for
@@ -125,23 +126,23 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
     <div className="review-panel">
       <div className="review-head">
         <Icon name="sparkles" size={15} /> {t("aiReviewTitle")}
-        <span className="review-auto">
-          {autoRunning ? (
-            <>
-              <span className="review-auto-status muted">{t("aiAutoRunning")}{autoLabel ? ` · ${autoLabel}` : ""}</span>
-              <button className="review-btn stop" onClick={onStop}>{t("aiStop")}</button>
-            </>
-          ) : (
-            <>
-              <button className="review-btn auto" onClick={onAuto} title={t("aiAutoHint")}><Icon name="zap" size={13} /> {t("aiAuto")}</button>
-              <button className="review-btn" onClick={onSettings} title={t("settingsOpen")} aria-label={t("settingsOpen")}><Icon name="settings" size={14} /></button>
-            </>
-          )}
-        </span>
+        {!autoRunning && (
+          <span className="review-auto">
+            <button className="review-details-toggle muted" onClick={() => setShowDetails((v) => !v)} aria-pressed={showDetails}>
+              {showDetails ? t("aiHideDetails") : t("aiShowDetails")}
+            </button>
+            <button className="review-btn" onClick={onSettings} title={t("settingsOpen")} aria-label={t("settingsOpen")}><Icon name="settings" size={14} /></button>
+          </span>
+        )}
       </div>
       <p className="review-sub muted">{t("aiReviewSub")}</p>
 
-      {!autoRunning && (
+      {autoRunning ? (
+        <div className="review-running">
+          <span className="review-auto-status muted">{t("aiAutoRunning")}{autoLabel ? ` · ${autoLabel}` : ""}</span>
+          <button className="review-btn stop" onClick={onStop}>{t("aiStop")}</button>
+        </div>
+      ) : (
         <div className="review-status">
           <div className={`review-summary ${summary.kind}`}>{summary.text}</div>
           {totalN > 0 && (
@@ -152,6 +153,16 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
               {unreviewedN > 0 && <span className="rg-seg todo" style={{ flexGrow: unreviewedN }} />}
             </div>
           )}
+          {/* The one headline action: review every layer top-down (read-only). "Auto-fix all" — the
+              review-AND-regenerate loop that MUTATES the model — is a power tool, revealed under Advanced. */}
+          <div className="review-run">
+            <button className="review-runall" onClick={onReviewAll} title={t("aiRunAllHint")}>
+              <Icon name="sparkles" size={14} /> {t("aiRunAll")}
+            </button>
+            {showDetails && (
+              <button className="review-runauto" onClick={onAuto} title={t("aiAutoHint")}><Icon name="zap" size={13} /> {t("aiAuto")}</button>
+            )}
+          </div>
         </div>
       )}
 
@@ -163,12 +174,7 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
         </div>
       )}
 
-      <div className="review-section-head">
-        {t("aiLayersTitle")}
-        <button className="review-details-toggle muted" onClick={() => setShowDetails((v) => !v)} aria-pressed={showDetails}>
-          {showDetails ? t("aiHideDetails") : t("aiShowDetails")}
-        </button>
-      </div>
+      <div className="review-section-head">{t("aiLayersTitle")}</div>
       <p className="review-topdown muted">{t("aiReviewTopDown")}</p>
       <details className="review-how">
         <summary>{t("aiHowTitle")}</summary>
@@ -326,16 +332,21 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
         {showDetails && modelLabel && <span className="review-effort muted" title={t("settingsModel")}>{modelLabel}</span>}
         {showDetails && <span className="review-effort muted" title={t("settingsEffort")}>{effort}</span>}
         <span className="review-status muted">{statusText}</span>
-        <span className="review-actions">
-          <button className="review-btn" onClick={() => onReview(row.kind)} disabled={isBusy || applying || autoRunning}>
-            {reviewed || showApplied || showStale ? t("aiReviewAgain") : t("aiReviewGo")}
-          </button>
-          {open && canApply && (
-            <button className="review-btn refine" onClick={() => void applySelected()} disabled={isBusy || applying || autoRunning || selectedCount === 0}>
-              {applying ? t("aiApplying") : t("aiApplyN", { count: selectedCount })}
+        {/* Per-layer manual controls (Review this one layer / batch-Apply) are power tools — hidden by
+            default. The whole-model "Review all layers" button drives the common flow; single-layer review
+            also lives on the layer's own stage screen. Revealed under Advanced. */}
+        {showDetails && (
+          <span className="review-actions">
+            <button className="review-btn" onClick={() => onReview(row.kind)} disabled={isBusy || applying || autoRunning}>
+              {reviewed || showApplied || showStale ? t("aiReviewAgain") : t("aiReviewGo")}
             </button>
-          )}
-        </span>
+            {open && canApply && (
+              <button className="review-btn refine" onClick={() => void applySelected()} disabled={isBusy || applying || autoRunning || selectedCount === 0}>
+                {applying ? t("aiApplying") : t("aiApplyN", { count: selectedCount })}
+              </button>
+            )}
+          </span>
+        )}
       </div>
 
       {blocked && (
@@ -377,7 +388,7 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
             return (
               <li key={f.id} className={sel[f.id] ? "" : "deselected"}>
                 <div className="finding-top">
-                  {canApply && (
+                  {showDetails && canApply && (
                     <input
                       type="checkbox"
                       className="finding-check"
@@ -408,7 +419,7 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
                     ) : (
                       <>
                         <span className="review-fix">→ {sugg}{edited[f.id] !== undefined && edited[f.id] !== (f.suggestion ?? "") ? ` ${t("aiEdited")}` : ""}</span>
-                        {canApply && <button className="finding-amend" onClick={() => setEditing(f.id)} title={t("aiAmend")}>✎</button>}
+                        {showDetails && canApply && <button className="finding-amend" onClick={() => setEditing(f.id)} title={t("aiAmend")}>✎</button>}
                       </>
                     )}
                   </div>

@@ -526,6 +526,15 @@ textarea {
 .rg-seg.sugg { background: color-mix(in srgb, var(--ok-fg, var(--accent-2)) 45%, var(--panel-2)); }
 .rg-seg.concern { background: var(--warn-fg); }
 .rg-seg.todo { background: transparent; }
+/* Headline action row: "Review all layers" (primary) + optional "Auto-fix all" (advanced). */
+.review-run { display: flex; gap: 8px; margin-top: 10px; }
+.review-runall { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.review-runall:hover { filter: brightness(1.05); }
+.review-runall svg { color: currentColor; }
+.review-runauto { display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 550; cursor: pointer; }
+.review-runauto:hover { background: var(--panel-2); }
+.review-running { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; padding: 8px 11px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--border); font-size: 13px; }
+.review-running .review-btn.stop { margin-left: auto; }
 .review-summary.warn { border-color: color-mix(in srgb, var(--warn-fg) 40%, transparent); background: color-mix(in srgb, var(--warn-fg) 8%, transparent); color: var(--warn-fg); }
 .review-summary.ok { border-color: color-mix(in srgb, var(--ok-fg, var(--accent-2)) 35%, transparent); background: color-mix(in srgb, var(--ok-fg, var(--accent-2)) 7%, transparent); }
 /* "Show/hide details" toggle — reveals the per-row model/effort chrome (off by default). */

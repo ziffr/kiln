@@ -972,6 +972,38 @@ export default function App(): React.JSX.Element {
   // "concern"-level findings (bounded by MAX_REFINES), Refine and re-review; stop early when only
   // subjective suggestions remain. Cooperative-cancellable via the Stop button. Threads an
   // accumulating override so each re-review (and downstream refine) sees the freshly-refined docs.
+  // Pricing helper for the whole-model run buttons: mid $/call at the model a layer runs on.
+  const perCallCost = (modelId: string): number => {
+    const m = MODELS.find((x) => x.id === modelId);
+    return (EST_IN_TOKENS * (m?.inPerM ?? 2) + EST_OUT_TOKENS * (m?.outPerM ?? 10)) / 1_000_000;
+  };
+
+  // "Review all layers" — run every reviewer top-down, READ-ONLY (one review call per layer, no refine).
+  // This is the plain "second opinion on the whole model" action and the panel's default. Auto-fix
+  // (autoReview) additionally regenerates flagged layers, so it MUTATES the model; this never does.
+  async function reviewAll(): Promise<void> {
+    if (autoRunning) return;
+    const genLayers = reviewLayers.filter((r) => r.generated);
+    if (genLayers.length === 0) { window.alert(t("aiNothingToReview")); return; }
+    const midCost = genLayers.reduce((s, r) => s + perCallCost(modelFor(r.kind)), 0);
+    const lo = (midCost * 0.5).toFixed(2);
+    const hi = (midCost * 1.5).toFixed(2);
+    if (!window.confirm(t("reviewAllConfirm", { calls: genLayers.length, lo, hi }))) return;
+    setAutoRunning(true);
+    autoStopRef.current = false;
+    setError(null);
+    try {
+      for (const row of genLayers) {
+        if (autoStopRef.current) break;
+        setAutoLayer(row.kind);
+        await reviewLayer(row.kind);
+      }
+    } finally {
+      setAutoRunning(false);
+      setAutoLayer(null);
+    }
+  }
+
   async function autoReview(): Promise<void> {
     if (autoRunning) return;
     // Only real (generated) layers are reviewable — placeholders are gated. Nothing generated → nothing
@@ -982,17 +1014,13 @@ export default function App(): React.JSX.Element {
     // Estimate the worst case up front and get explicit consent — a full run is a burst of
     // higher-effort calls. Tier-aware: each stage is priced at the model it actually runs on
     // (Opus stages cost more than Sonnet/Haiku ones). Per layer: 1 review + up to 2 refine+re-review.
-    const perCall = (modelId: string): number => {
-      const m = MODELS.find((x) => x.id === modelId);
-      return (EST_IN_TOKENS * (m?.inPerM ?? 2) + EST_OUT_TOKENS * (m?.outPerM ?? 10)) / 1_000_000;
-    };
     let maxCalls = 0;
     let midCost = 0;
     for (const row of genLayers) {
       const refinable = row.kind !== "capabilities" && row.kind !== "holistic";
       const n = 1 + (refinable ? MAX_REFINES * 2 : 0); // worst case: initial review + (refine + re-review) × 2
       maxCalls += n;
-      midCost += n * perCall(modelFor(row.kind));
+      midCost += n * perCallCost(modelFor(row.kind));
     }
     const lo = (midCost * 0.5).toFixed(2);
     const hi = (midCost * 1.5).toFixed(2);
@@ -1630,6 +1658,7 @@ export default function App(): React.JSX.Element {
                 onSettings={() => { setShowReview(false); setShowSettings(true); }}
                 autoRunning={autoRunning}
                 autoLayer={autoLayer}
+                onReviewAll={() => void reviewAll()}
                 onAuto={() => void autoReview()}
                 onStop={() => { autoStopRef.current = true; }}
                 t={t}

@@ -98,7 +98,7 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
   on `main`, so **CI won't catch a missing doc for our own commits; this rule is the enforcement.** Docs
   are English-first; the German locale (`docs-site/i18n/de/`) follows. Purely-internal changes (refactors,
   tests, tooling) need no docs.
-- **The docs site is VERSIONED and pins `lastVersion` (currently `0.2.0`), so the version users see by
+- **The docs site is VERSIONED and pins `lastVersion` (currently `0.3.0`), so the version users see by
   default is the snapshot under `docs-site/versioned_docs/version-<X>/` — the unversioned `docs/` folder is
   served only under `/next`.** A page added/edited ONLY in `docs/` is invisible on the default site. So for
   a shipped user-facing change, **edit the matching page in `versioned_docs/version-<lastVersion>/` too (mirror

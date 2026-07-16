@@ -74,6 +74,12 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
   const reviewedN = gen.filter((l) => isReviewed(l.kind)).length;
   const concernN = gen.reduce((n, l) => n + (critique[l.kind]?.filter((f) => f.severity === "concern").length ?? 0), 0);
   const anySuggestions = gen.some((l) => (critique[l.kind]?.length ?? 0) > 0);
+  // Per-layer closure state, for the gauge: clean (reviewed, no findings) · concern (a real problem) ·
+  // suggestions-only (reviewed, optional polish) · not-yet-reviewed.
+  const cleanN = gen.filter((l) => critique[l.kind]?.length === 0).length;
+  const concernLayersN = gen.filter((l) => critique[l.kind]?.some((f) => f.severity === "concern")).length;
+  const suggLayersN = gen.filter((l) => { const f = critique[l.kind]; return f !== undefined && f.length > 0 && !f.some((x) => x.severity === "concern"); }).length;
+  const unreviewedN = totalN - reviewedN;
   const nextUnreviewed = gen.find((l) => !isReviewed(l.kind))?.label ?? "";
   const summary: { text: string; kind: "warn" | "ok" | "muted" } =
     totalN === 0 ? { text: t("aiSummaryEmpty"), kind: "muted" }
@@ -135,7 +141,19 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
       </div>
       <p className="review-sub muted">{t("aiReviewSub")}</p>
 
-      {!autoRunning && <div className={`review-summary ${summary.kind}`}>{summary.text}</div>}
+      {!autoRunning && (
+        <div className="review-status">
+          <div className={`review-summary ${summary.kind}`}>{summary.text}</div>
+          {totalN > 0 && (
+            <div className="review-gauge" role="img" aria-label={t("aiGaugeLabel", { reviewed: reviewedN, total: totalN })} title={t("aiGaugeLabel", { reviewed: reviewedN, total: totalN })}>
+              {cleanN > 0 && <span className="rg-seg clean" style={{ flexGrow: cleanN }} />}
+              {suggLayersN > 0 && <span className="rg-seg sugg" style={{ flexGrow: suggLayersN }} />}
+              {concernLayersN > 0 && <span className="rg-seg concern" style={{ flexGrow: concernLayersN }} />}
+              {unreviewedN > 0 && <span className="rg-seg todo" style={{ flexGrow: unreviewedN }} />}
+            </div>
+          )}
+        </div>
+      )}
 
       {holistic && (
         <div className="review-crosscut">

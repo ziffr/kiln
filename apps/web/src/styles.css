@@ -516,8 +516,16 @@ textarea {
 .review-dot.stale { color: var(--warn-fg); }
 .review-row.stale .review-status { color: var(--warn-fg); }
 
-/* Plain-language lead line: what to do, before the per-layer detail. */
-.review-summary { margin: 2px 0 10px; padding: 8px 11px; border-radius: 8px; font-size: 13px; line-height: 1.35; border: 1px solid var(--border); background: var(--panel-2); }
+/* Plain-language lead line + closure gauge: what to do, and how far along. */
+.review-status { margin: 2px 0 10px; }
+.review-summary { margin: 0 0 6px; padding: 8px 11px; border-radius: 8px; font-size: 13px; line-height: 1.35; border: 1px solid var(--border); background: var(--panel-2); }
+/* Horizontal review-closure gauge — one proportional segment per state across the reviewable layers. */
+.review-gauge { display: flex; gap: 1px; height: 6px; border-radius: 4px; overflow: hidden; background: var(--panel-2); border: 1px solid var(--border); }
+.rg-seg { display: block; min-width: 3px; }
+.rg-seg.clean { background: var(--ok-fg, var(--accent-2)); }
+.rg-seg.sugg { background: color-mix(in srgb, var(--ok-fg, var(--accent-2)) 45%, var(--panel-2)); }
+.rg-seg.concern { background: var(--warn-fg); }
+.rg-seg.todo { background: transparent; }
 .review-summary.warn { border-color: color-mix(in srgb, var(--warn-fg) 40%, transparent); background: color-mix(in srgb, var(--warn-fg) 8%, transparent); color: var(--warn-fg); }
 .review-summary.ok { border-color: color-mix(in srgb, var(--ok-fg, var(--accent-2)) 35%, transparent); background: color-mix(in srgb, var(--ok-fg, var(--accent-2)) 7%, transparent); }
 /* "Show/hide details" toggle — reveals the per-row model/effort chrome (off by default). */

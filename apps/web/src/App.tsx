@@ -1066,7 +1066,9 @@ export default function App(): React.JSX.Element {
 
   // Whole-model review roll-up for Mission Control (Home). Only real (generated) layers are reviewable;
   // of those, how many have been reviewed at least once, and how many open concerns remain across them.
-  const reviewableLayers = reviewLayers.filter((r) => r.generated);
+  // Excludes the holistic pass (a separate cross-cutting check, not a "layer") so this matches the
+  // dashboard's own summary/gauge count.
+  const reviewableLayers = reviewLayers.filter((r) => r.generated && r.kind !== "holistic");
   const reviewedLayerCount = reviewableLayers.filter((r) => critique[r.kind] !== undefined).length;
   const reviewConcernCount = reviewableLayers.reduce((n, r) => n + (critique[r.kind]?.filter((f) => f.severity === "concern").length ?? 0), 0);
 

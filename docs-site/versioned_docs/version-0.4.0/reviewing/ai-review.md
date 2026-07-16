@@ -20,8 +20,9 @@ There are two ways in:
 
 The AI Review dashboard is a **closure dashboard**: each layer shows a status and the
 **Review → act → re-review** loop. It opens with a **one-line summary** of what to do next (where to
-start, or "all reviewed — looks clean"); a **Show details** toggle reveals the per-layer model and effort
-if you're tuning engines.
+start, or "all reviewed — looks clean") and a thin **progress gauge** showing how many layers are
+reviewed and how many are flagged; a **Show details** toggle reveals the per-layer model and effort if
+you're tuning engines.
 
 1. **Review** a layer → the AI returns a list of **findings**, each with a severity (a *concern* vs. a
    subjective *suggestion*), a message, and a concrete suggestion.

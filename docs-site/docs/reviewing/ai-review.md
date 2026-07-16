@@ -28,6 +28,15 @@ stop. Findings are judgment calls, not a checklist that hits zero. The panel say
 you've refined a layer enough.
 :::
 
+## Only generated layers are reviewable
+
+Until you run **Generate** on a layer, what you see there is a **placeholder** — a rough draft derived
+automatically from the layer above, not a model Kiln has actually worked out. Reviewing a placeholder would
+just have the AI critique the draft, so the panel **gates it**: a not-yet-generated layer is shown dimmed,
+marked **"Placeholder — not generated"** with **"Generate first"**, and has no Review button. Generate it on
+its own stage and it becomes reviewable. (**Auto** likewise skips placeholders; if *every* layer is still a
+placeholder, it tells you there's nothing to review yet.)
+
 ## Cross-cutting root issues
 
 Above the per-layer list sits a **Cross-cutting** section — the whole-model pass. It looks across every

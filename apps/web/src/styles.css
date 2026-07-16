@@ -506,6 +506,9 @@ textarea {
 .review-row.start-here { background: color-mix(in srgb, var(--accent-2) 7%, transparent); border-radius: 6px; box-shadow: inset 2px 0 0 var(--accent-2); }
 .review-row.blocked { opacity: 0.62; }
 .review-row.blocked .review-row-head { padding: 2px 0; }
+/* Placeholder (not-yet-generated) layer — dimmed like a blocked row, no Review action. */
+.review-row.gated { opacity: 0.55; }
+.review-row.gated .review-row-head { padding: 2px 0; }
 .review-dot.blocked { color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
 .review-blocked-hint { font-size: 12px; }
 .review-blocked-note { display: flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 0 0 24px; }

@@ -857,8 +857,28 @@ export default function App(): React.JSX.Element {
       .filter(Boolean),
   });
 
+  // Provenance gate: a layer counts as "generated" only when its doc is materialized in the project
+  // (`active.*`); otherwise the view is the live-mock placeholder. Reviewing a placeholder spends real
+  // LLM budget critiquing deterministic filler, so the AI-review panel gates it. Mirrors the StageRail
+  // glyph (mock vs ready) — see `layerStatus` below.
+  function layerGenerated(k: LayerKind): boolean {
+    switch (k) {
+      case "capabilities": return Boolean(active.capabilities);
+      case "areas": return Boolean(active.contexts);
+      case "entities": return Boolean(active.domain);
+      case "behaviour": return Boolean(active.domain?.commands?.length);
+      case "automations": return Boolean(active.domain?.policies?.length);
+      case "roles": return Boolean(active.roles);
+      case "workflows": return Boolean(active.workflows);
+      case "agents": return Boolean(active.agents);
+      case "holistic": return Boolean(active.capabilities); // the cross-layer pass needs a real spine
+      default: return true;
+    }
+  }
+
   // Review: ask the LLM (higher effort, server-side) to critique one layer. Returns the findings.
   async function reviewLayer(layer: LayerKind, ov: ModelOverride = {}): Promise<CritiqueFinding[]> {
+    if (!layerGenerated(layer)) return []; // gated: never review placeholder (live-mock) content
     setReviewBusy(layer);
     setError(null);
     try {
@@ -954,6 +974,10 @@ export default function App(): React.JSX.Element {
   // accumulating override so each re-review (and downstream refine) sees the freshly-refined docs.
   async function autoReview(): Promise<void> {
     if (autoRunning) return;
+    // Only real (generated) layers are reviewable — placeholders are gated. Nothing generated → nothing
+    // to do (Auto would otherwise estimate 0 calls and silently no-op).
+    const genLayers = reviewLayers.filter((r) => r.generated);
+    if (genLayers.length === 0) { window.alert(t("aiNothingToReview")); return; }
     const MAX_REFINES = 2;
     // Estimate the worst case up front and get explicit consent — a full run is a burst of
     // higher-effort calls. Tier-aware: each stage is priced at the model it actually runs on
@@ -964,7 +988,7 @@ export default function App(): React.JSX.Element {
     };
     let maxCalls = 0;
     let midCost = 0;
-    for (const row of reviewLayers) {
+    for (const row of genLayers) {
       const refinable = row.kind !== "capabilities" && row.kind !== "holistic";
       const n = 1 + (refinable ? MAX_REFINES * 2 : 0); // worst case: initial review + (refine + re-review) × 2
       maxCalls += n;
@@ -978,7 +1002,7 @@ export default function App(): React.JSX.Element {
     setError(null);
     try {
       let acc: ModelOverride = {};
-      for (const row of reviewLayers) {
+      for (const row of genLayers) {
         if (autoStopRef.current) break;
         const layer = row.kind;
         setAutoLayer(layer);
@@ -1024,7 +1048,10 @@ export default function App(): React.JSX.Element {
   ] as { kind: LayerKind; label: string; count: number }[])
     .filter((r) => r.count > 0 || r.kind === "automations")
     // The cross-layer consistency pass — always available; reasons over the whole model at once.
-    .concat([{ kind: "holistic", label: t("holistic"), count: activeDoc.capabilities.length }]);
+    .concat([{ kind: "holistic", label: t("holistic"), count: activeDoc.capabilities.length }])
+    // Provenance: which rows are real (generated) vs. still the live-mock placeholder. The panel marks
+    // placeholders and disables their Review action so no one pays to critique deterministic filler.
+    .map((r) => ({ ...r, generated: layerGenerated(r.kind) }));
 
   // For the review panel's Apply button: applying entities/behaviour regenerates the layers below them
   // (they share the domain doc), so name those layers and count the open findings there that Apply will

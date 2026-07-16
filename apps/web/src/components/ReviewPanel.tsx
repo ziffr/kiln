@@ -11,6 +11,7 @@ export interface LayerRow {
   kind: LayerKind;
   label: string;
   count: number;
+  generated: boolean; // false = still the live-mock placeholder → reviewing it is gated
 }
 
 interface Props {
@@ -73,6 +74,7 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
       startHere={opts.startHere ?? false}
       blocked={opts.blocked ?? false}
       blockedBy={opts.blockedBy ?? ""}
+      generated={row.generated}
       stale={Boolean(staleReview[row.kind])}
       canApply={refinable(row.kind)}
       resetHint={applyResetHint(row.kind)}
@@ -146,6 +148,7 @@ interface RowProps {
   startHere: boolean;
   blocked: boolean;
   blockedBy: string;
+  generated: boolean;
   stale: boolean;
   canApply: boolean;
   resetHint: string | null;
@@ -162,7 +165,7 @@ interface RowProps {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, startHere, blocked, blockedBy, stale, canApply, resetHint, effort, modelLabel, autoRunning, onReview, onApply, onSelect, onIgnore, canFix, onFix, onRestoreIgnored, t }: RowProps): React.JSX.Element {
+function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, startHere, blocked, blockedBy, generated, stale, canApply, resetHint, effort, modelLabel, autoRunning, onReview, onApply, onSelect, onIgnore, canFix, onFix, onRestoreIgnored, t }: RowProps): React.JSX.Element {
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -224,6 +227,25 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
     const ok = await onApply(row.kind, chosen);
     setApplying(false);
     if (ok) setApplied(chosen.length); // parent clears findings → the "applied" banner takes over
+  }
+
+  // Provenance gate: this layer is still the live-mock placeholder (never generated). Reviewing it would
+  // spend real LLM budget critiquing deterministic filler, so collapse it to one dimmed line and offer no
+  // Review action — the user generates the layer on its own stage first. Takes precedence over the
+  // blocked/idle states (a clearer reason than "resolve X first").
+  if (!generated) {
+    return (
+      <div className="review-row gated">
+        <div className="review-row-head">
+          <span className="review-dot idle" aria-hidden>○</span>
+          <span className="review-label">{row.label}</span>
+          <span className="review-status muted">{t("aiNotGenerated")}</span>
+          <span className="review-actions">
+            <span className="review-blocked-hint muted" title={t("aiNotGeneratedHint", { layer: row.label })}>{t("aiGenerateFirst")}</span>
+          </span>
+        </div>
+      </div>
+    );
   }
 
   // A downstream layer whose upstream still has an open concern: collapse it to one dimmed line so the

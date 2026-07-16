@@ -4026,6 +4026,49 @@ Data comes from the generated spine \u2014 set \`VITE_API_URL\` (and \`VITE_API_
 }
 
 // ../../packages/codegen/src/agents.ts
+var CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+function commandTool(c, fields, evName) {
+  const res = `${slug(c.aggregate)}s`;
+  const action = slug(c.name || c.id);
+  const create = CREATE_VERB.test(`${action}_`);
+  const emits = (c.emits ?? []).map((e) => evName.get(e) ?? e);
+  return {
+    name: slug(c.id),
+    kind: "command",
+    description: `${c.name || c.id} (on ${c.aggregate})${emits.length ? ` \u2014 emits ${emits.join(", ")}` : ""}`,
+    invoke: { method: "POST", url: `{{SPINE_URL}}${create ? `/${res}` : `/${res}/{id}/${action}`}` },
+    input: fields
+  };
+}
+function defaultPlaybook(d) {
+  const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
+  const notify = d.tools.some((t) => t.kind === "notify");
+  return [
+    `# ${d.name} \u2014 behaviour`,
+    "",
+    `**Role.** ${d.goal || `Operate the ${d.capabilities.join(", ")} capabilities.`}`,
+    "",
+    `## How you work`,
+    `Work through the task with your tools. For each item: read the relevant record, decide, then act via`,
+    `the right command. Take one action at a time and check the result before the next. Keep going until`,
+    `the goal is met, then summarise what you did and why.`,
+    "",
+    `## When to escalate`,
+    notify ? `When a decision is ambiguous, high-value, or needs human judgement, use the \`notify\` tool to route` : `When a decision needs human judgement, stop and report it clearly`,
+    `it to a person \u2014 don't guess. Continue once they respond.`,
+    "",
+    `## Guardrails`,
+    `- Never fabricate data; use only what the records and tools give you.`,
+    `- Prefer the smallest correct action; don't take irreversible steps without cause.`,
+    `- Stay within your goal and capabilities.`,
+    "",
+    `## Your commands`,
+    ...cmds.length ? cmds.map((c) => `- \`${c}\``) : ["- (none)"],
+    "",
+    `> This file is the agent's system prompt \u2014 **edit it to change HOW this agent behaves.**`,
+    ""
+  ].join("\n");
+}
 var SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown> {
   if (t.kind === "command" || t.kind === "external") {
     const properties: Record<string, { type: string }> = t.kind === "command" ? { id: { type: "string" } } : {};
@@ -4035,6 +4078,15 @@ var SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown> 
   if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
   return { type: "object", properties: {} };
 }`;
+function agentToolParams(t) {
+  if (t.kind === "command" || t.kind === "external") {
+    const properties = t.kind === "command" ? { id: { type: "string" } } : {};
+    for (const f of t.input ?? []) properties[f] = { type: "string" };
+    return { type: "object", properties };
+  }
+  if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
+  return { type: "object", properties: {} };
+}
 var RUNTIME = {
   "src/def.ts": `export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf" | "external";
 export interface AgentTool { name: string; kind: AgentToolKind; description: string; invoke: Record<string, unknown>; input?: string[]; }
@@ -4268,6 +4320,49 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
 `,
   ".gitignore": "node_modules\n.env\n"
 };
+function resolveAgentDefs(caps, domain, agents, comms, workflows, services) {
+  if (!agents?.agents?.length) return [];
+  const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
+  const cmdName = new Map((domain.commands ?? []).map((c) => [c.id, c.name || c.id]));
+  const cmdCap = new Map((domain.commands ?? []).map((c) => [c.id, c.capability]));
+  const capName = new Map(caps.capabilities.map((c) => [c.id, c.name || c.id]));
+  const defs = [];
+  const procByAgent = /* @__PURE__ */ new Map();
+  for (const w of (workflows?.workflows ?? []).filter((w2) => w2.mode === "agent")) {
+    const wfCaps = new Set((w.steps ?? []).map((s) => cmdCap.get(s)).filter((c) => !!c));
+    let best;
+    let bestOverlap = 0;
+    for (const a of agents.agents) {
+      const overlap = [...wfCaps].filter((c) => (a.capabilities ?? []).includes(c)).length;
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        best = a.id;
+      }
+    }
+    if (best) (procByAgent.get(best) ?? procByAgent.set(best, []).get(best)).push({ id: w.id, name: w.name || w.id, steps: (w.steps ?? []).map((s) => cmdName.get(s) ?? s) });
+  }
+  for (const a of agents.agents) {
+    const agentCaps = new Set(a.capabilities ?? []);
+    const ownedEntities = new Set(domain.aggregates.filter((x) => agentCaps.has(x.owner)).map((x) => x.id));
+    const tools = [];
+    for (const c of domain.commands ?? []) {
+      if (!ownedEntities.has(c.aggregate)) continue;
+      const agg = domain.aggregates.find((x) => x.id === c.aggregate);
+      tools.push(commandTool(c, attributeSpecs(agg ?? { attributes: [] }).map((f) => slug(f.name)), evName));
+    }
+    tools.push({ name: "notify", kind: "notify", description: "Send an email or Slack message to a person or channel \u2014 e.g. route to a human for a decision, then continue when they respond.", invoke: { channels: ["email", "slack"], via: "n8n" } });
+    for (const cm of comms?.actions ?? []) {
+      if (!ownedEntities.has(cm.entity) || cm.channel !== "email" && cm.channel !== "slack") continue;
+      tools.push({ name: slug(cm.id), kind: cm.channel, description: `${cm.name} \u2192 ${cm.recipient}`, invoke: { channel: cm.channel, on: cm.on, template: `templates/${cm.id}.md` } });
+    }
+    for (const s of services?.services ?? []) {
+      if (!s.entity || !ownedEntities.has(s.entity)) continue;
+      tools.push({ name: slug(s.id), kind: "external", description: `Delegate to ${s.name} (${s.invocation}) \u2014 ${s.rationale ?? "external service"}`, invoke: { url: s.endpoint, invocation: s.invocation, service: s.id }, input: Object.keys(s.requestMapping ?? {}) });
+    }
+    defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools, processes: procByAgent.get(a.id) ?? [] });
+  }
+  return defs;
+}
 
 // ../../packages/codegen/src/engines/registry.ts
 var REGISTRY = /* @__PURE__ */ new Map();
@@ -4359,7 +4454,7 @@ var shadcnEngineAdapter = {
 };
 
 // ../../packages/codegen/src/spine.ts
-var CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+var CREATE_VERB2 = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 function entityFieldTypes(domain) {
   const out = {};
   for (const a of domain.aggregates) {
@@ -4375,7 +4470,7 @@ function routesFor(domain) {
   return (domain.commands ?? []).map((c) => {
     const res = `${slug(c.aggregate)}s`;
     const action = slug(c.name || c.id);
-    const create = CREATE_VERB.test(`${action}_`);
+    const create = CREATE_VERB2.test(`${action}_`);
     return {
       command: slug(c.id),
       name: c.name || c.id,
@@ -4734,14 +4829,14 @@ var spineEngineAdapter = {
 };
 
 // ../../packages/codegen/src/langdock.ts
-var CREATE_VERB2 = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+var CREATE_VERB3 = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 function commandLines(domain, ownedEntities) {
   const lines = [];
   for (const c of domain.commands ?? []) {
     if (!ownedEntities.has(c.aggregate)) continue;
     const res = `${slug(c.aggregate)}s`;
     const action = slug(c.name || c.id);
-    const create = CREATE_VERB2.test(`${action}_`);
+    const create = CREATE_VERB3.test(`${action}_`);
     const url = `{SPINE_URL}${create ? `/${res}` : `/${res}/{id}/${action}`}`;
     lines.push(`- \`POST ${url}\` \u2014 ${c.name || c.id} (on ${c.aggregate})`);
   }
@@ -4903,7 +4998,7 @@ var langdockEngineAdapter = {
 };
 
 // ../../packages/codegen/src/managedAgents.ts
-var CREATE_VERB3 = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+var CREATE_VERB4 = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 function playbook(a, capNames) {
   if (a.instructions?.trim()) return a.instructions.trim();
   return [
@@ -4937,7 +5032,7 @@ function managedAgentsAdapter(caps, domain, agentsDoc) {
       if (!ownedEntities.has(c.aggregate)) continue;
       const res = `${slug(c.aggregate)}s`;
       const action = slug(c.name || c.id);
-      const create = CREATE_VERB3.test(`${action}_`);
+      const create = CREATE_VERB4.test(`${action}_`);
       const toolName = slug(c.id);
       const agg = domain.aggregates.find((x) => x.id === c.aggregate);
       const fields = attributeSpecs(agg ?? { attributes: [] }).map((f) => slug(f.name));
@@ -5263,11 +5358,11 @@ function postgresAdapter(resolved, domain, roles) {
   }
   return L.join("\n").trim();
 }
-var CREATE_VERB4 = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+var CREATE_VERB5 = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 function commandEndpoint(cmd) {
   const res = `${slug(cmd.aggregate)}s`;
   const action = slug(cmd.name || cmd.id);
-  if (CREATE_VERB4.test(`${action}_`)) return { method: "POST", path: `/${res}` };
+  if (CREATE_VERB5.test(`${action}_`)) return { method: "POST", path: `/${res}` };
   return { method: "POST", path: `/${res}/{id}/${action}` };
 }
 function n8nAdapter(resolved, domain, workflows, baseUrl = "http://spine.local/api", services) {
@@ -5425,6 +5520,83 @@ for target in env[${JSON.stringify(model(cmd.aggregate))}].search([]):
   };
   if (autoRecords.length) files["data/automations.xml"] = ["<odoo>", ...autoRecords, "</odoo>"].join("\n");
   return files;
+}
+
+// ../../packages/codegen/src/agentSim.ts
+function buildToolSchemas(def) {
+  return def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: agentToolParams(t) }));
+}
+function toOpenAiTools(schemas) {
+  return schemas.map((s) => ({ type: "function", function: { name: s.name, description: s.description, parameters: s.input_schema } }));
+}
+function toOpenAiMessages(messages, system) {
+  const out = [{ role: "system", content: system }];
+  for (const m of messages) {
+    if (m.role === "user" && typeof m.content === "string") {
+      out.push({ role: "user", content: m.content });
+    } else if (m.role === "user" && Array.isArray(m.content)) {
+      for (const part of m.content) {
+        if (part && part.type === "tool_result") {
+          out.push({ role: "tool", tool_call_id: part.tool_use_id, content: part.content });
+        }
+      }
+    } else if (m.role === "assistant") {
+      out.push(m.content);
+    }
+  }
+  return out;
+}
+function mockDispatch(tool, input) {
+  switch (tool.kind) {
+    case "command": {
+      const id = String(input.id ?? "").trim() || `${tool.name.replace(/_/g, "-")}-0001`;
+      const { id: _id, ...fields } = input;
+      return { status: 200, ok: true, id, applied: fields, note: `Simulated ${tool.name} \u2014 no spine call was made.` };
+    }
+    case "notify":
+      return { delivered: true, recipient: input.recipient ?? "(unspecified)", subject: input.subject ?? null, note: "Simulated notification \u2014 routed to a human in a real run." };
+    case "email":
+      return { delivered: true, channel: "email", to: input.recipient ?? "(entity contact)", note: "Simulated email \u2014 a real run renders + sends the template." };
+    case "slack":
+      return { posted: true, channel: "slack", note: "Simulated Slack message \u2014 a real run posts to the channel." };
+    case "external":
+      return { accepted: true, invocation: tool.invoke?.invocation ?? "sync", service: tool.invoke?.service ?? tool.name, note: "Simulated delegation \u2014 no external service was called." };
+    case "pdf":
+      return { rendered: true, note: "Simulated document \u2014 a real run renders the PDF." };
+    default:
+      return { triggered: tool.name, note: "Simulated action." };
+  }
+}
+var zeroUsage = () => ({ input: 0, output: 0, cacheRead: 0, cacheCreate: 0 });
+async function runAgentLoop(def, task, nextTurn, maxSteps = 12) {
+  const messages = [{ role: "user", content: task }];
+  const steps = [];
+  const usage = zeroUsage();
+  let finalText = "";
+  let turns = 0;
+  for (let step = 0; step < maxSteps; step++) {
+    const turn = await nextTurn(messages);
+    turns++;
+    usage.input += turn.usage.input;
+    usage.output += turn.usage.output;
+    usage.cacheRead += turn.usage.cacheRead;
+    usage.cacheCreate += turn.usage.cacheCreate;
+    if (turn.text) {
+      finalText = turn.text;
+      steps.push({ assistantText: turn.text });
+    }
+    messages.push({ role: "assistant", content: turn.content });
+    if (turn.end || !turn.toolUses.length) break;
+    const results = [];
+    for (const tu of turn.toolUses) {
+      const tool = def.tools.find((t) => t.name === tu.name);
+      const output = tool ? mockDispatch(tool, tu.input) : { error: `unknown tool ${tu.name}` };
+      steps.push({ toolCall: { name: tu.name, input: tu.input }, toolResult: { output }, simulated: Boolean(tool) });
+      results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(output) });
+    }
+    messages.push({ role: "user", content: results });
+  }
+  return { finalText, steps, stepCount: turns, usage };
 }
 
 // ../../packages/skills/src/applogic.ts
@@ -5898,6 +6070,30 @@ function providerConfigured(id) {
 function configuredProviders() {
   return PROVIDERS.filter((p) => providerConfigured(p.id));
 }
+function resolveModelOption(req) {
+  const provider = providerById(req.provider) ?? providerById(DEFAULT_PROVIDER);
+  const wanted = req.model?.trim();
+  if (wanted) {
+    const inProvider = provider.models.find((m) => m.id === wanted);
+    if (inProvider) return inProvider;
+    const anywhere = req.provider ? void 0 : modelById(wanted);
+    if (anywhere) return anywhere;
+    if (provider.allowCustomModel) return { id: wanted, label: wanted, provider: provider.id, supportsEffort: true, inPerM: 0, outPerM: 0 };
+  }
+  return provider.models.find((m) => m.id === provider.defaultModel) ?? provider.models[0];
+}
+function resolveModel(body) {
+  if (body.provider && providerConfigured(body.provider)) {
+    const opt = resolveModelOption({ provider: body.provider, model: body.model });
+    if (providerConfigured(opt.provider)) return opt;
+  }
+  if (body.model) {
+    const found = modelById(body.model);
+    if (found && providerConfigured(found.provider)) return found;
+  }
+  const dp = configuredProviders()[0]?.id ?? DEFAULT_PROVIDER;
+  return resolveModelOption({ provider: dp });
+}
 var newUsage = () => ({ input: 0, output: 0, cacheRead: 0, cacheCreate: 0 });
 var round = (n, dp = 6) => Math.round(n * 10 ** dp) / 10 ** dp;
 function estCost(usage, model) {
@@ -6041,8 +6237,98 @@ async function handler(req, res) {
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
 }
 
-// functions/app-components.ts
+// functions/agent-run.ts
+import "@anthropic-ai/sdk";
 async function handler2(req, res) {
+  const client = requireClient(req, res);
+  if (!client) return;
+  const body = readBody(req);
+  if (!body.agentsDoc?.agents?.length || !body.agentId) return void res.status(400).json({ error: "agentsDoc and agentId are required" });
+  if (!body.capabilities?.capabilities?.length || !body.domain?.aggregates?.length) return void res.status(400).json({ error: "capabilities and a domain model are required (to resolve the agent's tools)" });
+  const defs = resolveAgentDefs(body.capabilities, body.domain, body.agentsDoc, body.comms, body.workflows, body.services);
+  const wantId = slug(body.agentId);
+  const def = defs.find((d) => d.id === wantId);
+  if (!def) return void res.status(404).json({ error: `unknown agent ${body.agentId}` });
+  const agent = body.agentsDoc.agents.find((a) => slug(a.id) === wantId);
+  const system = agent?.instructions?.trim() ? agent.instructions.trim() : defaultPlaybook(def);
+  const task = (body.task ?? "").trim() || "Work toward your goal using the available tools and records.";
+  const model = resolveModel(body);
+  const wantEffort = EFFORTS.includes(body.effort ?? "") ? body.effort : pickEffort(def.effort);
+  const effort = model.supportsEffort ? wantEffort : void 0;
+  const schemas = buildToolSchemas(def);
+  const usage = newUsage();
+  let nextTurn;
+  let provider;
+  if (model.provider === "anthropic") {
+    provider = providerLabel();
+    const tools = schemas.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
+    nextTurn = async (messages) => {
+      const resp = await client.messages.create({
+        model: model.id,
+        max_tokens: 2048,
+        system,
+        tools,
+        messages,
+        ...effort ? { thinking: { type: "adaptive" }, output_config: { effort } } : {}
+      });
+      const u = resp.usage;
+      const turnUsage = { input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, cacheCreate: u.cache_creation_input_tokens ?? 0 };
+      const text = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+      const toolUses = resp.content.filter((b) => b.type === "tool_use").map((b) => ({ id: b.id, name: b.name, input: b.input ?? {} }));
+      return { text, toolUses, end: resp.stop_reason === "end_turn", usage: turnUsage, content: resp.content };
+    };
+  } else {
+    const or = openrouterCfg();
+    const om = omnirouteCfg();
+    const cfg = model.provider === "openrouter" && or ? { ...or, label: "openrouter" } : model.provider === "omniroute" && om ? { ...om, label: "omniroute" } : null;
+    if (!cfg) return void res.status(500).json({ error: `engine "${model.provider}" is not configured on the server` });
+    provider = cfg.label;
+    const url = `${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`;
+    const tools = toOpenAiTools(schemas);
+    nextTurn = async (messages) => {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${cfg.apiKey}`, "HTTP-Referer": "https://kilnstudio.app", "X-Title": "Kiln Studio" },
+        body: JSON.stringify({
+          model: model.id,
+          max_tokens: 2048,
+          messages: toOpenAiMessages(messages, system),
+          tools,
+          ...effort ? { reasoning_effort: effort === "max" ? "high" : effort } : {}
+        })
+      });
+      if (!resp.ok) throw new Error(`${cfg.label} request failed (${resp.status}) for model "${model.id}": ${(await resp.text().catch(() => "")).slice(0, 500)}`);
+      const data = await resp.json();
+      const choice = data.choices?.[0];
+      const msg = choice?.message ?? {};
+      const toolUses = (msg.tool_calls ?? []).map((tc) => {
+        let input = {};
+        try {
+          input = JSON.parse(tc.function?.arguments || "{}");
+        } catch {
+          input = {};
+        }
+        return { id: tc.id, name: tc.function?.name ?? "", input };
+      });
+      const text = typeof msg.content === "string" ? msg.content.trim() : "";
+      const turnUsage = { input: data.usage?.prompt_tokens ?? 0, output: data.usage?.completion_tokens ?? 0, cacheRead: 0, cacheCreate: 0 };
+      const end = choice?.finish_reason !== "tool_calls" && !toolUses.length;
+      return { text, toolUses, end, usage: turnUsage, content: msg };
+    };
+  }
+  const run = await runAgentLoop(def, task, nextTurn);
+  usage.input = run.usage.input;
+  usage.output = run.usage.output;
+  usage.cacheRead = run.usage.cacheRead;
+  usage.cacheCreate = run.usage.cacheCreate;
+  const estCostUsd = estCost(usage, model);
+  const outUsage = { input: usage.input, output: usage.output };
+  const trace = { system, task, steps: run.steps, finalText: run.finalText, model: model.id, provider, usage: outUsage, estCostUsd, stepCount: run.stepCount, at: Date.now() };
+  res.status(200).json({ finalText: run.finalText, trace, usage: outUsage, estCostUsd, model: model.id, provider, sessionSpendUsd: estCostUsd });
+}
+
+// functions/app-components.ts
+async function handler3(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6056,7 +6342,7 @@ async function handler2(req, res) {
 }
 
 // functions/app-logic.ts
-async function handler3(req, res) {
+async function handler4(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6071,7 +6357,7 @@ async function handler3(req, res) {
 
 // functions/coach.ts
 import "@anthropic-ai/sdk";
-async function handler4(req, res) {
+async function handler5(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6108,7 +6394,7 @@ async function handler4(req, res) {
 }
 
 // functions/code-review.ts
-async function handler5(req, res) {
+async function handler6(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6123,7 +6409,7 @@ async function handler5(req, res) {
 }
 
 // functions/communications.ts
-async function handler6(req, res) {
+async function handler7(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6137,7 +6423,7 @@ async function handler6(req, res) {
 }
 
 // functions/contexts.ts
-async function handler7(req, res) {
+async function handler8(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6151,7 +6437,7 @@ async function handler7(req, res) {
 }
 
 // functions/critique.ts
-async function handler8(req, res) {
+async function handler9(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6176,7 +6462,7 @@ async function handler8(req, res) {
 }
 
 // functions/domain.ts
-async function handler9(req, res) {
+async function handler10(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6191,7 +6477,7 @@ async function handler9(req, res) {
 
 // functions/enrich-layer.ts
 import "@anthropic-ai/sdk";
-async function handler10(req, res) {
+async function handler11(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6215,7 +6501,7 @@ async function handler10(req, res) {
 
 // functions/enrich-web.ts
 import "@anthropic-ai/sdk";
-async function handler11(req, res) {
+async function handler12(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6237,7 +6523,7 @@ async function handler11(req, res) {
 }
 
 // functions/enrich.ts
-async function handler12(req, res) {
+async function handler13(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6252,7 +6538,7 @@ async function handler12(req, res) {
 }
 
 // functions/events.ts
-async function handler13(req, res) {
+async function handler14(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6267,7 +6553,7 @@ async function handler13(req, res) {
 }
 
 // functions/external-services.ts
-async function handler14(req, res) {
+async function handler15(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6281,7 +6567,7 @@ async function handler14(req, res) {
 }
 
 // functions/generate.ts
-async function handler15(req, res) {
+async function handler16(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6296,7 +6582,7 @@ async function handler15(req, res) {
 }
 
 // functions/integrations.ts
-async function handler16(req, res) {
+async function handler17(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6310,7 +6596,7 @@ async function handler16(req, res) {
 }
 
 // functions/models.ts
-function handler17(_req, res) {
+function handler18(_req, res) {
   const available = configuredProviders();
   const defaultProvider = providerConfigured(DEFAULT_PROVIDER) ? DEFAULT_PROVIDER : available[0]?.id ?? DEFAULT_PROVIDER;
   const dp = providerById(defaultProvider);
@@ -6328,7 +6614,7 @@ function handler17(_req, res) {
 }
 
 // functions/orchestration.ts
-async function handler18(req, res) {
+async function handler19(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6342,7 +6628,7 @@ async function handler18(req, res) {
 }
 
 // functions/policies.ts
-async function handler19(req, res) {
+async function handler20(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6357,7 +6643,7 @@ async function handler19(req, res) {
 }
 
 // functions/polish-ui.ts
-async function handler20(req, res) {
+async function handler21(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6371,7 +6657,7 @@ async function handler20(req, res) {
 }
 
 // functions/roles.ts
-async function handler21(req, res) {
+async function handler22(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6385,7 +6671,7 @@ async function handler21(req, res) {
 }
 
 // functions/structure.ts
-async function handler22(req, res) {
+async function handler23(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6399,7 +6685,7 @@ async function handler22(req, res) {
 }
 
 // functions/summary.ts
-async function handler23(req, res) {
+async function handler24(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6413,7 +6699,7 @@ async function handler23(req, res) {
 }
 
 // functions/understand.ts
-async function handler24(req, res) {
+async function handler25(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6427,7 +6713,7 @@ async function handler24(req, res) {
 }
 
 // functions/translate.ts
-async function handler25(req, res) {
+async function handler26(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6441,12 +6727,12 @@ async function handler25(req, res) {
 }
 
 // functions/usage.ts
-function handler26(_req, res) {
+function handler27(_req, res) {
   res.status(200).json({ sessionSpendUsd: 0, note: "per-call estimate on serverless; not a running total" });
 }
 
 // functions/verify.ts
-async function handler27(req, res) {
+async function handler28(req, res) {
   const verifyUrl = process.env.KILN_VERIFY_URL;
   if (!verifyUrl) return void res.status(200).json({ configured: false, error: "verifier not configured (set KILN_VERIFY_URL)" });
   const body = readBody(req);
@@ -6463,7 +6749,7 @@ async function handler27(req, res) {
 }
 
 // functions/workflows.ts
-async function handler28(req, res) {
+async function handler29(req, res) {
   const client = requireClient(req, res);
   if (!client) return;
   const body = readBody(req);
@@ -6479,35 +6765,36 @@ async function handler28(req, res) {
 // functions/router.ts
 var routes = {
   agents: handler,
-  "app-components": handler2,
-  "app-logic": handler3,
-  coach: handler4,
-  "code-review": handler5,
-  communications: handler6,
-  contexts: handler7,
-  critique: handler8,
-  domain: handler9,
-  "enrich-layer": handler10,
-  "enrich-web": handler11,
-  enrich: handler12,
-  events: handler13,
-  "external-services": handler14,
-  generate: handler15,
-  integrations: handler16,
-  models: handler17,
-  orchestration: handler18,
-  policies: handler19,
-  "polish-ui": handler20,
-  roles: handler21,
-  structure: handler22,
-  summary: handler23,
-  understand: handler24,
-  translate: handler25,
-  usage: handler26,
-  verify: handler27,
-  workflows: handler28
+  "agent-run": handler2,
+  "app-components": handler3,
+  "app-logic": handler4,
+  coach: handler5,
+  "code-review": handler6,
+  communications: handler7,
+  contexts: handler8,
+  critique: handler9,
+  domain: handler10,
+  "enrich-layer": handler11,
+  "enrich-web": handler12,
+  enrich: handler13,
+  events: handler14,
+  "external-services": handler15,
+  generate: handler16,
+  integrations: handler17,
+  models: handler18,
+  orchestration: handler19,
+  policies: handler20,
+  "polish-ui": handler21,
+  roles: handler22,
+  structure: handler23,
+  summary: handler24,
+  understand: handler25,
+  translate: handler26,
+  usage: handler27,
+  verify: handler28,
+  workflows: handler29
 };
-function handler29(req, res) {
+function handler30(req, res) {
   const q = req.query?.path;
   let name = Array.isArray(q) ? q[q.length - 1] : typeof q === "string" ? q : void 0;
   if (!name) {
@@ -6522,5 +6809,5 @@ function handler29(req, res) {
   return h(req, res);
 }
 export {
-  handler29 as default
+  handler30 as default
 };

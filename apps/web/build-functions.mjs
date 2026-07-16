@@ -30,4 +30,4 @@ await build({
   logLevel: "info",
 });
 
-console.log("[build-functions] bundled 25 handlers → api/[...path].js (one catch-all function)");
+console.log("[build-functions] bundled 26 handlers → api/[...path].js (one catch-all function)");

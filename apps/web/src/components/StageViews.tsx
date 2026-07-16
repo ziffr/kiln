@@ -271,15 +271,55 @@ export function WorkflowsView({
 }
 
 // Agents → cards: goal + operated capabilities.
-export function AgentsView({ agents, caps, t }: { agents: AgentsDoc; caps: CapabilityDoc; t: T }): React.JSX.Element {
+// Agents as editable cards: each agent's behaviour (system prompt) is an AUTHORED, editable textarea —
+// empty shows the default playbook as the placeholder — plus a "Test agent" affordance that opens the
+// run-trace panel. This is the GENERATE-side gap (the diagram above is the read-only relation view).
+export function AgentsView({
+  agents, caps, t, onEditInstructions, placeholderFor, onTest, testingId,
+}: {
+  agents: AgentsDoc;
+  caps: CapabilityDoc;
+  t: T;
+  /** persist an authored edit of the agent's behaviour (system prompt). */
+  onEditInstructions?: (agentId: string, value: string) => void;
+  /** the default playbook to show as placeholder when instructions are empty. */
+  placeholderFor?: (agentId: string) => string;
+  /** open the test-run panel for this agent. */
+  onTest?: (agentId: string) => void;
+  /** the agent currently running a test (spinner + disabled). */
+  testingId?: string | null;
+}): React.JSX.Element {
   if (!agents.agents.length) return <Empty msg={t("emptyAgents")} />;
   return (
-    <div className="cards">
+    <div className="cards agents-cards">
       {agents.agents.map((a) => (
-        <div key={a.id} className="agent-card">
-          <div className="entity-card-head"><strong className="agent-title"><Icon name="bot" size={15} />{a.name || a.id}</strong></div>
+        <div key={a.id} className="agent-card agent-edit-card">
+          <div className="entity-card-head">
+            <strong className="agent-title"><Icon name="bot" size={15} />{a.name || a.id}</strong>
+            {onTest && (
+              <button className="btn ghost sm agent-test-btn" onClick={() => onTest(a.id)} disabled={testingId === a.id} title={t("agentTestHint")}>
+                <Icon name="play" size={13} />{testingId === a.id ? t("agentTestRunning") : t("agentTest")}
+              </button>
+            )}
+          </div>
           {a.goal && <p className="agent-goal">{a.goal}</p>}
           <div className="agent-caps">{(a.capabilities ?? []).map((c) => <span key={c} className="wf-chip">{capName(caps, c)}</span>)}</div>
+          <label className="agent-behaviour">
+            <span className="agent-behaviour-label"><Icon name="code" size={12} />{t("agentBehaviour")}</span>
+            {onEditInstructions ? (
+              <textarea
+                className="agent-behaviour-input"
+                spellCheck={false}
+                value={a.instructions ?? ""}
+                placeholder={placeholderFor?.(a.id) ?? ""}
+                aria-label={t("agentBehaviour")}
+                onChange={(e) => onEditInstructions(a.id, e.target.value)}
+              />
+            ) : (
+              <pre className="agent-behaviour-view">{a.instructions?.trim() || placeholderFor?.(a.id) || ""}</pre>
+            )}
+            <span className="agent-behaviour-note muted">{a.instructions?.trim() ? t("agentBehaviourAuthored") : t("agentBehaviourDefault")}</span>
+          </label>
         </div>
       ))}
     </div>

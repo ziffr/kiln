@@ -58,7 +58,7 @@ function commandTool(c: { id: string; name?: string; aggregate: string; emits?: 
  * escalate, guardrails. Deterministic + generic; the LLM agent generator writes a business-specific one
  * (an agent's `instructions`) that supersedes this. Either way it's the editable system prompt.
  */
-function defaultPlaybook(d: AgentDef): string {
+export function defaultPlaybook(d: AgentDef): string {
   const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
   const notify = d.tools.some((t) => t.kind === "notify");
   return [
@@ -122,6 +122,21 @@ const SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown
   if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
   return { type: "object", properties: {} };
 }`;
+
+/**
+ * REAL (non-template) version of the runtime's `toolParams` — the JSON-Schema for a tool's arguments.
+ * Kept byte-equivalent to the string template above so the in-Studio "Test agent" loop (apps/service +
+ * the hosted function) builds the SAME tool schemas the exported runtime would. Pure + isomorphic.
+ */
+export function agentToolParams(t: AgentTool): Record<string, unknown> {
+  if (t.kind === "command" || t.kind === "external") {
+    const properties: Record<string, { type: string }> = t.kind === "command" ? { id: { type: "string" } } : {};
+    for (const f of t.input ?? []) properties[f] = { type: "string" };
+    return { type: "object", properties };
+  }
+  if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
+  return { type: "object", properties: {} };
+}
 
 const RUNTIME: Record<string, string> = {
   "src/def.ts": `export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf" | "external";
@@ -397,9 +412,15 @@ ${note}
 ${order.map((k) => blocks[k]).join("\n")}`;
 }
 
-/** Resolve each agent's toolset and emit a runnable, provider-flexible runtime (definitions + loop). */
-export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc, agentDefaults?: AgentDefaults): Record<string, string> {
-  if (!agents?.agents?.length) return {};
+/**
+ * Resolve, per agent, the concrete tools it can use — its owned commands, the `notify` router, the comm
+ * actions on its entities, and any external services it may delegate to — plus fold in the SPEC-009
+ * agent-mode processes it owns. Pure + isomorphic (no SDK, no `node:*`), so the exported runtime
+ * (`agentsAdapter`), the in-Studio "Test agent" loop (apps/service), and the hosted function all share
+ * ONE resolution. Extracting it here is the seam the server-side test loop reuses.
+ */
+export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc): AgentDef[] {
+  if (!agents?.agents?.length) return [];
   const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
   const cmdName = new Map((domain.commands ?? []).map((c) => [c.id, c.name || c.id]));
   const cmdCap = new Map((domain.commands ?? []).map((c) => [c.id, c.capability]));
@@ -407,8 +428,7 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
   const defs: AgentDef[] = [];
 
   // SPEC-009 mode-driven fold: assign each agent-mode process to the agent whose capabilities cover the
-  // most of the process's command-capabilities (ties → first). It becomes part of that agent's HOW, not
-  // an n8n workflow. A process with no covering agent stays unassigned (a modelling gap, surfaced below).
+  // most of the process's command-capabilities (ties → first). It becomes part of that agent's HOW.
   const procByAgent = new Map<string, Array<{ id: string; name: string; steps: string[] }>>();
   for (const w of (workflows?.workflows ?? []).filter((w) => w.mode === "agent")) {
     const wfCaps = new Set((w.steps ?? []).map((s) => cmdCap.get(s)).filter((c): c is string => !!c));
@@ -443,6 +463,13 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
     }
     defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools, processes: procByAgent.get(a.id) ?? [] });
   }
+  return defs;
+}
+
+/** Resolve each agent's toolset and emit a runnable, provider-flexible runtime (definitions + loop). */
+export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc, agentDefaults?: AgentDefaults): Record<string, string> {
+  if (!agents?.agents?.length) return {};
+  const defs = resolveAgentDefs(caps, domain, agents, comms, workflows, services);
 
   const files: Record<string, string> = {};
   for (const [rel, content] of Object.entries(RUNTIME)) files[`agents/${rel}`] = content;

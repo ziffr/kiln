@@ -89,6 +89,24 @@ are documented in the ADRs under `docs/`.)
 - **Do not guess the Anthropic API.** Use structured outputs to lock JSON shapes, keep the one-shot
   repair retry, and wrap user/business text as data (prompt-injection safety).
 
+## Branching
+
+Kiln uses a **trunk-based** flow — the least-ceremony model that scales from one maintainer to many:
+
+- **`main` is the trunk and production.** It is protected — **no direct pushes** (enforced for everyone,
+  including admins); every change lands via a pull request. Vercel deploys `main` to production and
+  release-please cuts releases from it.
+- **Do the work on a short-lived branch, then PR into `main`:**
+  - `feat/<slug>` · `fix/<slug>` · `docs/<slug>` · `chore/<slug>`.
+  - Push the branch — Vercel builds a **preview deployment** for it automatically, so you can see your
+    change live without touching production.
+  - Open a PR (Conventional Commit title), get it green, review, merge. The branch **auto-deletes** on merge.
+- **External contributors:** fork the repo, push to your fork, open a PR against `main`. No write access
+  needed — the AI Maintainer reviews and merges.
+- **No long-lived `develop` branch.** Per-branch preview deployments replace a staging branch, and
+  release-please (trunk-based by design) cuts releases straight from `main`. To cut a release, **merge the
+  release-please PR** — never hand-edit `package.json` / `CHANGELOG.md` / `.release-please-manifest.json`.
+
 ## Commit messages and PRs
 
 - Use **[Conventional Commits](https://www.conventionalcommits.org/)** for commit messages and PR

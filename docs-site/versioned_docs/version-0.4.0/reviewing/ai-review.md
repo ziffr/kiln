@@ -61,9 +61,9 @@ you've refined a layer enough.
 Until you run **Generate** on a layer, what you see there is a **placeholder** — a rough draft derived
 automatically from the layer above, not a model Kiln has actually worked out. Reviewing a placeholder would
 just have the AI critique the draft, so the panel **gates it**: a not-yet-generated layer is shown dimmed,
-marked **"Placeholder — not generated"** with **"Generate first"**, and has no Review button. Generate it on
-its own stage and it becomes reviewable. (**Auto** likewise skips placeholders; if *every* layer is still a
-placeholder, it tells you there's nothing to review yet.)
+marked **"Placeholder — not generated"** with **"Generate first"**, and can't be reviewed. Generate it on
+its own stage and it becomes reviewable. (**Review all layers** likewise skips placeholders; if *every*
+layer is still a placeholder, it tells you there's nothing to review yet.)
 
 ## Cross-cutting root issues
 
@@ -76,40 +76,38 @@ map.
 ## Where to start — work top-down
 
 Your model is a stack: each layer builds on the one above it, so a finding on a lower layer only makes
-sense once the layers above it are sound. The panel reflects that dependency order instead of showing one
-flat list:
+sense once the layers above it are sound. The dashboard's roll-up reflects that dependency order instead of
+a flat list:
 
-- Layers are listed **top-down**, and within a layer **concerns** (real problems) sort above optional
-  **suggestions**.
-- The highest layer with a real problem is marked **Start here** — fix that one first.
+- Layer rows are listed **top-down**, each showing its status and finding count.
+- The highest layer with a real problem (a **concern**, not just an optional suggestion) is marked
+  **Start here** — open that one first.
 - Layers below an unresolved one are **dimmed** with *"Resolve X first"*. That's not just tidiness:
-  **Apply** on an upstream layer regenerates the layers beneath it, so fixing a lower layer first can be
-  undone the moment you fix the one above. Choose **Review anyway** to look ahead when you want to.
-- When applying a layer *will* regenerate the ones below it (Entities and Behaviour share one model doc
-  with Automations), the **Apply** button spells it out — naming those layers and counting the open
-  findings there that the regeneration resets — so it's never a silent surprise.
-- After you apply, each regenerated layer that you'd already reviewed is flagged **"changed upstream —
-  re-review"** rather than a bare "not reviewed" — so you can tell at a glance which layers a quick,
-  cheap re-check will confirm. Nothing is re-scanned automatically (that would spend tokens); a re-review
-  is always yours to trigger, and it clears the flag.
+  regenerating an upstream layer (or letting **Auto-fix all** rebuild it) resets the layers beneath it, so
+  fixing a lower layer first can be undone the moment you fix the one above.
+- A layer that was reset by an upstream change is flagged **"changed upstream — re-review"** rather than a
+  bare "not reviewed" — so you can tell at a glance which layers a quick re-check will confirm. Nothing is
+  re-scanned automatically (that would spend tokens); re-running the review is always yours to trigger.
 
-Drive the highest open layer to clean, re-review, and the ones below reappear — usually a shorter list,
-because fixing a root cause upstream often removes its knock-on findings.
+Open the highest flagged layer, fix its findings on its stage, re-review, and the ones below reappear —
+usually a shorter list, because fixing a root cause upstream often removes its knock-on findings.
 
-## Apply vs. Fix
+## Fix vs. Auto-fix all
 
-There are two different "make it better" actions, and the difference matters:
+There are two "make it better" actions, and the difference matters:
 
-- **Apply** (the batch button) feeds your accepted points back and **regenerates the whole layer**. It's
-  good for early, sparse layers — but because it rebuilds everything, it can undo earlier fixes and
-  **oscillate**. Re-review to confirm it actually helped.
-- **Fix** (per finding) applies **one precise edit** and nothing else — it *converges*.
+- **Fix** (per finding, on the stage) applies **one precise edit** and nothing else — it *converges*. This
+  is the everyday path: open a flagged layer, and Fix or Ignore each finding.
+- **Auto-fix all** (whole-model, behind the dashboard's **Advanced** toggle) reviews *and* **regenerates**
+  every flagged layer in a loop. It's powerful for driving a sparse model to clean, but because it rebuilds
+  layers it **changes your model** and can churn — undoing earlier fixes as it rebuilds. Use it early;
+  prefer per-finding **Fix** to reach a stable, closed state.
 
 The next pages cover both, and how to tell progress from churn.
 
 ## Cost
 
-Each Review, Apply, or Fix that calls the model costs a small amount (shown in the session spend). Running
+Each review, Fix, or Auto-fix that calls the model costs a small amount (shown in the session spend). Running
 a **single-layer** review shows a quick cost confirmation first; ticking *"don't ask again"* (or toggling
 **Settings → AI engine → Reviewer → Confirm cost** off) turns it off for good. The whole-model **Review all
 layers** confirms up front regardless. This feature needs a real model, so it's available when you run your

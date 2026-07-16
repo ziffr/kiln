@@ -36,9 +36,9 @@ exact node with the suggestion in view, and you make the change in the normal ed
 adjust the role, remove the redundant automation. This is also convergent: you've changed the underlying
 model, so the condition is gone.
 
-:::tip Fix, don't re-Apply, to reach closure
-The generative **Apply** rebuilds a whole layer and can churn. When you want a concern *closed*, prefer
-**Fix** / **Fix in model** (one precise change) over pressing Apply again.
+:::tip Fix, don't regenerate, to reach closure
+The generative **Auto-fix all** rebuilds whole layers and can churn. When you want a concern *closed*,
+prefer **Fix** / **Fix in model** (one precise change) over regenerating the layer again.
 :::
 
 Hand-made fixes are marked *authored* and survive a re-review. To keep them safe across a regeneration,

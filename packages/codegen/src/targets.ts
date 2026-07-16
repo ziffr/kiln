@@ -228,7 +228,7 @@ export function fallbackTargetId(place: Pick<HostingSpec, "mode" | "target">): s
 
 /** Strip userinfo (`user:pass@`) from a URL so a mis-authored credential never lands in a committed file. */
 function redactUrl(url?: string): string | undefined {
-  return url?.replace(/\/\/[^/@]*:[^/@]*@/, "//");
+  return url?.replace(/\/\/[^/@:]*:[^/@]*@/, "//");
 }
 
 /**
@@ -241,7 +241,7 @@ export function validatePlacement(binding: Binding, enginesInPlay: string[], dia
     const place = resolvePlacement(binding, engineId);
     const engineName = engineDescriptor(engineId)?.name ?? engineId;
     // PB5 — a url carrying embedded credentials would be committed to a generated file. Reject it.
-    if (place.url && /\/\/[^/@]*:[^/@]*@/.test(place.url)) {
+    if (place.url && /\/\/[^/@:]*:[^/@]*@/.test(place.url)) {
       findings.push({ level: "error", code: "PB5", message: `${engineName} hosting.url embeds a credential ("user:pass@…"). Put the secret in .env at deploy time; hosting.url must be a scheme+host reachability hint only.` });
     }
     if (place.mode === "local") continue; // local needs no target and no reach var.
@@ -871,6 +871,10 @@ export function projectTargets(
   const spineRootUrl = spinePlace.mode !== "local" ? `={{$env.${spineEnv}}}` : undefined; // integrations default has no `/api`
   const agentUrl = binding.agentRuntime && binding.agentRuntime !== "node" ? "={{$env.AGENT_URL}}" : undefined;
 
+  // The TRIGGERS doc (authored, else deterministic defaults) — shared by the Triggers artifact AND the
+  // agents runtime, so an agent's derived INPUT (the signals routed to it) matches what actually wakes it.
+  const triggersDoc = triggers ?? mockTriggers(caps, domain, workflows, agents);
+
   // Assemble the SAME `artifacts` shape as before, now SOURCED FROM the engine outputs (Phase 1 keeps
   // the named slots byte-identical; third-party engines ride the additive `engines` channel below).
   const artifacts = {
@@ -883,11 +887,10 @@ export function projectTargets(
     engines: engineOutputs,
     comms: communicationsAdapter(commsDoc),
     integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain, spineRootUrl),
-    agents: agentsAdapter(caps, domain, agents, commsDoc, workflows, servicesDoc, binding.agent),
-    triggers: (() => {
-      const doc = triggers ?? mockTriggers(caps, domain, workflows, agents);
-      return { doc, n8n: triggersAdapter(doc, domain, spineApiUrl, agentUrl) };
-    })(),
+    // the agent runtime's behaviour prompts are grounded in each agent's contract — including its INPUT
+    // (the triggers routed to it), so pass the same triggers doc the Triggers artifact below uses.
+    agents: agentsAdapter(caps, domain, agents, commsDoc, workflows, servicesDoc, binding.agent, triggersDoc),
+    triggers: { doc: triggersDoc, n8n: triggersAdapter(triggersDoc, domain, spineApiUrl, agentUrl) },
     services: (() => {
       const doc = servicesDoc;
       return { doc, ...externalServicesAdapter(doc, domain, spineApiUrl, agentUrl) };

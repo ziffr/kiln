@@ -1515,6 +1515,25 @@ textarea {
 .agent-behaviour-view { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .agent-behaviour-note { font-size: 11px; }
 
+/* Agent CONTRACT — a read-only, derived four-quadrant spec (input · tools · output · context). */
+.agent-contract {
+  margin-top: 4px; border: 1px solid var(--edge); border-left: 3px solid var(--accent-2);
+  border-radius: 8px; background: var(--accent-2-soft); padding: 8px 10px 10px;
+}
+.agent-contract-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.agent-contract-title { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-2); }
+.agent-contract-derived { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+.agent-contract-derived svg { color: var(--muted); }
+.agent-contract-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 640px) { .agent-contract-grid { grid-template-columns: 1fr; } }
+.agent-contract-cell { background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+.agent-contract-cell-label { display: block; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--fg); }
+.agent-contract-cell-hint { display: block; font-size: 10px; margin-bottom: 4px; }
+.agent-contract-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.agent-contract-list li { font-size: 11px; line-height: 1.4; word-break: break-word; }
+.agent-contract-fields, .agent-contract-proc { color: var(--muted); }
+.agent-contract-none { font-size: 11px; font-style: italic; }
+
 /* Test-agent run panel (reuses .prompt-studio drawer chrome) */
 .agent-run-panel .ps-title > svg { color: var(--accent-2); }
 .run-engine { display: flex; align-items: center; gap: 6px; margin: 8px 16px 0; font-size: 11.5px; }

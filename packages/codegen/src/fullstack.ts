@@ -270,7 +270,7 @@ sequence → workflow; judgement/single-action → agent); an LLM pass (@kiln/sk
 // persisted to a committed file — redact userinfo before writing the binding to model.json / _run.json.
 // A valid scheme+host url is untouched, so the round-trip of legitimate authored state is preserved.
 const safeBinding: Binding = binding.hosting
-  ? { ...binding, hosting: Object.fromEntries(Object.entries(binding.hosting).map(([k, v]) => [k, v.url ? { ...v, url: v.url.replace(/\/\/[^/@]*:[^/@]*@/, "//") } : v])) }
+  ? { ...binding, hosting: Object.fromEntries(Object.entries(binding.hosting).map(([k, v]) => [k, v.url ? { ...v, url: v.url.replace(/\/\/[^/@:]*:[^/@]*@/, "//") } : v])) }
   : binding;
 
 // a manifest of the run: binding, coverage, seams, validation, gaps

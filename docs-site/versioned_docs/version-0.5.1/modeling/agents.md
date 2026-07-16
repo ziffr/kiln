@@ -13,11 +13,32 @@ would run.
 
 > **Example.** A "Sales Agent" whose goal is to convert incoming leads into scheduled installations.
 
+## The agent contract (input · tools · output · context)
+
+Beside the behaviour editor, each agent card shows a compact, **read-only** spec — the agent's **contract** —
+in four quadrants:
+
+- **Input** — the external signals routed to this agent (webhook / schedule / external triggers) plus the
+  run task. This is what *wakes* the agent.
+- **Tools** — the exact tools the agent can call: the commands on the entities its capabilities own, the
+  `notify` human-in-the-loop router, and any comm actions or external services. These are the same tool
+  schemas the run loop (and the exported runtime) send to the model.
+- **Output** — the events the agent's commands emit and the records they change. This is what the agent
+  *produces*.
+- **Context** — the entities the agent operates and their typed fields, plus any processes it owns.
+
+The contract is a **derived projection** — Kiln computes it from your capabilities, domain, and triggers.
+It is **not** something you author or edit; it updates automatically as the model changes (it is marked
+**Derived**). It makes explicit the four things every autonomous operator needs pinned down.
+
 ## Behaviour (the system prompt)
 
 Each agent card has an editable **Behaviour (system prompt)** field — the agent's operating instructions:
 its role, how it works its tools, when to escalate to a human, and its guardrails. This is what the agent
-would actually be told to do.
+would actually be told to do. The system prompt is **grounded in the contract above** — the default
+playbook cites the agent's real inputs, tools, outputs, and context, and when Kiln generates the
+instructions with an LLM it is told to reference those real model facts (named entities, commands, and
+events) rather than invent any.
 
 - Leave it **empty** and Kiln uses a sensible **default playbook**, derived from the agent's goal and
   tools. The default is shown as the placeholder so you can see what it would say.

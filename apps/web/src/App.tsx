@@ -30,7 +30,7 @@ import type { LlmOutputRecord, RunTrace } from "./projects";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
 import { EnrichPanel } from "./components/EnrichPanel";
-import { mockExternalServices, resolveAgentDefs, defaultPlaybook } from "@kiln/codegen";
+import { mockExternalServices, resolveAgentDefs, defaultPlaybook, agentContract, mockTriggers, type AgentContract } from "@kiln/codegen";
 import { SettingsModal } from "./components/SettingsModal";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { StageRail, type StageId, type StageInfo } from "./components/StageRail";
@@ -945,11 +945,24 @@ export default function App(): React.JSX.Element {
   };
   // The default playbook per agent (placeholder when instructions are empty). Resolved from the model via
   // the SAME codegen seam the runtime + server use, so what you preview is what would ship.
-  const agentPlaybooks = useMemo<Record<string, string>>(() => {
-    const defs = resolveAgentDefs(activeDoc, flowDoc, agentsDoc, active.comms ?? undefined, workflowsDoc, active.services ?? undefined);
-    const byId: Record<string, string> = {};
-    for (let i = 0; i < agentsDoc.agents.length; i++) { const d = defs[i]; if (d) byId[agentsDoc.agents[i].id] = defaultPlaybook(d); }
-    return byId;
+  // The derived agent CONTRACT (input · tools · output · context) + the grounded default playbook, both
+  // computed from the SAME codegen seam the runtime/server use. The contract is a READ-ONLY PROJECTION
+  // (golden invariant #2) — never persisted to the AgentsDoc — surfaced as a spec panel in AgentsView.
+  const { agentPlaybooks, agentContracts } = useMemo<{ agentPlaybooks: Record<string, string>; agentContracts: Record<string, AgentContract> }>(() => {
+    // triggers = the agent's INPUT facet; the web app has no authored triggers doc yet → derive the
+    // deterministic defaults (external/time events → webhook/schedule routes) so the input isn't empty.
+    const triggers = mockTriggers(activeDoc, flowDoc, workflowsDoc, agentsDoc);
+    const defs = resolveAgentDefs(activeDoc, flowDoc, agentsDoc, active.comms ?? undefined, workflowsDoc, active.services ?? undefined, triggers);
+    const playbooks: Record<string, string> = {};
+    const contracts: Record<string, AgentContract> = {};
+    for (let i = 0; i < agentsDoc.agents.length; i++) {
+      const d = defs[i];
+      if (!d) continue;
+      const contract = agentContract(d, flowDoc, triggers);
+      contracts[agentsDoc.agents[i].id] = contract;
+      playbooks[agentsDoc.agents[i].id] = defaultPlaybook(d, contract);
+    }
+    return { agentPlaybooks: playbooks, agentContracts: contracts };
   }, [activeDoc, flowDoc, agentsDoc, workflowsDoc, active.comms, active.services]);
 
   const lastAgentTrace: RunTrace | undefined = testAgentId ? active.observability?.agentRuns?.[testAgentId] : undefined;
@@ -2180,6 +2193,7 @@ export default function App(): React.JSX.Element {
                   caps={activeDoc}
                   onEditInstructions={editAgentInstructions}
                   placeholderFor={(id) => agentPlaybooks[id] ?? ""}
+                  contractFor={(id) => agentContracts[id]}
                   onTest={openAgentTest}
                   testingId={agentRunBusy ? testAgentId : null}
                   t={t}

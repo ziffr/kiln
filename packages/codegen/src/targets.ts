@@ -228,7 +228,7 @@ export function fallbackTargetId(place: Pick<HostingSpec, "mode" | "target">): s
 
 /** Strip userinfo (`user:pass@`) from a URL so a mis-authored credential never lands in a committed file. */
 function redactUrl(url?: string): string | undefined {
-  return url?.replace(/\/\/[^/@]*:[^/@]*@/, "//");
+  return url?.replace(/\/\/[^/@:]*:[^/@]*@/, "//");
 }
 
 /**
@@ -241,7 +241,7 @@ export function validatePlacement(binding: Binding, enginesInPlay: string[], dia
     const place = resolvePlacement(binding, engineId);
     const engineName = engineDescriptor(engineId)?.name ?? engineId;
     // PB5 — a url carrying embedded credentials would be committed to a generated file. Reject it.
-    if (place.url && /\/\/[^/@]*:[^/@]*@/.test(place.url)) {
+    if (place.url && /\/\/[^/@:]*:[^/@]*@/.test(place.url)) {
       findings.push({ level: "error", code: "PB5", message: `${engineName} hosting.url embeds a credential ("user:pass@…"). Put the secret in .env at deploy time; hosting.url must be a scheme+host reachability hint only.` });
     }
     if (place.mode === "local") continue; // local needs no target and no reach var.

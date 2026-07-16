@@ -1,9 +1,0 @@
-{
-  "label": "Reviewing & fixing",
-  "position": 4,
-  "link": {
-    "type": "generated-index",
-    "title": "Reviewing & fixing your model",
-    "description": "Kiln checks your model two ways — deterministic validators and a second-opinion pass — and gives you the tools to drive every concern to a clean end state: fix it for real, or accept it on purpose. This section covers findings, the Second-opinion loop, the two kinds of fix, how to read progress (and spot a loop), how to accept a concern for good, and how your hand-made changes are protected."
-  }
-}

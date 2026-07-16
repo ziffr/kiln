@@ -60,10 +60,15 @@ jobs:
           cd docs-site
           npm ci
           npm run docusaurus docs:version "$VERSION"
+          # Keep exactly ONE version — the one just cut. The site shows only the doc version matching the
+          # published app; no history, no dropdown. docs:version APPENDS to versions.json, so overwrite it
+          # and delete every other versioned_docs / sidebar.
+          printf '[\n  "%s"\n]\n' "$VERSION" > versions.json
+          find versioned_docs -mindepth 1 -maxdepth 1 -type d ! -name "version-$VERSION" -exec rm -rf {} +
+          find versioned_sidebars -type f -name '*-sidebars.json' ! -name "version-$VERSION-sidebars.json" -delete
           cd ..
-          # docs:version only adds the snapshot to the version dropdown — it does NOT change the default.
           # Bump lastVersion to the just-released version so it's served at the docs ROOT (the default),
-          # keeping docs versions in lockstep with studio releases.
+          # keeping docs in lockstep with studio releases.
           sed -i -E "s/(lastVersion: )\"[0-9]+\.[0-9]+\.[0-9]+\"/\1\"$VERSION\"/" docs-site/docusaurus.config.js
           if git diff --quiet; then
             echo "No docs changes to snapshot (already versioned?)."; exit 0
@@ -72,7 +77,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
-          git add docs-site/versioned_docs docs-site/versioned_sidebars docs-site/versions.json docs-site/docusaurus.config.js
+          # -A so the deletions of the old versioned dirs/sidebars are staged, not just additions.
+          git add -A docs-site/versioned_docs docs-site/versioned_sidebars docs-site/versions.json docs-site/docusaurus.config.js
           git commit -m "chore(docs): snapshot v$VERSION + make it the default"
           git push origin "$branch"
           gh pr create --base main --head "$branch" \

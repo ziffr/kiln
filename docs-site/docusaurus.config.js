@@ -20,14 +20,10 @@ const config = {
   onBrokenLinks: "throw",
   markdown: { hooks: { onBrokenMarkdownLinks: "warn" } },
 
-  // English is the default; German ships as a second locale (translated under i18n/de/).
+  // English-only docs for now (the Studio app itself stays bilingual EN/DE — this is only the docs site).
   i18n: {
     defaultLocale: "en",
-    locales: ["en", "de"],
-    localeConfigs: {
-      en: { label: "English" },
-      de: { label: "Deutsch" },
-    },
+    locales: ["en"],
   },
 
   presets: [
@@ -40,7 +36,9 @@ const config = {
           sidebarPath: "./sidebars.js",
           // "Edit this page" points at the repo → every change is a reviewed PR (owner merges).
           editUrl: "https://github.com/ziffr/kiln/tree/main/docs-site/",
-          // Versioning: the latest release is served at the root; the live docs/ folder is "Next".
+          // Versioning: exactly ONE version is kept — the latest release, served at the root and matching
+          // the published app version. Old versions are pruned on each release (no history / no dropdown).
+          // The live docs/ folder is "Next" (dev preview at /next).
           lastVersion: "0.5.1",
           versions: {
             current: { label: "Next 🚧", path: "next" },
@@ -61,8 +59,6 @@ const config = {
         logo: { alt: "Kiln", src: "img/logo.svg" },
         items: [
           { type: "docSidebar", sidebarId: "docs", position: "left", label: "Docs" },
-          { type: "docsVersionDropdown", position: "right" },
-          { type: "localeDropdown", position: "right" },
           { href: "https://demo.kilnstudio.app", label: "Live demo", position: "right" },
           { href: "https://github.com/ziffr/kiln", label: "GitHub", position: "right" },
         ],

@@ -8,40 +8,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the rep
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-07-16
-
-A Studio UX release: a real project manager, a tabbed Settings panel, a clearer sidebar with live
-session usage, an advisor-style home screen, and deployment placement as a first-class binding
-dimension.
-
-### Added
-
-- **Project manager.** A single hub (opened from the project name in the sidebar) lists your
-  businesses as cards to switch between, **rename**, **duplicate** (forks the whole model), and
-  **delete**, with a **search** filter. It absorbs what used to be scattered across the sidebar:
-  **Load an example**, per-project **version history**, and per-card **Export** / footer **Import**
-  of `model.json`. Built-in demos are kept out of the list (reachable via Load an example) unless
-  you're working in one.
-- **Tabbed Settings** — **AI engine** (default + per-stage model/effort), **Deployment**, and
-  **General** (the language switcher, moved here from the sidebar).
-- **Session usage in the sidebar footer** — this session's aggregated tokens and estimated cost,
-  next to the app version; the storage mode (server vs. browser) is now a small status dot.
-- **Deployment placement (SPEC-012)** — *where* each engine runs as a first-class binding dimension
-  (Docker / Fly / Vercel / managed targets), with an in-app editor and a completion-brief projector
-  for the exported scaffold's stubs.
-- **Advisor-style home screen** for non-technical owners, the **narrative screen as a business-owner
-  dialogue** (with a preview of the coach's draft before applying), a **"what do I do here" stage
-  guide** + wizard next-step cue, **resolving reference pickers** for capability/entity fields, a
-  **dependency-aware AI review worklist**, an **AI business-summary** skill, and humanized ids in
-  review hints.
-
-### Fixed
-
-- Gateway timeout handling, clearer invalid-model errors, and an honest Adaptive toggle.
-- Capability nodes grow to fit long labels; the extracted-sections preview and home screen treat an
-  untouched narrative template as empty.
-- `kiln.sh dev` no longer orphans the node server (adds `stop` + an engine-aware `doctor`).
-
 ## [0.2.0] - 2026-07-14
 
 A large capability release: multiple selectable AI engines, a local "Run app" loop, AI passes that

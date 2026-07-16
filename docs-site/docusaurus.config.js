@@ -41,7 +41,7 @@ const config = {
           // "Edit this page" points at the repo → every change is a reviewed PR (owner merges).
           editUrl: "https://github.com/ziffr/kiln/tree/main/docs-site/",
           // Versioning: the latest release is served at the root; the live docs/ folder is "Next".
-          lastVersion: "0.3.0",
+          lastVersion: "0.2.0",
           versions: {
             current: { label: "Next 🚧", path: "next" },
           },

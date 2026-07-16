@@ -5,13 +5,20 @@ title: AI Review
 
 # AI Review — a second opinion
 
-Beyond the automatic checks, the **AI Review** button (top-right) asks an AI to critique a layer for
-**quality** — vague names, missing pieces, over-wiring, a workflow that never completes. It's a second
-opinion, always yours to accept, act on, or reject.
+Beyond the automatic checks, **AI Review** asks an AI to critique your model for **quality** — vague names,
+missing pieces, over-wiring, a workflow that never completes. It's a second opinion, always yours to accept,
+act on, or reject.
+
+There are two ways in:
+
+- **Per layer** — the **AI review** button in a stage's action bar (next to *Generate*) reviews just that
+  layer; its findings appear in the stage's own issues panel. This is the quick, in-context check.
+- **Whole model** — the **AI review** card (and the *Review whole model* button) on **Home** open the
+  full **closure dashboard** below, which reviews every layer top-down plus the cross-cutting pass.
 
 ## The loop
 
-The AI Review panel is a **closure dashboard**: each layer shows a status and the
+The AI Review dashboard is a **closure dashboard**: each layer shows a status and the
 **Review → act → re-review** loop.
 
 1. **Review** a layer → the AI returns a list of **findings**, each with a severity (a *concern* vs. a

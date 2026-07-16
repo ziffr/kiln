@@ -1224,8 +1224,11 @@ textarea {
 .mc-node:hover .mc-node-label { color: var(--accent); }
 
 /* Roll-up cards — progress · open points · session spend. Uniform, one ember hairline. */
-.mc-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.mc-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 .mc-card { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); padding: 15px 17px 14px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 2px rgba(23, 20, 15, 0.05); }
+/* A stat card that doubles as a button (opens the AI-review dashboard). */
+.mc-card-btn { font: inherit; text-align: left; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; }
+.mc-card-btn:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(23, 20, 15, 0.08); }
 .mc-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: color-mix(in srgb, var(--accent) 55%, transparent); }
 .mc-card-lab { font-size: 11.5px; color: var(--muted); }
 .mc-card-val { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--fg); }
@@ -1275,9 +1278,6 @@ textarea {
 .crumb-cur { font-weight: 600; color: var(--fg); white-space: nowrap; }
 .crumb-link { background: none; border: none; padding: 0; font: inherit; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .crumb-link:hover { color: var(--accent); text-decoration: underline; }
-.ai-review-top { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--fg); border: 1px solid var(--edge); border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 550; cursor: pointer; }
-.ai-review-top:hover { background: var(--panel-2); }
-.ai-review-top svg { color: var(--accent); }
 /* Two tracks always (so the width animates smoothly); the detail track is 0 until something is
    selected, then it opens to 340px and the canvas reflows to make room. */
 .inset-body { position: relative; flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 0px; transition: grid-template-columns .22s ease; border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; min-height: 0; background: var(--panel); }
@@ -1296,7 +1296,6 @@ textarea {
 .inset-top { overflow: hidden; }
 .crumbs { min-width: 0; }
 .crumb-cur { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ai-review-top { flex: none; white-space: nowrap; }
 
 /* Ingest tab: paste/upload a raw transcript → structure it into the narrative. */
 .ingest { display: flex; flex-direction: column; flex: 1; min-height: 0; }

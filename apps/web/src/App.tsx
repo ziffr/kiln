@@ -1064,6 +1064,12 @@ export default function App(): React.JSX.Element {
     return count > 0 ? t("aiApplyResetsN", { layers, count }) : t("aiApplyResets", { layers });
   };
 
+  // Whole-model review roll-up for Mission Control (Home). Only real (generated) layers are reviewable;
+  // of those, how many have been reviewed at least once, and how many open concerns remain across them.
+  const reviewableLayers = reviewLayers.filter((r) => r.generated);
+  const reviewedLayerCount = reviewableLayers.filter((r) => critique[r.kind] !== undefined).length;
+  const reviewConcernCount = reviewableLayers.reduce((n, r) => n + (critique[r.kind]?.filter((f) => f.severity === "concern").length ?? 0), 0);
+
   // SPEC-007/008: generate workflows (from behaviour) and agents (from capabilities) via the LLM.
   async function generateWorkflowsModel(): Promise<void> {
     setWorkflowsBusy(true); setError(null);
@@ -1694,6 +1700,10 @@ export default function App(): React.JSX.Element {
             onSettings={() => setShowSettings(true)}
             onToggleSidebar={() => setSidebarOpen((v) => !v)}
             onPickStage={(s) => navRoot(s)}
+            onReviewModel={() => setShowReview(true)}
+            reviewTotal={reviewableLayers.length}
+            reviewReviewed={reviewedLayerCount}
+            reviewConcerns={reviewConcernCount}
             t={t}
           />
         ) : (
@@ -1716,7 +1726,6 @@ export default function App(): React.JSX.Element {
               );
             })}
           </nav>
-          <button className="ai-review-top" onClick={() => setShowReview(true)}><Icon name="sparkles" size={15} />{t("aiReviewTitle")}</button>
         </header>
 
         <div className={`inset-body${hasDetail ? " has-detail" : ""}`}>
@@ -1726,9 +1735,10 @@ export default function App(): React.JSX.Element {
               <h2>{activeStage.label}</h2>
               <p className="stage-desc muted">{t(`stageDesc_${stage}`)}</p>
             </div>
-            {/* Grouped by intent: manual "add" (structural) and "enrich" (AI-adds) on the left, the
-                primary "generate" on the right. Review lives in ONE place — the top-right AI-review
-                panel (which already runs per layer); Auto is folded into Enrich (Apply = apply all). */}
+            {/* Grouped by intent: manual "add" (structural) and "enrich" (AI-adds) on the left, then
+                the primary "generate", then a stage-scoped "AI review" of THIS layer (feeding the inline
+                issues panel below). The whole-model review dashboard now lives on Home, not a global
+                header button. Auto is folded into Enrich (Apply = apply all). */}
             <div className="stage-actions">
               {stage === "capabilities" && <button className="btn ghost" onClick={addCapability}><Icon name="plus" />{t("addCap")}</button>}
               {stage === "areas" && <button className="btn ghost" onClick={addArea}><Icon name="plus" />{t("addArea")}</button>}
@@ -1742,6 +1752,22 @@ export default function App(): React.JSX.Element {
                   <Icon name="sparkles" />{stageGen[stage]!.busy ? t("generating") : stageGen[stage]!.label}
                 </button>
               )}
+              {REVIEW_KIND[stage] && (() => {
+                const lk = REVIEW_KIND[stage]!;
+                const gen = layerGenerated(lk);
+                const busy = reviewBusy === lk;
+                const reviewed = critique[lk] !== undefined;
+                return (
+                  <button
+                    className="btn ghost"
+                    disabled={!gen || busy}
+                    title={gen ? t("aiReviewLayerHint") : t("aiNotGeneratedHint", { layer: activeStage.label })}
+                    onClick={() => { setShowIssues(true); void reviewLayer(lk); }}
+                  >
+                    <Icon name="sparkles" />{busy ? t("aiReviewBusy") : reviewed ? t("aiReviewAgain") : t("aiReviewTitle")}
+                  </button>
+                );
+              })()}
             </div>
           </div>
 

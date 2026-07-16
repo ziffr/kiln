@@ -6,7 +6,10 @@ title: Findings
 # Findings — the app checking your work
 
 Every layer runs **automatic checks** (deterministic validators). Any gaps or inconsistencies appear as
-**findings** in a panel at the top of the screen, and as a small count next to the layer in the left rail.
+**findings** in a panel at the top of the screen, and as a small coloured count next to the layer in the
+left rail — amber for notes, red for concerns. That rail badge appears only on **generated** layers; a
+draft (◐) shows no findings, because there's nothing to judge until the model has produced the layer (see
+[How layers fill in](../modeling/layer-states)).
 
 Each finding:
 

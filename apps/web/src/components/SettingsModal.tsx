@@ -27,6 +27,9 @@ interface Props {
   /** When on, generating a layer auto-runs the read-only Second opinion on it. */
   autoReviewAfterGen: boolean;
   onSetAutoReview: (v: boolean) => void;
+  /** Show the cost-confirm popup before a single-layer review. */
+  confirmReviewCost: boolean;
+  onSetConfirmReviewCost: (v: boolean) => void;
   /** Reviewer (Second-opinion) engine override. Empty provider = match the layer being reviewed. */
   reviewer: { provider?: string; model?: string; effort?: string };
   onSetReviewer: (field: "provider" | "model" | "effort", value: string) => void;
@@ -52,7 +55,7 @@ interface Props {
 type Tab = "ai" | "deploy" | "general";
 
 export function SettingsModal(props: Props): React.JSX.Element {
-  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, autoReviewAfterGen, onSetAutoReview, reviewer, onSetReviewer, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, language, languages, onSetLanguage, t } = props;
+  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, autoReviewAfterGen, onSetAutoReview, confirmReviewCost, onSetConfirmReviewCost, reviewer, onSetReviewer, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, language, languages, onSetLanguage, t } = props;
   const [tab, setTab] = useState<Tab>("general");
   const providerOf = (id: string): ProviderOpt | undefined => providers.find((p) => p.id === id);
   const providerLabel = (id: string): string => providerOf(id)?.label ?? id;
@@ -234,6 +237,19 @@ export function SettingsModal(props: Props): React.JSX.Element {
                   </tr>
                 </>
               )}
+              <tr>
+                <td>Confirm cost</td>
+                <td>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input type="checkbox" checked={confirmReviewCost} onChange={(e) => onSetConfirmReviewCost(e.target.checked)} />
+                    <span>Ask before a single-layer review</span>
+                  </label>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>
+                    Show a cost confirmation before the per-stage <strong>Second opinion</strong> runs. The
+                    whole-model review always confirms. Off = single-layer reviews run straight away.
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
 

@@ -288,9 +288,8 @@ export default function App(): React.JSX.Element {
   const autoStopRef = useRef(false);
   // Stage-level review cost gate: the single-layer "Second opinion" button confirms cost before its one
   // model call (the whole-model dashboard has its own confirm). `reviewConfirm` = the layer awaiting
-  // confirmation; the ref lets "don't ask again" skip the popup for the rest of the session.
+  // confirmation; the popup's "don't ask again" flips the persistent `confirmReviewCost` project setting.
   const [reviewConfirm, setReviewConfirm] = useState<LayerKind | null>(null);
-  const skipReviewConfirmRef = useRef(false);
   // Auto-review-after-generate (opt-in setting): a generate function sets this to the layer it produced;
   // an effect then runs the Second opinion on it. Deferred via state (not chained inline) so the review
   // runs against the freshly-committed doc, not the stale pre-generate closure.
@@ -790,6 +789,7 @@ export default function App(): React.JSX.Element {
   // gateway model in low effort. Each request threads its stage's {provider, model, effort}.
   const adaptive = active.adaptiveModel ?? true; // adaptive Anthropic per-stage defaults (on unless disabled)
   const autoReviewAfterGen = active.autoReviewAfterGen ?? false; // run the Second opinion after a layer generates
+  const confirmReviewCost = active.confirmReviewCost ?? true; // cost-confirm popup before a single-layer review
   const stageOverride = (stage: string): { provider?: string; model?: string; effort?: string } => active.stages?.[stage] ?? {};
   const providerFor = (stage: string): string => {
     const o = stageOverride(stage).provider;
@@ -1627,6 +1627,8 @@ export default function App(): React.JSX.Element {
           onSetAdaptive={(v) => patchActive({ adaptiveModel: v })}
           autoReviewAfterGen={autoReviewAfterGen}
           onSetAutoReview={(v) => patchActive({ autoReviewAfterGen: v })}
+          confirmReviewCost={confirmReviewCost}
+          onSetConfirmReviewCost={(v) => patchActive({ confirmReviewCost: v })}
           reviewer={active.reviewer ?? {}}
           onSetReviewer={(field, value) => patchActive({ reviewer: { ...(active.reviewer ?? {}), [field]: value || undefined } })}
           docsUrl="https://docs.kilnstudio.app/reference/choosing-an-engine"
@@ -1844,7 +1846,7 @@ export default function App(): React.JSX.Element {
                     className="btn ghost"
                     disabled={!gen || busy}
                     title={gen ? t("aiReviewLayerHint") : t("aiNotGeneratedHint", { layer: activeStage.label })}
-                    onClick={() => { setShowIssues(true); if (skipReviewConfirmRef.current) void reviewLayer(lk); else setReviewConfirm(lk); }}
+                    onClick={() => { setShowIssues(true); if (confirmReviewCost) setReviewConfirm(lk); else void reviewLayer(lk); }}
                   >
                     <Icon name="sparkles" />{busy ? t("aiReviewBusy") : reviewed ? t("aiReviewAgain") : t("aiReviewTitle")}
                   </button>
@@ -2127,7 +2129,7 @@ export default function App(): React.JSX.Element {
           checkboxLabel={t("reviewCostRemember")}
           confirmLabel={t("aiReviewGo")}
           cancelLabel={t("cancel")}
-          onConfirm={(checked) => { if (checked) skipReviewConfirmRef.current = true; void reviewLayer(reviewConfirm); }}
+          onConfirm={(checked) => { if (checked) patchActive({ confirmReviewCost: false }); void reviewLayer(reviewConfirm); }}
           onClose={() => setReviewConfirm(null)}
         />
       )}

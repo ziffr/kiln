@@ -78,6 +78,9 @@ export interface Project {
    *  model generated each layer, at critique effort (default). Set a provider to have ONE model judge the
    *  others — the LLM-as-judge pattern (e.g. Anthropic Opus reviewing an OpenRouter model's output). */
   reviewer?: { provider?: string; model?: string; effort?: string };
+  /** Show the cost-confirm popup before a single-layer (stage) review. Default true; the popup's
+   *  "don't ask again" sets this false (persisted). The whole-model review has its own confirm regardless. */
+  confirmReviewCost?: boolean;
   /** @deprecated superseded by adaptive tiers + per-stage `stages`. Left for back-compat; no longer read. */
   tierModels?: { light: string; standard: string; heavy: string };
   /** per-project interview override (tone/depth/domain); empty → global default. */

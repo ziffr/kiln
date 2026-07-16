@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { critiqueLayer, critiqueToFeedback, diffCritique, resolveTarget, generateContexts, type CritiqueFinding, type LlmProvider, type ReviewModel } from "../src/index.ts";
+import { critiqueLayer, critiqueSystemPrompt, buildCritiqueRequest, critiqueToFeedback, diffCritique, resolveTarget, generateContexts, type CritiqueFinding, type LayerKind, type LlmProvider, type ReviewModel } from "../src/index.ts";
 import type { CapabilityDoc } from "@kiln/compiler";
 
 const f = (id: string, message: string, target?: string, severity: "concern" | "suggestion" = "concern"): CritiqueFinding => ({ id, severity, message, target });
@@ -27,6 +27,20 @@ test("critiqueLayer coerces findings and stamps stable ids", async () => {
   assert.equal(res.findings[0].severity, "concern");
   assert.equal(res.findings[1].severity, "suggestion");
   assert.ok(res.findings[0].id && res.findings[0].id === res.findings[0].id);
+});
+
+test("critiqueSystemPrompt exposes the exact reviewer prompt sent per layer", () => {
+  const layers: LayerKind[] = ["capabilities", "areas", "entities", "behaviour", "automations", "roles", "workflows", "agents", "holistic"];
+  for (const layer of layers) {
+    const prompt = critiqueSystemPrompt(layer);
+    // Non-empty, layer-specific, and byte-identical to what the real critique request carries.
+    assert.ok(prompt.length > 0, `prompt for ${layer} is non-empty`);
+    assert.equal(prompt, buildCritiqueRequest(layer, model).system);
+  }
+  // Layers differ from one another (the "look for" guidance is layer-specific).
+  assert.notEqual(critiqueSystemPrompt("entities"), critiqueSystemPrompt("automations"));
+  // Holistic reviews the WHOLE model, not a single named layer.
+  assert.match(critiqueSystemPrompt("holistic"), /WHOLE model/);
 });
 
 test("resolveTarget maps a name/id to a selectable node across the model", () => {

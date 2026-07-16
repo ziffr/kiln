@@ -1243,6 +1243,7 @@ async function generateIntegrations(caps, domain, provider) {
 // ../../packages/skills/src/services.ts
 var EXTERNAL_SERVICES_SYSTEM_PROMPT = PROMPTS["external-services"];
 function renderServicesUserPrompt(caps, domain) {
+  void caps;
   const lines = ["# Entities", ""];
   for (const a of domain.aggregates) lines.push(`- ${a.id} \u2014 ${a.name}`);
   lines.push("", "# Commands (result can record via one of these)", "");
@@ -5943,14 +5944,21 @@ Respond with a single valid JSON object only \u2014 no prose, no markdown fences
     }
   };
 }
-function makeProvider(client, modelId, effort, supportsEffort, usage) {
+function makeProvider(client, modelId, effort, supportsEffort, usage, promptOverride) {
   const provider = modelById(modelId)?.provider ?? "anthropic";
   const or = openrouterCfg();
   const om = omnirouteCfg();
-  if (provider === "openrouter" && or) return openAiCompatibleProvider({ ...or, label: "openrouter" }, modelId, effort, supportsEffort, usage);
-  if (provider === "omniroute" && om) return openAiCompatibleProvider({ ...om, label: "omniroute" }, modelId, effort, supportsEffort, usage);
-  if (client) return anthropicOnlyProvider(client, modelId, effort, supportsEffort, usage);
-  throw new Error(`engine "${provider}" is not configured on the server`);
+  let base;
+  if (provider === "openrouter" && or) base = openAiCompatibleProvider({ ...or, label: "openrouter" }, modelId, effort, supportsEffort, usage);
+  else if (provider === "omniroute" && om) base = openAiCompatibleProvider({ ...om, label: "omniroute" }, modelId, effort, supportsEffort, usage);
+  else if (client) base = anthropicOnlyProvider(client, modelId, effort, supportsEffort, usage);
+  else throw new Error(`engine "${provider}" is not configured on the server`);
+  return withPromptOverride(base, promptOverride);
+}
+function withPromptOverride(provider, override) {
+  const system = typeof override === "string" ? override.trim() : "";
+  if (!system) return provider;
+  return { name: provider.name, complete: (req) => provider.complete({ ...req, system }) };
 }
 var anthropicProvider = makeProvider;
 function anthropicOnlyProvider(client, model, effort, supportsEffort, usage) {
@@ -6027,7 +6035,7 @@ async function handler(req, res) {
   if (!body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
+  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage, body.promptOverride);
   const result = await generateAgents(body.capabilities, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
@@ -6136,7 +6144,7 @@ async function handler7(req, res) {
   if (!body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
+  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage, body.promptOverride);
   const result = await generateContexts(body.capabilities, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
@@ -6152,7 +6160,7 @@ async function handler8(req, res) {
   const wantEffort = EFFORTS.includes(body.effort ?? "") ? body.effort : CRITIQUE_EFFORT[body.layer] ?? "high";
   const effort = model.supportsEffort ? wantEffort : DEFAULT_EFFORT;
   const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+  const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage, body.promptOverride);
   const review = {
     caps: body.capabilities,
     domain: body.domain,
@@ -6175,7 +6183,7 @@ async function handler9(req, res) {
   if (!body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
+  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage, body.promptOverride);
   const result = await generateDomain(body.capabilities, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
@@ -6252,7 +6260,7 @@ async function handler13(req, res) {
   if (!body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
+  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage, body.promptOverride);
   const result = await generateEvents(body.domain, body.capabilities, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
@@ -6281,7 +6289,7 @@ async function handler15(req, res) {
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const effort = pickEffort(body.effort);
   const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+  const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage, body.promptOverride);
   const result = await generateCapabilities(parseNarrative(body.narrative), provider);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
@@ -6342,7 +6350,7 @@ async function handler19(req, res) {
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const capIds = (body.capabilities?.capabilities ?? []).map((c) => c.id);
   const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
+  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage, body.promptOverride);
   const result = await generatePolicies(body.domain, capIds, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
@@ -6370,7 +6378,7 @@ async function handler21(req, res) {
   if (!body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
+  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage, body.promptOverride);
   const result = await generateRoles(body.capabilities, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });
@@ -6462,7 +6470,7 @@ async function handler28(req, res) {
   if (!body.domain?.commands?.length) return void res.status(400).json({ error: "domain with commands is required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL);
   const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage);
+  const provider = anthropicProvider(client, model.id, pickEffort(body.effort), model.supportsEffort, usage, body.promptOverride);
   const result = await generateWorkflows(body.domain, provider, body.feedback);
   const estCostUsd = estCost(usage, model);
   res.status(200).json({ ...result, model: model.id, usage, estCostUsd, sessionSpendUsd: estCostUsd });

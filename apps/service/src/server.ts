@@ -74,6 +74,8 @@ import { openAiCompatibleProvider, type OpenAiCompatConfig } from "./providers/o
 import { startRun, getRun, stopRun, runClientHtml } from "./run.ts";
 import { screenshotUrl, screenshotAvailable } from "./screenshot.ts";
 import { generateApp, projectAppModel } from "@kiln/codegen";
+import { slug } from "@kiln/ir";
+import type { AgentsDoc } from "@kiln/compiler";
 import { deleteProject, listProjects, projectDir, saveProject, type StoredProject } from "./workspaces.ts";
 import { commitWorkspace, listVersions, showFileAt } from "./workspaceGit.ts";
 
@@ -254,12 +256,24 @@ function anthropicModel(id: string | undefined): ModelOption {
   return opt && opt.provider === "anthropic" ? opt : modelById(DEFAULT_MODEL)!;
 }
 
-/** Dispatch a ModelOption to its provider adapter (Anthropic SDK vs OpenAI-compatible gateway). */
-function makeProvider(model: ModelOption, effort: string, usage: UsageAcc): LlmProvider {
-  if (model.provider === "openrouter" && openrouterCfg) return openAiCompatibleProvider(openrouterCfg, model.id, effort, model.supportsEffort, usage);
-  if (model.provider === "omniroute" && omnirouteCfg) return openAiCompatibleProvider(omnirouteCfg, model.id, effort, model.supportsEffort, usage);
-  if (model.provider === "anthropic" && client) return anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
-  throw new Error(`${NO_LLM} (requested engine "${model.provider}" is not configured)`);
+/** Swap a provider's system prompt for a session-only override (Prompt & Output studio). Correctness is
+ *  unaffected; the override only defeats the ephemeral prompt-cache read for that one call. */
+function withPromptOverride(provider: LlmProvider, override?: string): LlmProvider {
+  const system = typeof override === "string" ? override.trim() : "";
+  if (!system) return provider;
+  return { name: provider.name, complete: (req: LlmRequest) => provider.complete({ ...req, system }) };
+}
+
+/** Dispatch a ModelOption to its provider adapter (Anthropic SDK vs OpenAI-compatible gateway). An optional
+ *  session `promptOverride` swaps the request's system prompt at the provider boundary — one seam covering
+ *  every stage, so `system = override ?? each skill's default`. */
+function makeProvider(model: ModelOption, effort: string, usage: UsageAcc, promptOverride?: string): LlmProvider {
+  let base: LlmProvider;
+  if (model.provider === "openrouter" && openrouterCfg) base = openAiCompatibleProvider(openrouterCfg, model.id, effort, model.supportsEffort, usage);
+  else if (model.provider === "omniroute" && omnirouteCfg) base = openAiCompatibleProvider(omnirouteCfg, model.id, effort, model.supportsEffort, usage);
+  else if (model.provider === "anthropic" && client) base = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+  else throw new Error(`${NO_LLM} (requested engine "${model.provider}" is not configured)`);
+  return withPromptOverride(base, promptOverride);
 }
 
 const server = createServer(async (req, res) => {
@@ -333,7 +347,7 @@ const server = createServer(async (req, res) => {
 
       const narrative = parseNarrative(body.narrative);
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = makeProvider(model, effort, usage);
+      const provider = makeProvider(model, effort, usage, (body as { promptOverride?: string }).promptOverride);
       const result = await generateCapabilities(narrative, provider);
 
       // Estimated cost (cache reads ~0.1×, cache writes ~1.25× input rate). Estimate, not billing.
@@ -366,7 +380,7 @@ const server = createServer(async (req, res) => {
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = makeProvider(model, effort, usage);
+      const provider = makeProvider(model, effort, usage, (body as { promptOverride?: string }).promptOverride);
       const result = await generateDomain(body.capabilities, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
@@ -441,7 +455,7 @@ const server = createServer(async (req, res) => {
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = makeProvider(model, effort, usage);
+      const provider = makeProvider(model, effort, usage, (body as { promptOverride?: string }).promptOverride);
       const result = await generateContexts(body.capabilities, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
@@ -460,7 +474,7 @@ const server = createServer(async (req, res) => {
       const model = resolveModel(body);
       const effort = model.supportsEffort ? "high" : DEFAULT_EFFORT; // critique benefits from more reasoning
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = makeProvider(model, effort, usage);
+      const provider = makeProvider(model, effort, usage, (body as { promptOverride?: string }).promptOverride);
       const result = await critiqueContexts(body.capabilities, body.contexts as never, provider);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -490,7 +504,7 @@ const server = createServer(async (req, res) => {
       const wantEffort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : CRITIQUE_EFFORT[body.layer] ?? "high";
       const effort = model.supportsEffort ? wantEffort : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = makeProvider(model, effort, usage);
+      const provider = makeProvider(model, effort, usage, (body as { promptOverride?: string }).promptOverride);
       const review: ReviewModel = {
         caps: body.capabilities,
         domain: body.domain as never,
@@ -660,7 +674,7 @@ const server = createServer(async (req, res) => {
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = makeProvider(model, effort, usage);
+      const provider = makeProvider(model, effort, usage, (body as { promptOverride?: string }).promptOverride);
       const result = await generateEvents(body.domain as never, body.capabilities, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
@@ -687,7 +701,7 @@ const server = createServer(async (req, res) => {
       const capIds = (body.capabilities?.capabilities ?? []).map((c) => c.id);
 
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = makeProvider(model, effort, usage);
+      const provider = makeProvider(model, effort, usage, (body as { promptOverride?: string }).promptOverride);
       const result = await generatePolicies(body.domain as never, capIds, provider, (body as { feedback?: string }).feedback);
 
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
@@ -705,7 +719,7 @@ const server = createServer(async (req, res) => {
       const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = makeProvider(model, effort, usage);
+      const provider = makeProvider(model, effort, usage, (body as { promptOverride?: string }).promptOverride);
       const result = await generateRoles(body.capabilities, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -721,7 +735,7 @@ const server = createServer(async (req, res) => {
       const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = makeProvider(model, effort, usage);
+      const provider = makeProvider(model, effort, usage, (body as { promptOverride?: string }).promptOverride);
       const result = await generateWorkflows(body.domain as never, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
@@ -902,7 +916,7 @@ const server = createServer(async (req, res) => {
       const model = resolveModel(body);
       const effort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : DEFAULT_EFFORT;
       const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const provider = makeProvider(model, effort, usage);
+      const provider = makeProvider(model, effort, usage, (body as { promptOverride?: string }).promptOverride);
       const result = await generateAgents(body.capabilities, provider, (body as { feedback?: string }).feedback);
       const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);

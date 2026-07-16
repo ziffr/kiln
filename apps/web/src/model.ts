@@ -20,7 +20,7 @@ import {
   type Binding,
   type Theme,
 } from "@kiln/codegen";
-import type { Project } from "./projects";
+import type { Project, Observability } from "./projects";
 
 export interface ModelDoc {
   version: string;
@@ -40,6 +40,10 @@ export interface ModelDoc {
   binding: Binding;
   theme: Theme;
   i18n: { sourceLang: string; translations?: Record<string, Record<string, string>> };
+  /** Prompt & Output studio sidecar (Part 3): the last generation + review output per stage. An OPTIONAL
+   *  inspection artifact — NOT authored/derived IR (golden invariant #1). Round-trips with the model so a
+   *  user can recall it, but the codegen exporter simply ignores it (it reads only the modelling layers). */
+  observability?: Observability;
 }
 
 /** The already-resolved core docs from the app (active.X ?? live mock). */
@@ -80,6 +84,8 @@ export function assembleModel(core: ResolvedCore, p: Project, agent?: { provider
     binding,
     theme: p.theme ?? DEFAULT_THEME,
     i18n: p.i18n ?? { sourceLang: "en" },
+    // Sidecar — only present when the user has actually run a stage (kept out of the model when empty).
+    ...(p.observability && Object.keys(p.observability).length ? { observability: p.observability } : {}),
   };
 }
 
@@ -103,5 +109,6 @@ export function parseModel(json: unknown): Partial<Project> {
     binding: m.binding ?? null,
     theme: m.theme ?? null,
     i18n: m.i18n ?? null,
+    observability: m.observability ?? null,
   };
 }

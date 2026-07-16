@@ -18,6 +18,7 @@ export default async function handler(req: Req, res: Res): Promise<void> {
     model?: string;
     effort?: string;
     accepted?: string[];
+    promptOverride?: string;
   }>(req);
   if (!body.layer || !body.capabilities?.capabilities?.length) return void res.status(400).json({ error: "layer and capabilities are required" });
   const model = modelById(body.model ?? DEFAULT_MODEL) ?? modelById(DEFAULT_MODEL)!;
@@ -25,7 +26,7 @@ export default async function handler(req: Req, res: Res): Promise<void> {
   const wantEffort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : CRITIQUE_EFFORT[body.layer] ?? "high";
   const effort = model.supportsEffort ? wantEffort : DEFAULT_EFFORT;
   const usage = newUsage();
-  const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage);
+  const provider = anthropicProvider(client, model.id, effort, model.supportsEffort, usage, body.promptOverride);
   const review: ReviewModel = {
     caps: body.capabilities,
     domain: body.domain as never,

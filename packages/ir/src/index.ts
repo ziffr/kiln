@@ -175,7 +175,10 @@ export function slug(s: string): string {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
+    // The collapse above leaves at most a single leading/trailing "_", so match one (not "_+") —
+    // provably linear, identical output, and free of the polynomial-backtracking CodeQL flags.
+    .replace(/^_/, "")
+    .replace(/_$/, "");
 }
 
 /** Deterministic, human-readable edge id (REV-002 residual: canonical edge identity). */

@@ -9,7 +9,7 @@
     "preview": "vite preview --port 5188"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.110.0",
+    "@anthropic-ai/sdk": "^0.111.0",
     "@kiln/codegen": "*",
     "@kiln/compiler": "*",
     "@kiln/ir": "*",
@@ -27,7 +27,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.0",
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.28.0",
     "vite": "^8.1.0"
   }
 }

@@ -120,6 +120,13 @@ export function uid(): string {
   return `p_${Math.floor(performance.now() * 1000).toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
 
+/** Built-in demo projects carry a `"example (…)"` provider; user-authored/imported ones don't. Used to keep
+ *  the catalog demos out of the project manager's "your projects" list — they're reachable via "Load an
+ *  example", and duplicating one clears the marker (it becomes yours). */
+export function isExampleProject(p: Pick<Project, "provider">): boolean {
+  return (p.provider ?? "").toLowerCase().startsWith("example");
+}
+
 // Each example demonstrates a DIFFERENT execution-engine binding, so the gallery shows the full range of
 // backends Kiln can target (Postgres, SQLite, Odoo, n8n, the generated spine, shadcn UI, Excel/Sheets).
 const B_MULTISERVICE: Binding = { defaults: { store: "postgres", authorize: "postgres", react: "n8n", sequence: "n8n", operate: "node", emit: "node", "serve-ui": "shadcn" } };

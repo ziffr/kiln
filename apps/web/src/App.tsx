@@ -58,6 +58,7 @@ import {
   saveProjects,
   newProject,
   uid,
+  isExampleProject,
   NARRATIVE_TEMPLATE,
   type Project,
   type ProjectState,
@@ -67,7 +68,7 @@ import {
  *  a fresh project shows the welcome hero (not a zeros dashboard) and skips the auto-summary LLM call. */
 const hasRealNarrative = (n: string): boolean => n.trim().length > 0 && n.trim() !== NARRATIVE_TEMPLATE.trim();
 import { serverListProjects, serverSaveProject, serverDeleteProject } from "./projectStore";
-import { assembleModel, parseModel } from "./model";
+import { assembleModel, parseModel, type ResolvedCore } from "./model";
 import { SERVICE_URL, DOCS_URL } from "./config";
 
 
@@ -1164,7 +1165,9 @@ export default function App(): React.JSX.Element {
   function duplicateProject(id: string): void {
     const src = state.projects.find((x) => x.id === id);
     if (!src) return;
-    const copy: Project = { ...src, id: uid(), name: `${src.name} ${t("copySuffix")}`, updatedAt: Date.now() };
+    // A duplicate is always the user's own project — clear the "example (…)" marker so a forked demo
+    // stops being a hidden catalog entry and shows in the manager as a normal project.
+    const copy: Project = { ...src, id: uid(), name: `${src.name} ${t("copySuffix")}`, updatedAt: Date.now(), provider: isExampleProject(src) ? null : src.provider };
     setState((s) => ({ projects: [...s.projects, copy], activeId: copy.id }));
     setSelected(null);
     if (serverUp) void serverSaveProject(copy);
@@ -1187,17 +1190,35 @@ export default function App(): React.JSX.Element {
   // Export the WHOLE model (every layer, execution decisions materialized) as one git-versionable
   // model.json; import one back as a new project. This is the single source of truth for the business.
   const modelFileRef = useRef<HTMLInputElement>(null);
-  function exportModel(): void {
-    const model = assembleModel(
-      { name: active.name, description: active.description, narrative: text, capabilities: activeDoc, contexts: contextsDoc, domain: flowDoc, roles: rolesDoc, workflows: workflowsDoc, agents: agentsDoc },
-      active,
-      agentExportDefault(),
-    );
+  // Resolve a project's core layers exactly as the app does for the active one (stored ?? live mock),
+  // so ANY project can be exported from the manager — not only the one currently open.
+  function resolveCore(p: Project): ResolvedCore {
+    const pdoc = parseNarrative(p.narrative);
+    const caps = p.capabilities ?? mockGenerateCapabilities(pdoc);
+    const domain = p.domain ?? mockGenerateDomain(caps);
+    const behaviour = ((domain.commands?.length ?? 0) + (domain.events?.length ?? 0)) > 0 ? domain : mockGenerateEvents(domain);
+    const flow = (behaviour.policies?.length ?? 0) > 0 ? behaviour : mockGeneratePolicies(behaviour);
+    return {
+      name: p.name, description: p.description, narrative: p.narrative,
+      capabilities: caps,
+      contexts: p.contexts ?? mockGroupContexts(caps),
+      domain: flow,
+      roles: p.roles ?? mockGenerateRoles(caps),
+      workflows: p.workflows ?? mockGenerateWorkflows(behaviour),
+      agents: p.agents ?? mockGenerateAgents(caps),
+    };
+  }
+  // Export a project's whole model.json (every layer, execution decisions materialized). Any project,
+  // not just the active one — the natural home for "export" now that management lives in the manager.
+  function exportProject(id: string): void {
+    const p = state.projects.find((x) => x.id === id);
+    if (!p) return;
+    const model = assembleModel(resolveCore(p), p, agentExportDefault());
     const blob = new Blob([JSON.stringify(model, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${(active.name || "model").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.model.json`;
+    a.download = `${(p.name || "model").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.model.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -1452,13 +1473,21 @@ export default function App(): React.JSX.Element {
           onOpen={openProject}
           onNew={() => { setShowProjects(false); addProject(); }}
           onAddExample={() => { setShowProjects(false); setShowExamples(true); }}
+          onImport={() => modelFileRef.current?.click()}
           onRename={renameProject}
           onDuplicate={duplicateProject}
+          onExport={exportProject}
           onHistory={(id) => { openProject(id); setShowProjects(false); setShowVersions(true); }}
           onDelete={deleteProject}
           onClose={() => setShowProjects(false)}
           t={t}
         />
+      )}
+      {/* Hidden file input for "Import" — lives at the app root (not the sidebar) so the manager's
+          Import action can trigger it; importModel adds the parsed model.json as a new project. */}
+      {(
+        <input ref={modelFileRef} type="file" accept="application/json,.json" style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void importModel(f); e.target.value = ""; }} />
       )}
       {showVersions && (
         <VersionsModal
@@ -1505,6 +1534,9 @@ export default function App(): React.JSX.Element {
           onClose={() => setShowSettings(false)}
           binding={active.binding}
           onBindingChange={(b) => patchActive({ binding: b })}
+          language={i18n.language}
+          languages={["de", "en"]}
+          onSetLanguage={(lng) => void i18n.changeLanguage(lng)}
           t={t}
         />
       )}
@@ -1578,13 +1610,10 @@ export default function App(): React.JSX.Element {
           </div>
         </button>
 
-        {/* One Project cluster: switch/create (top), then the project manager (open/rename/duplicate/
-            delete/examples/history) + file save/load (export/import the whole model.json) in a single tool
-            row — so "open a project" and "save a project" live together instead of being split. */}
+        {/* Project identity + switcher in one control. It sits in the old dropdown's slot and keeps the
+            chevron, so it reads as "the project selector" — but it opens the manager, where switching and
+            every project action (new/rename/duplicate/delete/history/examples/import/export) now live. */}
         <div className="side-project">
-          {/* Project identity + switcher in one control. It sits in the old dropdown's slot and keeps the
-              chevron, so it reads as "the project selector" — but it opens the manager, where switching and
-              every project action (new/rename/duplicate/delete/history/examples) now live. */}
           <button className="project-switch" onClick={() => setShowProjects(true)} title={t("projectsSwitchHint")} aria-label={t("projectsOpen")} aria-haspopup="dialog">
             <Icon name="folder" size={15} className="project-switch-folder" />
             <span className="project-switch-name">{active.name}</span>
@@ -1593,12 +1622,6 @@ export default function App(): React.JSX.Element {
           <button className="project-desc" onClick={editDescription} title={t("descriptionHint")}>
             {active.description || <span className="muted">+ {t("addDescription")}</span>}
           </button>
-          <div className="project-tools">
-            <span className="pt-spacer" />
-            <button onClick={() => modelFileRef.current?.click()} title={t("importModelHint")} aria-label={t("importModel")}><Icon name="upload" size={15} /></button>
-            <button onClick={exportModel} title={t("exportModelHint")} aria-label={t("exportModel")}><Icon name="download" size={15} /></button>
-            <input ref={modelFileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importModel(f); e.target.value = ""; }} />
-          </div>
         </div>
 
         <StageRail stages={stages} active={showHome ? ("" as StageId) : stage} nextStep={stages.find((s) => s.id !== "code" && s.status !== "ready")?.id} onSelect={(s) => navRoot(s)} t={t} />
@@ -1606,23 +1629,19 @@ export default function App(): React.JSX.Element {
         <div className="side-foot">
           <a className="side-foot-btn" href={DOCS_URL} target="_blank" rel="noreferrer"><Icon name="book" size={15} /> {t("docsOpen")}</a>
           <button className="side-foot-btn" onClick={() => setShowSettings(true)}><Icon name="settings" size={15} /> {t("settingsOpen")}</button>
-          <div className="lang">
-            <span>{t("language")}:</span>
-            {(["de", "en"] as const).map((lng) => (
-              <button key={lng} className={i18n.language === lng ? "active" : ""} onClick={() => void i18n.changeLanguage(lng)}>
-                {lng.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          {/* Storage-mode indicator: are projects persisted server-side (ADR-006) or only in this
-              browser? Replaces the dashboard-shell's placeholder "user/team" slot with something true. */}
-          <div className="side-user" title={t(serverUp ? "storeServerHint" : "storeLocalHint")}>
-            <div className={`side-ava${serverUp ? " on" : ""}`} />
-            <div className="leading">
-              <div className="side-user-name">{t(serverUp ? "storeServer" : "storeLocal")}</div>
-              <div className="side-sub muted">{t(serverUp ? "storeServerSub" : "storeLocalSub")}</div>
+          {/* Session usage (estimated AI spend this page-session — same figures as the Home usage line)
+              + build meta. The old storage-mode text was unclear; that signal survives as the small status
+              dot (green = projects saved on the server, grey = this browser only — see the tooltip). */}
+          <div className="side-usage" title={t("usageHint")}>
+            <div className="side-usage-figs">
+              <span className="side-usage-tokens">{sessionTokens.toLocaleString(i18n.language)}<span className="side-usage-unit"> {t("usageTokens")}</span></span>
+              <span className="side-usage-cost">${(spend?.sessionSpendUsd ?? 0).toFixed(2)}</span>
             </div>
-            <span className="side-version muted" title={t("versionHint")}>v{__APP_VERSION__}<span className="side-version-sha"> · {__APP_COMMIT__}</span></span>
+            <div className="side-usage-meta muted">
+              <span className={`side-store-dot${serverUp ? " on" : ""}`} title={t(serverUp ? "storeServerHint" : "storeLocalHint")} />
+              <span>{t("usageSession")}</span>
+              <span className="side-version" title={t("versionHint")}>v{__APP_VERSION__}<span className="side-version-sha"> · {__APP_COMMIT__}</span></span>
+            </div>
           </div>
         </div>
       </aside>

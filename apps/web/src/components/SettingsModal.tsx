@@ -36,11 +36,18 @@ interface Props {
   /** SPEC-012 — the project's execution-topology binding + a writer, for the deployment-placement editor. */
   binding: Binding | null | undefined;
   onBindingChange: (next: Binding) => void;
+  /** UI language (i18n) — moved here from the sidebar so Settings owns all app-level preferences. */
+  language: string;
+  languages: readonly string[];
+  onSetLanguage: (lng: string) => void;
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
+type Tab = "ai" | "deploy" | "general";
+
 export function SettingsModal(props: Props): React.JSX.Element {
-  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, t } = props;
+  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, language, languages, onSetLanguage, t } = props;
+  const [tab, setTab] = useState<Tab>("ai");
   const providerOf = (id: string): ProviderOpt | undefined => providers.find((p) => p.id === id);
   const providerLabel = (id: string): string => providerOf(id)?.label ?? id;
   const modelLabel = (providerId: string, modelId: string): string => providerOf(providerId)?.models.find((m) => m.id === modelId)?.label ?? modelId;
@@ -54,13 +61,29 @@ export function SettingsModal(props: Props): React.JSX.Element {
   const hasOverrides = Object.keys(overrides).length > 0;
   const [expanded, setExpanded] = useState(hasOverrides);
 
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "ai", label: t("settingsTabAi") },
+    { id: "deploy", label: t("settingsTabDeploy") },
+    { id: "general", label: t("settingsTabGeneral") },
+  ];
+
   return (
     <Modal title={t("settingsTitle")} onClose={onClose} wide
       footer={<>
-        <button className="btn ghost" onClick={onReset}>{t("settingsReset")}</button>
+        {/* Reset only concerns the AI tab's per-stage overrides — hide it elsewhere so it can't mislead. */}
+        {tab === "ai" && <button className="btn ghost" onClick={onReset}>{t("settingsReset")}</button>}
         <button className="btn primary" onClick={onClose}>{t("settingsDone")}</button>
       </>}>
-      <div className="settings">
+      <div className="settings-tabs" role="tablist">
+        {tabs.map((tb) => (
+          <button key={tb.id} role="tab" aria-selected={tab === tb.id} className={tab === tb.id ? "active" : ""} onClick={() => setTab(tb.id)}>
+            {tb.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "ai" && (
+        <div className="settings">
           {/* ---- The default engine / model / effort ---- */}
           <h3 className="settings-h" style={{ display: "flex", alignItems: "center", gap: 10 }}>
             Engine &amp; models
@@ -210,10 +233,29 @@ export function SettingsModal(props: Props): React.JSX.Element {
               </table>
             </>
           )}
+        </div>
+      )}
 
+      {tab === "deploy" && (
+        <div className="settings">
           {/* ---- Deployment placement (SPEC-012) ---- */}
           <PlacementEditor binding={binding} onChange={onBindingChange} />
-      </div>
+        </div>
+      )}
+
+      {tab === "general" && (
+        <div className="settings">
+          <h3 className="settings-h">{t("language")}</h3>
+          <p className="muted" style={{ marginTop: 0 }}>{t("settingsLanguageHint")}</p>
+          <div className="lang">
+            {languages.map((lng) => (
+              <button key={lng} className={language === lng ? "active" : ""} onClick={() => onSetLanguage(lng)}>
+                {lng.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

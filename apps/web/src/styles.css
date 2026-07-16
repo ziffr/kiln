@@ -594,6 +594,11 @@ textarea {
 /* Section header inside settings — a quiet, "designed" label. */
 .settings-h { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; margin: 18px 0 6px; color: var(--muted); }
 .settings-h:first-child { margin-top: 2px; }
+/* Settings tab strip — underline-style tabs at the top of the modal body. */
+.settings-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin: -2px 0 6px; }
+.settings-tabs button { appearance: none; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 550; color: var(--muted); cursor: pointer; }
+.settings-tabs button:hover { color: var(--fg); }
+.settings-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
 .settings-tier-tag { margin-left: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; }
 .settings-doclink { font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--accent-2); text-decoration: none; }
 .settings-doclink:hover { text-decoration: underline; }
@@ -1101,12 +1106,17 @@ textarea {
 .side-foot-btn { text-align: left; background: transparent; border: none; color: var(--muted); font-size: 13px; padding: 5px 8px; border-radius: 6px; cursor: pointer; text-decoration: none; }
 .side-foot-btn:hover { background: var(--panel); color: var(--fg); }
 .side .lang { padding: 4px 8px; }
-.side-user { display: flex; align-items: center; gap: 8px; padding: 6px; margin-top: 2px; border-top: 1px solid var(--border); }
-.side-ava { width: 28px; height: 28px; flex: none; border-radius: 50%; background: var(--panel); border: 1px solid var(--border); position: relative; }
-/* a small status dot: green when persisted server-side, muted when browser-only */
-.side-ava::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); border: 2px solid var(--panel-2); }
-.side-ava.on::after { background: #6a8f5f; }
-.side-user-name { font-size: 13px; font-weight: 500; }
+/* Session usage footer: estimated AI tokens + cost (figures row), then a meta row with the storage
+   status dot, a "this session" label, and the app version. */
+.side-usage { margin-top: 2px; padding: 8px 8px 4px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+.side-usage-figs { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.side-usage-tokens { font-size: 13px; font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-usage-unit { font-size: 11px; font-weight: 400; color: var(--muted); }
+.side-usage-cost { flex: none; font-size: 13px; font-weight: 700; color: var(--fg); font-variant-numeric: tabular-nums; }
+.side-usage-meta { display: flex; align-items: center; gap: 6px; font-size: 10px; }
+/* status dot: green when projects persist server-side, muted when browser-only (tooltip explains) */
+.side-store-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--muted); cursor: help; }
+.side-store-dot.on { background: #6a8f5f; }
 .side-version { margin-left: auto; font-size: 10px; text-align: right; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
 /* Version history (SPEC-011) */
 .versions-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 52vh; overflow-y: auto; }

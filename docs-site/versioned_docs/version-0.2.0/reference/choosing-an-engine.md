@@ -29,7 +29,7 @@ exact variables. If you only set the Anthropic key, Kiln behaves exactly as befo
 # in your .env
 KILN_OPENROUTER_API_KEY=sk-or-...
 ```
-Restart the service and OpenRouter appears in **Settings → Engine** with 250+ models.
+Restart the service and OpenRouter appears in **Settings → AI engine** with 250+ models.
 
 **omniroute** is a self-hosted gateway you run locally (privacy/offline, pooled free tiers). It's an
 *optional sidecar*, **not** a Kiln dependency — Kiln just calls it over HTTP. A helper starts it via `npx`
@@ -45,11 +45,11 @@ Then open its dashboard (`http://localhost:20128`), connect a provider and copy 
 KILN_OMNIROUTE_API_KEY=<key from the omniroute dashboard>
 # KILN_OMNIROUTE_BASE_URL defaults to http://localhost:20128/v1
 ```
-Restart the service and pick omniroute in **Settings → Engine**.
+Restart the service and pick omniroute in **Settings → AI engine**.
 
 ## Selecting the engine, model, and effort in Studio
 
-Open **Settings** (bottom of the sidebar). There are two levels:
+Open **Settings** (bottom of the sidebar) → the **AI engine** tab. There are two levels:
 
 **Engine & models** sets the provider, model and effort every stage uses unless overridden:
 1. **Provider** — pick the engine (shown when more than one is configured). Anthropic is preselected.

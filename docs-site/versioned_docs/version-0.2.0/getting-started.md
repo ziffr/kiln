@@ -48,3 +48,6 @@ Each **Generate**, **Enrich**, or **AI Review** action asks an AI model to do th
 small amount per click (shown as a spend estimate). The home screen's plain-language summary is one such
 small call, made once per project and then cached. Browsing and editing are free. Running your own
 instance requires an Anthropic API key; the public demo is keyless and pre-baked.
+
+A running total of this session's **tokens and estimated cost** sits at the bottom of the sidebar (next
+to the version); it resets when you reload the page.

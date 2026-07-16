@@ -44,6 +44,10 @@ interface Props {
 
 export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, applyResetHint, onSelect, onIgnore, canFix, onFix, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
   const autoLabel = autoLayer ? layers.find((l) => l.kind === autoLayer)?.label ?? autoLayer : "";
+  // Progressive disclosure: the per-row technical chrome (which model / effort each layer runs at) is off
+  // by default — it only matters to someone tuning engines in Settings. Off keeps the panel readable for
+  // the non-technical owner, who cares about the findings, not the model tier.
+  const [showDetails, setShowDetails] = useState(false);
 
   // Dependency-aware ordering. Layers render in arc order (each builds on the one above), so a finding
   // downstream is only meaningful once its upstream is sound — and applying an upstream layer regenerates
@@ -60,6 +64,24 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
   const gateIdx = stageLayers.findIndex((l) => hasConcern(l.kind));
   const startIdx = gateIdx >= 0 ? gateIdx : stageLayers.findIndex((l) => isOpen(l.kind));
   const gateLabel = gateIdx >= 0 ? stageLayers[gateIdx].label : "";
+
+  // Plain-language lead: one sentence telling the owner what to do, before the per-layer detail. Computed
+  // over the real (generated) layers only — placeholders aren't reviewable. Concerns dominate; otherwise
+  // it nudges toward the next unreviewed layer, then reports "only suggestions" or "all clean".
+  const gen = stageLayers.filter((l) => l.generated);
+  const isReviewed = (k: LayerKind): boolean => critique[k] !== undefined;
+  const totalN = gen.length;
+  const reviewedN = gen.filter((l) => isReviewed(l.kind)).length;
+  const concernN = gen.reduce((n, l) => n + (critique[l.kind]?.filter((f) => f.severity === "concern").length ?? 0), 0);
+  const anySuggestions = gen.some((l) => (critique[l.kind]?.length ?? 0) > 0);
+  const nextUnreviewed = gen.find((l) => !isReviewed(l.kind))?.label ?? "";
+  const summary: { text: string; kind: "warn" | "ok" | "muted" } =
+    totalN === 0 ? { text: t("aiSummaryEmpty"), kind: "muted" }
+    : concernN > 0 ? { text: t("aiSummaryConcerns", { count: concernN, layer: gateLabel }), kind: "warn" }
+    : reviewedN === 0 ? { text: t("aiSummaryNone", { layer: gen[0].label }), kind: "muted" }
+    : reviewedN < totalN ? { text: t("aiSummaryProgress", { reviewed: reviewedN, total: totalN, layer: nextUnreviewed }), kind: "muted" }
+    : anySuggestions ? { text: t("aiSummarySuggestions"), kind: "ok" }
+    : { text: t("aiSummaryClean"), kind: "ok" };
 
   const renderRow = (row: LayerRow, opts: { startHere?: boolean; blocked?: boolean; blockedBy?: string } = {}): React.JSX.Element => (
     <LayerReviewRow
@@ -80,6 +102,7 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
       resetHint={applyResetHint(row.kind)}
       effort={effortFor(row.kind)}
       modelLabel={showModel ? modelLabelFor(row.kind) : ""}
+      showDetails={showDetails}
       autoRunning={autoRunning}
       onReview={onReview}
       onApply={onApply}
@@ -112,6 +135,8 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
       </div>
       <p className="review-sub muted">{t("aiReviewSub")}</p>
 
+      {!autoRunning && <div className={`review-summary ${summary.kind}`}>{summary.text}</div>}
+
       {holistic && (
         <div className="review-crosscut">
           <div className="review-section-head"><Icon name="route" size={13} /> {t("aiCrossCutTitle")}</div>
@@ -120,7 +145,12 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
         </div>
       )}
 
-      <div className="review-section-head">{t("aiLayersTitle")}</div>
+      <div className="review-section-head">
+        {t("aiLayersTitle")}
+        <button className="review-details-toggle muted" onClick={() => setShowDetails((v) => !v)} aria-pressed={showDetails}>
+          {showDetails ? t("aiHideDetails") : t("aiShowDetails")}
+        </button>
+      </div>
       <p className="review-topdown muted">{t("aiReviewTopDown")}</p>
       <details className="review-how">
         <summary>{t("aiHowTitle")}</summary>
@@ -154,6 +184,7 @@ interface RowProps {
   resetHint: string | null;
   effort: string;
   modelLabel: string;
+  showDetails: boolean;
   autoRunning: boolean;
   onReview: (k: LayerKind) => void;
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
@@ -165,7 +196,7 @@ interface RowProps {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, startHere, blocked, blockedBy, generated, stale, canApply, resetHint, effort, modelLabel, autoRunning, onReview, onApply, onSelect, onIgnore, canFix, onFix, onRestoreIgnored, t }: RowProps): React.JSX.Element {
+function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, startHere, blocked, blockedBy, generated, stale, canApply, resetHint, effort, modelLabel, showDetails, autoRunning, onReview, onApply, onSelect, onIgnore, canFix, onFix, onRestoreIgnored, t }: RowProps): React.JSX.Element {
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -274,8 +305,8 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
         </span>
         <span className="review-label">{row.label}</span>
         {startHere && <span className="review-start" title={t("aiStartHereHint")}><Icon name="chevronDown" size={12} /> {t("aiStartHere")}</span>}
-        {modelLabel && <span className="review-effort muted" title={t("settingsModel")}>{modelLabel}</span>}
-        <span className="review-effort muted" title={t("settingsEffort")}>{effort}</span>
+        {showDetails && modelLabel && <span className="review-effort muted" title={t("settingsModel")}>{modelLabel}</span>}
+        {showDetails && <span className="review-effort muted" title={t("settingsEffort")}>{effort}</span>}
         <span className="review-status muted">{statusText}</span>
         <span className="review-actions">
           <button className="review-btn" onClick={() => onReview(row.kind)} disabled={isBusy || applying || autoRunning}>

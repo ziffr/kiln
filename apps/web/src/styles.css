@@ -516,6 +516,14 @@ textarea {
 .review-dot.stale { color: var(--warn-fg); }
 .review-row.stale .review-status { color: var(--warn-fg); }
 
+/* Plain-language lead line: what to do, before the per-layer detail. */
+.review-summary { margin: 2px 0 10px; padding: 8px 11px; border-radius: 8px; font-size: 13px; line-height: 1.35; border: 1px solid var(--border); background: var(--panel-2); }
+.review-summary.warn { border-color: color-mix(in srgb, var(--warn-fg) 40%, transparent); background: color-mix(in srgb, var(--warn-fg) 8%, transparent); color: var(--warn-fg); }
+.review-summary.ok { border-color: color-mix(in srgb, var(--ok-fg, var(--accent-2)) 35%, transparent); background: color-mix(in srgb, var(--ok-fg, var(--accent-2)) 7%, transparent); }
+/* "Show/hide details" toggle — reveals the per-row model/effort chrome (off by default). */
+.review-details-toggle { margin-left: auto; background: none; border: none; padding: 0; font: inherit; font-size: 10.5px; text-transform: none; letter-spacing: 0; cursor: pointer; text-decoration: underline; }
+.review-details-toggle:hover { color: var(--accent); }
+
 /* Cross-cutting (holistic) root-issues section, lifted above the per-layer worklist. */
 .review-section-head { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 14px 0 2px; }
 .review-section-sub { margin: 0 0 6px; font-size: 12px; }

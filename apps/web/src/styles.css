@@ -698,11 +698,18 @@ textarea {
 .stage-n { width: 22px; height: 22px; flex: none; display: grid; place-items: center; font-size: 11px; border-radius: 6px; background: var(--border); color: var(--muted); }
 .stage-item.active .stage-n { background: var(--accent); color: var(--accent-fg); }
 .stage-label { flex: 1; font-size: 13px; }
-.stage-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.dot-empty { background: var(--border); }
-.dot-mock { background: var(--warn-fg); }
-.dot-ready { background: var(--ok-fg); }
-.stage-badge { flex: none; height: 16px; padding: 0 5px 0 4px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
+/* Provenance = SHAPE, one neutral ink (colourblind-safe): ○ empty · ◐ mock (live derivation) · ● generated.
+   The health palette (amber/red/green) is reserved for the badge + the clean-done tint below. */
+.stage-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; box-sizing: border-box; }
+.dot-empty { border: 1.5px solid var(--edge); }
+.dot-mock { border: 1.5px solid var(--muted); background: linear-gradient(90deg, var(--muted) 50%, transparent 50%); }
+.dot-ready { background: var(--muted); }
+/* Green ● = generated AND clean (the "done" signal). Green never means merely "generated". */
+.dot-ready.clean { background: var(--ok-fg); }
+/* Health = COLOUR, badge only, and only on generated layers. Amber = warnings, red = errors. */
+.stage-badge { flex: none; height: 16px; padding: 0 5px 0 4px; border-radius: 8px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
+.stage-badge.sev-warn { background: var(--warn-bg); color: var(--warn-fg); }
+.stage-badge.sev-error { background: var(--err-bg); color: var(--err-fg); }
 .stage-badge svg { flex: none; }
 /* Wizard "do this next" cue on the recommended next step */
 .stage-item.next .stage-label { color: var(--accent); font-weight: 600; }

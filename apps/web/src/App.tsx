@@ -1341,6 +1341,14 @@ export default function App(): React.JSX.Element {
   const isCritIgnored = (layer: LayerKind, f: { target?: string; message: string }): boolean =>
     ignoredCrit.some((ic) => ic.layer === layer && concernsMatch(ic, f));
   const liveCount = (arr: { code: string; subjects: string[] }[]): number => arr.reduce((n, f) => n + (ignored.has(detKey(f)) ? 0 : 1), 0);
+  // Worst non-ignored severity → the rail's health channel. blocker/major = error (red), minor = warn
+  // (amber); null = clean. Mirrors liveCount's ignore filter, so a fully-acknowledged layer reads clean.
+  const SEV_RANK: Record<string, number> = { blocker: 3, major: 2, minor: 1 };
+  const layerHealth = (arr: { code: string; subjects: string[]; severity: string }[]): "warn" | "error" | null => {
+    let worst = "";
+    for (const f of arr) if (!ignored.has(detKey(f)) && (SEV_RANK[f.severity] ?? 0) > (SEV_RANK[worst] ?? 0)) worst = f.severity;
+    return worst === "blocker" || worst === "major" ? "error" : worst === "minor" ? "warn" : null;
+  };
   function ignoreFinding(key: string): void {
     if (ignored.has(key)) return;
     patchActive({ ignoredFindings: [...(active.ignoredFindings ?? []), key] });
@@ -1360,16 +1368,16 @@ export default function App(): React.JSX.Element {
   // ---- Stage pipeline (progressive disclosure) ----
   const layerStatus = (authored: unknown, live: number): "empty" | "mock" | "ready" => (authored ? "ready" : live > 0 ? "mock" : "empty");
   const stages: StageInfo[] = [
-    { id: "narrative", label: t("narrative"), status: hasRealNarrative(text) ? "ready" : "empty", findings: liveCount(narrativeFindings) },
-    { id: "capabilities", label: t("capabilities"), status: layerStatus(active.capabilities, activeDoc.capabilities.length), findings: liveCount(capFindings) },
-    { id: "areas", label: t("areas"), status: layerStatus(active.contexts, contextsDoc.contexts.length), findings: liveCount(contextFindings) },
-    { id: "entities", label: t("entities"), status: layerStatus(active.domain, domainDoc.aggregates.length), findings: liveCount(domainFindings) },
-    { id: "behaviour", label: t("behaviour"), status: layerStatus(active.domain?.commands?.length, (behaviourDoc.commands?.length ?? 0) + (behaviourDoc.events?.length ?? 0)), findings: liveCount(eventFindings) },
-    { id: "automations", label: t("automations"), status: layerStatus(active.domain?.policies?.length, flowDoc.policies?.length ?? 0), findings: liveCount(policyFindings) },
-    { id: "roles", label: t("roles"), status: layerStatus(active.roles, rolesDoc.roles.length), findings: liveCount(roleFindings) },
-    { id: "workflows", label: t("workflows"), status: layerStatus(active.workflows, workflowsDoc.workflows.length), findings: liveCount(workflowFindings) },
-    { id: "agents", label: t("agents"), status: layerStatus(active.agents, agentsDoc.agents.length), findings: liveCount(agentFindings) },
-    { id: "code", label: t("viewCode"), status: "ready", findings: 0 },
+    { id: "narrative", label: t("narrative"), status: hasRealNarrative(text) ? "ready" : "empty", findings: liveCount(narrativeFindings), health: layerHealth(narrativeFindings) },
+    { id: "capabilities", label: t("capabilities"), status: layerStatus(active.capabilities, activeDoc.capabilities.length), findings: liveCount(capFindings), health: layerHealth(capFindings) },
+    { id: "areas", label: t("areas"), status: layerStatus(active.contexts, contextsDoc.contexts.length), findings: liveCount(contextFindings), health: layerHealth(contextFindings) },
+    { id: "entities", label: t("entities"), status: layerStatus(active.domain, domainDoc.aggregates.length), findings: liveCount(domainFindings), health: layerHealth(domainFindings) },
+    { id: "behaviour", label: t("behaviour"), status: layerStatus(active.domain?.commands?.length, (behaviourDoc.commands?.length ?? 0) + (behaviourDoc.events?.length ?? 0)), findings: liveCount(eventFindings), health: layerHealth(eventFindings) },
+    { id: "automations", label: t("automations"), status: layerStatus(active.domain?.policies?.length, flowDoc.policies?.length ?? 0), findings: liveCount(policyFindings), health: layerHealth(policyFindings) },
+    { id: "roles", label: t("roles"), status: layerStatus(active.roles, rolesDoc.roles.length), findings: liveCount(roleFindings), health: layerHealth(roleFindings) },
+    { id: "workflows", label: t("workflows"), status: layerStatus(active.workflows, workflowsDoc.workflows.length), findings: liveCount(workflowFindings), health: layerHealth(workflowFindings) },
+    { id: "agents", label: t("agents"), status: layerStatus(active.agents, agentsDoc.agents.length), findings: liveCount(agentFindings), health: layerHealth(agentFindings) },
+    { id: "code", label: t("viewCode"), status: "ready", findings: 0, health: null },
   ];
   // ── Regeneration guard ─────────────────────────────────────────────────────────────────────────
   // A Generate replaces the whole layer wholesale, discarding hand-made fixes (surgical fixes + entity

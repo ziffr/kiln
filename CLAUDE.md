@@ -106,6 +106,11 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
   file is enough; verify it renders at its default-version URL (no `/next` prefix), not a soft-404.
 
 ## Git
+- **Trunk-based flow — `main` is protected; NO direct pushes (enforced for admins too).** Do the work on a
+  short-lived branch (`feat/…` · `fix/…` · `docs/…` · `chore/…`), push it (Vercel builds a preview), open a
+  PR with a Conventional Commit title, and merge it (branches auto-delete). To release, **merge the
+  release-please PR** — never hand-edit version/CHANGELOG/manifest (see the launch bullet in Status). No
+  long-lived `develop`. Full details in [CONTRIBUTING.md](CONTRIBUTING.md).
 - Commit when a coherent unit is green. **Before committing: `npm test` + web build.** Commit
   often; small, clear messages.
 - End every commit message with:

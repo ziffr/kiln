@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the repository level (see
 [RELEASING.md](RELEASING.md)).
 
+## [0.5.0](https://github.com/ziffr/kiln/compare/v0.4.0...v0.5.0) (2026-07-16)
+
+
+### Features
+
+* **web:** redesign home as Mission Control; narrative summary-first; honest readiness ([#34](https://github.com/ziffr/kiln/issues/34)) ([00dd3ad](https://github.com/ziffr/kiln/commit/00dd3ad0e48b00bd0081cceed419a0dae395b1b8))
+* **web:** rework "AI review" into "Second opinion" — gate, stage-scope, Home launcher, judge model ([#35](https://github.com/ziffr/kiln/issues/35)) ([39c8f1d](https://github.com/ziffr/kiln/commit/39c8f1d536777b852a7eab4e39f4359835e45cb1))
+
+
+### Documentation
+
+* snapshot v0.4.0 + make it the default ([#32](https://github.com/ziffr/kiln/issues/32)) ([30cd3e7](https://github.com/ziffr/kiln/commit/30cd3e7ba05008df72693b400a21c007aa746122))
+
 ## [0.4.0](https://github.com/ziffr/kiln/compare/v0.3.0...v0.4.0) (2026-07-16)
 
 

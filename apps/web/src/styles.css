@@ -1412,6 +1412,9 @@ textarea {
 }
 .modal-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .modal-message { margin: 0; font-size: 14px; line-height: 1.55; color: var(--fg); }
+.modal-note { margin: 8px 0 0; font-size: 13px; line-height: 1.5; }
+.modal-check { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; color: var(--fg); cursor: pointer; }
+.modal-check input { cursor: pointer; }
 /* Search-in-modal (project manager filter) — icon + borderless input in one pill. */
 .modal-search { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; padding: 7px 11px; border: 1px solid var(--edge); border-radius: 8px; background: var(--bg); color: var(--muted); }
 .modal-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }

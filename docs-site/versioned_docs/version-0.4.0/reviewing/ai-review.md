@@ -99,6 +99,7 @@ The next pages cover both, and how to tell progress from churn.
 
 ## Cost
 
-Each Review, Apply, or Fix that calls the model costs a small amount (shown as a spend estimate). This
-feature needs a real model, so it's available when you run your own instance with an API key — not on the
-keyless public demo.
+Each Review, Apply, or Fix that calls the model costs a small amount (shown in the session spend). Running
+a **single-layer** review shows a quick cost confirmation first — with a *"don't ask again this session"*
+option — and the whole-model **Review all layers** confirms up front too. This feature needs a real model,
+so it's available when you run your own instance with an API key — not on the keyless public demo.

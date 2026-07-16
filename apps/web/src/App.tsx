@@ -39,7 +39,7 @@ import { NodeDetail } from "./components/NodeDetail";
 import { WorkflowDetail } from "./components/WorkflowDetail";
 import { AreaDetail } from "./components/AreaDetail";
 import { CodePreview } from "./components/CodePreview";
-import { InputDialog, ConfirmDialog } from "./components/Modal";
+import { InputDialog, ConfirmDialog, CheckboxConfirmDialog } from "./components/Modal";
 import { STUDIO_TOKEN_KEY } from "./studio-auth";
 import { Icon } from "./components/Icon";
 
@@ -93,9 +93,11 @@ const FALLBACK_PROVIDERS: ProviderCat[] = [
   },
 ];
 // Rough tokens per model call (input/output), used only for the Auto cost estimate. Deliberately a
-// ballpark — the confirm shows a ±range, and the real per-call spend is reported after each call.
-const EST_IN_TOKENS = 2000;
-const EST_OUT_TOKENS = 800;
+// ballpark — the confirm shows a ±range, and the real per-call spend is reported after each call. A
+// critique/generation call ships the whole layer doc + prompt in and returns a findings list, so these
+// are deliberately generous (the old 2000/800 under-shot real usage ~10×, making confirms read ~$0.00).
+const EST_IN_TOKENS = 12000;
+const EST_OUT_TOKENS = 3000;
 const EFFORTS = ["low", "medium", "high", "max"];
 // Adaptive Anthropic defaults: when Adaptive is on and a stage runs on Anthropic with no explicit
 // per-stage override, its model + effort come from the layer's TIER — heavy reasoning stages get
@@ -284,6 +286,11 @@ export default function App(): React.JSX.Element {
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoLayer, setAutoLayer] = useState<LayerKind | null>(null);
   const autoStopRef = useRef(false);
+  // Stage-level review cost gate: the single-layer "Second opinion" button confirms cost before its one
+  // model call (the whole-model dashboard has its own confirm). `reviewConfirm` = the layer awaiting
+  // confirmation; the ref lets "don't ask again" skip the popup for the rest of the session.
+  const [reviewConfirm, setReviewConfirm] = useState<LayerKind | null>(null);
+  const skipReviewConfirmRef = useRef(false);
   // SPEC-004 behaviour: commands/events live on the domain doc — LLM when present, else live mock.
   const behaviourDoc = useMemo(
     () => (((domainDoc.commands?.length ?? 0) + (domainDoc.events?.length ?? 0)) > 0 ? domainDoc : mockGenerateEvents(domainDoc)),
@@ -976,6 +983,15 @@ export default function App(): React.JSX.Element {
   const perCallCost = (modelId: string): number => {
     const m = MODELS.find((x) => x.id === modelId);
     return (EST_IN_TOKENS * (m?.inPerM ?? 2) + EST_OUT_TOKENS * (m?.outPerM ?? 10)) / 1_000_000;
+  };
+  // A ±range $ estimate for one review call, but ONLY when the model's pricing is known (Anthropic). For
+  // gateway engines (OpenRouter/omniroute) prices aren't in the local table, so we show no figure rather
+  // than a fabricated one — the qualitative "small cost" line still tells the user cost will incur.
+  const reviewCostNote = (lk: LayerKind): string | undefined => {
+    const m = MODELS.find((x) => x.id === modelFor(lk));
+    if (!m) return undefined;
+    const c = perCallCost(m.id);
+    return c > 0 ? t("reviewCostEst", { lo: (c * 0.7).toFixed(2), hi: (c * 2).toFixed(2) }) : undefined;
   };
 
   // "Review all layers" — run every reviewer top-down, READ-ONLY (one review call per layer, no refine).
@@ -1794,7 +1810,7 @@ export default function App(): React.JSX.Element {
                     className="btn ghost"
                     disabled={!gen || busy}
                     title={gen ? t("aiReviewLayerHint") : t("aiNotGeneratedHint", { layer: activeStage.label })}
-                    onClick={() => { setShowIssues(true); void reviewLayer(lk); }}
+                    onClick={() => { setShowIssues(true); if (skipReviewConfirmRef.current) void reviewLayer(lk); else setReviewConfirm(lk); }}
                   >
                     <Icon name="sparkles" />{busy ? t("aiReviewBusy") : reviewed ? t("aiReviewAgain") : t("aiReviewTitle")}
                   </button>
@@ -2068,6 +2084,18 @@ export default function App(): React.JSX.Element {
       {dialog?.kind === "confirm" && (
         <ConfirmDialog title={dialog.title} message={dialog.message} confirmLabel={dialog.confirmLabel} cancelLabel={t("cancel")}
           danger={dialog.danger} onConfirm={dialog.onConfirm} onClose={() => setDialog(null)} />
+      )}
+      {reviewConfirm && (
+        <CheckboxConfirmDialog
+          title={t("reviewCostTitle")}
+          message={t("reviewCostBody", { layer: stages.find((s) => s.id === reviewConfirm)?.label ?? reviewConfirm })}
+          note={reviewCostNote(reviewConfirm)}
+          checkboxLabel={t("reviewCostRemember")}
+          confirmLabel={t("aiReviewGo")}
+          cancelLabel={t("cancel")}
+          onConfirm={(checked) => { if (checked) skipReviewConfirmRef.current = true; void reviewLayer(reviewConfirm); }}
+          onClose={() => setReviewConfirm(null)}
+        />
       )}
     </div>
   );

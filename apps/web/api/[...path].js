@@ -1243,6 +1243,7 @@ async function generateIntegrations(caps, domain, provider) {
 // ../../packages/skills/src/services.ts
 var EXTERNAL_SERVICES_SYSTEM_PROMPT = PROMPTS["external-services"];
 function renderServicesUserPrompt(caps, domain) {
+  void caps;
   const lines = ["# Entities", ""];
   for (const a of domain.aggregates) lines.push(`- ${a.id} \u2014 ${a.name}`);
   lines.push("", "# Commands (result can record via one of these)", "");

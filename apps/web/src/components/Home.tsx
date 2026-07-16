@@ -47,13 +47,15 @@ export function Home({ stages, projectName, summary, summaryLoading, counts, tok
 
   // The single most important next action, in outcome terms.
   const nextUnbuilt = modeling.find((s) => s.status !== "ready");
-  const firstFinding = stages.find((s) => s.findings > 0);
+  // Findings are meaningful only on a generated layer ("mock is mock only" — see StageRail): never
+  // surface a fix-todo for a still-mock/empty layer, matching the status-gated rail badge.
+  const firstFinding = stages.find((s) => s.status === "ready" && s.findings > 0);
   const nextAction: { stage: StageId; title: string; icon: "sparkles" | "alert" | "check" } =
     nextUnbuilt ? { stage: nextUnbuilt.id, title: t("homeNextBuild", { label: nextUnbuilt.label }), icon: "sparkles" }
     : firstFinding ? { stage: firstFinding.id, title: t("homeTodoFix", { count: firstFinding.findings, label: firstFinding.label }), icon: "alert" }
     : { stage: "code", title: t("homeNextLaunch"), icon: "check" };
   // Secondary follow-ups: other layers with findings (the primary already covers the first).
-  const more = stages.filter((s) => s.findings > 0 && s.id !== nextAction.stage);
+  const more = stages.filter((s) => s.status === "ready" && s.findings > 0 && s.id !== nextAction.stage);
 
   return (
     <div className="home">

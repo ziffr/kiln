@@ -33,9 +33,10 @@ jobs:
 
   # When a release is cut, freeze the live ("Next") docs into a version matching the studio release, so the
   # default docs version ALWAYS equals the app version — they move in lockstep. Fires on EVERY release
-  # (minor/major AND patch); `docs:` commits are non-bumping (see release-please-config.json), so this
-  # snapshot never triggers a release of its own and a docs-only fix stays independent of the app version.
-  # The snapshot lands as a REVIEWED PR (docs-site is code-owned).
+  # (minor/major AND patch). The snapshot commits as `chore(docs):` — a NON-releasing type (release-please
+  # 17.x DOES bump a patch for `docs:`, which would loop: snapshot → patch → snapshot → …). So `chore(docs):`
+  # is both the loop-breaker here and the convention for any docs-only edit you want kept out of the release
+  # cycle. The snapshot lands as a REVIEWED PR (docs-site is code-owned).
   docs-version:
     name: snapshot docs for the release
     needs: release-please
@@ -72,8 +73,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
           git add docs-site/versioned_docs docs-site/versioned_sidebars docs-site/versions.json docs-site/docusaurus.config.js
-          git commit -m "docs: snapshot v$VERSION + make it the default"
+          git commit -m "chore(docs): snapshot v$VERSION + make it the default"
           git push origin "$branch"
           gh pr create --base main --head "$branch" \
-            --title "docs: snapshot v$VERSION" \
+            --title "chore(docs): snapshot v$VERSION" \
             --body "Automated docs version snapshot matching studio release v$VERSION. The live \`docs/\` folder continues as \"Next\"; review and merge to publish the versioned docs."

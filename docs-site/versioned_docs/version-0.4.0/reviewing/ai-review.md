@@ -1,24 +1,25 @@
 ---
 sidebar_position: 2
-title: AI Review
+title: Second opinion
 ---
 
-# AI Review — a second opinion
+# Second opinion
 
-Beyond the automatic checks, **AI Review** asks an AI to critique your model for **quality** — vague names,
-missing pieces, over-wiring, a workflow that never completes. It's a second opinion, always yours to accept,
-act on, or reject.
+Beyond the automatic checks, the **Second opinion** asks an AI to critique your model for **quality** —
+vague names, missing pieces, over-wiring, a workflow that never completes. It's exactly that: a second
+opinion, always yours to accept, act on, or reject. (The automatic checks catch *structure*; this reads for
+*meaning*.)
 
 There are two ways in:
 
-- **Per layer** — the **AI review** button in a stage's action bar (next to *Generate*) reviews just that
-  layer; its findings appear in the stage's own issues panel. This is the quick, in-context check.
-- **Whole model** — the **AI review** card (and the *Review whole model* button) on **Home** open the
-  full **closure dashboard** below, which reviews every layer top-down plus the cross-cutting pass.
+- **Per layer** — the **Second opinion** button in a stage's action bar (next to *Generate*) reviews just
+  that layer; its findings appear in the stage's own issues panel. This is the quick, in-context check.
+- **Whole model** — the **Second opinion** card (and the *Review whole model* button) on **Home** open the
+  full **dashboard** below, which reviews every layer top-down plus the cross-cutting pass.
 
 ## The loop
 
-The AI Review dashboard is a **launcher and status board**, not a place to edit findings. It opens with
+The Second-opinion dashboard is a **launcher and status board**, not a place to edit findings. It opens with
 a **one-line summary** of what to do next (where to start, or "all reviewed — looks clean"), a thin
 **progress gauge** showing how many layers are reviewed and how many are flagged, and one headline action:
 
@@ -37,10 +38,10 @@ to no single stage; those stay in the dashboard.
 Everything else is a power tool, tucked behind the **Advanced** toggle: per-layer model/effort labels and
 **Auto-fix all** — a review-*and-regenerate* loop that drives every flagged layer to clean but **changes
 your model** (see [Progress & loops](progress-and-loops)). For a single-layer check without the dashboard,
-each stage also has its own **AI review** button.
+each stage also has its own **Second opinion** button.
 
 :::info It's advisory, and it doesn't converge to zero
-The AI reviewer is calibrated to *always find something* — a few subjective suggestions is a fine place to
+The reviewer is calibrated to *always find something* — a few subjective suggestions is a fine place to
 stop. Findings are judgment calls, not a checklist that hits zero. The panel says so, and nudges you when
 you've refined a layer enough.
 :::

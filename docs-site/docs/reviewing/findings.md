@@ -27,4 +27,4 @@ Every finding should end in one of two states:
    after you regenerate, for things you can't (or won't) fix.
 
 These validators are structural and objective. For a deeper, quality-oriented second opinion, see
-[AI Review](ai-review).
+[Second opinion](ai-review).

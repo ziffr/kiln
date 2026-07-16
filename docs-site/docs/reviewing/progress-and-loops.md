@@ -35,7 +35,7 @@ That's your cue to stop pressing **Apply** and instead **[Fix](fixing-concerns)*
 (which converges) or **[Ignore](ignoring-concerns)** the ones you accept.
 
 :::note Why it loops
-The AI reviewer is a fresh, subjective pass each time, and Apply is *generative* (it rebuilds the layer
+The reviewer is a fresh, subjective pass each time, and Apply is *generative* (it rebuilds the layer
 rather than patching one spot). Both together mean a layer won't naturally settle to zero findings — which
 is expected, not a bug. The delta and the warning make that legible so you know when to stop.
 :::

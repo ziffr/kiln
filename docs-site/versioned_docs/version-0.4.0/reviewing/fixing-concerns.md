@@ -5,7 +5,7 @@ title: Fixing concerns
 
 # Fixing concerns
 
-Every AI Review finding offers a way to fix it *for real* — so the concern is gone, not hidden. There are
+Every Second-opinion finding offers a way to fix it *for real* — so the concern is gone, not hidden. There are
 two, and Kiln shows whichever fits the finding.
 
 ## Fix — the convergent one-click fix

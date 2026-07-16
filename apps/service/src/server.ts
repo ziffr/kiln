@@ -73,7 +73,7 @@ import {
 import { openAiCompatibleProvider, type OpenAiCompatConfig } from "./providers/openaiCompatible.ts";
 import { startRun, getRun, stopRun, runClientHtml } from "./run.ts";
 import { screenshotUrl, screenshotAvailable } from "./screenshot.ts";
-import { generateApp, projectAppModel } from "@kiln/codegen";
+import { generateApp, projectAppModel, resolveAgentDefs, defaultPlaybook, buildToolSchemas, runAgentLoop, type LoopMessage, type LoopTurn } from "@kiln/codegen";
 import { slug } from "@kiln/ir";
 import type { AgentsDoc } from "@kiln/compiler";
 import { deleteProject, listProjects, projectDir, saveProject, type StoredProject } from "./workspaces.ts";
@@ -922,6 +922,72 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
+    // Test-this-agent: run a bounded agent loop with MOCK tool dispatch (no spine/vendor calls) so a user
+    // can see how an agent reasons over its tools. Native tool-use → Anthropic engine (like coach/vision).
+    // Returns a light run-trace (steps flagged simulated) + usage/cost. Nothing hits a real system.
+    if (req.method === "POST" && req.url === "/api/agent-run") {
+      if (!client) return send(res, 500, { error: "Test agent needs an Anthropic key (KILN_ANTHROPIC_API_KEY / KILN_LANGDOCK_API_KEY)." });
+      const body = JSON.parse((await readBody(req)) || "{}") as {
+        agentsDoc?: AgentsDoc;
+        agentId?: string;
+        task?: string;
+        capabilities?: CapabilityDoc;
+        domain?: DomainDoc;
+        comms?: unknown;
+        workflows?: unknown;
+        services?: unknown;
+        model?: string;
+        effort?: string;
+      };
+      if (!body.agentsDoc?.agents?.length || !body.agentId) return send(res, 400, { error: "agentsDoc and agentId are required" });
+      if (!body.capabilities?.capabilities?.length || !body.domain?.aggregates?.length) return send(res, 400, { error: "capabilities and a domain model are required (to resolve the agent's tools)" });
+      const defs = resolveAgentDefs(body.capabilities, body.domain, body.agentsDoc, body.comms as never, body.workflows as never, body.services as never);
+      const wantId = slug(body.agentId);
+      const def = defs.find((d) => d.id === wantId);
+      if (!def) return send(res, 404, { error: `unknown agent ${body.agentId}` });
+      const agent = body.agentsDoc.agents.find((a) => slug(a.id) === wantId);
+      // System prompt = the agent's authored instructions (the HOW), else the deterministic default playbook.
+      const system = agent?.instructions?.trim() ? agent.instructions.trim() : defaultPlaybook(def);
+      const task = (body.task ?? "").trim() || "Work toward your goal using the available tools and records.";
+
+      // Native tool-use → an Anthropic model (coerce a gateway/custom id to one). Per-agent effort applies.
+      const model = anthropicModel(body.model);
+      const wantEffort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : def.effort;
+      const effort = model.supportsEffort && wantEffort ? wantEffort : undefined;
+      const tools = buildToolSchemas(def).map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema })) as Anthropic.Tool[];
+
+      const usageAcc: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const nextTurn = async (messages: LoopMessage[]): Promise<LoopTurn> => {
+        const res2 = await client.messages.create({
+          model: model.id,
+          max_tokens: 2048,
+          system,
+          tools,
+          messages: messages as Anthropic.MessageParam[],
+          ...(effort ? { thinking: { type: "adaptive" as const }, output_config: { effort } } : {}),
+        } as unknown as Anthropic.MessageCreateParamsNonStreaming);
+        const u = res2.usage;
+        const usage = { input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, cacheCreate: u.cache_creation_input_tokens ?? 0 };
+        const text = res2.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("").trim();
+        const toolUses = res2.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use").map((b) => ({ id: b.id, name: b.name, input: (b.input ?? {}) as Record<string, unknown> }));
+        return { text, toolUses, end: res2.stop_reason === "end_turn", usage, content: res2.content };
+      };
+
+      let run;
+      try {
+        run = await runAgentLoop(def, task, nextTurn);
+      } catch (e) {
+        return send(res, 502, { error: `Test run failed: ${e instanceof Error ? e.message : String(e)}` });
+      }
+      usageAcc.input = run.usage.input; usageAcc.output = run.usage.output; usageAcc.cacheRead = run.usage.cacheRead; usageAcc.cacheCreate = run.usage.cacheCreate;
+      const inputUnits = usageAcc.input + usageAcc.cacheRead * 0.1 + usageAcc.cacheCreate * 1.25;
+      const estCostUsd = round((inputUnits * model.inPerM + usageAcc.output * model.outPerM) / 1_000_000);
+      sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+      const usage = { input: usageAcc.input, output: usageAcc.output };
+      const trace = { system, task, steps: run.steps, finalText: run.finalText, model: model.id, provider: PROVIDER_LABEL, usage, estCostUsd, stepCount: run.stepCount, at: Date.now() };
+      return send(res, 200, { finalText: run.finalText, trace, usage, estCostUsd, model: model.id, provider: PROVIDER_LABEL, sessionSpendUsd });
     }
 
     if (req.method === "POST" && req.url === "/api/coach") {

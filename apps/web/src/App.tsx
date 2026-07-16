@@ -26,16 +26,17 @@ import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGe
 // isomorphic/browser-safe — golden invariant #4), so the app can SHOW and session-tune the exact prompts.
 import { CAPABILITY_SYSTEM_PROMPT, CONTEXT_SYSTEM_PROMPT, DOMAIN_SYSTEM_PROMPT, EVENT_SYSTEM_PROMPT, POLICY_SYSTEM_PROMPT, ROLE_SYSTEM_PROMPT, WORKFLOW_SYSTEM_PROMPT, AGENT_SYSTEM_PROMPT, critiqueSystemPrompt } from "@kiln/skills";
 import { PromptStudio } from "./components/PromptStudio";
-import type { LlmOutputRecord } from "./projects";
+import type { LlmOutputRecord, RunTrace } from "./projects";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
 import { EnrichPanel } from "./components/EnrichPanel";
-import { mockExternalServices } from "@kiln/codegen";
+import { mockExternalServices, resolveAgentDefs, defaultPlaybook } from "@kiln/codegen";
 import { SettingsModal } from "./components/SettingsModal";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { StageRail, type StageId, type StageInfo } from "./components/StageRail";
 import { StageGuide } from "./components/StageGuide";
-import { BehaviourView, AutomationsView, RolesMatrix, WorkflowsView } from "./components/StageViews";
+import { BehaviourView, AutomationsView, RolesMatrix, WorkflowsView, AgentsView } from "./components/StageViews";
+import { AgentRunPanel } from "./components/AgentRunPanel";
 import { EntityDiagram } from "./components/EntityDiagram";
 import { AreaDiagram } from "./components/AreaDiagram";
 import { AgentDiagram } from "./components/AgentDiagram";
@@ -243,6 +244,12 @@ export default function App(): React.JSX.Element {
   // stage → { generate?, review? }; sent as `promptOverride` only when the user has actually edited a prompt.
   const [showPromptStudio, setShowPromptStudio] = useState(false);
   const [promptOverrides, setPromptOverrides] = useState<Record<string, { generate?: string; review?: string }>>({});
+  // Test-this-agent (on-demand drawer). `testAgentId` = the agent whose run panel is open; the last trace
+  // per agent is persisted in the unified `observability.agentRuns` envelope, so it survives reload.
+  const [testAgentId, setTestAgentId] = useState<string | null>(null);
+  const [agentTask, setAgentTask] = useState("");
+  const [agentRunBusy, setAgentRunBusy] = useState(false);
+  const [agentRunError, setAgentRunError] = useState<string | null>(null);
   const [spend, setSpend] = useState<{
     estCostUsd: number;
     sessionSpendUsd: number;
@@ -929,6 +936,51 @@ export default function App(): React.JSX.Element {
   // Record a generation result (the structured doc the model returned = its effective output).
   const recordGen = (stage: StageId, data: { doc?: unknown; model?: string; effort?: string | null; provider?: string }): void =>
     recordOutput(stage, "generate", safeStringify(data.doc), data, Boolean(effectiveOverride(stage, "generate")));
+
+  // ── Test this agent ─────────────────────────────────────────────────────────────────────────────
+  // Editing an agent's behaviour (system prompt) is an AUTHORED model edit — it round-trips to text and
+  // persists like any other authored change. Empty instructions fall back to the default playbook.
+  const editAgentInstructions = (agentId: string, value: string): void => {
+    patchActive({ agents: { ...agentsDoc, agents: agentsDoc.agents.map((a) => (a.id === agentId ? { ...a, instructions: value, meta: { ...(a.meta ?? {}), origin: "authored" } } : a)) } });
+  };
+  // The default playbook per agent (placeholder when instructions are empty). Resolved from the model via
+  // the SAME codegen seam the runtime + server use, so what you preview is what would ship.
+  const agentPlaybooks = useMemo<Record<string, string>>(() => {
+    const defs = resolveAgentDefs(activeDoc, flowDoc, agentsDoc, active.comms ?? undefined, workflowsDoc, active.services ?? undefined);
+    const byId: Record<string, string> = {};
+    for (let i = 0; i < agentsDoc.agents.length; i++) { const d = defs[i]; if (d) byId[agentsDoc.agents[i].id] = defaultPlaybook(d); }
+    return byId;
+  }, [activeDoc, flowDoc, agentsDoc, workflowsDoc, active.comms, active.services]);
+
+  const lastAgentTrace: RunTrace | undefined = testAgentId ? active.observability?.agentRuns?.[testAgentId] : undefined;
+  const openAgentTest = (agentId: string): void => { setTestAgentId(agentId); setAgentRunError(null); };
+  const runAgentTest = async (): Promise<void> => {
+    if (!testAgentId) return;
+    setAgentRunBusy(true); setAgentRunError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/agent-run`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ agentsDoc, agentId: testAgentId, task: agentTask, capabilities: activeDoc, domain: flowDoc, comms: active.comms ?? undefined, workflows: workflowsDoc, services: active.services ?? undefined, model: modelFor("agents"), effort: effortFor("agents") }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      const trace = data.trace as RunTrace;
+      // Persist the last trace per agent in the unified observability envelope (sidecar — never IR).
+      setState((s) => ({
+        ...s,
+        projects: s.projects.map((p) =>
+          p.id === s.activeId
+            ? { ...p, observability: { ...(p.observability ?? {}), agentRuns: { ...(p.observability?.agentRuns ?? {}), [testAgentId]: trace } }, updatedAt: Date.now() }
+            : p),
+      }));
+      applySpend(data);
+    } catch (e) {
+      setAgentRunError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAgentRunBusy(false);
+    }
+  };
 
   const reviewBody = (layer: LayerKind, ov: ModelOverride) => ({
     layer,
@@ -1969,6 +2021,22 @@ export default function App(): React.JSX.Element {
             />
           )}
 
+          {/* Test-this-agent — on-demand drawer: run the agent against a task with MOCK tool dispatch and
+              show the run-trace (last trace persisted per agent via observability.agentRuns). */}
+          {stage === "agents" && testAgentId && (
+            <AgentRunPanel
+              agentName={agentsDoc.agents.find((a) => a.id === testAgentId)?.name || testAgentId}
+              trace={lastAgentTrace}
+              task={agentTask}
+              onTask={setAgentTask}
+              onRun={() => void runAgentTest()}
+              busy={agentRunBusy}
+              error={agentRunError}
+              locale={i18n.language}
+              onClose={() => setTestAgentId(null)}
+              t={t}
+            />
+          )}
 
           {error && (
             <div className="err-banner" role="alert">
@@ -2102,7 +2170,20 @@ export default function App(): React.JSX.Element {
             {stage === "automations" && <AutomationsView domain={flowDoc} highlight={selectedAggregate?.id} highlightId={highlightId} t={t} />}
             {stage === "roles" && <RolesMatrix roles={rolesDoc} caps={activeDoc} highlightCap={hovered ?? selectedAggregate?.owner ?? selected} highlightId={highlightId} t={t} />}
             {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} onSetMode={setWorkflowMode} onSetService={setWorkflowService} onBindStep={setWorkflowStepBinding} onClassify={classifyOrchestration} classifyBusy={orchestrationBusy} rationales={orchestrationRationales} services={serviceOptions} selectedId={selected} onSelectWorkflow={(id) => navTo("workflows", `wf:${id}`)} onSelectStep={(cmdId) => navTo("behaviour", cmdId)} />}
-            {stage === "agents" && <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={(id) => navTo("capabilities", id)} t={t} />}
+            {stage === "agents" && (
+              <div className="agents-stage">
+                <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={(id) => navTo("capabilities", id)} t={t} />
+                <AgentsView
+                  agents={agentsDoc}
+                  caps={activeDoc}
+                  onEditInstructions={editAgentInstructions}
+                  placeholderFor={(id) => agentPlaybooks[id] ?? ""}
+                  onTest={openAgentTest}
+                  testingId={agentRunBusy ? testAgentId : null}
+                  t={t}
+                />
+              </div>
+            )}
             {stage === "code" && (
               <CodePreview
                 caps={activeDoc}

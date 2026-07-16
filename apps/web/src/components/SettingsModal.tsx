@@ -24,6 +24,9 @@ interface Props {
   /** Adaptive Anthropic defaults on/off (model+effort per stage by tier). */
   adaptive: boolean;
   onSetAdaptive: (v: boolean) => void;
+  /** When on, generating a layer auto-runs the read-only Second opinion on it. */
+  autoReviewAfterGen: boolean;
+  onSetAutoReview: (v: boolean) => void;
   /** Deep link to the docs page explaining engines/models/stages. */
   docsUrl?: string;
   stages: StageRow[];
@@ -46,7 +49,7 @@ interface Props {
 type Tab = "ai" | "deploy" | "general";
 
 export function SettingsModal(props: Props): React.JSX.Element {
-  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, language, languages, onSetLanguage, t } = props;
+  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, autoReviewAfterGen, onSetAutoReview, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, language, languages, onSetLanguage, t } = props;
   const [tab, setTab] = useState<Tab>("general");
   const providerOf = (id: string): ProviderOpt | undefined => providers.find((p) => p.id === id);
   const providerLabel = (id: string): string => providerOf(id)?.label ?? id;
@@ -154,6 +157,20 @@ export function SettingsModal(props: Props): React.JSX.Element {
                       so every stage uses the default model above. (Still applies to any stage you override to
                       Anthropic below.)</>
                     )}
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>After generating</td>
+                <td>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input type="checkbox" checked={autoReviewAfterGen} onChange={(e) => onSetAutoReview(e.target.checked)} />
+                    <span>Run the Second opinion automatically</span>
+                  </label>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>
+                    After you generate a layer, its read-only Second opinion runs on that layer and the findings
+                    appear in the stage's issues panel. Costs one extra model call per generate. Scoped to the layer
+                    you generated (generating resets the layers below it to placeholders).
                   </div>
                 </td>
               </tr>

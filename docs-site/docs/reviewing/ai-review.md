@@ -17,6 +17,11 @@ There are two ways in:
 - **Whole model** — the **Second opinion** card (and the *Review whole model* button) on **Home** open the
   full **dashboard** below, which reviews every layer top-down plus the cross-cutting pass.
 
+You can also chain it to generation: **Settings → AI engine → After generating → "Run the Second opinion
+automatically"** makes each **Generate** run the review on that layer as soon as it finishes (findings land
+in the stage's issues panel). It's scoped to the layer you generated — generating resets the layers below
+it to placeholders, so there's nothing valid to review below yet.
+
 ## The loop
 
 The Second-opinion dashboard is a **launcher and status board**, not a place to edit findings. It opens with

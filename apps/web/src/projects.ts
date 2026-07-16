@@ -69,6 +69,11 @@ export interface Project {
    *  picks its model + effort from the layer's tier (heavy→Opus/high, standard→Sonnet, light→Haiku)
    *  instead of the flat global default. Per-stage `stages` overrides always win; gateways are unaffected. */
   adaptiveModel?: boolean;
+  /** When true (default false), generating a layer automatically runs the read-only Second opinion on
+   *  THAT layer once it completes (findings land in the stage's issues panel). Scoped to the generated
+   *  layer only — generating resets the layers below to placeholders, so there's nothing valid below to
+   *  review right after. */
+  autoReviewAfterGen?: boolean;
   /** @deprecated superseded by adaptive tiers + per-stage `stages`. Left for back-compat; no longer read. */
   tierModels?: { light: string; standard: string; heavy: string };
   /** per-project interview override (tone/depth/domain); empty → global default. */

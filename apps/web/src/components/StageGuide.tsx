@@ -14,10 +14,11 @@ function emph(text: string): React.ReactNode {
  * biggest question. Explains that the screen is a draft, what Generate/Enrich do, and to continue in the
  * rail. Dismissible per stage (remembered), so it stops being noise once understood.
  */
-export function StageGuide({ stage, hasEnrich, hasGenerate, t }: {
+export function StageGuide({ stage, hasEnrich, hasGenerate, hasReview, t }: {
   stage: StageId;
   hasEnrich: boolean;
   hasGenerate: boolean;
+  hasReview: boolean;
   t: T;
 }): React.JSX.Element | null {
   const key = `kiln.guide.${stage}`;
@@ -37,6 +38,7 @@ export function StageGuide({ stage, hasEnrich, hasGenerate, t }: {
         <ul className="stage-guide-list">
           {hasGenerate && <li>{emph(t("stageGuideGen"))}</li>}
           {hasEnrich && <li>{emph(t("stageGuideEnrich"))}</li>}
+          {hasReview && <li>{emph(t("stageGuideReview"))}</li>}
           <li>{emph(t("stageGuideEdit"))}</li>
           <li>{emph(t("stageGuideNext"))}</li>
         </ul>

@@ -1861,6 +1861,7 @@ export default function App(): React.JSX.Element {
               stage={stage}
               hasGenerate={!!stageGen[stage]}
               hasEnrich={(["entities", "capabilities", "roles", "agents"] as string[]).includes(stage)}
+              hasReview={!!REVIEW_KIND[stage]}
               t={t}
             />
           )}

@@ -10,9 +10,11 @@
  */
 
 import { slug } from "@kiln/ir";
-import { attributeSpecs, type CapabilityDoc, type DomainDoc, type AgentsDoc, type WorkflowsDoc } from "@kiln/compiler";
+import { attributeSpecs, type AttributeSpec, type AggregateInput, type CapabilityDoc, type DomainDoc, type AgentsDoc, type WorkflowsDoc } from "@kiln/compiler";
 import type { CommunicationsDoc } from "./comms.ts";
 import type { ExternalServicesDoc } from "./services.ts";
+import { buildToolSchemas, type ToolSchema } from "./agentSim.ts";
+import { mockTriggers, type TriggerInput, type TriggersDoc } from "./triggers.ts";
 
 const CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 
@@ -37,6 +39,67 @@ export interface AgentDef {
   tools: AgentTool[];
   /** agent-mode processes routed to this agent (SPEC-009) — run by judgement, not a fixed workflow. */
   processes?: Array<{ id: string; name: string; steps: string[] }>;
+  /** external signals (webhook/schedule) routed to this agent (the TRIGGERS layer) — the agent's INPUT. */
+  triggers?: TriggerInput[];
+}
+
+/**
+ * The agent CONTRACT — an explicit, DERIVED **input · tools · output · context** projection of an agent.
+ * NOT authored IR: it's computed from `AgentsDoc + DomainDoc + TriggersDoc` (like the tool list already
+ * is), read-only, never round-tripped to text. It makes the four facets the agent's system prompt is
+ * grounded in inspectable:
+ *   · input   — the external signals routed to the agent (webhook/schedule/external) + the run task
+ *   · tools   — the exact tool schemas the run loop sends (via `buildToolSchemas`, so contract == loop)
+ *   · output  — the events the agent's command tools emit + the records they change
+ *   · context — the domain the agent operates: its owned entities (typed fields) + the processes it owns
+ */
+export interface AgentContract {
+  input: { triggers: Array<{ kind: string; name: string; ref: string }>; task: string };
+  tools: ToolSchema[];
+  output: { events: string[]; recordChanges: string[] };
+  context: { entities: Array<{ name: string; attributes: AttributeSpec[] }>; processes: string[] };
+}
+
+/**
+ * Derive an agent's CONTRACT from its resolved def + the domain (+ optional triggers). Pure + isomorphic.
+ * Reuses `buildToolSchemas` so the contract's tools are byte-identical to the run loop's; reuses
+ * `attributeSpecs` for the typed context fields; the output events come from the agent's command tools'
+ * `emits` (the same facts folded into each tool description). Triggers are taken from the explicit
+ * `triggers` arg when given, else from the def's own routed `triggers` (folded in `resolveAgentDefs`).
+ */
+export function agentContract(def: AgentDef, domain: DomainDoc, triggers?: TriggersDoc): AgentContract {
+  const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
+  const cmdBySlug = new Map((domain.commands ?? []).map((c) => [slug(c.id), c]));
+  const aggById = new Map(domain.aggregates.map((a) => [a.id, a]));
+
+  // output + owned records, derived from the agent's COMMAND tools (== the run loop's action surface).
+  const recordIds = new Set<string>();
+  const events = new Set<string>();
+  for (const tool of def.tools) {
+    if (tool.kind !== "command") continue;
+    const cmd = cmdBySlug.get(tool.name);
+    if (!cmd) continue;
+    recordIds.add(cmd.aggregate);
+    for (const e of cmd.emits ?? []) events.add(evName.get(e) ?? e);
+  }
+  const entities = [...recordIds]
+    .map((id) => aggById.get(id))
+    .filter((a): a is AggregateInput => !!a)
+    .map((a) => ({ name: a.name || a.id, attributes: attributeSpecs(a) }));
+
+  // input = the triggers ROUTED to this agent (target.kind === "agent" && ref === slug(id)) + the task.
+  const routed = triggers ? triggers.triggers.filter((tr) => tr.target.kind === "agent" && tr.target.ref === slug(def.id)) : def.triggers ?? [];
+  const input = {
+    triggers: routed.map((tr) => ({ kind: tr.source, name: tr.name, ref: tr.path || tr.cron || tr.target.ref })),
+    task: routed.find((tr) => tr.target.task)?.target.task || "Work toward your goal using the available tools and records.",
+  };
+
+  return {
+    input,
+    tools: buildToolSchemas(def),
+    output: { events: [...events], recordChanges: entities.map((e) => e.name) },
+    context: { entities, processes: (def.processes ?? []).map((p) => p.name) },
+  };
 }
 
 function commandTool(c: { id: string; name?: string; aggregate: string; emits?: string[] }, fields: string[], evName: Map<string, string>): AgentTool {
@@ -58,7 +121,7 @@ function commandTool(c: { id: string; name?: string; aggregate: string; emits?: 
  * escalate, guardrails. Deterministic + generic; the LLM agent generator writes a business-specific one
  * (an agent's `instructions`) that supersedes this. Either way it's the editable system prompt.
  */
-export function defaultPlaybook(d: AgentDef): string {
+export function defaultPlaybook(d: AgentDef, contract?: AgentContract): string {
   const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
   const notify = d.tools.some((t) => t.kind === "notify");
   return [
@@ -66,6 +129,7 @@ export function defaultPlaybook(d: AgentDef): string {
     "",
     `**Role.** ${d.goal || `Operate the ${d.capabilities.join(", ")} capabilities.`}`,
     "",
+    ...(contract ? contractSection("Inputs", inputLines(contract)) : []),
     `## How you work`,
     `Work through the task with your tools. For each item: read the relevant record, decide, then act via`,
     `the right command. Take one action at a time and check the result before the next. Keep going until`,
@@ -82,12 +146,42 @@ export function defaultPlaybook(d: AgentDef): string {
     `- Prefer the smallest correct action; don't take irreversible steps without cause.`,
     `- Stay within your goal and capabilities.`,
     "",
+    ...(contract ? contractSection("Your context", contextLines(contract)) : []),
     `## Your commands`,
     ...(cmds.length ? cmds.map((c) => `- \`${c}\``) : ["- (none)"]),
     "",
+    ...(contract ? contractSection("Outputs you produce", outputLines(contract)) : []),
     `> This file is the agent's system prompt — **edit it to change HOW this agent behaves.**`,
     "",
   ].join("\n");
+}
+
+// ── grounded-contract playbook sections (input · context · output) ──
+function contractSection(title: string, lines: string[]): string[] {
+  return [`## ${title}`, ...lines, ""];
+}
+function inputLines(c: AgentContract): string[] {
+  const lines = c.input.triggers.length
+    ? c.input.triggers.map((tr) => `- **${tr.name}** (${tr.kind} \`${tr.ref}\`) — wakes you with a signal to act on.`)
+    : ["- No external trigger routes to you yet — you're started on demand with a task."];
+  lines.push(`- Run task: ${c.input.task}`);
+  return lines;
+}
+function contextLines(c: AgentContract): string[] {
+  if (!c.context.entities.length && !c.context.processes.length) return ["- (no entities or processes resolved)"];
+  const lines = c.context.entities.map((e) => {
+    const fields = e.attributes.map((a) => (a.type ? `${a.name}: ${a.type}` : a.name)).join(", ");
+    return `- **${e.name}**${fields ? ` — ${fields}` : ""}`;
+  });
+  if (c.context.processes.length) lines.push(`- Processes you own: ${c.context.processes.join(", ")}`);
+  return lines;
+}
+function outputLines(c: AgentContract): string[] {
+  const lines: string[] = [];
+  if (c.output.events.length) lines.push(`- Events you emit: ${c.output.events.join(", ")}`);
+  if (c.output.recordChanges.length) lines.push(`- Records you change: ${c.output.recordChanges.join(", ")}`);
+  if (!lines.length) lines.push("- (no events or record changes resolved)");
+  return lines;
 }
 
 /**
@@ -419,7 +513,7 @@ ${order.map((k) => blocks[k]).join("\n")}`;
  * (`agentsAdapter`), the in-Studio "Test agent" loop (apps/service), and the hosted function all share
  * ONE resolution. Extracting it here is the seam the server-side test loop reuses.
  */
-export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc): AgentDef[] {
+export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc, triggers?: TriggersDoc): AgentDef[] {
   if (!agents?.agents?.length) return [];
   const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
   const cmdName = new Map((domain.commands ?? []).map((c) => [c.id, c.name || c.id]));
@@ -461,23 +555,31 @@ export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?
       if (!s.entity || !ownedEntities.has(s.entity)) continue;
       tools.push({ name: slug(s.id), kind: "external", description: `Delegate to ${s.name} (${s.invocation}) — ${s.rationale ?? "external service"}`, invoke: { url: s.endpoint, invocation: s.invocation, service: s.id }, input: Object.keys(s.requestMapping ?? {}) });
     }
-    defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools, processes: procByAgent.get(a.id) ?? [] });
+    // TRIGGERS fold: the external signals (webhook/schedule/external) ROUTED to this agent are its INPUT.
+    // Match a trigger whose target is this agent (target.kind === "agent" && ref === slug(a.id)) — the same
+    // routing `mockTriggers`/`route()` uses. Optional + backward-compatible (empty when no triggers doc).
+    const routed = (triggers?.triggers ?? []).filter((tr) => tr.target.kind === "agent" && tr.target.ref === slug(a.id));
+    defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools, processes: procByAgent.get(a.id) ?? [], triggers: routed });
   }
   return defs;
 }
 
 /** Resolve each agent's toolset and emit a runnable, provider-flexible runtime (definitions + loop). */
-export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc, agentDefaults?: AgentDefaults): Record<string, string> {
+export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc, agentDefaults?: AgentDefaults, triggers?: TriggersDoc): Record<string, string> {
   if (!agents?.agents?.length) return {};
-  const defs = resolveAgentDefs(caps, domain, agents, comms, workflows, services);
+  // Ground the exported behaviour in the agent's INPUT: use the authored triggers when present, else the
+  // deterministic defaults (external/time events → webhook/schedule routes), so the contract isn't empty.
+  const trig = triggers ?? mockTriggers(caps, domain, workflows, agents);
+  const defs = resolveAgentDefs(caps, domain, agents, comms, workflows, services, trig);
 
   const files: Record<string, string> = {};
   for (const [rel, content] of Object.entries(RUNTIME)) files[`agents/${rel}`] = content;
   files["agents/.env.example"] = agentEnvExample(agentDefaults); // engine-aware: leads with the built-on provider
   for (const d of defs) {
-    // definition = structure + config; behaviour = the editable markdown playbook (the "HOW").
+    // definition = structure + config; behaviour = the editable markdown playbook (the "HOW"), grounded in
+    // the derived contract (its input · tools · output · context) so a default prompt cites real facts.
     files[`agents/definitions/${d.id}.json`] = JSON.stringify({ ...d, instructions: undefined }, null, 2);
-    files[`agents/behaviours/${d.id}.md`] = (d.instructions?.trim() ? d.instructions.trim() + "\n" : defaultPlaybook(d)) + processesSection(d);
+    files[`agents/behaviours/${d.id}.md`] = (d.instructions?.trim() ? d.instructions.trim() + "\n" : defaultPlaybook(d, agentContract(d, domain, trig))) + processesSection(d);
   }
   files["agents/README.md"] = `# Agents — a runnable, provider-flexible agent runtime
 

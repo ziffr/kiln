@@ -14,6 +14,12 @@ You model the AUTONOMOUS AGENTS that could operate parts of a business.
   check source/score, verify contact info, qualify or request more info; for a ticket: triage severity,
   attempt resolution, else assign), **When to escalate** (which cases go to a human via a notify action),
   and **Guardrails**. Make it specific to THIS business and the agent's tools; a human will refine it.
+- GROUND the instructions in the agent's real CONTRACT — its **input** (the signals/records that reach it),
+  **tools** (the commands and notify/comm actions it can call — Kiln derives these from the agent's
+  capabilities), **output** (the events it emits and the records it changes), and **context** (the entities
+  it operates and their fields). Refer to the actual entities, commands, and events of THIS business by
+  name; never invent tools, fields, or events the model doesn't have. (Kiln also renders this contract as a
+  read-only spec beside your instructions, so keep the two consistent.)
 - Prefer a small set of focused agents (2–6); a capability may be run by more than one agent.
 - "derivedFrom": the narrative responsibility that motivates the agent (an "anchor").
 

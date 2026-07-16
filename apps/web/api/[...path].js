@@ -625,6 +625,12 @@ var PROMPTS = {
   check source/score, verify contact info, qualify or request more info; for a ticket: triage severity,
   attempt resolution, else assign), **When to escalate** (which cases go to a human via a notify action),
   and **Guardrails**. Make it specific to THIS business and the agent's tools; a human will refine it.
+- GROUND the instructions in the agent's real CONTRACT \u2014 its **input** (the signals/records that reach it),
+  **tools** (the commands and notify/comm actions it can call \u2014 Kiln derives these from the agent's
+  capabilities), **output** (the events it emits and the records it changes), and **context** (the entities
+  it operates and their fields). Refer to the actual entities, commands, and events of THIS business by
+  name; never invent tools, fields, or events the model doesn't have. (Kiln also renders this contract as a
+  read-only spec beside your instructions, so keep the two consistent.)
 - Prefer a small set of focused agents (2\u20136); a capability may be run by more than one agent.
 - "derivedFrom": the narrative responsibility that motivates the agent (an "anchor").
 
@@ -4025,6 +4031,83 @@ Data comes from the generated spine \u2014 set \`VITE_API_URL\` (and \`VITE_API_
   return files;
 }
 
+// ../../packages/codegen/src/agentSim.ts
+function buildToolSchemas(def) {
+  return def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: agentToolParams(t) }));
+}
+function toOpenAiTools(schemas) {
+  return schemas.map((s) => ({ type: "function", function: { name: s.name, description: s.description, parameters: s.input_schema } }));
+}
+function toOpenAiMessages(messages, system) {
+  const out = [{ role: "system", content: system }];
+  for (const m of messages) {
+    if (m.role === "user" && typeof m.content === "string") {
+      out.push({ role: "user", content: m.content });
+    } else if (m.role === "user" && Array.isArray(m.content)) {
+      for (const part of m.content) {
+        if (part && part.type === "tool_result") {
+          out.push({ role: "tool", tool_call_id: part.tool_use_id, content: part.content });
+        }
+      }
+    } else if (m.role === "assistant") {
+      out.push(m.content);
+    }
+  }
+  return out;
+}
+function mockDispatch(tool, input) {
+  switch (tool.kind) {
+    case "command": {
+      const id = String(input.id ?? "").trim() || `${tool.name.replace(/_/g, "-")}-0001`;
+      const { id: _id, ...fields } = input;
+      return { status: 200, ok: true, id, applied: fields, note: `Simulated ${tool.name} \u2014 no spine call was made.` };
+    }
+    case "notify":
+      return { delivered: true, recipient: input.recipient ?? "(unspecified)", subject: input.subject ?? null, note: "Simulated notification \u2014 routed to a human in a real run." };
+    case "email":
+      return { delivered: true, channel: "email", to: input.recipient ?? "(entity contact)", note: "Simulated email \u2014 a real run renders + sends the template." };
+    case "slack":
+      return { posted: true, channel: "slack", note: "Simulated Slack message \u2014 a real run posts to the channel." };
+    case "external":
+      return { accepted: true, invocation: tool.invoke?.invocation ?? "sync", service: tool.invoke?.service ?? tool.name, note: "Simulated delegation \u2014 no external service was called." };
+    case "pdf":
+      return { rendered: true, note: "Simulated document \u2014 a real run renders the PDF." };
+    default:
+      return { triggered: tool.name, note: "Simulated action." };
+  }
+}
+var zeroUsage = () => ({ input: 0, output: 0, cacheRead: 0, cacheCreate: 0 });
+async function runAgentLoop(def, task, nextTurn, maxSteps = 12) {
+  const messages = [{ role: "user", content: task }];
+  const steps = [];
+  const usage = zeroUsage();
+  let finalText = "";
+  let turns = 0;
+  for (let step = 0; step < maxSteps; step++) {
+    const turn = await nextTurn(messages);
+    turns++;
+    usage.input += turn.usage.input;
+    usage.output += turn.usage.output;
+    usage.cacheRead += turn.usage.cacheRead;
+    usage.cacheCreate += turn.usage.cacheCreate;
+    if (turn.text) {
+      finalText = turn.text;
+      steps.push({ assistantText: turn.text });
+    }
+    messages.push({ role: "assistant", content: turn.content });
+    if (turn.end || !turn.toolUses.length) break;
+    const results = [];
+    for (const tu of turn.toolUses) {
+      const tool = def.tools.find((t) => t.name === tu.name);
+      const output = tool ? mockDispatch(tool, tu.input) : { error: `unknown tool ${tu.name}` };
+      steps.push({ toolCall: { name: tu.name, input: tu.input }, toolResult: { output }, simulated: Boolean(tool) });
+      results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(output) });
+    }
+    messages.push({ role: "user", content: results });
+  }
+  return { finalText, steps, stepCount: turns, usage };
+}
+
 // ../../packages/codegen/src/agents.ts
 var CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 function commandTool(c, fields, evName) {
@@ -4040,7 +4123,7 @@ function commandTool(c, fields, evName) {
     input: fields
   };
 }
-function defaultPlaybook(d) {
+function defaultPlaybook(d, contract) {
   const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
   const notify = d.tools.some((t) => t.kind === "notify");
   return [
@@ -4048,6 +4131,7 @@ function defaultPlaybook(d) {
     "",
     `**Role.** ${d.goal || `Operate the ${d.capabilities.join(", ")} capabilities.`}`,
     "",
+    ...contract ? contractSection("Inputs", inputLines(contract)) : [],
     `## How you work`,
     `Work through the task with your tools. For each item: read the relevant record, decide, then act via`,
     `the right command. Take one action at a time and check the result before the next. Keep going until`,
@@ -4062,12 +4146,38 @@ function defaultPlaybook(d) {
     `- Prefer the smallest correct action; don't take irreversible steps without cause.`,
     `- Stay within your goal and capabilities.`,
     "",
+    ...contract ? contractSection("Your context", contextLines(contract)) : [],
     `## Your commands`,
     ...cmds.length ? cmds.map((c) => `- \`${c}\``) : ["- (none)"],
     "",
+    ...contract ? contractSection("Outputs you produce", outputLines(contract)) : [],
     `> This file is the agent's system prompt \u2014 **edit it to change HOW this agent behaves.**`,
     ""
   ].join("\n");
+}
+function contractSection(title, lines) {
+  return [`## ${title}`, ...lines, ""];
+}
+function inputLines(c) {
+  const lines = c.input.triggers.length ? c.input.triggers.map((tr) => `- **${tr.name}** (${tr.kind} \`${tr.ref}\`) \u2014 wakes you with a signal to act on.`) : ["- No external trigger routes to you yet \u2014 you're started on demand with a task."];
+  lines.push(`- Run task: ${c.input.task}`);
+  return lines;
+}
+function contextLines(c) {
+  if (!c.context.entities.length && !c.context.processes.length) return ["- (no entities or processes resolved)"];
+  const lines = c.context.entities.map((e) => {
+    const fields = e.attributes.map((a) => a.type ? `${a.name}: ${a.type}` : a.name).join(", ");
+    return `- **${e.name}**${fields ? ` \u2014 ${fields}` : ""}`;
+  });
+  if (c.context.processes.length) lines.push(`- Processes you own: ${c.context.processes.join(", ")}`);
+  return lines;
+}
+function outputLines(c) {
+  const lines = [];
+  if (c.output.events.length) lines.push(`- Events you emit: ${c.output.events.join(", ")}`);
+  if (c.output.recordChanges.length) lines.push(`- Records you change: ${c.output.recordChanges.join(", ")}`);
+  if (!lines.length) lines.push("- (no events or record changes resolved)");
+  return lines;
 }
 var SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown> {
   if (t.kind === "command" || t.kind === "external") {
@@ -4320,7 +4430,7 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
 `,
   ".gitignore": "node_modules\n.env\n"
 };
-function resolveAgentDefs(caps, domain, agents, comms, workflows, services) {
+function resolveAgentDefs(caps, domain, agents, comms, workflows, services, triggers) {
   if (!agents?.agents?.length) return [];
   const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
   const cmdName = new Map((domain.commands ?? []).map((c) => [c.id, c.name || c.id]));
@@ -4359,7 +4469,8 @@ function resolveAgentDefs(caps, domain, agents, comms, workflows, services) {
       if (!s.entity || !ownedEntities.has(s.entity)) continue;
       tools.push({ name: slug(s.id), kind: "external", description: `Delegate to ${s.name} (${s.invocation}) \u2014 ${s.rationale ?? "external service"}`, invoke: { url: s.endpoint, invocation: s.invocation, service: s.id }, input: Object.keys(s.requestMapping ?? {}) });
     }
-    defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools, processes: procByAgent.get(a.id) ?? [] });
+    const routed = (triggers?.triggers ?? []).filter((tr) => tr.target.kind === "agent" && tr.target.ref === slug(a.id));
+    defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools, processes: procByAgent.get(a.id) ?? [], triggers: routed });
   }
   return defs;
 }
@@ -5520,83 +5631,6 @@ for target in env[${JSON.stringify(model(cmd.aggregate))}].search([]):
   };
   if (autoRecords.length) files["data/automations.xml"] = ["<odoo>", ...autoRecords, "</odoo>"].join("\n");
   return files;
-}
-
-// ../../packages/codegen/src/agentSim.ts
-function buildToolSchemas(def) {
-  return def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: agentToolParams(t) }));
-}
-function toOpenAiTools(schemas) {
-  return schemas.map((s) => ({ type: "function", function: { name: s.name, description: s.description, parameters: s.input_schema } }));
-}
-function toOpenAiMessages(messages, system) {
-  const out = [{ role: "system", content: system }];
-  for (const m of messages) {
-    if (m.role === "user" && typeof m.content === "string") {
-      out.push({ role: "user", content: m.content });
-    } else if (m.role === "user" && Array.isArray(m.content)) {
-      for (const part of m.content) {
-        if (part && part.type === "tool_result") {
-          out.push({ role: "tool", tool_call_id: part.tool_use_id, content: part.content });
-        }
-      }
-    } else if (m.role === "assistant") {
-      out.push(m.content);
-    }
-  }
-  return out;
-}
-function mockDispatch(tool, input) {
-  switch (tool.kind) {
-    case "command": {
-      const id = String(input.id ?? "").trim() || `${tool.name.replace(/_/g, "-")}-0001`;
-      const { id: _id, ...fields } = input;
-      return { status: 200, ok: true, id, applied: fields, note: `Simulated ${tool.name} \u2014 no spine call was made.` };
-    }
-    case "notify":
-      return { delivered: true, recipient: input.recipient ?? "(unspecified)", subject: input.subject ?? null, note: "Simulated notification \u2014 routed to a human in a real run." };
-    case "email":
-      return { delivered: true, channel: "email", to: input.recipient ?? "(entity contact)", note: "Simulated email \u2014 a real run renders + sends the template." };
-    case "slack":
-      return { posted: true, channel: "slack", note: "Simulated Slack message \u2014 a real run posts to the channel." };
-    case "external":
-      return { accepted: true, invocation: tool.invoke?.invocation ?? "sync", service: tool.invoke?.service ?? tool.name, note: "Simulated delegation \u2014 no external service was called." };
-    case "pdf":
-      return { rendered: true, note: "Simulated document \u2014 a real run renders the PDF." };
-    default:
-      return { triggered: tool.name, note: "Simulated action." };
-  }
-}
-var zeroUsage = () => ({ input: 0, output: 0, cacheRead: 0, cacheCreate: 0 });
-async function runAgentLoop(def, task, nextTurn, maxSteps = 12) {
-  const messages = [{ role: "user", content: task }];
-  const steps = [];
-  const usage = zeroUsage();
-  let finalText = "";
-  let turns = 0;
-  for (let step = 0; step < maxSteps; step++) {
-    const turn = await nextTurn(messages);
-    turns++;
-    usage.input += turn.usage.input;
-    usage.output += turn.usage.output;
-    usage.cacheRead += turn.usage.cacheRead;
-    usage.cacheCreate += turn.usage.cacheCreate;
-    if (turn.text) {
-      finalText = turn.text;
-      steps.push({ assistantText: turn.text });
-    }
-    messages.push({ role: "assistant", content: turn.content });
-    if (turn.end || !turn.toolUses.length) break;
-    const results = [];
-    for (const tu of turn.toolUses) {
-      const tool = def.tools.find((t) => t.name === tu.name);
-      const output = tool ? mockDispatch(tool, tu.input) : { error: `unknown tool ${tu.name}` };
-      steps.push({ toolCall: { name: tu.name, input: tu.input }, toolResult: { output }, simulated: Boolean(tool) });
-      results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(output) });
-    }
-    messages.push({ role: "user", content: results });
-  }
-  return { finalText, steps, stepCount: turns, usage };
 }
 
 // ../../packages/skills/src/applogic.ts

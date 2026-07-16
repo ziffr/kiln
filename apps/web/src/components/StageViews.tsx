@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type WorkflowsDoc, type AgentsDoc, type ContextsDoc } from "@kiln/compiler";
+import type { AgentContract } from "@kiln/codegen";
 import { Icon, type IconName } from "./Icon";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
@@ -275,7 +276,7 @@ export function WorkflowsView({
 // empty shows the default playbook as the placeholder — plus a "Test agent" affordance that opens the
 // run-trace panel. This is the GENERATE-side gap (the diagram above is the read-only relation view).
 export function AgentsView({
-  agents, caps, t, onEditInstructions, placeholderFor, onTest, testingId,
+  agents, caps, t, onEditInstructions, placeholderFor, contractFor, onTest, testingId,
 }: {
   agents: AgentsDoc;
   caps: CapabilityDoc;
@@ -284,6 +285,8 @@ export function AgentsView({
   onEditInstructions?: (agentId: string, value: string) => void;
   /** the default playbook to show as placeholder when instructions are empty. */
   placeholderFor?: (agentId: string) => string;
+  /** the DERIVED contract (input · tools · output · context) — a read-only spec beside the editor. */
+  contractFor?: (agentId: string) => AgentContract | undefined;
   /** open the test-run panel for this agent. */
   onTest?: (agentId: string) => void;
   /** the agent currently running a test (spinner + disabled). */
@@ -304,6 +307,7 @@ export function AgentsView({
           </div>
           {a.goal && <p className="agent-goal">{a.goal}</p>}
           <div className="agent-caps">{(a.capabilities ?? []).map((c) => <span key={c} className="wf-chip">{capName(caps, c)}</span>)}</div>
+          {contractFor && <AgentContractPanel contract={contractFor(a.id)} t={t} />}
           <label className="agent-behaviour">
             <span className="agent-behaviour-label"><Icon name="code" size={12} />{t("agentBehaviour")}</span>
             {onEditInstructions ? (
@@ -322,6 +326,65 @@ export function AgentsView({
           </label>
         </div>
       ))}
+    </div>
+  );
+}
+
+// The agent CONTRACT — a compact, READ-ONLY four-quadrant spec (input · tools · output · context) DERIVED
+// from the model (AgentsDoc + DomainDoc + TriggersDoc). It's a projection, not authored truth (golden
+// invariant #2) — the system prompt above is grounded in exactly these facts. Not editable.
+function AgentContractPanel({ contract, t }: { contract?: AgentContract; t: T }): React.JSX.Element | null {
+  if (!contract) return null;
+  const input = contract.input.triggers.map((tr) => `${tr.name} (${tr.kind})`);
+  const tools = contract.tools.map((tl) => tl.name);
+  const output = [
+    ...contract.output.events.map((e) => `▲ ${e}`),
+    ...contract.output.recordChanges.map((r) => `✎ ${r}`),
+  ];
+  return (
+    <div className="agent-contract" aria-label={t("agentContract")}>
+      <div className="agent-contract-head">
+        <span className="agent-contract-title"><Icon name="code" size={12} />{t("agentContract")}</span>
+        <span className="agent-contract-derived" title={t("agentContractDerivedHint")}><Icon name="lock" size={11} />{t("agentContractDerived")}</span>
+      </div>
+      <div className="agent-contract-grid">
+        <ContractQuadrant label={t("agentContractInput")} hint={t("agentContractInputHint")} items={input} empty={t("agentContractNoInput")} />
+        <ContractQuadrant label={t("agentContractTools")} hint={t("agentContractToolsHint")} items={tools} empty={t("agentContractNoTools")} />
+        <ContractQuadrant label={t("agentContractOutput")} hint={t("agentContractOutputHint")} items={output} empty={t("agentContractNoOutput")} />
+        <div className="agent-contract-cell">
+          <span className="agent-contract-cell-label">{t("agentContractContext")}</span>
+          <span className="agent-contract-cell-hint muted">{t("agentContractContextHint")}</span>
+          {contract.context.entities.length || contract.context.processes.length ? (
+            <ul className="agent-contract-list">
+              {contract.context.entities.map((e) => (
+                <li key={e.name}>
+                  <strong>{e.name}</strong>
+                  {e.attributes.length > 0 && (
+                    <span className="agent-contract-fields"> · {e.attributes.map((at) => (at.type ? `${at.name}:${at.type}` : at.name)).join(", ")}</span>
+                  )}
+                </li>
+              ))}
+              {contract.context.processes.map((p) => <li key={`proc-${p}`} className="agent-contract-proc">⟳ {p}</li>)}
+            </ul>
+          ) : (
+            <span className="agent-contract-none muted">{t("agentContractNoContext")}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContractQuadrant({ label, hint, items, empty }: { label: string; hint: string; items: string[]; empty: string }): React.JSX.Element {
+  return (
+    <div className="agent-contract-cell">
+      <span className="agent-contract-cell-label">{label}</span>
+      <span className="agent-contract-cell-hint muted">{hint}</span>
+      {items.length ? (
+        <ul className="agent-contract-list">{items.map((it, i) => <li key={`${it}-${i}`}>{it}</li>)}</ul>
+      ) : (
+        <span className="agent-contract-none muted">{empty}</span>
+      )}
     </div>
   );
 }

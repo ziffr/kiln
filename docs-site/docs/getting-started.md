@@ -35,18 +35,20 @@ what to do there: **Generate with LLM** builds a fully worked-out version, **Enr
 typical for your industry, and you can click any item to edit it. You can stop at any point — a half-built
 model is still useful.
 
-The **Home screen** (click the flame, top-left) is your project home. It opens with an AI-written,
-plain-language summary of what Kiln understands about your business (in your own language), a snapshot
-of what you've built so far — **capabilities, records, roles, processes** — a simple
-**Describe → Shape → Launch** progress journey, and **one clear next action**, plus any open findings to
-fix. The full nine-layer pipeline is tucked into an expandable **"How Kiln works"** below, so the greeting
-stays about your business, not our machinery.
+The **Home screen** (click the flame, top-left) is your project's **mission control** — an overview, not
+a repeat of any single layer's screen. It shows, at a glance: the project and its stack; an overall
+**state** (in progress · points to address · ready to export); a **status board** of every layer —
+done ✓, needs attention (with its open-point count), or not yet built — where each item is clickable to
+jump straight in; roll-up cards for **progress, open points, and this session's spend**; and a row of
+actions (your recommended next step, view app, export model, projects, settings). A brand-new project
+shows a short **welcome** instead, with a one-line explainer and buttons to start a description or load an
+example.
 
 ## A note on cost
 
 Each **Generate**, **Enrich**, or **AI Review** action asks an AI model to do the work, which costs a
-small amount per click (shown as a spend estimate). The home screen's plain-language summary is one such
-small call, made once per project and then cached. Browsing and editing are free. Running your own
+small amount per click (shown as a spend estimate). The Business Narrative summary is one such small
+call, made once per project and then cached. Browsing and editing are free. Running your own
 instance requires an Anthropic API key; the public demo is keyless and pre-baked.
 
 A running total of this session's **tokens and estimated cost** sits at the bottom of the sidebar (next

@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the repository level (see
 [RELEASING.md](RELEASING.md)).
 
+## [0.5.1](https://github.com/ziffr/kiln/compare/v0.5.0...v0.5.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **release:** make the docs snapshot non-releasing (chore(docs)) to avoid a patch loop ([#39](https://github.com/ziffr/kiln/issues/39)) ([fae053c](https://github.com/ziffr/kiln/commit/fae053c4289b542d26f9180c210e5ae52d988aff))
+
+
+### Documentation
+
+* snapshot v0.5.0 + make it the default ([#36](https://github.com/ziffr/kiln/issues/36)) ([8047c3d](https://github.com/ziffr/kiln/commit/8047c3d2cc5243c4d112c6fd9e5fb6f6898672ac))
+
 ## [0.5.0](https://github.com/ziffr/kiln/compare/v0.4.0...v0.5.0) (2026-07-16)
 
 

@@ -14,7 +14,7 @@ Click **Ignore** (✕) on a finding and Kiln:
 
 1. **removes it right away** from the current list;
 2. **persists** the choice with the project (it survives reloads and regeneration);
-3. **tells the AI reviewer** about it — the accepted concern is fed into the next critique prompt so the
+3. **tells the reviewer** about it — the accepted concern is fed into the next critique prompt so the
    model stops raising it at the source;
 4. **matches it fuzzily** — because the AI rewords concerns from round to round, an accepted concern is
    matched by the node it's about, not its exact wording, so a reworded re-raise stays silenced.

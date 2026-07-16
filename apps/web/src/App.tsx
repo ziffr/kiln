@@ -39,7 +39,7 @@ import { NodeDetail } from "./components/NodeDetail";
 import { WorkflowDetail } from "./components/WorkflowDetail";
 import { AreaDetail } from "./components/AreaDetail";
 import { CodePreview } from "./components/CodePreview";
-import { InputDialog, ConfirmDialog } from "./components/Modal";
+import { InputDialog, ConfirmDialog, CheckboxConfirmDialog } from "./components/Modal";
 import { STUDIO_TOKEN_KEY } from "./studio-auth";
 import { Icon } from "./components/Icon";
 
@@ -93,9 +93,11 @@ const FALLBACK_PROVIDERS: ProviderCat[] = [
   },
 ];
 // Rough tokens per model call (input/output), used only for the Auto cost estimate. Deliberately a
-// ballpark — the confirm shows a ±range, and the real per-call spend is reported after each call.
-const EST_IN_TOKENS = 2000;
-const EST_OUT_TOKENS = 800;
+// ballpark — the confirm shows a ±range, and the real per-call spend is reported after each call. A
+// critique/generation call ships the whole layer doc + prompt in and returns a findings list, so these
+// are deliberately generous (the old 2000/800 under-shot real usage ~10×, making confirms read ~$0.00).
+const EST_IN_TOKENS = 12000;
+const EST_OUT_TOKENS = 3000;
 const EFFORTS = ["low", "medium", "high", "max"];
 // Adaptive Anthropic defaults: when Adaptive is on and a stage runs on Anthropic with no explicit
 // per-stage override, its model + effort come from the layer's TIER — heavy reasoning stages get
@@ -284,6 +286,14 @@ export default function App(): React.JSX.Element {
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoLayer, setAutoLayer] = useState<LayerKind | null>(null);
   const autoStopRef = useRef(false);
+  // Stage-level review cost gate: the single-layer "Second opinion" button confirms cost before its one
+  // model call (the whole-model dashboard has its own confirm). `reviewConfirm` = the layer awaiting
+  // confirmation; the popup's "don't ask again" flips the persistent `confirmReviewCost` project setting.
+  const [reviewConfirm, setReviewConfirm] = useState<LayerKind | null>(null);
+  // Auto-review-after-generate (opt-in setting): a generate function sets this to the layer it produced;
+  // an effect then runs the Second opinion on it. Deferred via state (not chained inline) so the review
+  // runs against the freshly-committed doc, not the stale pre-generate closure.
+  const [pendingReview, setPendingReview] = useState<LayerKind | null>(null);
   // SPEC-004 behaviour: commands/events live on the domain doc — LLM when present, else live mock.
   const behaviourDoc = useMemo(
     () => (((domainDoc.commands?.length ?? 0) + (domainDoc.events?.length ?? 0)) > 0 ? domainDoc : mockGenerateEvents(domainDoc)),
@@ -778,6 +788,8 @@ export default function App(): React.JSX.Element {
   // a different PROVIDER, MODEL and EFFORT than the default — e.g. capabilities on Opus, entities on a cheap
   // gateway model in low effort. Each request threads its stage's {provider, model, effort}.
   const adaptive = active.adaptiveModel ?? true; // adaptive Anthropic per-stage defaults (on unless disabled)
+  const autoReviewAfterGen = active.autoReviewAfterGen ?? false; // run the Second opinion after a layer generates
+  const confirmReviewCost = active.confirmReviewCost ?? true; // cost-confirm popup before a single-layer review
   const stageOverride = (stage: string): { provider?: string; model?: string; effort?: string } => active.stages?.[stage] ?? {};
   const providerFor = (stage: string): string => {
     const o = stageOverride(stage).provider;
@@ -807,10 +819,18 @@ export default function App(): React.JSX.Element {
     if (adaptive && providerFor(stage) === "anthropic") return GEN_EFFORT_TIER[stageTier(stage)];
     return active.effort;
   };
-  const critiqueEffortFor = (layer: LayerKind): string => effortFor(layer, true);
   // The full {model, effort, provider} a request should send for a stage. Spread into the body.
   const stageCfg = (stage: string, review = false): { model: string; effort: string; provider: string } => ({ model: modelFor(stage), effort: effortFor(stage, review), provider: providerFor(stage) });
-  const supportsEffortFor = (stage: string): boolean => MODELS.find((m) => m.id === modelFor(stage))?.supportsEffort ?? true;
+  // The reviewer (Second-opinion) engine. Default: match the layer's own model at critique effort. When a
+  // reviewer override is set (project.reviewer.provider), ALL reviews route to that provider/model/effort —
+  // enabling a different model to judge the output (e.g. Anthropic reviewing an OpenRouter model).
+  const reviewCfg = (layer: LayerKind): { model: string; effort: string; provider: string } => {
+    const r = active.reviewer;
+    const p = r?.provider ? catalog.find((x) => x.id === r.provider) : undefined;
+    if (!p) return stageCfg(layer, true); // no override / provider gone → match the layer
+    const model = r!.model && (p.models.some((m) => m.id === r!.model) || p.allowCustomModel) ? r!.model : (p.defaultModel ?? p.models[0]?.id ?? modelFor(layer));
+    return { provider: p.id, model, effort: r!.effort ?? "high" };
+  };
 
   // Home greeting: one warm plain-language summary of the business, generated once per project and cached
   // (invalidated when the narrative changes). Fired lazily on the home screen; on failure (e.g. no key on
@@ -849,7 +869,7 @@ export default function App(): React.JSX.Element {
     roles: ov.roles ?? rolesDoc,
     workflows: ov.workflows ?? workflowsDoc,
     agents: ov.agents ?? agentsDoc,
-    ...stageCfg(layer, true),
+    ...reviewCfg(layer),
     // Concerns the human already accepted on this layer → the critic is told not to raise them again.
     accepted: (active.ignoredFindings ?? [])
       .filter((k) => k.startsWith(`ai|${layer}|`))
@@ -857,8 +877,28 @@ export default function App(): React.JSX.Element {
       .filter(Boolean),
   });
 
+  // Provenance gate: a layer counts as "generated" only when its doc is materialized in the project
+  // (`active.*`); otherwise the view is the live-mock placeholder. Reviewing a placeholder spends real
+  // LLM budget critiquing deterministic filler, so the AI-review panel gates it. Mirrors the StageRail
+  // glyph (mock vs ready) — see `layerStatus` below.
+  function layerGenerated(k: LayerKind): boolean {
+    switch (k) {
+      case "capabilities": return Boolean(active.capabilities);
+      case "areas": return Boolean(active.contexts);
+      case "entities": return Boolean(active.domain);
+      case "behaviour": return Boolean(active.domain?.commands?.length);
+      case "automations": return Boolean(active.domain?.policies?.length);
+      case "roles": return Boolean(active.roles);
+      case "workflows": return Boolean(active.workflows);
+      case "agents": return Boolean(active.agents);
+      case "holistic": return Boolean(active.capabilities); // the cross-layer pass needs a real spine
+      default: return true;
+    }
+  }
+
   // Review: ask the LLM (higher effort, server-side) to critique one layer. Returns the findings.
   async function reviewLayer(layer: LayerKind, ov: ModelOverride = {}): Promise<CritiqueFinding[]> {
+    if (!layerGenerated(layer)) return []; // gated: never review placeholder (live-mock) content
     setReviewBusy(layer);
     setError(null);
     try {
@@ -948,27 +988,77 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  // Auto-review-after-generate: once a generate has set `pendingReview` (and committed its doc), run the
+  // read-only Second opinion on that layer. Runs after commit, so `reviewLayer` sees the fresh doc.
+  useEffect(() => {
+    if (!pendingReview) return;
+    const lk = pendingReview;
+    setPendingReview(null);
+    if (layerGenerated(lk)) { setShowIssues(true); void reviewLayer(lk); }
+  }, [pendingReview]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto mode: drive every layer to closure on its own. For each layer, Review → while there are
   // "concern"-level findings (bounded by MAX_REFINES), Refine and re-review; stop early when only
   // subjective suggestions remain. Cooperative-cancellable via the Stop button. Threads an
   // accumulating override so each re-review (and downstream refine) sees the freshly-refined docs.
+  // Pricing helper for the whole-model run buttons: mid $/call at the model a layer runs on.
+  const perCallCost = (modelId: string): number => {
+    const m = MODELS.find((x) => x.id === modelId);
+    return (EST_IN_TOKENS * (m?.inPerM ?? 2) + EST_OUT_TOKENS * (m?.outPerM ?? 10)) / 1_000_000;
+  };
+  // A ±range $ estimate for one review call, but ONLY when the model's pricing is known (Anthropic). For
+  // gateway engines (OpenRouter/omniroute) prices aren't in the local table, so we show no figure rather
+  // than a fabricated one — the qualitative "small cost" line still tells the user cost will incur.
+  const reviewCostNote = (lk: LayerKind): string | undefined => {
+    const m = MODELS.find((x) => x.id === modelFor(lk));
+    if (!m) return undefined;
+    const c = perCallCost(m.id);
+    return c > 0 ? t("reviewCostEst", { lo: (c * 0.7).toFixed(2), hi: (c * 2).toFixed(2) }) : undefined;
+  };
+
+  // "Review all layers" — run every reviewer top-down, READ-ONLY (one review call per layer, no refine).
+  // This is the plain "second opinion on the whole model" action and the panel's default. Auto-fix
+  // (autoReview) additionally regenerates flagged layers, so it MUTATES the model; this never does.
+  async function reviewAll(): Promise<void> {
+    if (autoRunning) return;
+    const genLayers = reviewLayers.filter((r) => r.generated);
+    if (genLayers.length === 0) { window.alert(t("aiNothingToReview")); return; }
+    const midCost = genLayers.reduce((s, r) => s + perCallCost(modelFor(r.kind)), 0);
+    const lo = (midCost * 0.5).toFixed(2);
+    const hi = (midCost * 1.5).toFixed(2);
+    if (!window.confirm(t("reviewAllConfirm", { calls: genLayers.length, lo, hi }))) return;
+    setAutoRunning(true);
+    autoStopRef.current = false;
+    setError(null);
+    try {
+      for (const row of genLayers) {
+        if (autoStopRef.current) break;
+        setAutoLayer(row.kind);
+        await reviewLayer(row.kind);
+      }
+    } finally {
+      setAutoRunning(false);
+      setAutoLayer(null);
+    }
+  }
+
   async function autoReview(): Promise<void> {
     if (autoRunning) return;
+    // Only real (generated) layers are reviewable — placeholders are gated. Nothing generated → nothing
+    // to do (Auto would otherwise estimate 0 calls and silently no-op).
+    const genLayers = reviewLayers.filter((r) => r.generated);
+    if (genLayers.length === 0) { window.alert(t("aiNothingToReview")); return; }
     const MAX_REFINES = 2;
     // Estimate the worst case up front and get explicit consent — a full run is a burst of
     // higher-effort calls. Tier-aware: each stage is priced at the model it actually runs on
     // (Opus stages cost more than Sonnet/Haiku ones). Per layer: 1 review + up to 2 refine+re-review.
-    const perCall = (modelId: string): number => {
-      const m = MODELS.find((x) => x.id === modelId);
-      return (EST_IN_TOKENS * (m?.inPerM ?? 2) + EST_OUT_TOKENS * (m?.outPerM ?? 10)) / 1_000_000;
-    };
     let maxCalls = 0;
     let midCost = 0;
-    for (const row of reviewLayers) {
+    for (const row of genLayers) {
       const refinable = row.kind !== "capabilities" && row.kind !== "holistic";
       const n = 1 + (refinable ? MAX_REFINES * 2 : 0); // worst case: initial review + (refine + re-review) × 2
       maxCalls += n;
-      midCost += n * perCall(modelFor(row.kind));
+      midCost += n * perCallCost(modelFor(row.kind));
     }
     const lo = (midCost * 0.5).toFixed(2);
     const hi = (midCost * 1.5).toFixed(2);
@@ -978,7 +1068,7 @@ export default function App(): React.JSX.Element {
     setError(null);
     try {
       let acc: ModelOverride = {};
-      for (const row of reviewLayers) {
+      for (const row of genLayers) {
         if (autoStopRef.current) break;
         const layer = row.kind;
         setAutoLayer(layer);
@@ -1024,7 +1114,10 @@ export default function App(): React.JSX.Element {
   ] as { kind: LayerKind; label: string; count: number }[])
     .filter((r) => r.count > 0 || r.kind === "automations")
     // The cross-layer consistency pass — always available; reasons over the whole model at once.
-    .concat([{ kind: "holistic", label: t("holistic"), count: activeDoc.capabilities.length }]);
+    .concat([{ kind: "holistic", label: t("holistic"), count: activeDoc.capabilities.length }])
+    // Provenance: which rows are real (generated) vs. still the live-mock placeholder. The panel marks
+    // placeholders and disables their Review action so no one pays to critique deterministic filler.
+    .map((r) => ({ ...r, generated: layerGenerated(r.kind) }));
 
   // For the review panel's Apply button: applying entities/behaviour regenerates the layers below them
   // (they share the domain doc), so name those layers and count the open findings there that Apply will
@@ -1036,6 +1129,14 @@ export default function App(): React.JSX.Element {
     const count = below.reduce((n, d) => n + (critique[d]?.length ?? 0), 0);
     return count > 0 ? t("aiApplyResetsN", { layers, count }) : t("aiApplyResets", { layers });
   };
+
+  // Whole-model review roll-up for Mission Control (Home). Only real (generated) layers are reviewable;
+  // of those, how many have been reviewed at least once, and how many open concerns remain across them.
+  // Excludes the holistic pass (a separate cross-cutting check, not a "layer") so this matches the
+  // dashboard's own summary/gauge count.
+  const reviewableLayers = reviewLayers.filter((r) => r.generated && r.kind !== "holistic");
+  const reviewedLayerCount = reviewableLayers.filter((r) => critique[r.kind] !== undefined).length;
+  const reviewConcernCount = reviewableLayers.reduce((n, r) => n + (critique[r.kind]?.filter((f) => f.severity === "concern").length ?? 0), 0);
 
   // SPEC-007/008: generate workflows (from behaviour) and agents (from capabilities) via the LLM.
   async function generateWorkflowsModel(): Promise<void> {
@@ -1412,16 +1513,24 @@ export default function App(): React.JSX.Element {
 
   // Tag the version this generate produces (SPEC-011 M5), e.g. "Generated: Behaviour".
   const genSave = (k: StageId): string => `${t("versionAutoGenerated")}: ${t(k)}`;
-  const gen = (stage: StageId, fn: () => void) => () => guardRegen(stage, () => { labelNextSave(genSave(stage)); fn(); });
+  // Wrap a generate: guard destructive regen, tag the version, run it, and — if auto-review-after-generate
+  // is on — queue the Second opinion on this layer (fired by the effect once the doc has committed).
+  const gen = (stage: StageId, fn: () => Promise<void>) => () => guardRegen(stage, () => {
+    labelNextSave(genSave(stage));
+    void (async () => {
+      await fn();
+      if (autoReviewAfterGen && REVIEW_KIND[stage]) setPendingReview(REVIEW_KIND[stage]!);
+    })();
+  });
   const stageGen: Partial<Record<StageId, { run: () => void; busy: boolean; label: string }>> = {
-    capabilities: { run: gen("capabilities", () => void generate()), busy, label: t("generateBtn") },
-    areas: { run: gen("areas", () => void generateAreas()), busy: contextsBusy, label: t("genAreas") },
-    entities: { run: gen("entities", () => void generateDomainModel()), busy: domainBusy, label: t("genEntities") },
-    behaviour: { run: gen("behaviour", () => void generateBehaviour()), busy: behaviourBusy, label: t("genBehaviour") },
-    automations: { run: gen("automations", () => void generatePoliciesModel()), busy: policiesBusy, label: t("genAutomations") },
-    roles: { run: gen("roles", () => void generateRolesModel()), busy: rolesBusy, label: t("genRoles") },
-    workflows: { run: gen("workflows", () => void generateWorkflowsModel()), busy: workflowsBusy, label: t("genWorkflows") },
-    agents: { run: gen("agents", () => void generateAgentsModel()), busy: agentsBusy, label: t("genAgents") },
+    capabilities: { run: gen("capabilities", generate), busy, label: t("generateBtn") },
+    areas: { run: gen("areas", generateAreas), busy: contextsBusy, label: t("genAreas") },
+    entities: { run: gen("entities", generateDomainModel), busy: domainBusy, label: t("genEntities") },
+    behaviour: { run: gen("behaviour", generateBehaviour), busy: behaviourBusy, label: t("genBehaviour") },
+    automations: { run: gen("automations", generatePoliciesModel), busy: policiesBusy, label: t("genAutomations") },
+    roles: { run: gen("roles", generateRolesModel), busy: rolesBusy, label: t("genRoles") },
+    workflows: { run: gen("workflows", generateWorkflowsModel), busy: workflowsBusy, label: t("genWorkflows") },
+    agents: { run: gen("agents", generateAgentsModel), busy: agentsBusy, label: t("genAgents") },
   };
   const stageFindings: Partial<Record<StageId, typeof capFindings>> = {
     capabilities: capFindings, areas: contextFindings, entities: domainFindings, behaviour: eventFindings,
@@ -1516,6 +1625,12 @@ export default function App(): React.JSX.Element {
           defaultEffort={active.effort}
           adaptive={adaptive}
           onSetAdaptive={(v) => patchActive({ adaptiveModel: v })}
+          autoReviewAfterGen={autoReviewAfterGen}
+          onSetAutoReview={(v) => patchActive({ autoReviewAfterGen: v })}
+          confirmReviewCost={confirmReviewCost}
+          onSetConfirmReviewCost={(v) => patchActive({ confirmReviewCost: v })}
+          reviewer={active.reviewer ?? {}}
+          onSetReviewer={(field, value) => patchActive({ reviewer: { ...(active.reviewer ?? {}), [field]: value || undefined } })}
           docsUrl="https://docs.kilnstudio.app/reference/choosing-an-engine"
           stages={[...reviewLayers.map((r) => ({ key: r.kind as string, label: r.label, description: t(`stageDesc_${r.kind}`) })),
             { key: "polish", label: t("polishLayout"), description: t("stageDesc_polish") },
@@ -1569,9 +1684,9 @@ export default function App(): React.JSX.Element {
                 reviewCount={reviewCount}
                 busy={reviewBusy}
                 refinable={(k) => k !== "capabilities" && k !== "holistic"}
-                effortFor={(k) => (supportsEffortFor(k) ? critiqueEffortFor(k) : "—")}
-                modelLabelFor={(k) => MODELS.find((m) => m.id === modelFor(k))?.label ?? modelFor(k)}
-                showModel={Object.keys(active.stages ?? {}).length > 0}
+                effortFor={(k) => { const c = reviewCfg(k); const m = catalog.find((p) => p.id === c.provider)?.models.find((x) => x.id === c.model); return (m?.supportsEffort ?? true) ? c.effort : "—"; }}
+                modelLabelFor={(k) => { const c = reviewCfg(k); return catalog.find((p) => p.id === c.provider)?.models.find((x) => x.id === c.model)?.label ?? c.model; }}
+                showModel={Object.keys(active.stages ?? {}).length > 0 || Boolean(active.reviewer?.provider)}
                 onReview={(k) => void reviewLayer(k)}
                 onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
                 applyResetHint={applyResetHint}
@@ -1595,8 +1710,10 @@ export default function App(): React.JSX.Element {
                 onSettings={() => { setShowReview(false); setShowSettings(true); }}
                 autoRunning={autoRunning}
                 autoLayer={autoLayer}
+                onReviewAll={() => void reviewAll()}
                 onAuto={() => void autoReview()}
                 onStop={() => { autoStopRef.current = true; }}
+                onOpenLayer={(k) => { setShowReview(false); navTo(k as StageId); }}
                 t={t}
               />
             </div>
@@ -1667,6 +1784,10 @@ export default function App(): React.JSX.Element {
             onSettings={() => setShowSettings(true)}
             onToggleSidebar={() => setSidebarOpen((v) => !v)}
             onPickStage={(s) => navRoot(s)}
+            onReviewModel={() => setShowReview(true)}
+            reviewTotal={reviewableLayers.length}
+            reviewReviewed={reviewedLayerCount}
+            reviewConcerns={reviewConcernCount}
             t={t}
           />
         ) : (
@@ -1689,7 +1810,6 @@ export default function App(): React.JSX.Element {
               );
             })}
           </nav>
-          <button className="ai-review-top" onClick={() => setShowReview(true)}><Icon name="sparkles" size={15} />{t("aiReviewTitle")}</button>
         </header>
 
         <div className={`inset-body${hasDetail ? " has-detail" : ""}`}>
@@ -1699,22 +1819,39 @@ export default function App(): React.JSX.Element {
               <h2>{activeStage.label}</h2>
               <p className="stage-desc muted">{t(`stageDesc_${stage}`)}</p>
             </div>
-            {/* Grouped by intent: manual "add" (structural) and "enrich" (AI-adds) on the left, the
-                primary "generate" on the right. Review lives in ONE place — the top-right AI-review
-                panel (which already runs per layer); Auto is folded into Enrich (Apply = apply all). */}
+            {/* Ordered to match the pipeline the user works through, left→right: manual "add" (structural)
+                first, then the AI arc — Generate → Enrich (optional add-ons) → Second opinion (a stage-scoped
+                review of THIS layer, feeding the inline issues panel below). The whole-model dashboard lives
+                on Home, not a global header button. */}
             <div className="stage-actions">
               {stage === "capabilities" && <button className="btn ghost" onClick={addCapability}><Icon name="plus" />{t("addCap")}</button>}
               {stage === "areas" && <button className="btn ghost" onClick={addArea}><Icon name="plus" />{t("addArea")}</button>}
-              {(["entities", "capabilities", "roles", "agents"] as const).includes(stage as never) && (
-                <button className="btn ghost" onClick={() => (stage === "entities" ? runEnrichGrounded() : runLayerEnrich(stage as EnrichLayer))} title={t("enrichHint")}>
-                  <Icon name="sparkles" />{t("enrich")}
-                </button>
-              )}
               {stageGen[stage] && (
                 <button className="btn primary" onClick={stageGen[stage]!.run} disabled={stageGen[stage]!.busy}>
                   <Icon name="sparkles" />{stageGen[stage]!.busy ? t("generating") : stageGen[stage]!.label}
                 </button>
               )}
+              {(["entities", "capabilities", "roles", "agents"] as const).includes(stage as never) && (
+                <button className="btn ghost" onClick={() => (stage === "entities" ? runEnrichGrounded() : runLayerEnrich(stage as EnrichLayer))} title={t("enrichHint")}>
+                  <Icon name="sparkles" />{t("enrich")}
+                </button>
+              )}
+              {REVIEW_KIND[stage] && (() => {
+                const lk = REVIEW_KIND[stage]!;
+                const gen = layerGenerated(lk);
+                const busy = reviewBusy === lk;
+                const reviewed = critique[lk] !== undefined;
+                return (
+                  <button
+                    className="btn ghost"
+                    disabled={!gen || busy}
+                    title={gen ? t("aiReviewLayerHint") : t("aiNotGeneratedHint", { layer: activeStage.label })}
+                    onClick={() => { setShowIssues(true); if (confirmReviewCost) setReviewConfirm(lk); else void reviewLayer(lk); }}
+                  >
+                    <Icon name="sparkles" />{busy ? t("aiReviewBusy") : reviewed ? t("aiReviewAgain") : t("aiReviewTitle")}
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
@@ -1789,12 +1926,18 @@ export default function App(): React.JSX.Element {
                       <ul className="findings cap-findings critique-inline">
                         <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("aiReviewTitle")}</li>
                         {crit.length === 0 && <li className="muted">{t("aiReviewOk")}</li>}
-                        {crit.map((f) => (
-                          <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)} title={f.target ? t("findingGoHint") : undefined}>
-                            <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {humanizeMsg(f.message)}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
-                            {layerKind && <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); ignoreCritFinding(layerKind, f); }}><Icon name="x" size={13} /></button>}
-                          </li>
-                        ))}
+                        {crit.map((f) => {
+                          const fix = layerKind ? resolveFix(layerKind, f) : null;
+                          return (
+                            <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)} title={f.target ? t("findingGoHint") : undefined}>
+                              <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {humanizeMsg(f.message)}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
+                              {fix && layerKind && (
+                                <button className="fi-action" title={t("aiSurgicalFixHint")} onClick={(e) => { e.stopPropagation(); fix(); setCritique((c) => ({ ...c, [layerKind]: (c[layerKind] ?? []).filter((x) => x.id !== f.id) })); }}><Icon name="zap" size={11} /> {t("aiSurgicalFix")}</button>
+                              )}
+                              {layerKind && <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); ignoreCritFinding(layerKind, f); }}><Icon name="x" size={13} /></button>}
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                     {ignoredHere.length > 0 && (
@@ -1977,6 +2120,18 @@ export default function App(): React.JSX.Element {
       {dialog?.kind === "confirm" && (
         <ConfirmDialog title={dialog.title} message={dialog.message} confirmLabel={dialog.confirmLabel} cancelLabel={t("cancel")}
           danger={dialog.danger} onConfirm={dialog.onConfirm} onClose={() => setDialog(null)} />
+      )}
+      {reviewConfirm && (
+        <CheckboxConfirmDialog
+          title={t("reviewCostTitle")}
+          message={t("reviewCostBody", { layer: stages.find((s) => s.id === reviewConfirm)?.label ?? reviewConfirm })}
+          note={reviewCostNote(reviewConfirm)}
+          checkboxLabel={t("reviewCostRemember")}
+          confirmLabel={t("aiReviewGo")}
+          cancelLabel={t("cancel")}
+          onConfirm={(checked) => { if (checked) patchActive({ confirmReviewCost: false }); void reviewLayer(reviewConfirm); }}
+          onClose={() => setReviewConfirm(null)}
+        />
       )}
     </div>
   );

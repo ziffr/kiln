@@ -11,6 +11,7 @@ export interface LayerRow {
   kind: LayerKind;
   label: string;
   count: number;
+  generated: boolean; // false = still the live-mock placeholder → reviewing it is gated
 }
 
 interface Props {
@@ -35,14 +36,20 @@ interface Props {
   onRestoreIgnored: (k: LayerKind) => void;
   autoRunning: boolean;
   autoLayer: LayerKind | null;
+  onReviewAll: () => void;
   onAuto: () => void;
   onStop: () => void;
+  onOpenLayer: (k: LayerKind) => void; // jump to a layer's own stage to read/act on its findings
   onSettings: () => void;
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, applyResetHint, onSelect, onIgnore, canFix, onFix, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
+export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, applyResetHint, onSelect, onIgnore, canFix, onFix, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onReviewAll, onAuto, onStop, onOpenLayer, onSettings, t }: Props): React.JSX.Element {
   const autoLabel = autoLayer ? layers.find((l) => l.kind === autoLayer)?.label ?? autoLayer : "";
+  // Progressive disclosure: the per-row technical chrome (which model / effort each layer runs at) is off
+  // by default — it only matters to someone tuning engines in Settings. Off keeps the panel readable for
+  // the non-technical owner, who cares about the findings, not the model tier.
+  const [showDetails, setShowDetails] = useState(false);
 
   // Dependency-aware ordering. Layers render in arc order (each builds on the one above), so a finding
   // downstream is only meaningful once its upstream is sound — and applying an upstream layer regenerates
@@ -60,6 +67,30 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
   const startIdx = gateIdx >= 0 ? gateIdx : stageLayers.findIndex((l) => isOpen(l.kind));
   const gateLabel = gateIdx >= 0 ? stageLayers[gateIdx].label : "";
 
+  // Plain-language lead: one sentence telling the owner what to do, before the per-layer detail. Computed
+  // over the real (generated) layers only — placeholders aren't reviewable. Concerns dominate; otherwise
+  // it nudges toward the next unreviewed layer, then reports "only suggestions" or "all clean".
+  const gen = stageLayers.filter((l) => l.generated);
+  const isReviewed = (k: LayerKind): boolean => critique[k] !== undefined;
+  const totalN = gen.length;
+  const reviewedN = gen.filter((l) => isReviewed(l.kind)).length;
+  const concernN = gen.reduce((n, l) => n + (critique[l.kind]?.filter((f) => f.severity === "concern").length ?? 0), 0);
+  const anySuggestions = gen.some((l) => (critique[l.kind]?.length ?? 0) > 0);
+  // Per-layer closure state, for the gauge: clean (reviewed, no findings) · concern (a real problem) ·
+  // suggestions-only (reviewed, optional polish) · not-yet-reviewed.
+  const cleanN = gen.filter((l) => critique[l.kind]?.length === 0).length;
+  const concernLayersN = gen.filter((l) => critique[l.kind]?.some((f) => f.severity === "concern")).length;
+  const suggLayersN = gen.filter((l) => { const f = critique[l.kind]; return f !== undefined && f.length > 0 && !f.some((x) => x.severity === "concern"); }).length;
+  const unreviewedN = totalN - reviewedN;
+  const nextUnreviewed = gen.find((l) => !isReviewed(l.kind))?.label ?? "";
+  const summary: { text: string; kind: "warn" | "ok" | "muted" } =
+    totalN === 0 ? { text: t("aiSummaryEmpty"), kind: "muted" }
+    : concernN > 0 ? { text: t("aiSummaryConcerns", { count: concernN, layer: gateLabel }), kind: "warn" }
+    : reviewedN === 0 ? { text: t("aiSummaryNone", { layer: gen[0].label }), kind: "muted" }
+    : reviewedN < totalN ? { text: t("aiSummaryProgress", { reviewed: reviewedN, total: totalN, layer: nextUnreviewed }), kind: "muted" }
+    : anySuggestions ? { text: t("aiSummarySuggestions"), kind: "ok" }
+    : { text: t("aiSummaryClean"), kind: "ok" };
+
   const renderRow = (row: LayerRow, opts: { startHere?: boolean; blocked?: boolean; blockedBy?: string } = {}): React.JSX.Element => (
     <LayerReviewRow
       key={row.kind}
@@ -73,11 +104,13 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
       startHere={opts.startHere ?? false}
       blocked={opts.blocked ?? false}
       blockedBy={opts.blockedBy ?? ""}
+      generated={row.generated}
       stale={Boolean(staleReview[row.kind])}
       canApply={refinable(row.kind)}
       resetHint={applyResetHint(row.kind)}
       effort={effortFor(row.kind)}
       modelLabel={showModel ? modelLabelFor(row.kind) : ""}
+      showDetails={showDetails}
       autoRunning={autoRunning}
       onReview={onReview}
       onApply={onApply}
@@ -94,21 +127,45 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
     <div className="review-panel">
       <div className="review-head">
         <Icon name="sparkles" size={15} /> {t("aiReviewTitle")}
-        <span className="review-auto">
-          {autoRunning ? (
-            <>
-              <span className="review-auto-status muted">{t("aiAutoRunning")}{autoLabel ? ` · ${autoLabel}` : ""}</span>
-              <button className="review-btn stop" onClick={onStop}>{t("aiStop")}</button>
-            </>
-          ) : (
-            <>
-              <button className="review-btn auto" onClick={onAuto} title={t("aiAutoHint")}><Icon name="zap" size={13} /> {t("aiAuto")}</button>
-              <button className="review-btn" onClick={onSettings} title={t("settingsOpen")} aria-label={t("settingsOpen")}><Icon name="settings" size={14} /></button>
-            </>
-          )}
-        </span>
+        {!autoRunning && (
+          <span className="review-auto">
+            <button className="review-details-toggle muted" onClick={() => setShowDetails((v) => !v)} aria-pressed={showDetails}>
+              {showDetails ? t("aiHideDetails") : t("aiShowDetails")}
+            </button>
+            <button className="review-btn" onClick={onSettings} title={t("settingsOpen")} aria-label={t("settingsOpen")}><Icon name="settings" size={14} /></button>
+          </span>
+        )}
       </div>
       <p className="review-sub muted">{t("aiReviewSub")}</p>
+
+      {autoRunning ? (
+        <div className="review-running">
+          <span className="review-auto-status muted">{t("aiAutoRunning")}{autoLabel ? ` · ${autoLabel}` : ""}</span>
+          <button className="review-btn stop" onClick={onStop}>{t("aiStop")}</button>
+        </div>
+      ) : (
+        <div className="review-status">
+          <div className={`review-summary ${summary.kind}`}>{summary.text}</div>
+          {totalN > 0 && (
+            <div className="review-gauge" role="img" aria-label={t("aiGaugeLabel", { reviewed: reviewedN, total: totalN })} title={t("aiGaugeLabel", { reviewed: reviewedN, total: totalN })}>
+              {cleanN > 0 && <span className="rg-seg clean" style={{ flexGrow: cleanN }} />}
+              {suggLayersN > 0 && <span className="rg-seg sugg" style={{ flexGrow: suggLayersN }} />}
+              {concernLayersN > 0 && <span className="rg-seg concern" style={{ flexGrow: concernLayersN }} />}
+              {unreviewedN > 0 && <span className="rg-seg todo" style={{ flexGrow: unreviewedN }} />}
+            </div>
+          )}
+          {/* The one headline action: review every layer top-down (read-only). "Auto-fix all" — the
+              review-AND-regenerate loop that MUTATES the model — is a power tool, revealed under Advanced. */}
+          <div className="review-run">
+            <button className="review-runall" onClick={onReviewAll} title={t("aiRunAllHint")}>
+              <Icon name="sparkles" size={14} /> {t("aiRunAll")}
+            </button>
+            {showDetails && (
+              <button className="review-runauto" onClick={onAuto} title={t("aiAutoHint")}><Icon name="zap" size={13} /> {t("aiAuto")}</button>
+            )}
+          </div>
+        </div>
+      )}
 
       {holistic && (
         <div className="review-crosscut">
@@ -124,14 +181,91 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
         <summary>{t("aiHowTitle")}</summary>
         <p>{t("aiHowBody")}</p>
       </details>
-      {stageLayers.map((row, i) =>
-        renderRow(row, {
-          startHere: !autoRunning && startIdx >= 0 && i === startIdx,
-          blocked: !autoRunning && gateIdx >= 0 && i > gateIdx && (critique[row.kind]?.length ?? 0) > 0,
-          blockedBy: gateLabel,
-        }),
-      )}
+      {/* Stage layers are a compact roll-up: status + count only. The findings themselves are read and
+          acted on in context, on each layer's own stage — click a row to jump there. */}
+      {stageLayers.map((row, i) => (
+        <LayerRollupRow
+          key={row.kind}
+          row={row}
+          findings={critique[row.kind]}
+          isBusy={busy === row.kind}
+          active={autoLayer === row.kind}
+          startHere={!autoRunning && startIdx >= 0 && i === startIdx}
+          blocked={!autoRunning && gateIdx >= 0 && i > gateIdx && (critique[row.kind]?.length ?? 0) > 0}
+          blockedBy={gateLabel}
+          generated={row.generated}
+          stale={Boolean(staleReview[row.kind])}
+          showDetails={showDetails}
+          effort={effortFor(row.kind)}
+          modelLabel={showModel ? modelLabelFor(row.kind) : ""}
+          onOpen={onOpenLayer}
+          t={t}
+        />
+      ))}
     </div>
+  );
+}
+
+interface RollupProps {
+  row: LayerRow;
+  findings: CritiqueFinding[] | undefined;
+  isBusy: boolean;
+  active: boolean;
+  startHere: boolean;
+  blocked: boolean;
+  blockedBy: string;
+  generated: boolean;
+  stale: boolean;
+  showDetails: boolean;
+  effort: string;
+  modelLabel: string;
+  onOpen: (k: LayerKind) => void;
+  t: (k: string, opts?: Record<string, unknown>) => string;
+}
+
+// Compact per-layer roll-up for the launcher. Shows only status + finding count; the whole row is a
+// button that jumps to the layer's own stage, where the findings are read and acted on. Placeholder
+// (ungenerated) and upstream-blocked layers render dimmed and non-navigating.
+function LayerRollupRow({ row, findings, isBusy, active, startHere, blocked, blockedBy, generated, stale, showDetails, effort, modelLabel, onOpen, t }: RollupProps): React.JSX.Element {
+  if (!generated) {
+    return (
+      <div className="review-row rollup gated">
+        <span className="review-dot idle" aria-hidden>○</span>
+        <span className="review-label">{row.label}</span>
+        <span className="review-status muted">{t("aiNotGenerated")}</span>
+        <span className="review-blocked-hint muted" title={t("aiNotGeneratedHint", { layer: row.label })}>{t("aiGenerateFirst")}</span>
+      </div>
+    );
+  }
+
+  const reviewed = findings !== undefined;
+  const count = findings?.length ?? 0;
+  const open = count > 0;
+  const clean = reviewed && count === 0;
+  const showStale = stale && !reviewed;
+  const statusText = isBusy ? t("aiReviewBusy")
+    : open ? t("findingsCount", { count })
+    : clean ? t("aiReviewOk")
+    : showStale ? t("aiChangedUpstream")
+    : t("aiReviewIdle");
+  const dot = clean ? "clean" : open ? "warn" : showStale ? "stale" : "idle";
+  const glyph = clean ? "✓" : open ? "⚠" : showStale ? "↻" : "○";
+
+  return (
+    <button
+      className={`review-row rollup ${open ? "has-findings" : ""} ${active ? "auto-active" : ""} ${startHere ? "start-here" : ""} ${showStale ? "stale" : ""} ${blocked ? "blocked" : ""}`}
+      onClick={() => onOpen(row.kind)}
+      title={open ? t("aiOpenLayerHint", { layer: row.label }) : t("aiOpenLayerView", { layer: row.label })}
+    >
+      <span className={`review-dot ${dot}`} aria-hidden>{glyph}</span>
+      <span className="review-label">{row.label}</span>
+      {startHere && <span className="review-start" title={t("aiStartHereHint")}><Icon name="chevronDown" size={12} /> {t("aiStartHere")}</span>}
+      {showDetails && modelLabel && <span className="review-effort muted">{modelLabel}</span>}
+      {showDetails && <span className="review-effort muted">{effort}</span>}
+      {blocked && <span className="review-blocked-hint muted">{t("aiBlockedBy", { layer: blockedBy })}</span>}
+      <span className="review-status muted">{statusText}</span>
+      <Icon name="chevronRight" size={14} className="review-rollup-caret" />
+    </button>
   );
 }
 
@@ -146,11 +280,13 @@ interface RowProps {
   startHere: boolean;
   blocked: boolean;
   blockedBy: string;
+  generated: boolean;
   stale: boolean;
   canApply: boolean;
   resetHint: string | null;
   effort: string;
   modelLabel: string;
+  showDetails: boolean;
   autoRunning: boolean;
   onReview: (k: LayerKind) => void;
   onApply: (k: LayerKind, findings: CritiqueFinding[]) => Promise<boolean>;
@@ -162,7 +298,7 @@ interface RowProps {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, startHere, blocked, blockedBy, stale, canApply, resetHint, effort, modelLabel, autoRunning, onReview, onApply, onSelect, onIgnore, canFix, onFix, onRestoreIgnored, t }: RowProps): React.JSX.Element {
+function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy, active, startHere, blocked, blockedBy, generated, stale, canApply, resetHint, effort, modelLabel, showDetails, autoRunning, onReview, onApply, onSelect, onIgnore, canFix, onFix, onRestoreIgnored, t }: RowProps): React.JSX.Element {
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -226,6 +362,25 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
     if (ok) setApplied(chosen.length); // parent clears findings → the "applied" banner takes over
   }
 
+  // Provenance gate: this layer is still the live-mock placeholder (never generated). Reviewing it would
+  // spend real LLM budget critiquing deterministic filler, so collapse it to one dimmed line and offer no
+  // Review action — the user generates the layer on its own stage first. Takes precedence over the
+  // blocked/idle states (a clearer reason than "resolve X first").
+  if (!generated) {
+    return (
+      <div className="review-row gated">
+        <div className="review-row-head">
+          <span className="review-dot idle" aria-hidden>○</span>
+          <span className="review-label">{row.label}</span>
+          <span className="review-status muted">{t("aiNotGenerated")}</span>
+          <span className="review-actions">
+            <span className="review-blocked-hint muted" title={t("aiNotGeneratedHint", { layer: row.label })}>{t("aiGenerateFirst")}</span>
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   // A downstream layer whose upstream still has an open concern: collapse it to one dimmed line so the
   // list shrinks to what's actionable now. "Review anyway" expands it for anyone who wants to look ahead.
   if (blocked && !override && !active) {
@@ -252,19 +407,24 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
         </span>
         <span className="review-label">{row.label}</span>
         {startHere && <span className="review-start" title={t("aiStartHereHint")}><Icon name="chevronDown" size={12} /> {t("aiStartHere")}</span>}
-        {modelLabel && <span className="review-effort muted" title={t("settingsModel")}>{modelLabel}</span>}
-        <span className="review-effort muted" title={t("settingsEffort")}>{effort}</span>
+        {showDetails && modelLabel && <span className="review-effort muted" title={t("settingsModel")}>{modelLabel}</span>}
+        {showDetails && <span className="review-effort muted" title={t("settingsEffort")}>{effort}</span>}
         <span className="review-status muted">{statusText}</span>
-        <span className="review-actions">
-          <button className="review-btn" onClick={() => onReview(row.kind)} disabled={isBusy || applying || autoRunning}>
-            {reviewed || showApplied || showStale ? t("aiReviewAgain") : t("aiReviewGo")}
-          </button>
-          {open && canApply && (
-            <button className="review-btn refine" onClick={() => void applySelected()} disabled={isBusy || applying || autoRunning || selectedCount === 0}>
-              {applying ? t("aiApplying") : t("aiApplyN", { count: selectedCount })}
+        {/* Per-layer manual controls (Review this one layer / batch-Apply) are power tools — hidden by
+            default. The whole-model "Review all layers" button drives the common flow; single-layer review
+            also lives on the layer's own stage screen. Revealed under Advanced. */}
+        {showDetails && (
+          <span className="review-actions">
+            <button className="review-btn" onClick={() => onReview(row.kind)} disabled={isBusy || applying || autoRunning}>
+              {reviewed || showApplied || showStale ? t("aiReviewAgain") : t("aiReviewGo")}
             </button>
-          )}
-        </span>
+            {open && canApply && (
+              <button className="review-btn refine" onClick={() => void applySelected()} disabled={isBusy || applying || autoRunning || selectedCount === 0}>
+                {applying ? t("aiApplying") : t("aiApplyN", { count: selectedCount })}
+              </button>
+            )}
+          </span>
+        )}
       </div>
 
       {blocked && (
@@ -306,7 +466,7 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
             return (
               <li key={f.id} className={sel[f.id] ? "" : "deselected"}>
                 <div className="finding-top">
-                  {canApply && (
+                  {showDetails && canApply && (
                     <input
                       type="checkbox"
                       className="finding-check"
@@ -337,7 +497,7 @@ function LayerReviewRow({ row, findings, diff, reviewCount, ignoredCount, isBusy
                     ) : (
                       <>
                         <span className="review-fix">→ {sugg}{edited[f.id] !== undefined && edited[f.id] !== (f.suggestion ?? "") ? ` ${t("aiEdited")}` : ""}</span>
-                        {canApply && <button className="finding-amend" onClick={() => setEditing(f.id)} title={t("aiAmend")}>✎</button>}
+                        {showDetails && canApply && <button className="finding-amend" onClick={() => setEditing(f.id)} title={t("aiAmend")}>✎</button>}
                       </>
                     )}
                   </div>

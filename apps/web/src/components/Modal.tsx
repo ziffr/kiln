@@ -64,3 +64,23 @@ export function ConfirmDialog({ title, message, confirmLabel, cancelLabel, dange
     </Modal>
   );
 }
+
+// A confirm dialog carrying a single checkbox (e.g. "don't ask again"). Its checked state is reported to
+// onConfirm so the caller can persist it. Used for the stage-level review cost gate.
+export function CheckboxConfirmDialog({ title, message, note, checkboxLabel, confirmLabel, cancelLabel, onConfirm, onClose }: {
+  title: string; message: string; note?: string; checkboxLabel: string; confirmLabel: string; cancelLabel: string;
+  onConfirm: (checked: boolean) => void; onClose: () => void;
+}): JSX.Element {
+  const [checked, setChecked] = useState(false);
+  return (
+    <Modal title={title} onClose={onClose}
+      footer={<>
+        <button className="btn ghost" onClick={onClose}>{cancelLabel}</button>
+        <button className="btn primary" onClick={() => { onConfirm(checked); onClose(); }}>{confirmLabel}</button>
+      </>}>
+      <p className="modal-message">{message}</p>
+      {note && <p className="modal-note muted">{note}</p>}
+      <label className="modal-check"><input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} /> {checkboxLabel}</label>
+    </Modal>
+  );
+}

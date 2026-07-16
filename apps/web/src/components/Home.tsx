@@ -13,7 +13,7 @@ function fmtTokens(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
-export function Home({ stages, projectName, description, tokens, costUsd, version, onStart, onExample, onExportModel, onProjects, onSettings, onToggleSidebar, onPickStage, t }: {
+export function Home({ stages, projectName, description, tokens, costUsd, version, onStart, onExample, onExportModel, onProjects, onSettings, onToggleSidebar, onPickStage, onReviewModel, reviewTotal, reviewReviewed, reviewConcerns, t }: {
   stages: StageInfo[];
   projectName: string;
   description: string;
@@ -27,6 +27,10 @@ export function Home({ stages, projectName, description, tokens, costUsd, versio
   onSettings: () => void;
   onToggleSidebar: () => void;
   onPickStage: (s: StageId) => void;
+  onReviewModel: () => void;      // open the whole-model AI-review dashboard (the modal)
+  reviewTotal: number;           // reviewable (generated) layers
+  reviewReviewed: number;        // of those, how many have been reviewed at least once
+  reviewConcerns: number;        // open concern-level findings across reviewed layers
   t: T;
 }): React.JSX.Element {
   const modeling = stages.filter((s) => s.id !== "code");          // the nine modelled layers (excl. the code view)
@@ -110,6 +114,20 @@ export function Home({ stages, projectName, description, tokens, costUsd, versio
                 <b className={`mc-card-val${openFindings > 0 ? " warn" : ""}`}>{openFindings}</b>
                 <span className="mc-card-sub">{openFindings > 0 ? t("homeCardOpenSub", { count: findingLayers }) : t("homeCardOpenNone")}</span>
               </div>
+              {/* AI-review roll-up — the whole-model review lives here now (not a per-stage header button).
+                  Clicking opens the review dashboard. */}
+              <button className="mc-card mc-card-btn" onClick={onReviewModel} title={t("homeCardReviewHint")}>
+                <span className="mc-card-lab">{t("homeCardReview")}</span>
+                <b className={`mc-card-val${reviewConcerns > 0 ? " warn" : ""}`}>
+                  {reviewTotal === 0 ? "—" : <>{reviewReviewed}<span className="mc-card-unit">/{reviewTotal}</span></>}
+                </b>
+                <span className="mc-card-sub">
+                  {reviewTotal === 0 ? t("homeCardReviewEmpty")
+                    : reviewConcerns > 0 ? t("homeCardReviewConcerns", { count: reviewConcerns })
+                    : reviewReviewed > 0 ? t("homeCardReviewDone")
+                    : t("homeCardReviewNone")}
+                </span>
+              </button>
               <div className="mc-card">
                 <span className="mc-card-lab">{t("homeCardSession")}</span>
                 <b className="mc-card-val">${costUsd.toFixed(costUsd < 1 ? 2 : 2)}</b>
@@ -122,6 +140,7 @@ export function Home({ stages, projectName, description, tokens, costUsd, versio
               <button className="mc-btn primary" onClick={() => onPickStage(next.stage)}>
                 <Icon name={next.icon} size={15} />{next.label}
               </button>
+              <button className="mc-btn" onClick={onReviewModel}><Icon name="sparkles" size={15} />{t("homeActReview")}</button>
               <button className="mc-btn" onClick={() => onPickStage("code")}><Icon name="play" size={15} />{t("homeActViewApp")}</button>
               <button className="mc-btn" onClick={onExportModel}><Icon name="download" size={15} />{t("homeActExport")}</button>
               <button className="mc-btn" onClick={onProjects}><Icon name="folder" size={15} />{t("homeActProjects")}</button>

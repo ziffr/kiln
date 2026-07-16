@@ -22,3 +22,7 @@ workspaces/*/.kiln/
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Stray verification/design screenshots dumped at the repo root (real assets live under docs/assets/).
+# Root-anchored so it ignores only top-level PNGs, never docs/assets or any subdirectory.
+/*.png

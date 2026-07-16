@@ -5526,6 +5526,26 @@ for target in env[${JSON.stringify(model(cmd.aggregate))}].search([]):
 function buildToolSchemas(def) {
   return def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: agentToolParams(t) }));
 }
+function toOpenAiTools(schemas) {
+  return schemas.map((s) => ({ type: "function", function: { name: s.name, description: s.description, parameters: s.input_schema } }));
+}
+function toOpenAiMessages(messages, system) {
+  const out = [{ role: "system", content: system }];
+  for (const m of messages) {
+    if (m.role === "user" && typeof m.content === "string") {
+      out.push({ role: "user", content: m.content });
+    } else if (m.role === "user" && Array.isArray(m.content)) {
+      for (const part of m.content) {
+        if (part && part.type === "tool_result") {
+          out.push({ role: "tool", tool_call_id: part.tool_use_id, content: part.content });
+        }
+      }
+    } else if (m.role === "assistant") {
+      out.push(m.content);
+    }
+  }
+  return out;
+}
 function mockDispatch(tool, input) {
   switch (tool.kind) {
     case "command": {
@@ -6050,6 +6070,30 @@ function providerConfigured(id) {
 function configuredProviders() {
   return PROVIDERS.filter((p) => providerConfigured(p.id));
 }
+function resolveModelOption(req) {
+  const provider = providerById(req.provider) ?? providerById(DEFAULT_PROVIDER);
+  const wanted = req.model?.trim();
+  if (wanted) {
+    const inProvider = provider.models.find((m) => m.id === wanted);
+    if (inProvider) return inProvider;
+    const anywhere = req.provider ? void 0 : modelById(wanted);
+    if (anywhere) return anywhere;
+    if (provider.allowCustomModel) return { id: wanted, label: wanted, provider: provider.id, supportsEffort: true, inPerM: 0, outPerM: 0 };
+  }
+  return provider.models.find((m) => m.id === provider.defaultModel) ?? provider.models[0];
+}
+function resolveModel(body) {
+  if (body.provider && providerConfigured(body.provider)) {
+    const opt = resolveModelOption({ provider: body.provider, model: body.model });
+    if (providerConfigured(opt.provider)) return opt;
+  }
+  if (body.model) {
+    const found = modelById(body.model);
+    if (found && providerConfigured(found.provider)) return found;
+  }
+  const dp = configuredProviders()[0]?.id ?? DEFAULT_PROVIDER;
+  return resolveModelOption({ provider: dp });
+}
 var newUsage = () => ({ input: 0, output: 0, cacheRead: 0, cacheCreate: 0 });
 var round = (n, dp = 6) => Math.round(n * 10 ** dp) / 10 ** dp;
 function estCost(usage, model) {
@@ -6208,33 +6252,76 @@ async function handler2(req, res) {
   const agent = body.agentsDoc.agents.find((a) => slug(a.id) === wantId);
   const system = agent?.instructions?.trim() ? agent.instructions.trim() : defaultPlaybook(def);
   const task = (body.task ?? "").trim() || "Work toward your goal using the available tools and records.";
-  const model = anthropicModel(body.model);
-  const wantEffort = pickEffort(body.effort ?? def.effort);
+  const model = resolveModel(body);
+  const wantEffort = EFFORTS.includes(body.effort ?? "") ? body.effort : pickEffort(def.effort);
   const effort = model.supportsEffort ? wantEffort : void 0;
-  const tools = buildToolSchemas(def).map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
+  const schemas = buildToolSchemas(def);
   const usage = newUsage();
-  const nextTurn = async (messages) => {
-    const resp = await client.messages.create({
-      model: model.id,
-      max_tokens: 2048,
-      system,
-      tools,
-      messages,
-      ...effort ? { thinking: { type: "adaptive" }, output_config: { effort } } : {}
-    });
-    const u = resp.usage;
-    const turnUsage = { input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, cacheCreate: u.cache_creation_input_tokens ?? 0 };
-    const text = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-    const toolUses = resp.content.filter((b) => b.type === "tool_use").map((b) => ({ id: b.id, name: b.name, input: b.input ?? {} }));
-    return { text, toolUses, end: resp.stop_reason === "end_turn", usage: turnUsage, content: resp.content };
-  };
+  let nextTurn;
+  let provider;
+  if (model.provider === "anthropic") {
+    provider = providerLabel();
+    const tools = schemas.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
+    nextTurn = async (messages) => {
+      const resp = await client.messages.create({
+        model: model.id,
+        max_tokens: 2048,
+        system,
+        tools,
+        messages,
+        ...effort ? { thinking: { type: "adaptive" }, output_config: { effort } } : {}
+      });
+      const u = resp.usage;
+      const turnUsage = { input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, cacheCreate: u.cache_creation_input_tokens ?? 0 };
+      const text = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+      const toolUses = resp.content.filter((b) => b.type === "tool_use").map((b) => ({ id: b.id, name: b.name, input: b.input ?? {} }));
+      return { text, toolUses, end: resp.stop_reason === "end_turn", usage: turnUsage, content: resp.content };
+    };
+  } else {
+    const or = openrouterCfg();
+    const om = omnirouteCfg();
+    const cfg = model.provider === "openrouter" && or ? { ...or, label: "openrouter" } : model.provider === "omniroute" && om ? { ...om, label: "omniroute" } : null;
+    if (!cfg) return void res.status(500).json({ error: `engine "${model.provider}" is not configured on the server` });
+    provider = cfg.label;
+    const url = `${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`;
+    const tools = toOpenAiTools(schemas);
+    nextTurn = async (messages) => {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${cfg.apiKey}`, "HTTP-Referer": "https://kilnstudio.app", "X-Title": "Kiln Studio" },
+        body: JSON.stringify({
+          model: model.id,
+          max_tokens: 2048,
+          messages: toOpenAiMessages(messages, system),
+          tools,
+          ...effort ? { reasoning_effort: effort === "max" ? "high" : effort } : {}
+        })
+      });
+      if (!resp.ok) throw new Error(`${cfg.label} request failed (${resp.status}) for model "${model.id}": ${(await resp.text().catch(() => "")).slice(0, 500)}`);
+      const data = await resp.json();
+      const choice = data.choices?.[0];
+      const msg = choice?.message ?? {};
+      const toolUses = (msg.tool_calls ?? []).map((tc) => {
+        let input = {};
+        try {
+          input = JSON.parse(tc.function?.arguments || "{}");
+        } catch {
+          input = {};
+        }
+        return { id: tc.id, name: tc.function?.name ?? "", input };
+      });
+      const text = typeof msg.content === "string" ? msg.content.trim() : "";
+      const turnUsage = { input: data.usage?.prompt_tokens ?? 0, output: data.usage?.completion_tokens ?? 0, cacheRead: 0, cacheCreate: 0 };
+      const end = choice?.finish_reason !== "tool_calls" && !toolUses.length;
+      return { text, toolUses, end, usage: turnUsage, content: msg };
+    };
+  }
   const run = await runAgentLoop(def, task, nextTurn);
   usage.input = run.usage.input;
   usage.output = run.usage.output;
   usage.cacheRead = run.usage.cacheRead;
   usage.cacheCreate = run.usage.cacheCreate;
   const estCostUsd = estCost(usage, model);
-  const provider = providerLabel();
   const outUsage = { input: usage.input, output: usage.output };
   const trace = { system, task, steps: run.steps, finalText: run.finalText, model: model.id, provider, usage: outUsage, estCostUsd, stepCount: run.stepCount, at: Date.now() };
   res.status(200).json({ finalText: run.finalText, trace, usage: outUsage, estCostUsd, model: model.id, provider, sessionSpendUsd: estCostUsd });

@@ -26,6 +26,42 @@ export function buildToolSchemas(def: AgentDef): ToolSchema[] {
 }
 
 /**
+ * Translate the provider-neutral tool schemas into OpenAI `tools` — `[{type:"function", function:{name,
+ * description, parameters}}]`. Pure; mirrors the exported runtime's `runOpenAICompatible` tool shape.
+ */
+export function toOpenAiTools(schemas: ToolSchema[]): Array<Record<string, unknown>> {
+  return schemas.map((s) => ({ type: "function", function: { name: s.name, description: s.description, parameters: s.input_schema } }));
+}
+
+/**
+ * Translate the loop's Anthropic-ish running history into OpenAI chat-completions messages. Pure +
+ * isomorphic so both the local service and the hosted function share it. Rules:
+ *   · prepend a `{role:"system", content:system}` turn
+ *   · `{role:"user", content:string}` (the task)          → `{role:"user", content}`
+ *   · `{role:"assistant", content}`                        → the stored OpenAI assistant message as-is
+ *       (the OAI nextTurn stores `turn.content` = the OpenAI `message` object: content + optional tool_calls)
+ *   · `{role:"user", content:[{type:"tool_result", …}]}`   → one `{role:"tool", tool_call_id, content}` per result
+ */
+export function toOpenAiMessages(messages: LoopMessage[], system: string): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [{ role: "system", content: system }];
+  for (const m of messages) {
+    if (m.role === "user" && typeof m.content === "string") {
+      out.push({ role: "user", content: m.content });
+    } else if (m.role === "user" && Array.isArray(m.content)) {
+      for (const part of m.content as Array<{ type?: string; tool_use_id?: string; content?: unknown }>) {
+        if (part && part.type === "tool_result") {
+          out.push({ role: "tool", tool_call_id: part.tool_use_id, content: part.content });
+        }
+      }
+    } else if (m.role === "assistant") {
+      // The stored OpenAI assistant message object (content + optional tool_calls) — pass through as-is.
+      out.push(m.content as Record<string, unknown>);
+    }
+  }
+  return out;
+}
+
+/**
  * Simulate ONE tool call — a plausible result WITHOUT any network call. Every tool kind (command, notify,
  * email, slack, external, pdf/…) gets a realistic shape so the loop can proceed and the trace reads
  * naturally. The result never leaves the process; the loop flags each step `simulated: true`.

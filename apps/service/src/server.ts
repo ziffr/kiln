@@ -73,7 +73,7 @@ import {
 import { openAiCompatibleProvider, type OpenAiCompatConfig } from "./providers/openaiCompatible.ts";
 import { startRun, getRun, stopRun, runClientHtml } from "./run.ts";
 import { screenshotUrl, screenshotAvailable } from "./screenshot.ts";
-import { generateApp, projectAppModel, resolveAgentDefs, defaultPlaybook, buildToolSchemas, runAgentLoop, type LoopMessage, type LoopTurn } from "@kiln/codegen";
+import { generateApp, projectAppModel, resolveAgentDefs, defaultPlaybook, buildToolSchemas, toOpenAiMessages, toOpenAiTools, runAgentLoop, type LoopMessage, type LoopTurn, type NextTurn } from "@kiln/codegen";
 import { slug } from "@kiln/ir";
 import type { AgentsDoc } from "@kiln/compiler";
 import { deleteProject, listProjects, projectDir, saveProject, type StoredProject } from "./workspaces.ts";
@@ -925,10 +925,12 @@ const server = createServer(async (req, res) => {
     }
 
     // Test-this-agent: run a bounded agent loop with MOCK tool dispatch (no spine/vendor calls) so a user
-    // can see how an agent reasons over its tools. Native tool-use → Anthropic engine (like coach/vision).
-    // Returns a light run-trace (steps flagged simulated) + usage/cost. Nothing hits a real system.
+    // can see how an agent reasons over its tools. Native tool-use runs on the SAME engine configured for
+    // generation (Anthropic SDK, or an OpenAI-compatible gateway) — resolved from body.provider/model like
+    // the generation endpoints. Returns a light run-trace (steps flagged simulated) + usage/cost. Nothing
+    // hits a real system.
     if (req.method === "POST" && req.url === "/api/agent-run") {
-      if (!client) return send(res, 500, { error: "Test agent needs an Anthropic key (KILN_ANTHROPIC_API_KEY / KILN_LANGDOCK_API_KEY)." });
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
       const body = JSON.parse((await readBody(req)) || "{}") as {
         agentsDoc?: AgentsDoc;
         agentId?: string;
@@ -938,6 +940,7 @@ const server = createServer(async (req, res) => {
         comms?: unknown;
         workflows?: unknown;
         services?: unknown;
+        provider?: string;
         model?: string;
         effort?: string;
       };
@@ -952,29 +955,75 @@ const server = createServer(async (req, res) => {
       const system = agent?.instructions?.trim() ? agent.instructions.trim() : defaultPlaybook(def);
       const task = (body.task ?? "").trim() || "Work toward your goal using the available tools and records.";
 
-      // Native tool-use → an Anthropic model (coerce a gateway/custom id to one). Per-agent effort applies.
-      const model = anthropicModel(body.model);
+      // Same engine as generation: resolve {provider,model} from the request. Per-agent effort applies (gated
+      // on the model supporting it). Tool schemas are provider-neutral; each nextTurn maps them to its dialect.
+      const model = resolveModel(body);
       const wantEffort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : def.effort;
       const effort = model.supportsEffort && wantEffort ? wantEffort : undefined;
-      const tools = buildToolSchemas(def).map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema })) as Anthropic.Tool[];
+      const schemas = buildToolSchemas(def);
+
+      // Dispatch the model bridge by the resolved engine. Anthropic → native tool-use (best fidelity); an
+      // OpenAI-compatible gateway → a chat-completions tool-use loop sharing the pure message translation.
+      let nextTurn: NextTurn;
+      let providerLabel: string;
+      if (model.provider === "anthropic" && client) {
+        providerLabel = PROVIDER_LABEL;
+        const tools = schemas.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema })) as Anthropic.Tool[];
+        nextTurn = async (messages: LoopMessage[]): Promise<LoopTurn> => {
+          const res2 = await client.messages.create({
+            model: model.id,
+            max_tokens: 2048,
+            system,
+            tools,
+            messages: messages as Anthropic.MessageParam[],
+            ...(effort ? { thinking: { type: "adaptive" as const }, output_config: { effort } } : {}),
+          } as unknown as Anthropic.MessageCreateParamsNonStreaming);
+          const u = res2.usage;
+          const usage = { input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, cacheCreate: u.cache_creation_input_tokens ?? 0 };
+          const text = res2.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("").trim();
+          const toolUses = res2.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use").map((b) => ({ id: b.id, name: b.name, input: (b.input ?? {}) as Record<string, unknown> }));
+          return { text, toolUses, end: res2.stop_reason === "end_turn", usage, content: res2.content };
+        };
+      } else {
+        const cfg = model.provider === "openrouter" ? openrouterCfg : model.provider === "omniroute" ? omnirouteCfg : null;
+        if (!cfg) return send(res, 500, { error: `${NO_LLM} (configured engine "${model.provider}" is not available for agent runs)` });
+        providerLabel = cfg.label;
+        const url = `${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`;
+        const tools = toOpenAiTools(schemas);
+        const timeoutMs = Number(process.env.KILN_LLM_TIMEOUT_MS ?? 180000);
+        nextTurn = async (messages: LoopMessage[]): Promise<LoopTurn> => {
+          const resp = await fetch(url, {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${cfg.apiKey}`, ...cfg.headers },
+            body: JSON.stringify({
+              model: model.id,
+              max_tokens: 2048,
+              messages: toOpenAiMessages(messages, system),
+              tools,
+              ...(effort ? { reasoning_effort: effort === "max" ? "high" : effort } : {}),
+            }),
+            signal: AbortSignal.timeout(timeoutMs),
+          });
+          if (!resp.ok) {
+            const detail = await resp.text().catch(() => "");
+            throw new Error(`${cfg.label} request failed (${resp.status}) for model "${model.id}": ${detail.slice(0, 500)}`);
+          }
+          const data = (await resp.json()) as { choices?: Array<{ message?: { content?: unknown; tool_calls?: Array<{ id: string; function?: { name: string; arguments?: string } }> }; finish_reason?: string }>; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+          const choice = data.choices?.[0];
+          const msg = choice?.message ?? {};
+          const toolUses = (msg.tool_calls ?? []).map((tc) => {
+            let input: Record<string, unknown> = {};
+            try { input = JSON.parse(tc.function?.arguments || "{}") as Record<string, unknown>; } catch { input = {}; }
+            return { id: tc.id, name: tc.function?.name ?? "", input };
+          });
+          const text = typeof msg.content === "string" ? msg.content.trim() : "";
+          const usage = { input: data.usage?.prompt_tokens ?? 0, output: data.usage?.completion_tokens ?? 0, cacheRead: 0, cacheCreate: 0 };
+          const end = choice?.finish_reason !== "tool_calls" && !toolUses.length;
+          return { text, toolUses, end, usage, content: msg };
+        };
+      }
 
       const usageAcc: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
-      const nextTurn = async (messages: LoopMessage[]): Promise<LoopTurn> => {
-        const res2 = await client.messages.create({
-          model: model.id,
-          max_tokens: 2048,
-          system,
-          tools,
-          messages: messages as Anthropic.MessageParam[],
-          ...(effort ? { thinking: { type: "adaptive" as const }, output_config: { effort } } : {}),
-        } as unknown as Anthropic.MessageCreateParamsNonStreaming);
-        const u = res2.usage;
-        const usage = { input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, cacheCreate: u.cache_creation_input_tokens ?? 0 };
-        const text = res2.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("").trim();
-        const toolUses = res2.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use").map((b) => ({ id: b.id, name: b.name, input: (b.input ?? {}) as Record<string, unknown> }));
-        return { text, toolUses, end: res2.stop_reason === "end_turn", usage, content: res2.content };
-      };
-
       let run;
       try {
         run = await runAgentLoop(def, task, nextTurn);
@@ -986,8 +1035,8 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + usageAcc.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       const usage = { input: usageAcc.input, output: usageAcc.output };
-      const trace = { system, task, steps: run.steps, finalText: run.finalText, model: model.id, provider: PROVIDER_LABEL, usage, estCostUsd, stepCount: run.stepCount, at: Date.now() };
-      return send(res, 200, { finalText: run.finalText, trace, usage, estCostUsd, model: model.id, provider: PROVIDER_LABEL, sessionSpendUsd });
+      const trace = { system, task, steps: run.steps, finalText: run.finalText, model: model.id, provider: providerLabel, usage, estCostUsd, stepCount: run.stepCount, at: Date.now() };
+      return send(res, 200, { finalText: run.finalText, trace, usage, estCostUsd, model: model.id, provider: providerLabel, sessionSpendUsd });
     }
 
     if (req.method === "POST" && req.url === "/api/coach") {

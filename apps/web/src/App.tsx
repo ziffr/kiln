@@ -961,7 +961,7 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/agent-run`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ agentsDoc, agentId: testAgentId, task: agentTask, capabilities: activeDoc, domain: flowDoc, comms: active.comms ?? undefined, workflows: workflowsDoc, services: active.services ?? undefined, model: modelFor("agents"), effort: effortFor("agents") }),
+        body: JSON.stringify({ agentsDoc, agentId: testAgentId, task: agentTask, capabilities: activeDoc, domain: flowDoc, comms: active.comms ?? undefined, workflows: workflowsDoc, services: active.services ?? undefined, ...stageCfg("agents") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -2032,6 +2032,8 @@ export default function App(): React.JSX.Element {
               onRun={() => void runAgentTest()}
               busy={agentRunBusy}
               error={agentRunError}
+              engineLabel={catalog.find((p) => p.id === providerFor("agents"))?.label ?? providerFor("agents")}
+              modelLabel={(() => { const m = modelFor("agents"); return catalog.find((p) => p.id === providerFor("agents"))?.models.find((x) => x.id === m)?.label ?? m; })()}
               locale={i18n.language}
               onClose={() => setTestAgentId(null)}
               t={t}

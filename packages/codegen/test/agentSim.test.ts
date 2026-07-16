@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveAgentDefs, defaultPlaybook, agentToolParams, buildToolSchemas, mockDispatch, runAgentLoop, type LoopMessage, type LoopTurn } from "../src/index.ts";
+import { resolveAgentDefs, defaultPlaybook, agentToolParams, buildToolSchemas, mockDispatch, runAgentLoop, toOpenAiMessages, toOpenAiTools, type LoopMessage, type LoopTurn, type ToolSchema } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@kiln/compiler";
 import type { AgentTool } from "../src/agents.ts";
 
@@ -73,6 +73,50 @@ test("runAgentLoop runs a bounded, mock-dispatched trace: tool call then final t
   assert.equal(toolStep!.simulated, true, "tool step is flagged simulated");
   assert.equal(toolStep!.toolCall!.name, "qualify_lead");
   assert.ok(res.steps.some((s) => s.assistantText === "Done — lead L1 qualified."));
+});
+
+test("toOpenAiTools maps provider-neutral schemas to OpenAI function tools", () => {
+  const schemas: ToolSchema[] = [
+    { name: "qualify_lead", description: "Qualify a lead", input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
+    { name: "notify", description: "Notify a human", input_schema: { type: "object", properties: {} } },
+  ];
+  const tools = toOpenAiTools(schemas);
+  assert.equal(tools.length, 2);
+  assert.deepEqual(tools[0], { type: "function", function: { name: "qualify_lead", description: "Qualify a lead", parameters: schemas[0].input_schema } });
+  assert.equal((tools[1].function as { name: string }).name, "notify");
+});
+
+test("toOpenAiMessages prepends system, passes user + assistant through, and expands tool_result → role:tool", () => {
+  // The assistant message object the OAI nextTurn stores as `turn.content`.
+  const assistantMsg = { role: "assistant", content: "", tool_calls: [{ id: "call_1", type: "function", function: { name: "qualify_lead", arguments: "{\"id\":\"L1\"}" } }] };
+  const messages: LoopMessage[] = [
+    { role: "user", content: "Qualify the newest lead" },
+    { role: "assistant", content: assistantMsg },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "call_1", content: "{\"ok\":true}" }] },
+  ];
+  const out = toOpenAiMessages(messages, "You are a lead agent.");
+  // system prepended
+  assert.deepEqual(out[0], { role: "system", content: "You are a lead agent." });
+  // user string
+  assert.deepEqual(out[1], { role: "user", content: "Qualify the newest lead" });
+  // assistant object passed through as-is (with its tool_calls)
+  assert.equal(out[2], assistantMsg);
+  // tool_result expanded to an OpenAI role:tool message keyed by tool_call_id
+  assert.deepEqual(out[3], { role: "tool", tool_call_id: "call_1", content: "{\"ok\":true}" });
+  assert.equal(out.length, 4);
+});
+
+test("toOpenAiMessages expands each tool_result in a multi-result user turn into its own role:tool message", () => {
+  const messages: LoopMessage[] = [
+    { role: "user", content: [
+      { type: "tool_result", tool_use_id: "a", content: "1" },
+      { type: "tool_result", tool_use_id: "b", content: "2" },
+    ] },
+  ];
+  const out = toOpenAiMessages(messages, "sys");
+  assert.equal(out.length, 3); // system + 2 tool messages
+  assert.deepEqual(out[1], { role: "tool", tool_call_id: "a", content: "1" });
+  assert.deepEqual(out[2], { role: "tool", tool_call_id: "b", content: "2" });
 });
 
 test("runAgentLoop honours the step cap even if the model keeps calling tools", async () => {

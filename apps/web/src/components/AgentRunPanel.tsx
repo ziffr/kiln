@@ -55,7 +55,7 @@ function StepView({ step, t }: { step: RunStep; t: T }): React.JSX.Element {
 }
 
 export function AgentRunPanel({
-  agentName, trace, task, onTask, onRun, busy, error, locale, onClose, t,
+  agentName, trace, task, onTask, onRun, busy, error, engineLabel, modelLabel, locale, onClose, t,
 }: {
   agentName: string;
   trace?: RunTrace;
@@ -64,6 +64,9 @@ export function AgentRunPanel({
   onRun: () => void;
   busy: boolean;
   error?: string | null;
+  /** The engine (provider) + model the run will use — the SAME configured for generation (set in Settings). */
+  engineLabel?: string;
+  modelLabel?: string;
   locale: string;
   onClose: () => void;
   t: T;
@@ -95,6 +98,13 @@ export function AgentRunPanel({
       </header>
 
       <p className="ps-lead muted">{t("agentRunLead")}</p>
+
+      {engineLabel && (
+        <p className="run-engine muted" title={t("agentRunEngineHint")}>
+          <Icon name="settings" size={12} />
+          {t("agentRunEngine", { engine: engineLabel, model: modelLabel ?? "" })}
+        </p>
+      )}
 
       <div className="run-input">
         <label className="run-task-label" htmlFor="agent-run-task">{t("agentRunTask")}</label>

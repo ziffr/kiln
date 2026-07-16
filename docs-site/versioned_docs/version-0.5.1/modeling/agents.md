@@ -45,5 +45,11 @@ real systems.
 The last trace for each agent is kept with the project, so you can reopen the panel and see it again after
 navigating away or reloading.
 
-> **Needs an engine.** The test loop runs on the server-side Anthropic engine (the same key your other AI
-> steps use). It never runs in your browser, and the key never reaches it.
+**Runs on the same engine as generation.** The test loop uses the **same AI engine you configured for the
+rest of the model** — Anthropic, or an OpenAI-compatible gateway (OpenRouter / omniroute), using the keys
+set on the server. It defaults to the engine for the **Agents** stage and is configurable in
+**Settings → Engine** (globally, or per-stage for Agents). The panel shows which engine + model the run
+will use. It always runs **server-side** — nothing runs in your browser and no key ever reaches it.
+
+> **Needs an engine.** Any configured engine works. Tool dispatch stays mocked regardless of the engine —
+> the test never touches a real system.

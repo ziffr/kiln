@@ -93,6 +93,35 @@ export function configuredProviders(): ProviderCatalog[] {
   return PROVIDERS.filter((p) => providerConfigured(p.id));
 }
 
+/** Resolve a { provider, model } request → a concrete ModelOption (mirrors apps/service resolveModelOption). */
+export function resolveModelOption(req: { provider?: string; model?: string }): ModelOption {
+  const provider = providerById(req.provider) ?? providerById(DEFAULT_PROVIDER)!;
+  const wanted = req.model?.trim();
+  if (wanted) {
+    const inProvider = provider.models.find((m) => m.id === wanted);
+    if (inProvider) return inProvider;
+    const anywhere = req.provider ? undefined : modelById(wanted);
+    if (anywhere) return anywhere;
+    if (provider.allowCustomModel) return { id: wanted, label: wanted, provider: provider.id, supportsEffort: true, inPerM: 0, outPerM: 0 };
+  }
+  return provider.models.find((m) => m.id === provider.defaultModel) ?? provider.models[0];
+}
+
+/** Resolve a request's { provider, model } → a ModelOption, falling back to a *configured* provider so a
+ *  request never dead-ends (mirrors apps/service resolveModel). Used by the engine-aware endpoints. */
+export function resolveModel(body: { provider?: string; model?: string }): ModelOption {
+  if (body.provider && providerConfigured(body.provider as ProviderId)) {
+    const opt = resolveModelOption({ provider: body.provider, model: body.model });
+    if (providerConfigured(opt.provider)) return opt;
+  }
+  if (body.model) {
+    const found = modelById(body.model);
+    if (found && providerConfigured(found.provider)) return found;
+  }
+  const dp = configuredProviders()[0]?.id ?? DEFAULT_PROVIDER;
+  return resolveModelOption({ provider: dp });
+}
+
 export interface UsageAcc {
   input: number;
   output: number;

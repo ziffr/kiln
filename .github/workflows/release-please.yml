@@ -31,14 +31,15 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # When a release is cut, freeze the live ("Next") docs into a version matching the studio release, so
-  # docs versions stay in lockstep with studio versions. Only MINOR/MAJOR releases get a docs snapshot
-  # (patch releases ride the latest — a snapshot per patch would clutter the version dropdown without
-  # changing documented behaviour). The snapshot lands as a REVIEWED PR (docs-site is code-owned).
+  # When a release is cut, freeze the live ("Next") docs into a version matching the studio release, so the
+  # default docs version ALWAYS equals the app version — they move in lockstep. Fires on EVERY release
+  # (minor/major AND patch); `docs:` commits are non-bumping (see release-please-config.json), so this
+  # snapshot never triggers a release of its own and a docs-only fix stays independent of the app version.
+  # The snapshot lands as a REVIEWED PR (docs-site is code-owned).
   docs-version:
     name: snapshot docs for the release
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.patch == '0' }}
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

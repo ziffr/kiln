@@ -50,12 +50,14 @@ import { ReviewPanel } from "./components/ReviewPanel";
 import { Home } from "./components/Home";
 import { VersionsModal } from "./components/VersionsModal";
 import { ExamplesModal } from "./components/ExamplesModal";
+import { ProjectsModal } from "./components/ProjectsModal";
 import { findingFix } from "./findingFix";
 import { NarrativeInput } from "./components/NarrativeInput";
 import {
   loadProjects,
   saveProjects,
   newProject,
+  uid,
   NARRATIVE_TEMPLATE,
   type Project,
   type ProjectState,
@@ -324,6 +326,7 @@ export default function App(): React.JSX.Element {
   const agentFindings = useMemo(() => validateAgents(agentsDoc, activeDoc.capabilities.map((c) => c.id)), [agentsDoc, activeDoc]);
   const [agentsBusy, setAgentsBusy] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
+  const [showProjects, setShowProjects] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   // The welcome screen is the default landing so a newcomer gets oriented before the mid-pipeline map.
   const [showHome, setShowHome] = useState(true);
@@ -1141,22 +1144,42 @@ export default function App(): React.JSX.Element {
     setState((s) => ({ projects: [...s.projects, p], activeId: p.id }));
     navRoot(stage);
   }
-  function renameProject(): void {
-    setDialog({ kind: "input", title: t("rename"), label: t("renamePrompt"), initial: active.name, submitLabel: t("save"), onSubmit: (v) => { if (v.trim()) patchActive({ name: v.trim() }); } });
+  // Switch to a project (mirrors the sidebar dropdown: switch + re-root the current stage).
+  function openProject(id: string): void {
+    setState((s) => ({ ...s, activeId: id }));
+    navRoot(stage);
+  }
+  // All three take an explicit id so they work from the project manager (any project), not just the active one.
+  function renameProject(id: string): void {
+    const p = state.projects.find((x) => x.id === id);
+    if (!p) return;
+    setDialog({ kind: "input", title: t("rename"), label: t("renamePrompt"), initial: p.name, submitLabel: t("save"), onSubmit: (v) => {
+      if (v.trim()) setState((s) => ({ ...s, projects: s.projects.map((x) => (x.id === id ? { ...x, name: v.trim(), updatedAt: Date.now() } : x)) }));
+    } });
   }
   function editDescription(): void {
     setDialog({ kind: "input", title: t("descriptionHint"), label: t("descriptionPrompt"), initial: active.description ?? "", multiline: true, submitLabel: t("save"), onSubmit: (v) => patchActive({ description: v.trim() || undefined }) });
   }
-  function deleteProject(): void {
+  // Fork the WHOLE project (every layer) under a fresh id → "try a variant without touching the original".
+  function duplicateProject(id: string): void {
+    const src = state.projects.find((x) => x.id === id);
+    if (!src) return;
+    const copy: Project = { ...src, id: uid(), name: `${src.name} ${t("copySuffix")}`, updatedAt: Date.now() };
+    setState((s) => ({ projects: [...s.projects, copy], activeId: copy.id }));
+    setSelected(null);
+    if (serverUp) void serverSaveProject(copy);
+  }
+  function deleteProject(id: string): void {
     if (state.projects.length <= 1) return;
-    setDialog({ kind: "confirm", title: t("del"), message: `${t("deleteConfirm")} "${active.name}"`, confirmLabel: t("del"), danger: true, onConfirm: () => {
-      const removedId = active.id;
+    const p = state.projects.find((x) => x.id === id);
+    if (!p) return;
+    setDialog({ kind: "confirm", title: t("del"), message: `${t("deleteConfirm")} "${p.name}"`, confirmLabel: t("del"), danger: true, onConfirm: () => {
       setState((s) => {
-        const remaining = s.projects.filter((p) => p.id !== s.activeId);
-        return { projects: remaining, activeId: remaining[0].id };
+        const remaining = s.projects.filter((x) => x.id !== id);
+        return { projects: remaining, activeId: s.activeId === id ? remaining[0].id : s.activeId };
       });
       setSelected(null);
-      if (serverUp) void serverDeleteProject(removedId);
+      if (serverUp) void serverDeleteProject(id);
     } });
   }
 
@@ -1413,14 +1436,6 @@ export default function App(): React.JSX.Element {
           your own Anthropic key.
         </div>
       )}
-      {dialog?.kind === "input" && (
-        <InputDialog title={dialog.title} label={dialog.label} initial={dialog.initial} multiline={dialog.multiline}
-          submitLabel={dialog.submitLabel} cancelLabel={t("cancel")} onSubmit={dialog.onSubmit} onClose={() => setDialog(null)} />
-      )}
-      {dialog?.kind === "confirm" && (
-        <ConfirmDialog title={dialog.title} message={dialog.message} confirmLabel={dialog.confirmLabel} cancelLabel={t("cancel")}
-          danger={dialog.danger} onConfirm={dialog.onConfirm} onClose={() => setDialog(null)} />
-      )}
       {studioLocked && (
         <InputDialog title={t("studioLockTitle")} label={t("studioLockLabel")} placeholder={t("studioLockPlaceholder")} password
           submitLabel={t("save")} cancelLabel={t("cancel")}
@@ -1428,6 +1443,23 @@ export default function App(): React.JSX.Element {
           onClose={() => setStudioLocked(false)} />
       )}
       {showExamples && <ExamplesModal onPick={pickExample} onClose={() => setShowExamples(false)} t={t} />}
+      {showProjects && (
+        <ProjectsModal
+          projects={state.projects}
+          activeId={active.id}
+          locale={i18n.language}
+          serverUp={serverUp}
+          onOpen={openProject}
+          onNew={() => { setShowProjects(false); addProject(); }}
+          onAddExample={() => { setShowProjects(false); setShowExamples(true); }}
+          onRename={renameProject}
+          onDuplicate={duplicateProject}
+          onHistory={(id) => { openProject(id); setShowProjects(false); setShowVersions(true); }}
+          onDelete={deleteProject}
+          onClose={() => setShowProjects(false)}
+          t={t}
+        />
+      )}
       {showVersions && (
         <VersionsModal
           projectId={active.id}
@@ -1471,6 +1503,8 @@ export default function App(): React.JSX.Element {
           }}
           onReset={() => patchActive({ stages: {} })}
           onClose={() => setShowSettings(false)}
+          binding={active.binding}
+          onBindingChange={(b) => patchActive({ binding: b })}
           t={t}
         />
       )}
@@ -1544,38 +1578,27 @@ export default function App(): React.JSX.Element {
           </div>
         </button>
 
-        {/* One Project cluster: switch/create (top), then manage (rename/delete) + file save/load
-            (export/import the whole model.json) in a single tool row — so "open a project" and "save a
-            project" live together, instead of being split between this bar and the footer. */}
+        {/* One Project cluster: switch/create (top), then the project manager (open/rename/duplicate/
+            delete/examples/history) + file save/load (export/import the whole model.json) in a single tool
+            row — so "open a project" and "save a project" live together instead of being split. */}
         <div className="side-project">
-          <div className="projectbar">
-            <select
-              value={active.id}
-              onChange={(e) => {
-                setState((s) => ({ ...s, activeId: e.target.value }));
-                navRoot(stage);
-              }}
-            >
-              {state.projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-            <button onClick={addProject} title={t("newProject")} aria-label={t("newProject")}><Icon name="plus" /></button>
-          </div>
+          {/* Project identity + switcher in one control. It sits in the old dropdown's slot and keeps the
+              chevron, so it reads as "the project selector" — but it opens the manager, where switching and
+              every project action (new/rename/duplicate/delete/history/examples) now live. */}
+          <button className="project-switch" onClick={() => setShowProjects(true)} title={t("projectsSwitchHint")} aria-label={t("projectsOpen")} aria-haspopup="dialog">
+            <Icon name="folder" size={15} className="project-switch-folder" />
+            <span className="project-switch-name">{active.name}</span>
+            <Icon name="chevronDown" size={16} className="project-switch-caret" />
+          </button>
+          <button className="project-desc" onClick={editDescription} title={t("descriptionHint")}>
+            {active.description || <span className="muted">+ {t("addDescription")}</span>}
+          </button>
           <div className="project-tools">
-            <button onClick={() => setShowExamples(true)} title={t("examplesOpen")} aria-label={t("examplesOpen")}><Icon name="grid" size={15} /></button>
-            <button onClick={renameProject} title={t("rename")} aria-label={t("rename")}><Icon name="pencil" size={15} /></button>
-            <button onClick={deleteProject} disabled={state.projects.length <= 1} title={t("del")} aria-label={t("del")}><Icon name="trash" size={15} /></button>
             <span className="pt-spacer" />
-            {/* Version history is git-backed → only when a persistent workspace backend is reachable (SPEC-011). */}
-            {serverUp && <button onClick={() => setShowVersions(true)} title={t("versionsOpen")} aria-label={t("versionsOpen")}><Icon name="package" size={15} /></button>}
             <button onClick={() => modelFileRef.current?.click()} title={t("importModelHint")} aria-label={t("importModel")}><Icon name="upload" size={15} /></button>
             <button onClick={exportModel} title={t("exportModelHint")} aria-label={t("exportModel")}><Icon name="download" size={15} /></button>
             <input ref={modelFileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importModel(f); e.target.value = ""; }} />
           </div>
-          <button className="project-desc" onClick={editDescription} title={t("descriptionHint")}>
-            {active.description || <span className="muted">+ {t("addDescription")}</span>}
-          </button>
         </div>
 
         <StageRail stages={stages} active={showHome ? ("" as StageId) : stage} nextStep={stages.find((s) => s.id !== "code" && s.status !== "ready")?.id} onSelect={(s) => navRoot(s)} t={t} />
@@ -1925,6 +1948,16 @@ export default function App(): React.JSX.Element {
         )}
       </div>
       </div>
+      {/* setDialog-driven prompts render LAST so they stack above any open modal (e.g. rename/delete
+          launched from inside the project manager) — same .modal-overlay z-index, later DOM wins. */}
+      {dialog?.kind === "input" && (
+        <InputDialog title={dialog.title} label={dialog.label} initial={dialog.initial} multiline={dialog.multiline}
+          submitLabel={dialog.submitLabel} cancelLabel={t("cancel")} onSubmit={dialog.onSubmit} onClose={() => setDialog(null)} />
+      )}
+      {dialog?.kind === "confirm" && (
+        <ConfirmDialog title={dialog.title} message={dialog.message} confirmLabel={dialog.confirmLabel} cancelLabel={t("cancel")}
+          danger={dialog.danger} onConfirm={dialog.onConfirm} onClose={() => setDialog(null)} />
+      )}
     </div>
   );
 }

@@ -1039,8 +1039,20 @@ textarea {
 .side-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-sub { font-size: 11px; }
 .side-project { display: flex; flex-direction: column; gap: 5px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-.side .projectbar { flex-wrap: nowrap; padding: 0 6px; }
-.side .projectbar select { flex: 1; min-width: 0; }
+/* The project switcher/identity button — occupies the old dropdown's slot (full width + chevron) so it
+   reads as the project selector, but opens the manager. */
+.project-switch {
+  display: flex; align-items: center; gap: 8px; width: calc(100% - 12px); margin: 0 6px;
+  padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 600; color: var(--fg);
+  background: var(--card); border: 1px solid var(--edge); border-radius: 8px; cursor: pointer; text-align: left;
+  transition: border-color .12s ease, background .12s ease;
+}
+.project-switch:hover { border-color: var(--accent); background: var(--panel); }
+.project-switch-folder { color: var(--muted); flex: none; }
+.project-switch-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-switch-caret { color: var(--muted); flex: none; }
+.project-switch:hover .project-switch-caret,
+.project-switch:hover .project-switch-folder { color: var(--accent); }
 .project-tools { display: flex; align-items: center; gap: 3px; padding: 0 6px; }
 .project-tools .pt-spacer { flex: 1; }
 
@@ -1061,6 +1073,18 @@ textarea {
 .example-stats { font-size: 11px; font-variant-numeric: tabular-nums; margin-top: auto; }
 .example-go { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--accent); }
 @media (max-width: 560px) { .examples-grid { grid-template-columns: 1fr; } }
+
+/* Project manager — the example card reused, plus a per-card action row (rename / duplicate / delete). */
+.project-card { gap: 0; }
+.project-card.is-current { border-left-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-soft); }
+.project-card-open { display: flex; flex-direction: column; gap: 8px; flex: 1; text-align: left; background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; }
+.project-card-open:hover strong { color: var(--accent); }
+.project-card-actions { display: flex; align-items: center; gap: 4px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+.project-card-actions button { width: 30px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--muted); cursor: pointer; }
+.project-card-actions button svg { display: block; }
+.project-card-actions button:hover:not(:disabled) { background: var(--panel); color: var(--fg); border-color: var(--border); }
+.project-card-actions button:disabled { opacity: 0.4; cursor: default; }
+
 .project-tools button { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--muted); cursor: pointer; }
 .project-tools button svg { display: block; }
 .project-tools button:hover:not(:disabled) { background: var(--panel); color: var(--fg); border-color: var(--border); }
@@ -1338,6 +1362,11 @@ textarea {
 }
 .modal-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .modal-message { margin: 0; font-size: 14px; line-height: 1.55; color: var(--fg); }
+/* Search-in-modal (project manager filter) — icon + borderless input in one pill. */
+.modal-search { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; padding: 7px 11px; border: 1px solid var(--edge); border-radius: 8px; background: var(--bg); color: var(--muted); }
+.modal-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.modal-search input { flex: 1; min-width: 0; border: none; background: none; color: var(--fg); font: inherit; font-size: 14px; }
+.modal-search input:focus { outline: none; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 18px; }
 
 /* icon buttons keep their glyph centered */

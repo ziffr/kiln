@@ -116,7 +116,7 @@ Describe what the business does.
 -
 `;
 
-function uid(): string {
+export function uid(): string {
   return `p_${Math.floor(performance.now() * 1000).toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
 

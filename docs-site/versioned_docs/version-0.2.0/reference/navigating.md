@@ -10,5 +10,6 @@ title: Navigating the app
 - **Click-through** — most items navigate: a workflow step jumps to its action, a capability to its area,
   a finding to the thing it's about.
 - **Home** — click the flame (top-left) for the whole pipeline at a glance.
-- **Examples** — the grid icon (top-left, by the project name) opens the Examples picker: worked
-  businesses you can load and explore.
+- **Projects** — click the project name (top-left) to open the project manager: your businesses as cards
+  to switch between, rename, duplicate, delete, or view history, plus **Load an example** to add one of the
+  worked demo businesses, and **New** to start one.

@@ -92,12 +92,72 @@ export interface Project {
    *  generated id, so ignoring survives a regenerate that reissues ids. Filtered from badge counts + lists;
    *  restorable. (Renamed from the id-keyed `dismissedFindings`.) */
   ignoredFindings?: string[];
+  /** Prompt & Output studio (Part 3): the LAST generation + review raw output per stage, kept for
+   *  view-prompt → edit (session) → re-run → compare. Sidecar — NOT IR, ignored by codegen. */
+  observability?: Observability | null;
   updatedAt: number;
 }
 
 export interface CoachMsg {
   role: "user" | "assistant";
   content: string;
+}
+
+/** Shared metadata envelope for any captured LLM call (Prompt & Output studio + agent test-runs). Factored
+ *  so the generation/review records AND the agent run-traces carry the SAME provenance fields instead of
+ *  duplicating them. All optional → additive + safe to round-trip. */
+export interface LlmCallMeta {
+  /** when it was captured (epoch ms). */
+  at: number;
+  model?: string;
+  provider?: string;
+  /** token usage for the call (agent runs; generation records leave it unset). */
+  usage?: { input: number; output: number };
+  /** estimated USD for the call (agent runs). */
+  estCostUsd?: number;
+}
+
+/** One captured LLM output for the Prompt & Output studio (Part 3, observability). The LAST generation
+ *  and the LAST review per stage, kept so a user can re-run and compare to improve their prompt. This is an
+ *  INSPECTION artifact, never authored/derived IR (golden invariant #1) — additive + optional, so the
+ *  codegen exporter ignores it and nothing downstream breaks. */
+export interface LlmOutputRecord extends LlmCallMeta {
+  /** the model's output for the call: the structured result (pretty JSON) it returned. */
+  raw: string;
+  effort?: string | null;
+  /** whether a session prompt override was in effect for this call. */
+  overridden?: boolean;
+}
+/** Per-stage last outputs, keyed by call kind. Sidecar on the model — see ModelDoc.observability. */
+export type StageOutputs = { generate?: LlmOutputRecord; review?: LlmOutputRecord };
+
+/** One step of an agent test-run trace: an assistant turn's text, OR a (simulated) tool call + its result. */
+export interface RunStep {
+  assistantText?: string;
+  toolCall?: { name: string; input: Record<string, unknown> };
+  toolResult?: { output: unknown };
+  /** true when the tool was resolved + MOCK-dispatched (never a real call). */
+  simulated?: boolean;
+}
+/** A single "Test agent" run-trace (Part 2/3). Shares the LlmCallMeta envelope with LlmOutputRecord.
+ *  Sidecar/observability — NEVER IR (golden invariant #1); the codegen exporter ignores it. */
+export interface RunTrace extends LlmCallMeta {
+  /** the system prompt the loop actually used (authored instructions, else the default playbook). */
+  system: string;
+  task: string;
+  steps: RunStep[];
+  finalText: string;
+  /** number of model turns taken (bounded, mock dispatch). */
+  stepCount: number;
+}
+
+/** The unified observability sidecar: per-stage generation/review outputs AND per-agent last test-runs.
+ *  Additive + optional throughout so model.json round-trips and the exporter is unaffected. */
+export interface Observability {
+  /** Prompt & Output studio: last generation/review output per stage, keyed by stage id. */
+  stages?: Partial<Record<string, StageOutputs>>;
+  /** Test agent: the LAST run-trace per agent id. */
+  agentRuns?: Record<string, RunTrace>;
 }
 
 export interface ProjectState {

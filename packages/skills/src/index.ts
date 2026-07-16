@@ -59,6 +59,7 @@ export {
   CONTEXT_SCHEMA,
   CONTEXT_SYSTEM_PROMPT,
   CONTEXT_CRITIQUE_SCHEMA,
+  CONTEXT_CRITIQUE_SYSTEM_PROMPT,
   type ContextGenerationResult,
   type ContextCritiqueResult,
 } from "./contexts.ts";
@@ -120,6 +121,7 @@ export {
 export {
   critiqueLayer,
   buildCritiqueRequest,
+  critiqueSystemPrompt,
   critiqueToFeedback,
   diffCritique,
   concernsMatch,

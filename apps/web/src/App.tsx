@@ -22,6 +22,11 @@ import {
 } from "@kiln/compiler";
 import { validateAll, validateDomain, validateContexts, validateEvents, validatePolicies, validateRoles, validateWorkflows, validateAgents } from "@kiln/validation";
 import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGenerateEvents, mockGeneratePolicies, mockGenerateRoles, mockGenerateWorkflows, mockGenerateAgents, mockEnrichDomain, applyEnrichment, critiqueToFeedback, diffCritique, concernsMatch, parseFinding, resolveTarget, CRITIQUE_EFFORT, LAYER_TIER, type Tier, type LayerKind, type CritiqueFinding, type CritiqueDiff } from "@kiln/skills";
+// Prompt & Output studio: the generation + review system prompts, imported directly (@kiln/skills is
+// isomorphic/browser-safe — golden invariant #4), so the app can SHOW and session-tune the exact prompts.
+import { CAPABILITY_SYSTEM_PROMPT, CONTEXT_SYSTEM_PROMPT, DOMAIN_SYSTEM_PROMPT, EVENT_SYSTEM_PROMPT, POLICY_SYSTEM_PROMPT, ROLE_SYSTEM_PROMPT, WORKFLOW_SYSTEM_PROMPT, AGENT_SYSTEM_PROMPT, critiqueSystemPrompt } from "@kiln/skills";
+import { PromptStudio } from "./components/PromptStudio";
+import type { LlmOutputRecord } from "./projects";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
 import { EnrichPanel } from "./components/EnrichPanel";
@@ -107,6 +112,12 @@ const ANTHROPIC_TIER_MODEL: Record<Tier, string> = { heavy: "claude-opus-4-8", s
 const GEN_EFFORT_TIER: Record<Tier, string> = { heavy: "high", standard: "medium", light: "medium" };
 // polish/visual aren't modeling layers → treat them as standard (Sonnet) design passes.
 const stageTier = (stage: string): Tier => LAYER_TIER[stage as LayerKind] ?? "standard";
+
+// Pretty-print a captured LLM output for the Prompt & Output studio (Part 3). The structured doc/findings
+// the model returned IS its effective output; stringify defensively so a capture never throws.
+const safeStringify = (v: unknown): string => {
+  try { return typeof v === "string" ? v : JSON.stringify(v, null, 2); } catch { return String(v); }
+};
 
 // A partial model override — lets the auto-review loop feed just-refined docs into the next
 // Review/Refine without waiting for React's async state to flush (which would leave them stale).
@@ -227,6 +238,11 @@ export default function App(): React.JSX.Element {
   const [hovered, setHovered] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [studioLocked, setStudioLocked] = useState(false);
+  // Prompt & Output studio (on-demand). `showPromptStudio` opens the drawer for the active stage.
+  // `promptOverrides` are SESSION-ONLY edits (never persisted / never written to the stored .md) — keyed by
+  // stage → { generate?, review? }; sent as `promptOverride` only when the user has actually edited a prompt.
+  const [showPromptStudio, setShowPromptStudio] = useState(false);
+  const [promptOverrides, setPromptOverrides] = useState<Record<string, { generate?: string; review?: string }>>({});
   const [spend, setSpend] = useState<{
     estCostUsd: number;
     sessionSpendUsd: number;
@@ -478,12 +494,13 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/generate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ narrative: text, ...stageCfg("capabilities") }),
+        body: JSON.stringify({ narrative: text, ...stageCfg("capabilities"), ...genOverrideBody("capabilities") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       // A fresh capability set invalidates prior domain/areas/roles snapshots → back to the live mock.
       patchActive({ capabilities: data.doc as CapabilityDoc, provider: data.provider as string, domain: null, contexts: null, roles: null, workflows: null, agents: null });
+      recordGen("capabilities", data);
       applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -500,11 +517,12 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/domain`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("entities") }),
+        body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("entities"), ...genOverrideBody("entities") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ domain: data.doc });
+      recordGen("entities", data);
       applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -703,11 +721,12 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/contexts`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("areas") }),
+        body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("areas"), ...genOverrideBody("areas") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ contexts: data.doc as ContextsDoc });
+      recordGen("areas", data);
       applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -724,12 +743,13 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/events`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ domain: domainDoc, capabilities: activeDoc, ...stageCfg("behaviour") }),
+        body: JSON.stringify({ domain: domainDoc, capabilities: activeDoc, ...stageCfg("behaviour"), ...genOverrideBody("behaviour") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       // Fresh commands/events invalidate any prior reactions (they referenced old ids) → drop them.
       patchActive({ domain: { ...data.doc, policies: undefined } });
+      recordGen("behaviour", data);
       applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -746,11 +766,12 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/policies`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ domain: behaviourDoc, capabilities: activeDoc, ...stageCfg("automations") }),
+        body: JSON.stringify({ domain: behaviourDoc, capabilities: activeDoc, ...stageCfg("automations"), ...genOverrideBody("automations") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ domain: data.doc }); // merges policies onto the behaviour doc
+      recordGen("automations", data);
       applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -767,11 +788,12 @@ export default function App(): React.JSX.Element {
       const res = await fetch(`${SERVICE_URL}/api/roles`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("roles") }),
+        body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("roles"), ...genOverrideBody("roles") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ roles: data.doc });
+      recordGen("roles", data);
       applySpend(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -861,6 +883,53 @@ export default function App(): React.JSX.Element {
     return { provider: ["anthropic", "openrouter", "omniroute"].includes(prov) ? prov : "openai-compatible", model: modelFor("agents") };
   };
 
+  // ── Prompt & Output studio ──────────────────────────────────────────────────────────────────────
+  // The DEFAULT generation system prompt per stage (the exact string @kiln/skills sends). The review
+  // prompt is the generic per-layer critic (critiqueSystemPrompt) — every stage's Second opinion, incl.
+  // Areas, routes through /api/critique, so that's the prompt actually used.
+  const GEN_PROMPT: Partial<Record<StageId, string>> = {
+    capabilities: CAPABILITY_SYSTEM_PROMPT, areas: CONTEXT_SYSTEM_PROMPT, entities: DOMAIN_SYSTEM_PROMPT,
+    behaviour: EVENT_SYSTEM_PROMPT, automations: POLICY_SYSTEM_PROMPT, roles: ROLE_SYSTEM_PROMPT,
+    workflows: WORKFLOW_SYSTEM_PROMPT, agents: AGENT_SYSTEM_PROMPT,
+  };
+  const reviewPromptFor = (stage: StageId): string | undefined => {
+    const lk = REVIEW_KIND[stage];
+    return lk ? critiqueSystemPrompt(lk) : undefined;
+  };
+  // A stage's session override for a call kind, trimmed & only when it actually DIFFERS from the default
+  // (so an untouched or reset-to-default textarea sends nothing → the stored prompt stays the fallback).
+  const effectiveOverride = (stage: StageId, kind: "generate" | "review"): string | undefined => {
+    const edited = promptOverrides[stage]?.[kind];
+    if (typeof edited !== "string") return undefined;
+    const def = kind === "generate" ? GEN_PROMPT[stage] : reviewPromptFor(stage);
+    return edited.trim() && edited !== (def ?? "") ? edited : undefined;
+  };
+  // Spread into a generation request body — adds `promptOverride` only when the user edited the gen prompt.
+  const genOverrideBody = (stage: StageId): { promptOverride?: string } => {
+    const o = effectiveOverride(stage, "generate");
+    return o ? { promptOverride: o } : {};
+  };
+  const setPromptOverride = (stage: StageId, kind: "generate" | "review", value: string): void =>
+    setPromptOverrides((m) => ({ ...m, [stage]: { ...m[stage], [kind]: value } }));
+  const resetPromptOverride = (stage: StageId, kind: "generate" | "review"): void =>
+    setPromptOverrides((m) => { const s = { ...m[stage] }; delete s[kind]; return { ...m, [stage]: s }; });
+
+  // Capture the LAST raw output per stage+kind (Part 3, observability). Sidecar on the project — persisted
+  // to localStorage AND the model.json round-trip, but never treated as IR (golden invariant #1).
+  const recordOutput = (stage: StageId, kind: "generate" | "review", raw: string, meta: { model?: string; effort?: string | null; provider?: string }, overridden: boolean): void => {
+    const rec: LlmOutputRecord = { raw, at: Date.now(), model: meta.model, effort: meta.effort ?? null, provider: meta.provider, overridden };
+    setState((s) => ({
+      ...s,
+      projects: s.projects.map((p) =>
+        p.id === s.activeId
+          ? { ...p, observability: { ...(p.observability ?? {}), stages: { ...(p.observability?.stages ?? {}), [stage]: { ...(p.observability?.stages?.[stage] ?? {}), [kind]: rec } } }, updatedAt: Date.now() }
+          : p),
+    }));
+  };
+  // Record a generation result (the structured doc the model returned = its effective output).
+  const recordGen = (stage: StageId, data: { doc?: unknown; model?: string; effort?: string | null; provider?: string }): void =>
+    recordOutput(stage, "generate", safeStringify(data.doc), data, Boolean(effectiveOverride(stage, "generate")));
+
   const reviewBody = (layer: LayerKind, ov: ModelOverride) => ({
     layer,
     capabilities: activeDoc,
@@ -870,6 +939,7 @@ export default function App(): React.JSX.Element {
     workflows: ov.workflows ?? workflowsDoc,
     agents: ov.agents ?? agentsDoc,
     ...reviewCfg(layer),
+    ...(effectiveOverride(layer as StageId, "review") ? { promptOverride: effectiveOverride(layer as StageId, "review") } : {}),
     // Concerns the human already accepted on this layer → the critic is told not to raise them again.
     accepted: (active.ignoredFindings ?? [])
       .filter((k) => k.startsWith(`ai|${layer}|`))
@@ -922,6 +992,7 @@ export default function App(): React.JSX.Element {
       setReviewCount((c) => ({ ...c, [layer]: (c[layer] ?? 0) + 1 }));
       setCritique((prev) => ({ ...prev, [layer]: findings }));
       setStaleReview((s) => { if (!s[layer]) return s; const n = { ...s }; delete n[layer]; return n; }); // reviewed → no longer "changed upstream"
+      recordOutput(layer as StageId, "review", safeStringify(data.findings ?? findings), data, Boolean(effectiveOverride(layer as StageId, "review")));
       applySpend(data);
       return findings;
     } catch (e) {
@@ -1142,10 +1213,11 @@ export default function App(): React.JSX.Element {
   async function generateWorkflowsModel(): Promise<void> {
     setWorkflowsBusy(true); setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/workflows`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ domain: behaviourDoc, ...stageCfg("workflows") }) });
+      const res = await fetch(`${SERVICE_URL}/api/workflows`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ domain: behaviourDoc, ...stageCfg("workflows"), ...genOverrideBody("workflows") }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ workflows: data.doc });
+      recordGen("workflows", data);
       applySpend(data);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setWorkflowsBusy(false); }
   }
@@ -1186,10 +1258,11 @@ export default function App(): React.JSX.Element {
   async function generateAgentsModel(): Promise<void> {
     setAgentsBusy(true); setError(null);
     try {
-      const res = await fetch(`${SERVICE_URL}/api/agents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("agents") }) });
+      const res = await fetch(`${SERVICE_URL}/api/agents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capabilities: activeDoc, ...stageCfg("agents"), ...genOverrideBody("agents") }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       patchActive({ agents: data.doc });
+      recordGen("agents", data);
       applySpend(data);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setAgentsBusy(false); }
   }
@@ -1852,6 +1925,17 @@ export default function App(): React.JSX.Element {
                   </button>
                 );
               })()}
+              {/* On-demand: view / session-tune the prompts behind this stage + inspect the last output. */}
+              {(GEN_PROMPT[stage] || REVIEW_KIND[stage]) && (
+                <button
+                  className={`btn ghost${showPromptStudio ? " active" : ""}`}
+                  aria-pressed={showPromptStudio}
+                  title={t("promptStudioHint")}
+                  onClick={() => setShowPromptStudio((v) => !v)}
+                >
+                  <Icon name="code" />{t("promptStudio")}
+                </button>
+              )}
             </div>
           </div>
 
@@ -1865,6 +1949,26 @@ export default function App(): React.JSX.Element {
               t={t}
             />
           )}
+
+          {/* Prompt & Output studio — on-demand drawer: view the generation + review prompts, session-tune
+              them (never persisted), and inspect the last captured output per kind. */}
+          {showPromptStudio && (GEN_PROMPT[stage] || REVIEW_KIND[stage]) && (
+            <PromptStudio
+              stageLabel={activeStage.label}
+              genPrompt={GEN_PROMPT[stage]}
+              reviewPrompt={reviewPromptFor(stage)}
+              genOverride={promptOverrides[stage]?.generate}
+              reviewOverride={promptOverrides[stage]?.review}
+              onEdit={(kind: "generate" | "review", value: string) => setPromptOverride(stage, kind, value)}
+              onReset={(kind: "generate" | "review") => resetPromptOverride(stage, kind)}
+              lastGen={active.observability?.stages?.[stage]?.generate}
+              lastReview={active.observability?.stages?.[stage]?.review}
+              locale={i18n.language}
+              onClose={() => setShowPromptStudio(false)}
+              t={t}
+            />
+          )}
+
 
           {error && (
             <div className="err-banner" role="alert">

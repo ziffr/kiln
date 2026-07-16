@@ -167,14 +167,24 @@ export function openAiCompatibleProvider(
  * catalog model ids are globally unique, so we look the provider up by id. `client` is the Anthropic client
  * (from requireClient) used only for Anthropic models; gateway models ignore it and use their own key.
  */
-export function makeProvider(client: Anthropic | null, modelId: string, effort: string, supportsEffort: boolean, usage: UsageAcc): LlmProvider {
+export function makeProvider(client: Anthropic | null, modelId: string, effort: string, supportsEffort: boolean, usage: UsageAcc, promptOverride?: string): LlmProvider {
   const provider = modelById(modelId)?.provider ?? "anthropic";
   const or = openrouterCfg();
   const om = omnirouteCfg();
-  if (provider === "openrouter" && or) return openAiCompatibleProvider({ ...or, label: "openrouter" }, modelId, effort, supportsEffort, usage);
-  if (provider === "omniroute" && om) return openAiCompatibleProvider({ ...om, label: "omniroute" }, modelId, effort, supportsEffort, usage);
-  if (client) return anthropicOnlyProvider(client, modelId, effort, supportsEffort, usage);
-  throw new Error(`engine "${provider}" is not configured on the server`);
+  let base: LlmProvider;
+  if (provider === "openrouter" && or) base = openAiCompatibleProvider({ ...or, label: "openrouter" }, modelId, effort, supportsEffort, usage);
+  else if (provider === "omniroute" && om) base = openAiCompatibleProvider({ ...om, label: "omniroute" }, modelId, effort, supportsEffort, usage);
+  else if (client) base = anthropicOnlyProvider(client, modelId, effort, supportsEffort, usage);
+  else throw new Error(`engine "${provider}" is not configured on the server`);
+  return withPromptOverride(base, promptOverride);
+}
+
+/** Swap a provider's system prompt for a session-only override (Prompt & Output studio). Correctness is
+ *  unaffected; the override only defeats the ephemeral prompt-cache read for that one call. Empty → no-op. */
+export function withPromptOverride(provider: LlmProvider, override?: string): LlmProvider {
+  const system = typeof override === "string" ? override.trim() : "";
+  if (!system) return provider;
+  return { name: provider.name, complete: (req: LlmRequest) => provider.complete({ ...req, system }) };
 }
 /** Back-compat alias: handlers import `anthropicProvider`; it now dispatches by the model's provider. */
 export const anthropicProvider = makeProvider;

@@ -59,6 +59,10 @@ jobs:
           npm ci
           npm run docusaurus docs:version "$VERSION"
           cd ..
+          # docs:version only adds the snapshot to the version dropdown — it does NOT change the default.
+          # Bump lastVersion to the just-released version so it's served at the docs ROOT (the default),
+          # keeping docs versions in lockstep with studio releases.
+          sed -i -E "s/(lastVersion: )\"[0-9]+\.[0-9]+\.[0-9]+\"/\1\"$VERSION\"/" docs-site/docusaurus.config.js
           if git diff --quiet; then
             echo "No docs changes to snapshot (already versioned?)."; exit 0
           fi
@@ -66,8 +70,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
-          git add docs-site/versioned_docs docs-site/versioned_sidebars docs-site/versions.json
-          git commit -m "docs: snapshot v$VERSION"
+          git add docs-site/versioned_docs docs-site/versioned_sidebars docs-site/versions.json docs-site/docusaurus.config.js
+          git commit -m "docs: snapshot v$VERSION + make it the default"
           git push origin "$branch"
           gh pr create --base main --head "$branch" \
             --title "docs: snapshot v$VERSION" \

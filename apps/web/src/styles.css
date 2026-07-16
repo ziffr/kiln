@@ -506,6 +506,16 @@ textarea {
 .review-row.start-here { background: color-mix(in srgb, var(--accent-2) 7%, transparent); border-radius: 6px; box-shadow: inset 2px 0 0 var(--accent-2); }
 .review-row.blocked { opacity: 0.62; }
 .review-row.blocked .review-row-head { padding: 2px 0; }
+/* Compact launcher roll-up: the whole row is a button that opens the layer's stage. */
+.review-row.rollup { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; border-top: 1px solid var(--panel-2); padding: 8px 2px; font: inherit; color: var(--fg); cursor: pointer; }
+.review-row.rollup:hover:not(.gated) { background: var(--panel-2); }
+.review-row.rollup.gated { opacity: 0.55; cursor: default; }
+.review-row.rollup .review-status { margin-left: auto; }
+.review-row.rollup .review-blocked-hint { margin-left: auto; }
+.review-row.rollup .review-blocked-hint + .review-status { margin-left: 8px; }
+.review-rollup-caret { color: var(--muted); flex: none; }
+.review-row.rollup.has-findings .review-rollup-caret { color: var(--accent); }
+.review-row.rollup.gated .review-rollup-caret { display: none; }
 /* Placeholder (not-yet-generated) layer — dimmed like a blocked row, no Review action. */
 .review-row.gated { opacity: 0.55; }
 .review-row.gated .review-row-head { padding: 2px 0; }

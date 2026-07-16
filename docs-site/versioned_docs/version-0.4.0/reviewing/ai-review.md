@@ -18,22 +18,26 @@ There are two ways in:
 
 ## The loop
 
-The AI Review dashboard is a **closure dashboard**. It opens with a **one-line summary** of what to do
-next (where to start, or "all reviewed — looks clean"), a thin **progress gauge** showing how many
-layers are reviewed and how many are flagged, and one headline action:
+The AI Review dashboard is a **launcher and status board**, not a place to edit findings. It opens with
+a **one-line summary** of what to do next (where to start, or "all reviewed — looks clean"), a thin
+**progress gauge** showing how many layers are reviewed and how many are flagged, and one headline action:
 
 1. **Review all layers** → runs every reviewer top-to-bottom, read-only — a second opinion on the whole
-   model that never changes it. Each layer then shows its **findings**, each with a severity (a *concern*
-   vs. a subjective *suggestion*), a message, and a concrete suggestion.
-2. For each finding, choose how to close it:
-   - **Fix** — apply the suggestion (see [Fixing concerns](fixing-concerns));
-   - **Ignore** — accept it for good (see [Ignoring concerns](ignoring-concerns)).
+   model that never changes it. Each layer's row then shows a **status and finding count**.
+2. **Click a flagged layer** → the dashboard jumps you to that layer's own stage, where its findings are
+   listed in context (next to the map/entities they're about). There you close each one:
+   - **Fix** — apply the AI's suggestion;
+   - **Ignore** — accept it for good (see [Ignoring concerns](ignoring-concerns));
+   - or click the finding to jump to the element and edit it yourself.
 
-Everything else is a power tool, tucked behind the **Advanced** toggle: reviewing (or re-reviewing) a
-**single layer**, the per-layer model/effort labels, and **Auto-fix all** — a review-*and-regenerate*
-loop that drives every flagged layer to clean but **changes your model** (see
-[Progress & loops](progress-and-loops)). For a quick single-layer check you can also use the **AI review**
-button on that layer's own stage.
+Findings live on the stages, not in the dashboard — so there's one place for each thing, in context. The
+one exception is the **cross-cutting** section at the top, whose findings span the whole model and belong
+to no single stage; those stay in the dashboard.
+
+Everything else is a power tool, tucked behind the **Advanced** toggle: per-layer model/effort labels and
+**Auto-fix all** — a review-*and-regenerate* loop that drives every flagged layer to clean but **changes
+your model** (see [Progress & loops](progress-and-loops)). For a single-layer check without the dashboard,
+each stage also has its own **AI review** button.
 
 :::info It's advisory, and it doesn't converge to zero
 The AI reviewer is calibrated to *always find something* — a few subjective suggestions is a fine place to

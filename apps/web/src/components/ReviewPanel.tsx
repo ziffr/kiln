@@ -39,11 +39,12 @@ interface Props {
   onReviewAll: () => void;
   onAuto: () => void;
   onStop: () => void;
+  onOpenLayer: (k: LayerKind) => void; // jump to a layer's own stage to read/act on its findings
   onSettings: () => void;
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, applyResetHint, onSelect, onIgnore, canFix, onFix, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onReviewAll, onAuto, onStop, onSettings, t }: Props): React.JSX.Element {
+export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount, busy, refinable, effortFor, modelLabelFor, showModel, onReview, onApply, applyResetHint, onSelect, onIgnore, canFix, onFix, ignoredCount, onRestoreIgnored, autoRunning, autoLayer, onReviewAll, onAuto, onStop, onOpenLayer, onSettings, t }: Props): React.JSX.Element {
   const autoLabel = autoLayer ? layers.find((l) => l.kind === autoLayer)?.label ?? autoLayer : "";
   // Progressive disclosure: the per-row technical chrome (which model / effort each layer runs at) is off
   // by default — it only matters to someone tuning engines in Settings. Off keeps the panel readable for
@@ -180,14 +181,91 @@ export function ReviewPanel({ layers, critique, staleReview, diffs, reviewCount,
         <summary>{t("aiHowTitle")}</summary>
         <p>{t("aiHowBody")}</p>
       </details>
-      {stageLayers.map((row, i) =>
-        renderRow(row, {
-          startHere: !autoRunning && startIdx >= 0 && i === startIdx,
-          blocked: !autoRunning && gateIdx >= 0 && i > gateIdx && (critique[row.kind]?.length ?? 0) > 0,
-          blockedBy: gateLabel,
-        }),
-      )}
+      {/* Stage layers are a compact roll-up: status + count only. The findings themselves are read and
+          acted on in context, on each layer's own stage — click a row to jump there. */}
+      {stageLayers.map((row, i) => (
+        <LayerRollupRow
+          key={row.kind}
+          row={row}
+          findings={critique[row.kind]}
+          isBusy={busy === row.kind}
+          active={autoLayer === row.kind}
+          startHere={!autoRunning && startIdx >= 0 && i === startIdx}
+          blocked={!autoRunning && gateIdx >= 0 && i > gateIdx && (critique[row.kind]?.length ?? 0) > 0}
+          blockedBy={gateLabel}
+          generated={row.generated}
+          stale={Boolean(staleReview[row.kind])}
+          showDetails={showDetails}
+          effort={effortFor(row.kind)}
+          modelLabel={showModel ? modelLabelFor(row.kind) : ""}
+          onOpen={onOpenLayer}
+          t={t}
+        />
+      ))}
     </div>
+  );
+}
+
+interface RollupProps {
+  row: LayerRow;
+  findings: CritiqueFinding[] | undefined;
+  isBusy: boolean;
+  active: boolean;
+  startHere: boolean;
+  blocked: boolean;
+  blockedBy: string;
+  generated: boolean;
+  stale: boolean;
+  showDetails: boolean;
+  effort: string;
+  modelLabel: string;
+  onOpen: (k: LayerKind) => void;
+  t: (k: string, opts?: Record<string, unknown>) => string;
+}
+
+// Compact per-layer roll-up for the launcher. Shows only status + finding count; the whole row is a
+// button that jumps to the layer's own stage, where the findings are read and acted on. Placeholder
+// (ungenerated) and upstream-blocked layers render dimmed and non-navigating.
+function LayerRollupRow({ row, findings, isBusy, active, startHere, blocked, blockedBy, generated, stale, showDetails, effort, modelLabel, onOpen, t }: RollupProps): React.JSX.Element {
+  if (!generated) {
+    return (
+      <div className="review-row rollup gated">
+        <span className="review-dot idle" aria-hidden>○</span>
+        <span className="review-label">{row.label}</span>
+        <span className="review-status muted">{t("aiNotGenerated")}</span>
+        <span className="review-blocked-hint muted" title={t("aiNotGeneratedHint", { layer: row.label })}>{t("aiGenerateFirst")}</span>
+      </div>
+    );
+  }
+
+  const reviewed = findings !== undefined;
+  const count = findings?.length ?? 0;
+  const open = count > 0;
+  const clean = reviewed && count === 0;
+  const showStale = stale && !reviewed;
+  const statusText = isBusy ? t("aiReviewBusy")
+    : open ? t("findingsCount", { count })
+    : clean ? t("aiReviewOk")
+    : showStale ? t("aiChangedUpstream")
+    : t("aiReviewIdle");
+  const dot = clean ? "clean" : open ? "warn" : showStale ? "stale" : "idle";
+  const glyph = clean ? "✓" : open ? "⚠" : showStale ? "↻" : "○";
+
+  return (
+    <button
+      className={`review-row rollup ${open ? "has-findings" : ""} ${active ? "auto-active" : ""} ${startHere ? "start-here" : ""} ${showStale ? "stale" : ""} ${blocked ? "blocked" : ""}`}
+      onClick={() => onOpen(row.kind)}
+      title={open ? t("aiOpenLayerHint", { layer: row.label }) : t("aiOpenLayerView", { layer: row.label })}
+    >
+      <span className={`review-dot ${dot}`} aria-hidden>{glyph}</span>
+      <span className="review-label">{row.label}</span>
+      {startHere && <span className="review-start" title={t("aiStartHereHint")}><Icon name="chevronDown" size={12} /> {t("aiStartHere")}</span>}
+      {showDetails && modelLabel && <span className="review-effort muted">{modelLabel}</span>}
+      {showDetails && <span className="review-effort muted">{effort}</span>}
+      {blocked && <span className="review-blocked-hint muted">{t("aiBlockedBy", { layer: blockedBy })}</span>}
+      <span className="review-status muted">{statusText}</span>
+      <Icon name="chevronRight" size={14} className="review-rollup-caret" />
+    </button>
   );
 }
 

@@ -1661,6 +1661,7 @@ export default function App(): React.JSX.Element {
                 onReviewAll={() => void reviewAll()}
                 onAuto={() => void autoReview()}
                 onStop={() => { autoStopRef.current = true; }}
+                onOpenLayer={(k) => { setShowReview(false); navTo(k as StageId); }}
                 t={t}
               />
             </div>
@@ -1873,12 +1874,18 @@ export default function App(): React.JSX.Element {
                       <ul className="findings cap-findings critique-inline">
                         <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("aiReviewTitle")}</li>
                         {crit.length === 0 && <li className="muted">{t("aiReviewOk")}</li>}
-                        {crit.map((f) => (
-                          <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)} title={f.target ? t("findingGoHint") : undefined}>
-                            <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {humanizeMsg(f.message)}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
-                            {layerKind && <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); ignoreCritFinding(layerKind, f); }}><Icon name="x" size={13} /></button>}
-                          </li>
-                        ))}
+                        {crit.map((f) => {
+                          const fix = layerKind ? resolveFix(layerKind, f) : null;
+                          return (
+                            <li key={f.id} className={f.target ? "clickable" : ""} onClick={() => f.target && selectFinding(f)} onMouseEnter={() => f.target && setHovered(findingTargetId(f))} onMouseLeave={() => setHovered(null)} title={f.target ? t("findingGoHint") : undefined}>
+                              <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {humanizeMsg(f.message)}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
+                              {fix && layerKind && (
+                                <button className="fi-action" title={t("aiSurgicalFixHint")} onClick={(e) => { e.stopPropagation(); fix(); setCritique((c) => ({ ...c, [layerKind]: (c[layerKind] ?? []).filter((x) => x.id !== f.id) })); }}><Icon name="zap" size={11} /> {t("aiSurgicalFix")}</button>
+                              )}
+                              {layerKind && <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); ignoreCritFinding(layerKind, f); }}><Icon name="x" size={13} /></button>}
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                     {ignoredHere.length > 0 && (

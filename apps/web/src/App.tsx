@@ -1767,21 +1767,21 @@ export default function App(): React.JSX.Element {
               <h2>{activeStage.label}</h2>
               <p className="stage-desc muted">{t(`stageDesc_${stage}`)}</p>
             </div>
-            {/* Grouped by intent: manual "add" (structural) and "enrich" (AI-adds) on the left, then
-                the primary "generate", then a stage-scoped "AI review" of THIS layer (feeding the inline
-                issues panel below). The whole-model review dashboard now lives on Home, not a global
-                header button. Auto is folded into Enrich (Apply = apply all). */}
+            {/* Ordered to match the pipeline the user works through, left→right: manual "add" (structural)
+                first, then the AI arc — Generate → Enrich (optional add-ons) → Second opinion (a stage-scoped
+                review of THIS layer, feeding the inline issues panel below). The whole-model dashboard lives
+                on Home, not a global header button. */}
             <div className="stage-actions">
               {stage === "capabilities" && <button className="btn ghost" onClick={addCapability}><Icon name="plus" />{t("addCap")}</button>}
               {stage === "areas" && <button className="btn ghost" onClick={addArea}><Icon name="plus" />{t("addArea")}</button>}
-              {(["entities", "capabilities", "roles", "agents"] as const).includes(stage as never) && (
-                <button className="btn ghost" onClick={() => (stage === "entities" ? runEnrichGrounded() : runLayerEnrich(stage as EnrichLayer))} title={t("enrichHint")}>
-                  <Icon name="sparkles" />{t("enrich")}
-                </button>
-              )}
               {stageGen[stage] && (
                 <button className="btn primary" onClick={stageGen[stage]!.run} disabled={stageGen[stage]!.busy}>
                   <Icon name="sparkles" />{stageGen[stage]!.busy ? t("generating") : stageGen[stage]!.label}
+                </button>
+              )}
+              {(["entities", "capabilities", "roles", "agents"] as const).includes(stage as never) && (
+                <button className="btn ghost" onClick={() => (stage === "entities" ? runEnrichGrounded() : runLayerEnrich(stage as EnrichLayer))} title={t("enrichHint")}>
+                  <Icon name="sparkles" />{t("enrich")}
                 </button>
               )}
               {REVIEW_KIND[stage] && (() => {

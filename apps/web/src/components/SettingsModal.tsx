@@ -47,7 +47,7 @@ type Tab = "ai" | "deploy" | "general";
 
 export function SettingsModal(props: Props): React.JSX.Element {
   const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, language, languages, onSetLanguage, t } = props;
-  const [tab, setTab] = useState<Tab>("ai");
+  const [tab, setTab] = useState<Tab>("general");
   const providerOf = (id: string): ProviderOpt | undefined => providers.find((p) => p.id === id);
   const providerLabel = (id: string): string => providerOf(id)?.label ?? id;
   const modelLabel = (providerId: string, modelId: string): string => providerOf(providerId)?.models.find((m) => m.id === modelId)?.label ?? modelId;
@@ -62,9 +62,9 @@ export function SettingsModal(props: Props): React.JSX.Element {
   const [expanded, setExpanded] = useState(hasOverrides);
 
   const tabs: { id: Tab; label: string }[] = [
+    { id: "general", label: t("settingsTabGeneral") },
     { id: "ai", label: t("settingsTabAi") },
     { id: "deploy", label: t("settingsTabDeploy") },
-    { id: "general", label: t("settingsTabGeneral") },
   ];
 
   return (

@@ -67,9 +67,11 @@ export function NarrativeInput({
   const { t } = useTranslation();
   const hasNarrative = narrative.trim().length > 0 && narrative.trim() !== NARRATIVE_TEMPLATE.trim();
 
-  // Phase: resume an in-progress interview, else review a described business, else compose from scratch.
+  // Phase: land on the summary/review whenever there's a described business to mirror back (the natural
+  // home of this stage). Only drop into a bare compose box when there's truly nothing understood yet.
+  // The interview is one click away ("Continue the conversation") and its transcript is preserved.
   const [phase, setPhase] = useState<"compose" | "review" | "interview">(
-    transcript.length ? "interview" : hasNarrative ? "review" : "compose",
+    hasNarrative || summary.trim() ? "review" : transcript.length ? "interview" : "compose",
   );
   const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
@@ -213,7 +215,10 @@ export function NarrativeInput({
             <div className="nd-understanding">
               <p className="nd-eyebrow">{t("understandingLabel")}</p>
               <div className="nd-meter"><i style={{ width: `${barPct}%` }} /></div>
-              <p className="nd-meter-cap muted">{t(`understandLevel_${level}`)} · {t("openQuestionsN", { count: q })}</p>
+              <div className="nd-meter-cap muted">
+                <span>{t(`understandLevel_${level}`)}</span>
+                <span>{t("openQuestionsN", { count: q })}</span>
+              </div>
               <div className="nd-questions">
                 {openQuestions.map((question, i) => (
                   <span className="nd-question" key={i}>{question}</span>
@@ -224,13 +229,13 @@ export function NarrativeInput({
           {errLine}
 
           <div className="nd-review-actions">
-            <button className="btn primary" disabled={busy} onClick={toInterview}>{t("continueConversation")} →</button>
+            <button className="btn ghost" disabled={busy} onClick={() => { setRaw(""); setPhase("compose"); }}>{t("redescribe")}</button>
             {q === 0 && summary.trim() && (
               <button className="btn ghost" disabled={busy} onClick={() => void understand(narrative, false)}>
                 {busy ? t("composeUnderstanding") : t("whatsMissing")}
               </button>
             )}
-            <button className="btn ghost" disabled={busy} onClick={() => { setRaw(""); setPhase("compose"); }}>{t("redescribe")}</button>
+            <button className="btn primary" disabled={busy} onClick={toInterview}>{t("continueConversation")} →</button>
           </div>
 
           <button className="nd-quiet-link" onClick={() => setShowEditor((v) => !v)}>{t("editDirectly")}</button>

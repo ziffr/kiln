@@ -233,7 +233,6 @@ export default function App(): React.JSX.Element {
   // Cumulative tokens this page-session (the per-call `usage` above is only the latest call). Feeds the
   // Home usage KPI; cost uses the server's running `sessionSpendUsd`. Both reset on reload (ballpark).
   const [sessionTokens, setSessionTokens] = useState(0);
-  const [summaryBusy, setSummaryBusy] = useState(false);
   const applySpend = (data: { estCostUsd: number; sessionSpendUsd: number; usage: { input: number; output: number } }): void => {
     setSpend({ estCostUsd: data.estCostUsd, sessionSpendUsd: data.sessionSpendUsd, usage: data.usage });
     setSessionTokens((n) => n + (data.usage?.input ?? 0) + (data.usage?.output ?? 0));
@@ -822,7 +821,6 @@ export default function App(): React.JSX.Element {
     const p = active;
     if (!p || p.homeSummary || !hasRealNarrative(p.narrative) || summaryTried.current.has(p.id)) return;
     summaryTried.current.add(p.id);
-    setSummaryBusy(true);
     void fetch(`${SERVICE_URL}/api/summary`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -832,8 +830,7 @@ export default function App(): React.JSX.Element {
       .then((data: { summary?: string; estCostUsd: number; sessionSpendUsd: number; usage: { input: number; output: number } } | null) => {
         if (data?.summary) { patchActive({ homeSummary: data.summary }); applySpend(data); }
       })
-      .catch(() => {/* offline / no key → keep the description fallback */})
-      .finally(() => setSummaryBusy(false));
+      .catch(() => {/* offline / no key → keep the description fallback */});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHome, active?.id, active?.homeSummary, active?.narrative]);
   // The engine default baked into the EXPORTED agents runtime (.env.example): the provider + model the
@@ -1659,19 +1656,15 @@ export default function App(): React.JSX.Element {
           <Home
             stages={stages}
             projectName={active.name}
-            summary={active.homeSummary || active.description || ""}
-            summaryLoading={summaryBusy}
-            counts={{
-              capabilities: activeDoc.capabilities.length,
-              entities: domainDoc.aggregates.length,
-              roles: rolesDoc.roles.length,
-              workflows: workflowsDoc.workflows.length,
-            }}
+            description={active.description || ""}
             tokens={sessionTokens}
             costUsd={spend?.sessionSpendUsd ?? 0}
+            version={__APP_VERSION__}
             onStart={() => navRoot("narrative")}
             onExample={() => { setShowHome(false); setShowExamples(true); }}
-            docsUrl={DOCS_URL}
+            onExportModel={() => exportProject(active.id)}
+            onProjects={() => setShowProjects(true)}
+            onSettings={() => setShowSettings(true)}
             onToggleSidebar={() => setSidebarOpen((v) => !v)}
             onPickStage={(s) => navRoot(s)}
             t={t}

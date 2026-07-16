@@ -819,10 +819,18 @@ export default function App(): React.JSX.Element {
     if (adaptive && providerFor(stage) === "anthropic") return GEN_EFFORT_TIER[stageTier(stage)];
     return active.effort;
   };
-  const critiqueEffortFor = (layer: LayerKind): string => effortFor(layer, true);
   // The full {model, effort, provider} a request should send for a stage. Spread into the body.
   const stageCfg = (stage: string, review = false): { model: string; effort: string; provider: string } => ({ model: modelFor(stage), effort: effortFor(stage, review), provider: providerFor(stage) });
-  const supportsEffortFor = (stage: string): boolean => MODELS.find((m) => m.id === modelFor(stage))?.supportsEffort ?? true;
+  // The reviewer (Second-opinion) engine. Default: match the layer's own model at critique effort. When a
+  // reviewer override is set (project.reviewer.provider), ALL reviews route to that provider/model/effort —
+  // enabling a different model to judge the output (e.g. Anthropic reviewing an OpenRouter model).
+  const reviewCfg = (layer: LayerKind): { model: string; effort: string; provider: string } => {
+    const r = active.reviewer;
+    const p = r?.provider ? catalog.find((x) => x.id === r.provider) : undefined;
+    if (!p) return stageCfg(layer, true); // no override / provider gone → match the layer
+    const model = r!.model && (p.models.some((m) => m.id === r!.model) || p.allowCustomModel) ? r!.model : (p.defaultModel ?? p.models[0]?.id ?? modelFor(layer));
+    return { provider: p.id, model, effort: r!.effort ?? "high" };
+  };
 
   // Home greeting: one warm plain-language summary of the business, generated once per project and cached
   // (invalidated when the narrative changes). Fired lazily on the home screen; on failure (e.g. no key on
@@ -861,7 +869,7 @@ export default function App(): React.JSX.Element {
     roles: ov.roles ?? rolesDoc,
     workflows: ov.workflows ?? workflowsDoc,
     agents: ov.agents ?? agentsDoc,
-    ...stageCfg(layer, true),
+    ...reviewCfg(layer),
     // Concerns the human already accepted on this layer → the critic is told not to raise them again.
     accepted: (active.ignoredFindings ?? [])
       .filter((k) => k.startsWith(`ai|${layer}|`))
@@ -1619,6 +1627,8 @@ export default function App(): React.JSX.Element {
           onSetAdaptive={(v) => patchActive({ adaptiveModel: v })}
           autoReviewAfterGen={autoReviewAfterGen}
           onSetAutoReview={(v) => patchActive({ autoReviewAfterGen: v })}
+          reviewer={active.reviewer ?? {}}
+          onSetReviewer={(field, value) => patchActive({ reviewer: { ...(active.reviewer ?? {}), [field]: value || undefined } })}
           docsUrl="https://docs.kilnstudio.app/reference/choosing-an-engine"
           stages={[...reviewLayers.map((r) => ({ key: r.kind as string, label: r.label, description: t(`stageDesc_${r.kind}`) })),
             { key: "polish", label: t("polishLayout"), description: t("stageDesc_polish") },
@@ -1672,9 +1682,9 @@ export default function App(): React.JSX.Element {
                 reviewCount={reviewCount}
                 busy={reviewBusy}
                 refinable={(k) => k !== "capabilities" && k !== "holistic"}
-                effortFor={(k) => (supportsEffortFor(k) ? critiqueEffortFor(k) : "—")}
-                modelLabelFor={(k) => MODELS.find((m) => m.id === modelFor(k))?.label ?? modelFor(k)}
-                showModel={Object.keys(active.stages ?? {}).length > 0}
+                effortFor={(k) => { const c = reviewCfg(k); const m = catalog.find((p) => p.id === c.provider)?.models.find((x) => x.id === c.model); return (m?.supportsEffort ?? true) ? c.effort : "—"; }}
+                modelLabelFor={(k) => { const c = reviewCfg(k); return catalog.find((p) => p.id === c.provider)?.models.find((x) => x.id === c.model)?.label ?? c.model; }}
+                showModel={Object.keys(active.stages ?? {}).length > 0 || Boolean(active.reviewer?.provider)}
                 onReview={(k) => void reviewLayer(k)}
                 onApply={(k, fs) => refineLayer(k, fs).then((r) => r !== null)}
                 applyResetHint={applyResetHint}

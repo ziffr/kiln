@@ -27,6 +27,9 @@ interface Props {
   /** When on, generating a layer auto-runs the read-only Second opinion on it. */
   autoReviewAfterGen: boolean;
   onSetAutoReview: (v: boolean) => void;
+  /** Reviewer (Second-opinion) engine override. Empty provider = match the layer being reviewed. */
+  reviewer: { provider?: string; model?: string; effort?: string };
+  onSetReviewer: (field: "provider" | "model" | "effort", value: string) => void;
   /** Deep link to the docs page explaining engines/models/stages. */
   docsUrl?: string;
   stages: StageRow[];
@@ -49,7 +52,7 @@ interface Props {
 type Tab = "ai" | "deploy" | "general";
 
 export function SettingsModal(props: Props): React.JSX.Element {
-  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, autoReviewAfterGen, onSetAutoReview, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, language, languages, onSetLanguage, t } = props;
+  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, autoReviewAfterGen, onSetAutoReview, reviewer, onSetReviewer, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, language, languages, onSetLanguage, t } = props;
   const [tab, setTab] = useState<Tab>("general");
   const providerOf = (id: string): ProviderOpt | undefined => providers.find((p) => p.id === id);
   const providerLabel = (id: string): string => providerOf(id)?.label ?? id;
@@ -59,6 +62,10 @@ export function SettingsModal(props: Props): React.JSX.Element {
   const dprov = providerOf(defaultEngine);
   const defKnown = dprov?.models.some((m) => m.id === defaultModel) ?? false;
   const defHasEffort = modelHasEffort(defaultEngine, defaultModel);
+  // Reviewer-engine picker state (empty provider = match the layer being reviewed).
+  const rprov = providerOf(reviewer.provider ?? "");
+  const rKnown = rprov?.models.some((m) => m.id === reviewer.model) ?? false;
+  const rHasEffort = reviewer.model ? modelHasEffort(reviewer.provider ?? "", reviewer.model) : true;
   const adaptiveApplies = defaultEngine === "anthropic"; // adaptive tiers only fire on Anthropic stages
 
   const hasOverrides = Object.keys(overrides).length > 0;
@@ -182,6 +189,53 @@ export function SettingsModal(props: Props): React.JSX.Element {
               engines; Anthropic stages follow the tiers. Any per-stage override below still wins.
             </p>
           )}
+
+          {/* ---- Reviewer (Second-opinion) engine ---- */}
+          <h3 className="settings-h">Reviewer</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Which engine runs the <strong>Second opinion</strong>. Default: the model that generated each layer,
+            at higher effort. Override it to have one model <em>judge</em> another — e.g. Anthropic reviewing an
+            OpenRouter model's output (a fresh, independent model catches more).
+          </p>
+          <table className="settings-table">
+            <tbody>
+              <tr>
+                <td>Engine</td>
+                <td>
+                  <select value={reviewer.provider ?? ""} onChange={(e) => onSetReviewer("provider", e.target.value)}>
+                    <option value="">Same as the layer being reviewed (default)</option>
+                    {providers.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                  </select>
+                </td>
+              </tr>
+              {reviewer.provider && (
+                <>
+                  <tr>
+                    <td>Model</td>
+                    <td>
+                      <select value={rKnown ? reviewer.model : "__custom__"} onChange={(e) => onSetReviewer("model", e.target.value === "__custom__" ? "" : e.target.value)}>
+                        {rprov?.models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                        {rprov?.allowCustomModel && <option value="__custom__">Custom model id…</option>}
+                      </select>
+                      {rprov?.allowCustomModel && (
+                        <input type="text" value={rKnown ? "" : (reviewer.model ?? "")} placeholder="e.g. openai/gpt-5-mini" onChange={(e) => onSetReviewer("model", e.target.value)} style={{ marginLeft: 8, minWidth: 220 }} />
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Effort</td>
+                    <td>
+                      {rHasEffort ? (
+                        <select value={reviewer.effort ?? "high"} onChange={(e) => onSetReviewer("effort", e.target.value)}>
+                          {efforts.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
+                        </select>
+                      ) : <span className="muted">— (this model has no effort control)</span>}
+                    </td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
 
           {/* ---- Per-stage overrides (progressive disclosure) ---- */}
           <h3 className="settings-h" style={{ display: "flex", alignItems: "center", gap: 10 }}>

@@ -22,6 +22,11 @@ automatically"** makes each **Generate** run the review on that layer as soon as
 in the stage's issues panel). It's scoped to the layer you generated — generating resets the layers below
 it to placeholders, so there's nothing valid to review below yet.
 
+**Who reviews.** By default the Second opinion uses the same model that generated each layer (at higher
+effort). Under **Settings → AI engine → Reviewer** you can point it at a *different* engine — the
+**LLM-as-judge** pattern: e.g. have **Anthropic** review layers you generated on **OpenRouter**. A fresh,
+independent (often stronger) model tends to catch more than the one that wrote the model.
+
 ## The loop
 
 The Second-opinion dashboard is a **launcher and status board**, not a place to edit findings. It opens with

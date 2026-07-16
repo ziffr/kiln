@@ -74,6 +74,10 @@ export interface Project {
    *  layer only — generating resets the layers below to placeholders, so there's nothing valid below to
    *  review right after. */
   autoReviewAfterGen?: boolean;
+  /** Reviewer (Second-opinion) engine override. Absent / no `provider` = the reviewer matches whatever
+   *  model generated each layer, at critique effort (default). Set a provider to have ONE model judge the
+   *  others — the LLM-as-judge pattern (e.g. Anthropic Opus reviewing an OpenRouter model's output). */
+  reviewer?: { provider?: string; model?: string; effort?: string };
   /** @deprecated superseded by adaptive tiers + per-stage `stages`. Left for back-compat; no longer read. */
   tierModels?: { light: string; standard: string; heavy: string };
   /** per-project interview override (tone/depth/domain); empty → global default. */

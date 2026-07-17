@@ -1531,6 +1531,33 @@ textarea {
 .agent-review-btn:not(:disabled) { color: var(--accent-2); }
 /* per-agent prompt-critique findings reuse the inline critique surface; a touch of separation above. */
 .agent-prompt-findings { margin: 2px 0 0; }
+/* Apply a finding: quiet until wanted — the finding's TEXT is the thing to read, not the button. Unlike
+   .fi-dismiss it stays visible (it's the primary action on a finding, and hover-only would hide it from
+   touch + keyboard), but it sits in --muted until hover/focus. */
+.fi-apply {
+  flex: none; align-self: center; padding: 2px 8px; border: 1px solid var(--edge); border-radius: 999px;
+  background: var(--panel-2); color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.fi-apply:hover:not(:disabled), .fi-apply:focus-visible:not(:disabled) { border-color: var(--accent-2); color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 10%, transparent); }
+.fi-apply:disabled { opacity: .5; cursor: default; }
+.fi-apply-all { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.agent-prompt-findings .findings-head { display: flex; align-items: center; gap: 5px; }
+
+/* The human gate: the proposed edit, as a diff, with accept/reject. Reuses the run-compare diff spans
+   (.rc-diff/.rc-ins/.rc-del) so a diff reads the same everywhere in the Studio. */
+.agent-revision { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; padding: 10px; border: 1px solid var(--edge); border-left: 2px solid var(--accent-2); border-radius: 8px; background: var(--panel-2); }
+.agent-revision-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.agent-revision-title { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--fg); }
+.agent-revision-title svg { color: var(--accent-2); }
+.agent-revision-legend { display: inline-flex; gap: 5px; font-size: 10px; }
+.agent-revision-legend > span { padding: 1px 6px; border-radius: 999px; }
+.agent-revision-lead, .agent-revision-same { margin: 0; font-size: 12px; line-height: 1.5; }
+.agent-revision-note { margin: 0; font-size: 12px; line-height: 1.5; color: var(--fg); }
+.agent-revision-warn { display: flex; align-items: flex-start; gap: 5px; margin: 0; padding: 6px 8px; border-radius: 6px; background: var(--warn-bg); color: var(--warn-fg); font-size: 11.5px; line-height: 1.45; }
+.agent-revision-warn svg { flex: none; margin-top: 2px; }
+.agent-revision-diff { max-height: 340px; overflow-y: auto; }
+.agent-revision-actions { display: flex; gap: 6px; }
+.agent-revision-error { margin: 8px 0 0; }
 .agent-behaviour { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
 .agent-behaviour-label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .agent-behaviour-label svg { color: var(--accent-2); }

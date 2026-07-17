@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { RunCompare } from "./RunCompare";
-import { AGENT_RUN_HISTORY_MAX } from "../runDiff";
+import { AGENT_RUN_HISTORY_MAX, diffWords } from "../runDiff";
 import type { AgentContract, ToolSchema } from "@kiln/codegen";
 import type { AgentInput, CapabilityDoc } from "@kiln/compiler";
 import type { CritiqueFinding } from "@kiln/skills";
@@ -39,9 +39,27 @@ export type AgentRunProps = {
   modelLabel?: string;
 };
 
+/** A pending, human-gated revision proposal for this agent's behaviour — the diff the human accepts or
+ *  rejects. Owned by App (the call + the write live there); AgentDetail only renders the gate. */
+export type AgentRevision = {
+  /** the findings this proposal addresses (one, or all of them via Apply all). */
+  findings: CritiqueFinding[];
+  /** the authored prompt as it stands (the diff's left side). */
+  original: string;
+  /** the proposal (the diff's right side). Guaranteed inside the agent's contract by the skill. */
+  revised: string;
+  /** the model's one-line account of what it changed. */
+  note: string;
+  /** false when the model judged no text change was needed — said plainly rather than faked as a diff. */
+  changed: boolean;
+  /** tools a first draft invented that the repair retry removed — surfaced, not hidden. */
+  repairedTools: string[];
+};
+
 export function AgentDetail({
   agent, caps, contract, run, locale, t,
   onEditInstructions, onReviewPrompt, reviewing, critique, onDismissFinding, onSelectFinding,
+  onApplyFinding, applying, revision, onAcceptRevision, onRejectRevision, revisionError,
   onSelectCapability, onClose,
 }: {
   agent: AgentInput;
@@ -53,13 +71,21 @@ export function AgentDetail({
   t: T;
   /** persist an authored edit of the agent's behaviour (system prompt). */
   onEditInstructions?: (agentId: string, value: string) => void;
-  /** critique this agent's prompt against its contract (advisory; dismiss only — never rewrites). */
+  /** critique this agent's prompt against its contract (advisory; the human applies or dismisses). */
   onReviewPrompt?: (agentId: string) => void;
   reviewing?: boolean;
   /** undefined = not reviewed, [] = reviewed-clean, >0 = advisory findings. */
   critique?: CritiqueFinding[];
   onDismissFinding?: (f: CritiqueFinding) => void;
   onSelectFinding?: (f: CritiqueFinding) => void;
+  /** propose the smallest edit addressing `findings` (one, or all). Proposes only — never writes. */
+  onApplyFinding?: (agentId: string, findings: CritiqueFinding[]) => void;
+  applying?: boolean;
+  /** the pending proposal awaiting the human's accept/reject. */
+  revision?: AgentRevision;
+  onAcceptRevision?: () => void;
+  onRejectRevision?: () => void;
+  revisionError?: string | null;
   onSelectCapability: (id: string) => void;
   onClose: () => void;
 }): React.JSX.Element {
@@ -104,6 +130,12 @@ export function AgentDetail({
           critique={critique}
           onDismissFinding={onDismissFinding}
           onSelectFinding={onSelectFinding}
+          onApplyFinding={onApplyFinding}
+          applying={applying}
+          revision={revision}
+          onAcceptRevision={onAcceptRevision}
+          onRejectRevision={onRejectRevision}
+          revisionError={revisionError}
           t={t}
         />
       )}
@@ -219,7 +251,7 @@ function ContractQuadrant({ label, hint, items, empty }: { label: string; hint: 
    The AUTHORED system prompt. Empty means NOBODY HAS DESIGNED this agent — the note says so plainly and
    Kiln does NOT substitute a default playbook (a full template in a grey font makes an undesigned agent
    look designed). On export an empty prompt ships a TBD the runtime refuses. */
-function BehaviourTab({ agent, onEditInstructions, onReviewPrompt, reviewing, critique, onDismissFinding, onSelectFinding, t }: {
+function BehaviourTab({ agent, onEditInstructions, onReviewPrompt, reviewing, critique, onDismissFinding, onSelectFinding, onApplyFinding, applying, revision, onAcceptRevision, onRejectRevision, revisionError, t }: {
   agent: AgentInput;
   onEditInstructions?: (agentId: string, value: string) => void;
   onReviewPrompt?: (agentId: string) => void;
@@ -227,8 +259,19 @@ function BehaviourTab({ agent, onEditInstructions, onReviewPrompt, reviewing, cr
   critique?: CritiqueFinding[];
   onDismissFinding?: (f: CritiqueFinding) => void;
   onSelectFinding?: (f: CritiqueFinding) => void;
+  onApplyFinding?: (agentId: string, findings: CritiqueFinding[]) => void;
+  applying?: boolean;
+  revision?: AgentRevision;
+  onAcceptRevision?: () => void;
+  onRejectRevision?: () => void;
+  revisionError?: string | null;
   t: T;
 }): React.JSX.Element {
+  const designed = Boolean(agent.instructions?.trim());
+  // PR #54 held: an agent with NO authored behaviour has nothing to revise, and Apply must not become a
+  // back door that synthesizes one (its single "not designed yet" finding stands). The gate is here as
+  // well as in the skill — the button never appears, so the refusal isn't only a server-side error.
+  const canApply = Boolean(onApplyFinding) && designed;
   return (
     <div className="agent-tab">
       <label className="agent-behaviour">
@@ -245,8 +288,8 @@ function BehaviourTab({ agent, onEditInstructions, onReviewPrompt, reviewing, cr
         ) : (
           <pre className="agent-behaviour-view">{agent.instructions?.trim() || ""}</pre>
         )}
-        <span className={`agent-behaviour-note ${agent.instructions?.trim() ? "muted" : "warn"}`}>
-          {agent.instructions?.trim() ? t("agentBehaviourAuthored") : t("agentBehaviourNone")}
+        <span className={`agent-behaviour-note ${designed ? "muted" : "warn"}`}>
+          {designed ? t("agentBehaviourAuthored") : t("agentBehaviourNone")}
         </span>
       </label>
 
@@ -255,23 +298,119 @@ function BehaviourTab({ agent, onEditInstructions, onReviewPrompt, reviewing, cr
           <Icon name="sparkles" size={13} />{reviewing ? t("agentReviewPromptRunning") : t("agentReviewPrompt")}
         </button>
       )}
-      <AgentPromptFindings findings={critique} onDismiss={onDismissFinding} onSelect={onSelectFinding} t={t} />
+      <AgentPromptFindings
+        findings={critique}
+        onDismiss={onDismissFinding}
+        onSelect={onSelectFinding}
+        onApply={canApply ? (fs) => onApplyFinding?.(agent.id, fs) : undefined}
+        applying={applying}
+        t={t}
+      />
+      {revisionError && <p className="run-error agent-revision-error" role="alert"><Icon name="info" size={13} />{revisionError}</p>}
+      {revision && (
+        <RevisionDiff revision={revision} onAccept={onAcceptRevision} onReject={onRejectRevision} t={t} />
+      )}
     </div>
   );
 }
 
-// The agent's PROMPT-CRITIQUE findings (advisory, dismiss) — the same surface the per-layer AI review uses,
-// rendered per agent. undefined = not yet reviewed (nothing shown); [] = reviewed clean; >0 = advisory
-// findings against the agent's real contract. Never rewrites the prompt.
-function AgentPromptFindings({ findings, onDismiss, onSelect, t }: { findings?: CritiqueFinding[]; onDismiss?: (f: CritiqueFinding) => void; onSelect?: (f: CritiqueFinding) => void; t: T }): React.JSX.Element | null {
+/**
+ * The human gate: the proposed edit as a word-level diff, with Accept / Reject.
+ *
+ * The whole point of Apply is that the human still DECIDES — so the decision has to be cheap to make,
+ * which means the change must be legible at a glance. Hence a word diff (reusing `diffWords`, the same
+ * LCS the run-compare view uses) rather than an opaque "improved" prompt: strike-through is what the
+ * model removed, highlight is what it added, and everything unmarked is the author's untouched text.
+ * Nothing is written until Accept — Reject leaves the behaviour byte-identical.
+ */
+function RevisionDiff({ revision, onAccept, onReject, t }: {
+  revision: AgentRevision;
+  onAccept?: () => void;
+  onReject?: () => void;
+  t: T;
+}): React.JSX.Element {
+  const spans = revision.changed ? diffWords(revision.original, revision.revised) : [];
+  return (
+    <section className="agent-revision" aria-label={t("agentRevisionTitle")}>
+      <div className="agent-revision-head">
+        <span className="agent-revision-title"><Icon name="sparkles" size={12} />{t("agentRevisionTitle")}</span>
+        <span className="agent-revision-legend muted">
+          <span className="rc-del">{t("agentDiffOld")}</span>
+          <span className="rc-ins">{t("agentDiffNew")}</span>
+        </span>
+      </div>
+      <p className="agent-revision-lead muted">{t("agentRevisionLead")}</p>
+      {revision.note && <p className="agent-revision-note">{revision.note}</p>}
+      {/* The guard bit: a first draft invented a tool and was redone. Say so — a silent repair would hide
+          that the model tried to exceed the contract. */}
+      {revision.repairedTools.length > 0 && (
+        <p className="agent-revision-warn"><Icon name="alert" size={12} />{t("agentRevisionRepaired", { tools: revision.repairedTools.join(", ") })}</p>
+      )}
+      {revision.changed ? (
+        <p className="rc-diff agent-revision-diff">
+          {spans.map((s, i) => (
+            <span key={i} className={s.op === "add" ? "rc-ins" : s.op === "del" ? "rc-del" : undefined}>{s.text}</span>
+          ))}
+        </p>
+      ) : (
+        <p className="agent-revision-same muted">{t("agentRevisionNoChange")} {t("agentRevisionUnchangedHint")}</p>
+      )}
+      <div className="agent-revision-actions">
+        {/* Accept is offered only when there IS a change to make — an unchanged proposal has nothing to
+            write, so only Reject (dismiss) is honest. */}
+        {revision.changed && onAccept && (
+          <button className="btn primary sm" onClick={onAccept} title={t("agentRevisionAcceptHint")}>
+            <Icon name="check" size={13} />{t("agentRevisionAccept")}
+          </button>
+        )}
+        {onReject && (
+          <button className="btn ghost sm" onClick={onReject} title={t("agentRevisionRejectHint")}>
+            <Icon name="x" size={13} />{t("agentRevisionReject")}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// The agent's PROMPT-CRITIQUE findings — the same surface the per-layer AI review uses, rendered per
+// agent. undefined = not yet reviewed (nothing shown); [] = reviewed clean; >0 = findings against the
+// agent's real contract.
+//
+// Each finding offers Apply (propose the smallest edit addressing it) and dismiss. Apply is a PROPOSAL:
+// it opens a diff the human accepts or rejects — the behaviour is authored IR and stays theirs (golden
+// invariant #2). `onApply` is undefined for an undesigned agent (nothing to revise) — then the list is
+// advisory-only, exactly as before.
+function AgentPromptFindings({ findings, onDismiss, onSelect, onApply, applying, t }: {
+  findings?: CritiqueFinding[];
+  onDismiss?: (f: CritiqueFinding) => void;
+  onSelect?: (f: CritiqueFinding) => void;
+  onApply?: (findings: CritiqueFinding[]) => void;
+  applying?: boolean;
+  t: T;
+}): React.JSX.Element | null {
   if (!findings) return null; // not reviewed → show nothing (the button is the entry point)
   return (
     <ul className="findings cap-findings critique-inline agent-prompt-findings">
-      <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("agentReviewPromptTitle")}</li>
+      <li className="findings-head muted">
+        <Icon name="sparkles" size={13} /> {t("agentReviewPromptTitle")}
+        {/* Apply all: one call, one diff, one accept — for when the human agrees with the whole set.
+            Only worth offering for more than one finding. */}
+        {onApply && findings.length > 1 && (
+          <button className="fi-apply fi-apply-all" onClick={() => onApply(findings)} disabled={applying} title={t("agentApplyAllHint")}>
+            <Icon name="sparkles" size={11} />{applying ? t("agentApplyRunning") : t("agentApplyAll")}
+          </button>
+        )}
+      </li>
       {findings.length === 0 && <li className="muted">{t("agentReviewPromptOk")}</li>}
       {findings.map((f) => (
         <li key={f.id} className={f.target && onSelect ? "clickable" : ""} onClick={() => f.target && onSelect?.(f)} title={f.target && onSelect ? t("findingGoHint") : undefined}>
           <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
+          {onApply && (
+            <button className="fi-apply" disabled={applying} title={t("agentApplyFindingHint")} onClick={(e) => { e.stopPropagation(); onApply([f]); }}>
+              {applying ? t("agentApplyRunning") : t("agentApplyFinding")}
+            </button>
+          )}
           {onDismiss && <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); onDismiss(f); }}><Icon name="x" size={13} /></button>}
         </li>
       ))}

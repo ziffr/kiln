@@ -11,6 +11,7 @@
 import type { Req, Res } from "./_lib.ts";
 import agents from "./agents.ts";
 import agentRun from "./agent-run.ts";
+import agentPromptRevise from "./agent-prompt-revise.ts";
 import appComponents from "./app-components.ts";
 import appLogic from "./app-logic.ts";
 import coach from "./coach.ts";
@@ -47,6 +48,7 @@ type RouterReq = Req & { url?: string; query?: Record<string, string | string[] 
 const routes: Record<string, Handler> = {
   agents,
   "agent-run": agentRun,
+  "agent-prompt-revise": agentPromptRevise,
   "app-components": appComponents,
   "app-logic": appLogic,
   coach,

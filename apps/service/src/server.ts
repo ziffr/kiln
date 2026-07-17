@@ -21,6 +21,9 @@ import {
   generateContexts,
   critiqueContexts,
   critiqueLayer,
+  reviseAgentPrompt,
+  FabricatedToolError,
+  type CritiqueFinding,
   generateAppLogic,
   generateComponents,
   polishComponents,
@@ -527,6 +530,66 @@ const server = createServer(async (req, res) => {
       const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
       sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
       return send(res, 200, { ...result, model: model.id, usage, estCostUsd, sessionSpendUsd });
+    }
+
+    // Apply ONE agent-prompt finding: propose the SMALLEST edit to the agent's authored behaviour that
+    // addresses it. A PROPOSAL only — the app shows it as a diff and the human accepts or rejects; nothing
+    // here writes the model (invariants #2/#5). Its own route rather than a flag on /api/critique: the two
+    // answer different questions (what's wrong vs what to write), return different shapes, and every other
+    // layer already separates review (/api/critique) from the write path (/api/<layer>).
+    if (req.method === "POST" && req.url === "/api/agent-prompt-revise") {
+      if (!llmReady) return send(res, 500, { error: NO_LLM });
+      const body = JSON.parse((await readBody(req)) || "{}") as {
+        agentId?: string;
+        capabilities?: CapabilityDoc;
+        // The docs needed to derive the agent's contract — the ground truth a revision must stay inside.
+        domain?: unknown;
+        agents?: unknown;
+        workflows?: unknown;
+        comms?: unknown;
+        services?: unknown;
+        findings?: CritiqueFinding[];
+        model?: string;
+        effort?: string;
+        promptOverride?: string;
+      };
+      if (!body.agentId || !body.capabilities?.capabilities?.length) return send(res, 400, { error: "agentId and capabilities are required" });
+      const findings = Array.isArray(body.findings) ? body.findings.filter((f) => f && typeof f.message === "string") : [];
+      if (!findings.length) return send(res, 400, { error: "at least one finding is required" });
+      const model = resolveModel(body);
+      // Sized like the critique it acts on: rewriting a prompt against a contract is the same "agent-prompt"
+      // judgment, so it rides that layer's tier/effort rather than the (light) agents stage.
+      const wantEffort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : CRITIQUE_EFFORT["agent-prompt"];
+      const effort = model.supportsEffort ? wantEffort : DEFAULT_EFFORT;
+      const usage: UsageAcc = { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 };
+      const provider = makeProvider(model, effort, usage, body.promptOverride);
+      const review: ReviewModel = {
+        caps: body.capabilities,
+        domain: body.domain as never,
+        agents: body.agents as never,
+        workflows: body.workflows as never,
+        comms: body.comms as never,
+        services: body.services as never,
+        agentId: body.agentId,
+      };
+      const cost = (): { estCostUsd: number } => {
+        const inputUnits = usage.input + usage.cacheRead * 0.1 + usage.cacheCreate * 1.25;
+        const estCostUsd = round((inputUnits * model.inPerM + usage.output * model.outPerM) / 1_000_000);
+        sessionSpendUsd = round(sessionSpendUsd + estCostUsd);
+        return { estCostUsd };
+      };
+      try {
+        const result = await reviseAgentPrompt(review, findings, provider);
+        return send(res, 200, { ...result, model: model.id, usage, ...cost(), sessionSpendUsd });
+      } catch (e) {
+        // A revision that (even after the repair retry) tells the agent to call a tool it does not have is
+        // defective output, not a server fault: 422, and the human is told why nothing is being offered.
+        if (e instanceof FabricatedToolError) {
+          const { estCostUsd } = cost(); // the attempts were still billed — report them honestly
+          return send(res, 422, { error: e.message, fabricatedTools: e.tools, model: model.id, usage, estCostUsd, sessionSpendUsd });
+        }
+        throw e;
+      }
     }
 
     // Executable-code target: the LLM writes the business-logic handler bodies for the generated app.

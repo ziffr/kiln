@@ -136,6 +136,20 @@ export {
   type CritiqueFinding,
   type CritiqueDiff,
 } from "./critic.ts";
+export {
+  reviseAgentPrompt,
+  buildReviseRequest,
+  reviseSystemPrompt,
+  currentPrompt,
+  contractVocabulary,
+  fabricatedTools,
+  toolMentions,
+  revisionId,
+  FabricatedToolError,
+  REVISE_SCHEMA,
+  AGENT_PROMPT_REVISE_SYSTEM_PROMPT,
+  type RevisionResult,
+} from "./revise.ts";
 export { parseFinding, type FixIntent } from "./fixparse.ts";
 export { generateAppLogic, APP_LOGIC_SCHEMA, APP_LOGIC_SYSTEM_PROMPT, type AppLogicResult } from "./applogic.ts";
 export { reviewGeneratedCode, CODE_REVIEW_SCHEMA, CODE_REVIEW_SYSTEM_PROMPT, type CodeReviewResult, type CodeFinding, type CodeLens } from "./codereview.ts";

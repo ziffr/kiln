@@ -77,6 +77,7 @@ import {
 const hasRealNarrative = (n: string): boolean => n.trim().length > 0 && n.trim() !== NARRATIVE_TEMPLATE.trim();
 import { serverListProjects, serverSaveProject, serverDeleteProject } from "./projectStore";
 import { assembleModel, parseModel, type ResolvedCore } from "./model";
+import { pollForConnection } from "./connectorGrants";
 import { SERVICE_URL } from "./config";
 
 
@@ -970,6 +971,104 @@ export default function App(): React.JSX.Element {
   // NOT substitute a default — the export ships a TBD and the runtime refuses it.
   const editAgentInstructions = (agentId: string, value: string): void => {
     patchActive({ agents: { ...agentsDoc, agents: agentsDoc.agents.map((a) => (a.id === agentId ? { ...a, instructions: value, meta: { ...(a.meta ?? {}), origin: "authored" } } : a)) } });
+  };
+
+  // ── SPEC-013 Phase B2: connector grants + live-account connect ───────────────────────────────────
+  // Granting/revoking/setting-ops/autonomous are ALL reversible AUTHORED model edits on `agent.grants`
+  // (invariant #6: the model may suggest, only the human grants). None of them touch a real system — a
+  // grant is authority on paper. CONNECTING a live account is the separate, deliberate step (below) that
+  // mints a Nango session server-side; the browser never sees the secret (invariant #3).
+  const patchGrant = (agentId: string, toolId: string, fn: (g: import("@kiln/compiler").AgentGrant | undefined) => import("@kiln/compiler").AgentGrant | null): void => {
+    patchActive({
+      agents: {
+        ...agentsDoc,
+        agents: agentsDoc.agents.map((a) => {
+          if (a.id !== agentId) return a;
+          const existing = (a.grants ?? []).find((g) => g.toolId === toolId);
+          const next = fn(existing);
+          const rest = (a.grants ?? []).filter((g) => g.toolId !== toolId);
+          const grants = next ? [...rest, next] : rest;
+          return { ...a, grants, meta: { ...(a.meta ?? {}), origin: "authored" } };
+        }),
+      },
+    });
+  };
+  const grantOperations = (agentId: string, toolId: string, operations: string[]): void =>
+    patchGrant(agentId, toolId, (g) => (g ? { ...g, operations } : { toolId, operations }));
+  const setGrantOperations = (agentId: string, toolId: string, operations: string[]): void =>
+    // Emptying the op set removes the grant entirely — an authority with no ops is meaningless.
+    patchGrant(agentId, toolId, (g) => (operations.length === 0 ? null : g ? { ...g, operations } : { toolId, operations }));
+  const setGrantAutonomous = (agentId: string, toolId: string, autonomous: boolean): void =>
+    patchGrant(agentId, toolId, (g) => (g ? { ...g, autonomous } : { toolId, operations: [], autonomous }));
+  const revokeGrant = (agentId: string, toolId: string): void => patchGrant(agentId, toolId, () => null);
+
+  // Live connection status (readiness + real scopes) from B1's broker routes. The secret stays server-side.
+  const [connReady, setConnReady] = useState(false);
+  const [connections, setConnections] = useState<import("./connectorGrants").ConnectionStatus[]>([]);
+  const [connChecked, setConnChecked] = useState(false);
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<{ toolId: string; message: string } | null>(null);
+  const [liveRunMode, setLiveRunMode] = useState(false);
+
+  const refreshConnections = async (): Promise<import("./connectorGrants").ConnectionStatus[]> => {
+    try {
+      const r = await fetch(`${SERVICE_URL}/api/connectors/connections`);
+      if (!r.ok) { setConnChecked(true); return []; }
+      const data = (await r.json()) as { connections?: import("./connectorGrants").ConnectionStatus[] };
+      const list = data.connections ?? [];
+      setConnections(list); setConnChecked(true);
+      return list;
+    } catch { setConnChecked(true); return []; }
+  };
+  // On entering the Agents stage, learn whether the server has Nango configured + list live connections
+  // (both non-secret). Failure is fine — readiness just stays "granted (no live connection)".
+  useEffect(() => {
+    if (stage !== "agents") return;
+    void fetch(`${SERVICE_URL}/api/connectors`).then((r) => r.ok ? r.json() : { ready: false }).then((d) => setConnReady(Boolean((d as { ready?: boolean }).ready))).catch(() => setConnReady(false));
+    void refreshConnections();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
+
+  // The deliberate CONNECT step (§4.9 UX1), now IN-FLOW — mirrors the exported app (no @nangohq/frontend
+  // SDK): (1) mint a short-lived Nango Connect session server-side; (2) open Nango's HOSTED Connect UI (the
+  // `connectLink` from the session) in a popup to run OAuth; (3) POLL the non-secret connection list until the
+  // just-authorized account appears, then bind its OPAQUE connectionId onto the grant + refresh status — all
+  // without the user leaving the app. The secret never reaches the browser (invariant #3): the page only ever
+  // holds the session token + the hosted URL. Closing the popup without authorizing leaves the honest
+  // "granted (no live connection)" state (no error spam).
+  const connectAccount = async (agentId: string, toolId: string): Promise<void> => {
+    setConnecting(toolId); setConnectError(null);
+    try {
+      const integrationId = toolId === "spreadsheet" ? undefined : toolId;
+      // Snapshot the connections known BEFORE the popup, so a returning account reads as NEW (not pre-existing).
+      const before = await refreshConnections();
+      const r = await fetch(`${SERVICE_URL}/api/connectors/session`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ projectId: active.id, integrationId }),
+      });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { error?: string }).error || `session mint failed (${r.status})`); }
+      const session = (await r.json()) as { token?: string; connectLink?: string };
+      if (!session.token) throw new Error("no session token returned");
+      if (!session.connectLink) throw new Error("session minted, but Nango returned no hosted connect link — complete the OAuth in your Nango dashboard, or upgrade Nango so it returns a connect link.");
+      // Run Nango's HOSTED Connect UI in a popup — a popup window is expected here (no SDK, no secret).
+      const popup = window.open(session.connectLink, "nango-connect", "width=500,height=700");
+      // Poll until the authorized account shows up, then bind it. Stop if the user closes the popup.
+      const bound = await pollForConnection({
+        list: refreshConnections,
+        before,
+        provider: integrationId,
+        isCancelled: () => Boolean(popup && popup.closed),
+      });
+      if (bound) {
+        patchGrant(agentId, toolId, (g) => (g ? { ...g, connectionRef: bound.connectionId } : { toolId, operations: [], connectionRef: bound.connectionId }));
+        await refreshConnections();
+      }
+      // No connection (popup closed / timed out) → stay in "granted (no live connection)", no error.
+    } catch (e) {
+      setConnectError({ toolId, message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setConnecting(null);
+    }
   };
   // The derived agent CONTRACT (input · tools · output · context), computed from the SAME codegen seam the
   // runtime/server use. A READ-ONLY PROJECTION (golden invariant #2) — never persisted to the AgentsDoc —
@@ -2466,6 +2565,24 @@ export default function App(): React.JSX.Element {
                   error: agentRunError,
                   engineLabel: catalog.find((p) => p.id === providerFor("agents"))?.label ?? providerFor("agents"),
                   modelLabel: (() => { const m = modelFor("agents"); return catalog.find((p) => p.id === providerFor("agents"))?.models.find((x) => x.id === m)?.label ?? m; })(),
+                  liveMode: liveRunMode,
+                }}
+                tools={{
+                  agent: selectedAgent,
+                  allAgents: agentsDoc.agents,
+                  connections,
+                  connectorsReady: connReady,
+                  connectionsChecked: connChecked,
+                  onGrant: (toolId, ops) => grantOperations(selectedAgent.id, toolId, ops),
+                  onSetOperations: (toolId, ops) => setGrantOperations(selectedAgent.id, toolId, ops),
+                  onSetAutonomous: (toolId, v) => setGrantAutonomous(selectedAgent.id, toolId, v),
+                  onRevoke: (toolId) => revokeGrant(selectedAgent.id, toolId),
+                  onConnect: (toolId) => void connectAccount(selectedAgent.id, toolId),
+                  connecting,
+                  connectError,
+                  liveRunMode,
+                  onToggleLiveRunMode: setLiveRunMode,
+                  t,
                 }}
                 locale={i18n.language}
                 onEditInstructions={editAgentInstructions}

@@ -29,6 +29,7 @@ Regenerated whenever a document is added or changes status. See `CONVENTIONS.md`
 | SPEC-012 | Deployment Placement — where each engine runs, as a binding dimension | spec | Approved | 1.1.0 |
 | SPEC-013 | Agent Tool Connectors — typed external-system tools + Nango OAuth (no n8n dependency) | spec | Approved | 1.1.0 |
 | PLAN-001 | MVP Execution Plan (M0–M5) | plan | Approved | 0.4.0 |
+| PLAN-013 | Connector / Nango Ergonomics (SPEC-013 Phase B3) — choose-your-Nango, optional helper, self-sufficient export | plan | Approved | 1.0.0 |
 | RES-001 | Codegen probe — model → scaffolding, and what's missing | research | Approved | 1.0.0 |
 | RES-002 | Execution-engine binding — model → multi-backend deployment-target compiler | research | Draft | 0.5.0 |
 | RES-003 | Agent- & workflow-runtime provider landscape — codegen-fit scoring | research | Draft | 0.1.0 |

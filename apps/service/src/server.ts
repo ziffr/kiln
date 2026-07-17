@@ -79,6 +79,7 @@ import { screenshotUrl, screenshotAvailable } from "./screenshot.ts";
 import { generateApp, projectAppModel, resolveAgentDefs, buildToolSchemas, toOpenAiMessages, toOpenAiTools, runAgentLoop, type LoopMessage, type LoopTurn, type NextTurn } from "@kiln/codegen";
 import { slug } from "@kiln/ir";
 import type { AgentsDoc } from "@kiln/compiler";
+import { mintConnectSession, listConnections, connectorsReady, ConnectorConfigError } from "./connectors.ts";
 import { deleteProject, listProjects, projectDir, saveProject, type StoredProject } from "./workspaces.ts";
 import { commitWorkspace, listVersions, showFileAt } from "./workspaceGit.ts";
 
@@ -181,9 +182,22 @@ function send(res: ServerResponse, status: number, body: unknown): void {
     "content-type": "application/json",
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "content-type,x-kiln-token",
   });
   res.end(payload);
+}
+
+// SEC8 — the studio auth gate (opt-in), mirroring apps/web/functions/_lib.ts. If KILN_STUDIO_TOKEN is set
+// (a keyed hosted instance), a gated route requires a matching `x-kiln-token` header, else 401. Unset (local
+// dev / the keyless demo) → open. The `/api/connectors/*` broker routes inherit this exactly like the LLM ones.
+const KILN_STUDIO_TOKEN = process.env.KILN_STUDIO_TOKEN;
+function studioLocked(req: IncomingMessage, res: ServerResponse): boolean {
+  if (!KILN_STUDIO_TOKEN) return false;
+  const sent = req.headers["x-kiln-token"];
+  const token = Array.isArray(sent) ? sent[0] : sent;
+  if (token === KILN_STUDIO_TOKEN) return false;
+  send(res, 401, { error: "This Kiln studio is locked — enter the passphrase.", locked: true });
+  return true;
 }
 
 function readBody(req: IncomingMessage): Promise<string> {
@@ -307,6 +321,37 @@ const server = createServer(async (req, res) => {
       }
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       return res.end(runClientHtml(run.model, `http://localhost:${run.port}`, run.views));
+    }
+
+    // ── SPEC-013 Phase B1: server-mediated Nango broker (SEC1/SEC8). The secret stays here; the browser
+    // gets only a session token / non-secret status. All three routes inherit the studio auth gate. ──
+    // GET /api/connectors → readiness (is the server configured?) — no secret, safe when unset.
+    if (req.method === "GET" && req.url === "/api/connectors") {
+      if (studioLocked(req, res)) return;
+      return send(res, 200, { ready: connectorsReady(), host: process.env.NANGO_HOST ?? "https://api.nango.dev" });
+    }
+    // POST /api/connectors/session → mint a short-lived Nango Connect session token (browser gets ONLY this).
+    if (req.method === "POST" && req.url === "/api/connectors/session") {
+      if (studioLocked(req, res)) return;
+      const body = JSON.parse((await readBody(req)) || "{}") as { projectId?: string; integrationId?: string; endUserId?: string };
+      try {
+        const session = await mintConnectSession(body);
+        return send(res, 200, session); // { token, expiresAt } — no secret ever
+      } catch (e) {
+        if (e instanceof ConnectorConfigError) return send(res, 503, { error: e.message });
+        return send(res, 502, { error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    // GET /api/connectors/connections → non-secret connection status list (readiness).
+    if (req.method === "GET" && req.url?.startsWith("/api/connectors/connections")) {
+      if (studioLocked(req, res)) return;
+      const integrationId = new URL(req.url, "http://localhost").searchParams.get("integrationId") ?? undefined;
+      try {
+        return send(res, 200, await listConnections({ integrationId }));
+      } catch (e) {
+        if (e instanceof ConnectorConfigError) return send(res, 503, { error: e.message });
+        return send(res, 502, { error: e instanceof Error ? e.message : String(e) });
+      }
     }
 
     if (req.method === "GET" && req.url === "/api/models") {

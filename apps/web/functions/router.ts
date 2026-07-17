@@ -16,6 +16,7 @@ import appComponents from "./app-components.ts";
 import appLogic from "./app-logic.ts";
 import coach from "./coach.ts";
 import codeReview from "./code-review.ts";
+import connectors from "./connectors.ts";
 import communications from "./communications.ts";
 import contexts from "./contexts.ts";
 import critique from "./critique.ts";
@@ -79,6 +80,17 @@ const routes: Record<string, Handler> = {
 };
 
 export default function handler(req: RouterReq, res: Res): unknown {
+  // SPEC-013: the connector broker owns a SUB-PATH (/api/connectors, /api/connectors/session,
+  // /api/connectors/connections). Route the whole family to one handler, which reads the sub-action itself
+  // (the default last-segment routing below would send `session`/`connections` to a non-existent route).
+  const path = (req.url || "").split("?")[0];
+  const pathSegs = path.split("/").filter(Boolean);
+  const qp = req.query?.path;
+  const querySegs = Array.isArray(qp) ? qp : typeof qp === "string" ? [qp] : [];
+  if (pathSegs.includes("connectors") || querySegs.includes("connectors")) {
+    return connectors(req as Req, res);
+  }
+
   // Catch-all: Vercel sets req.query.path = [segment(s)]; fall back to parsing the URL path.
   const q = req.query?.path;
   let name = Array.isArray(q) ? q[q.length - 1] : (typeof q === "string" ? q : undefined);

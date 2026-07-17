@@ -9,6 +9,8 @@ import {
   registerConnector,
   getConnectorAdapter,
   registeredConnectors,
+  mintConnectSession,
+  listConnections,
   type ConnectorAdapter,
   type AgentTool,
 } from "../src/index.ts";
@@ -116,6 +118,73 @@ test("a connector tool carries no destination in the exported definition (grant-
   const def = files["agents/definitions/lead_agent.json"];
   assert.match(def, /spreadsheet_append_row/);
   assert.doesNotMatch(def, /https?:\/\//); // no url/host baked into the model
+});
+
+// ── Phase B3: the export's self-sufficient connect broker + the generated Connect panel ──────────────
+
+const B3_ENV = { NANGO_SECRET_KEY: "nango-secret-DO-NOT-LEAK", NANGO_HOST: "http://localhost:3003", NANGO_PROVIDER_CONFIG_KEY: "google-sheets" };
+
+test("mintConnectSession (export) sends the SECRET to /connect/sessions but returns ONLY a session token", async () => {
+  const seen: Array<{ url: string; auth?: string; body?: string }> = [];
+  const mockFetch = (async (url: string, init?: { headers?: Record<string, string>; body?: string }) => {
+    seen.push({ url: String(url), auth: init?.headers?.authorization, body: init?.body });
+    return { ok: true, status: 200, json: async () => ({ data: { token: "connect_TOK", expires_at: "2026-07-17T12:00:00Z", connect_link: "http://localhost:3009/c/abc" } }) };
+  }) as unknown as typeof fetch;
+
+  const session = await mintConnectSession({ integrationId: "google-sheets" }, { env: B3_ENV, fetch: mockFetch });
+  assert.deepEqual(session, { token: "connect_TOK", expiresAt: "2026-07-17T12:00:00Z", connectLink: "http://localhost:3009/c/abc" });
+  assert.doesNotMatch(JSON.stringify(session), /DO-NOT-LEAK/, "the secret must never appear in the session response");
+  assert.match(seen[0].url, /\/connect\/sessions$/);
+  assert.equal(seen[0].auth, "Bearer nango-secret-DO-NOT-LEAK");
+});
+
+test("listConnections (export) uses the PLURAL endpoint and returns non-secret status only", async () => {
+  const seen: string[] = [];
+  const mockFetch = (async (url: string) => {
+    seen.push(String(url));
+    return { ok: true, status: 200, json: async () => ({ connections: [{ connection_id: "conn_1", provider_config_key: "google-sheets", credentials: { access_token: "ya29.LEAK" } }] }) };
+  }) as unknown as typeof fetch;
+  const out = await listConnections({ integrationId: "google-sheets" }, { env: B3_ENV, fetch: mockFetch });
+  assert.match(seen[0], /\/connections\?provider_config_key=google-sheets$/);
+  assert.deepEqual(out, { connections: [{ connectionId: "conn_1", provider: "google-sheets", connected: true }] });
+  assert.doesNotMatch(JSON.stringify(out), /ya29\.LEAK/, "a provider token must never appear in the status");
+});
+
+test("the exported agents/src/nango.ts carries the connect broker + the PLURAL, force_refresh token fetch", () => {
+  const files = agentsAdapter(caps, domain, granted, undefined, undefined, undefined, undefined, undefined, tools);
+  const nango = files["agents/src/nango.ts"];
+  assert.ok(nango, "nango.ts is emitted when a connector is granted");
+  assert.match(nango, /export async function mintConnectSession/);
+  assert.match(nango, /export async function listConnections/);
+  // §3.4 — the token fetch uses the plural /connections/ path with force_refresh, not the deprecated singular.
+  assert.match(nango, /"\/connections\/" \+ encodeURIComponent\(connectionRef\)/);
+  assert.match(nango, /force_refresh=true/);
+  assert.doesNotMatch(nango, /"\/connection\/" \+ encodeURIComponent\(connectionRef\)/);
+});
+
+test("the exported agents/src/server.ts gains a /connect panel + broker routes (secret stays server-side)", () => {
+  const files = agentsAdapter(caps, domain, granted, undefined, undefined, undefined, undefined, undefined, tools);
+  const server = files["agents/src/server.ts"];
+  assert.match(server, /import \{ mintConnectSession, listConnections \} from ".\/nango";/);
+  assert.match(server, /app\.get\("\/connect",/);
+  assert.match(server, /app\.post\("\/connect\/session",/);
+  assert.match(server, /app\.get\("\/connect\/status",/);
+  // The panel served to the browser must never READ the secret (no process.env access in client code) — it
+  // only calls the server routes. (It may NAME the var in help text; the invariant is the VALUE never ships.)
+  const panelStart = server.indexOf("const CONNECT_PANEL =");
+  const panelEnd = server.indexOf('app.get("/connect",');
+  const panelLiteral = server.slice(panelStart, panelEnd);
+  assert.doesNotMatch(panelLiteral, /process\.env/, "the connect panel HTML must never read process.env (secret stays server-side)");
+  // The routes only expose readiness as a BOOLEAN and delegate the actual Nango calls to the nango.ts broker
+  // helpers — the secret's VALUE is never sent to the client.
+  assert.match(server.slice(panelEnd), /!!process\.env\.NANGO_SECRET_KEY/, "readiness is a boolean check, not the secret value");
+  assert.match(server.slice(panelEnd), /await mintConnectSession\(body\)/);
+});
+
+test("no connector granted → agents/src/server.ts is the base runtime (byte-identity, no /connect)", () => {
+  const files = agentsAdapter(caps, domain, ungranted);
+  assert.doesNotMatch(files["agents/src/server.ts"], /\/connect/, "the connect panel is only emitted when a connector is granted");
+  assert.equal(files["agents/src/nango.ts"], undefined);
 });
 
 // keep AgentTool import used (type-only assertion helper)

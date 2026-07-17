@@ -125,6 +125,7 @@ const { files, report } = assembleFullStack({
   integrations,
   triggers,
   services: m.services,
+  tools: m.tools, // SPEC-013 — the authored connector catalog (a grant projects a connector tool + runtime)
   i18n: i18nOpt,
   modelPath,
   gitInitialized: !process.argv.includes("--no-git"), // the bin git-inits below unless --no-git

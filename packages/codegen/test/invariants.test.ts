@@ -179,3 +179,22 @@ test("invariant #3: apps/web/src never references the Anthropic API key", () => 
     `the Anthropic key lives only in apps/service — the web bundle must never name it:\n  ${violations.join("\n  ")}`,
   );
 });
+
+// ── Invariant #3 (SPEC-013 SEC1): the Nango SECRET key never reaches the browser ────────────────
+//
+// The connector broker holds NANGO_SECRET_KEY server-side (apps/service + apps/web/functions). The browser
+// bundle (apps/web/src) must never name it — it only ever receives a session token from /api/connectors/*.
+test("invariant #3 (SPEC-013): apps/web/src never references NANGO_SECRET_KEY", () => {
+  const SECRET = /\bNANGO_SECRET_KEY\b/;
+  const violations: string[] = [];
+  for (const file of collectSources(join(repoRoot, "apps/web/src"))) {
+    const src = readFileSync(file, "utf8");
+    const m = SECRET.exec(src);
+    if (m) violations.push(`${rel(file)}:${lineOf(src, m.index)}  ${m[0]}`);
+  }
+  assert.equal(
+    violations.length,
+    0,
+    `the Nango secret lives only in the server (apps/service + functions) — the web bundle must never name it:\n  ${violations.join("\n  ")}`,
+  );
+});

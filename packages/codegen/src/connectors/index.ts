@@ -13,8 +13,12 @@
  * `registeredConnectors()` sorts by tool id for deterministic output.
  */
 
-// Phase A: no built-in connectors to register yet. (Phase B adds the Spreadsheet adapter here.)
+// Phase B1: the built-in Spreadsheet (Google Sheets) connector registers itself on import (side effect),
+// exactly like the engines do. Importing this module is what makes it discoverable to the exporter.
+import "./spreadsheet.ts";
 
 // Re-export the registry API + the contract types (the public seam).
 export { registerConnector, getConnectorAdapter, registeredConnectors } from "./registry.ts";
 export type { ConnectorAdapter, ConnectorCtx } from "./registry.ts";
+// The Spreadsheet connector's grant surface + adapter (Phase B1), for callers that seed the catalog.
+export { SPREADSHEET_TOOL, spreadsheetConnector } from "./spreadsheet.ts";

@@ -287,7 +287,7 @@ export function readBody<T>(req: Req): T {
  * want the public spending), every LLM call must carry a matching `x-kiln-token` header — otherwise 401.
  * Unset (local dev, or the public keyless demo) → no lock. Keeps a keyed hosted Kiln safe on any plan.
  */
-function studioLocked(req: Req, res: Res): boolean {
+export function studioLocked(req: Req, res: Res): boolean {
   const gate = process.env.KILN_STUDIO_TOKEN;
   if (!gate) return false;
   const sent = req.headers?.["x-kiln-token"];

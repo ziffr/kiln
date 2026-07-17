@@ -50,9 +50,10 @@ export default async function handler(req: ConnReq, res: Res): Promise<void> {
         body: JSON.stringify({ end_user: { id: body.endUserId || body.projectId || "kiln-studio" }, allowed_integrations: [providerConfigKey] }),
       });
       if (!r.ok) { res.status(502).json({ error: `Nango Connect session request failed (${r.status}).` }); return; }
-      const data = (await r.json().catch(() => ({}))) as { data?: { token?: string; expires_at?: string } };
+      const data = (await r.json().catch(() => ({}))) as { data?: { token?: string; expires_at?: string; connect_link?: string } };
       if (!data?.data?.token) { res.status(502).json({ error: "Nango returned no Connect session token." }); return; }
-      res.status(200).json({ token: data.data.token, expiresAt: data.data.expires_at });
+      // ONLY the session token + the hosted connect link (browser opens it to run OAuth) — never the secret.
+      res.status(200).json({ token: data.data.token, expiresAt: data.data.expires_at, connectLink: data.data.connect_link });
       return;
     }
 

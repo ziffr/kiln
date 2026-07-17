@@ -117,8 +117,18 @@ into three separate acts, so a human knowingly authorizes each one:
    model edit with no real-world effect** — it changes your model, nothing else. A per-grant
    **Autonomous** toggle (default off) governs whether the runtime's write gate applies.
 3. **Connect a live account.** A separate, deliberately-confirmed step names the provider and the
-   **scopes being authorized**, then mints the Nango Connect session on the server and runs the OAuth
-   flow. Your browser only ever receives the short-lived session token.
+   **scopes being authorized**. Confirming mints the Nango Connect session **on the server**, then opens
+   **Nango's hosted Connect page in a popup** (no `@nangohq/frontend` SDK) to run the OAuth flow. When you
+   finish authorizing, the Studio detects the new connection, binds its opaque connection reference to the
+   grant, and the tile flips to **connected** — all **in-flow**, without leaving the app. Close the popup
+   without authorizing and the grant simply stays *granted (no live connection)*. Your browser only ever
+   receives the short-lived session token and that hosted URL — never the secret. This is the exact flow
+   the exported app runs at `/connect`.
+
+   > **One-time setup (separate, admin step).** Connecting an account works only once the integration
+   > itself is registered in your Nango — e.g. the Google OAuth app configured under a
+   > `google-sheets` integration. That is a one-time administrator task, **not** part of the per-agent
+   > connect flow above.
 
 ### Honest readiness
 

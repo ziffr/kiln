@@ -36,6 +36,9 @@ function nangoBase(env: NangoEnv): { host: string; secret: string } {
 export interface ConnectSession {
   token: string;
   expiresAt?: string;
+  /** Nango's HOSTED Connect UI URL (from the session response). Short-lived + browser-safe (no secret, no
+   * provider token) — the SPA opens it in a popup to run OAuth, exactly as the exported app does. */
+  connectLink?: string;
 }
 
 /**
@@ -61,11 +64,11 @@ export async function mintConnectSession(
     }),
   });
   if (!res.ok) throw new ConnectorConfigError(`Nango Connect session request failed (${res.status}). Check NANGO_HOST / NANGO_SECRET_KEY and that integration '${providerConfigKey}' exists.`);
-  const data = (await res.json().catch(() => ({}))) as { data?: { token?: string; expires_at?: string } };
+  const data = (await res.json().catch(() => ({}))) as { data?: { token?: string; expires_at?: string; connect_link?: string } };
   const token = data?.data?.token;
   if (!token) throw new ConnectorConfigError("Nango returned no Connect session token.");
-  // ONLY the session token leaves the server — never the secret.
-  return { token, expiresAt: data?.data?.expires_at };
+  // ONLY the session token + the hosted connect link leave the server — never the secret.
+  return { token, expiresAt: data?.data?.expires_at, connectLink: data?.data?.connect_link };
 }
 
 /** A non-secret connection status (SEC6: the ref is opaque; NO token, NO PII beyond what the caller stored). */

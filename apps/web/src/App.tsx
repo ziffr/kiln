@@ -77,6 +77,7 @@ import {
 const hasRealNarrative = (n: string): boolean => n.trim().length > 0 && n.trim() !== NARRATIVE_TEMPLATE.trim();
 import { serverListProjects, serverSaveProject, serverDeleteProject } from "./projectStore";
 import { assembleModel, parseModel, type ResolvedCore } from "./model";
+import { pollForConnection } from "./connectorGrants";
 import { SERVICE_URL } from "./config";
 
 
@@ -1028,26 +1029,41 @@ export default function App(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
 
-  // The deliberate CONNECT step (§4.9 UX1): mint a short-lived Nango Connect session server-side, run the
-  // OAuth flow, then bind the resulting OPAQUE connection reference onto the grant. The real OAuth popup
-  // needs the Nango frontend SDK + live creds; without them we still mint the session (proving the broker),
-  // then look up the resulting connection from Nango's list and bind it — an honest error if none appears.
+  // The deliberate CONNECT step (§4.9 UX1), now IN-FLOW — mirrors the exported app (no @nangohq/frontend
+  // SDK): (1) mint a short-lived Nango Connect session server-side; (2) open Nango's HOSTED Connect UI (the
+  // `connectLink` from the session) in a popup to run OAuth; (3) POLL the non-secret connection list until the
+  // just-authorized account appears, then bind its OPAQUE connectionId onto the grant + refresh status — all
+  // without the user leaving the app. The secret never reaches the browser (invariant #3): the page only ever
+  // holds the session token + the hosted URL. Closing the popup without authorizing leaves the honest
+  // "granted (no live connection)" state (no error spam).
   const connectAccount = async (agentId: string, toolId: string): Promise<void> => {
     setConnecting(toolId); setConnectError(null);
     try {
+      const integrationId = toolId === "spreadsheet" ? undefined : toolId;
+      // Snapshot the connections known BEFORE the popup, so a returning account reads as NEW (not pre-existing).
+      const before = await refreshConnections();
       const r = await fetch(`${SERVICE_URL}/api/connectors/session`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ projectId: active.id, integrationId: toolId === "spreadsheet" ? undefined : toolId }),
+        body: JSON.stringify({ projectId: active.id, integrationId }),
       });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { error?: string }).error || `session mint failed (${r.status})`); }
-      const session = (await r.json()) as { token?: string };
+      const session = (await r.json()) as { token?: string; connectLink?: string };
       if (!session.token) throw new Error("no session token returned");
-      // A real deployment hands `session.token` to Nango Connect (frontend SDK) and gets the connectionId
-      // from the popup. Here we (re)list connections and bind the newest — the same ref Nango would return.
-      const list = await refreshConnections();
-      const conn = list.find((c) => c.connected);
-      if (!conn) throw new Error("session minted, but no live connection yet — complete the OAuth in the Nango Connect popup (needs the Nango frontend SDK + live credentials).");
-      patchGrant(agentId, toolId, (g) => (g ? { ...g, connectionRef: conn.connectionId } : { toolId, operations: [], connectionRef: conn.connectionId }));
+      if (!session.connectLink) throw new Error("session minted, but Nango returned no hosted connect link — complete the OAuth in your Nango dashboard, or upgrade Nango so it returns a connect link.");
+      // Run Nango's HOSTED Connect UI in a popup — a popup window is expected here (no SDK, no secret).
+      const popup = window.open(session.connectLink, "nango-connect", "width=500,height=700");
+      // Poll until the authorized account shows up, then bind it. Stop if the user closes the popup.
+      const bound = await pollForConnection({
+        list: refreshConnections,
+        before,
+        provider: integrationId,
+        isCancelled: () => Boolean(popup && popup.closed),
+      });
+      if (bound) {
+        patchGrant(agentId, toolId, (g) => (g ? { ...g, connectionRef: bound.connectionId } : { toolId, operations: [], connectionRef: bound.connectionId }));
+        await refreshConnections();
+      }
+      // No connection (popup closed / timed out) → stay in "granted (no live connection)", no error.
     } catch (e) {
       setConnectError({ toolId, message: e instanceof Error ? e.message : String(e) });
     } finally {

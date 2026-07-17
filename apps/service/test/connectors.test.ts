@@ -20,13 +20,28 @@ test("mintConnectSession sends the SECRET to Nango but returns ONLY a session to
   const session = await mintConnectSession({ projectId: "proj_1", integrationId: "google-sheets" }, { env: ENV, fetch: mockFetch });
 
   // the browser gets a session token + expiry — and NOTHING resembling the secret.
-  assert.deepEqual(session, { token: "connect_session_TOK", expiresAt: "2026-07-17T12:00:00Z" });
+  assert.deepEqual(session, { token: "connect_session_TOK", expiresAt: "2026-07-17T12:00:00Z", connectLink: undefined });
   assert.doesNotMatch(JSON.stringify(session), new RegExp(SECRET), "the secret must never appear in the response");
   // the SECRET was used server-side, to Nango's Connect endpoint, scoped to the project + integration.
   assert.equal(seen.length, 1);
   assert.match(seen[0].url, /\/connect\/sessions$/);
   assert.equal(seen[0].auth, `Bearer ${SECRET}`);
   assert.match(seen[0].body ?? "", /google-sheets/);
+});
+
+test("mintConnectSession RETURNS Nango's hosted connect_link (browser-safe) but still never the secret", async () => {
+  const mockFetch = (async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ data: { token: "connect_session_TOK", expires_at: "2026-07-17T12:00:00Z", connect_link: "https://connect.nango.dev/sess_abc" } }),
+  })) as unknown as typeof fetch;
+
+  const session = await mintConnectSession({ projectId: "proj_1", integrationId: "google-sheets" }, { env: ENV, fetch: mockFetch });
+
+  // the hosted Connect UI URL reaches the browser (the SPA opens it in a popup) — the secret does NOT.
+  assert.equal(session.connectLink, "https://connect.nango.dev/sess_abc");
+  assert.equal(session.token, "connect_session_TOK");
+  assert.doesNotMatch(JSON.stringify(session), new RegExp(SECRET), "the secret must never appear in the response");
 });
 
 test("mintConnectSession fails loudly (ConnectorConfigError) when NANGO_SECRET_KEY is unset", async () => {

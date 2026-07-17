@@ -1832,6 +1832,7 @@ textarea {
 .agent-tools-ref { font-size: 10.5px; padding: 1px 5px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--edge); color: var(--muted); }
 .agent-tools-revoke { color: var(--err-fg); }
 .agent-tools-conn-err { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-size: 11.5px; color: var(--err-fg); flex-wrap: wrap; }
+.agent-tools-conn-connecting { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-size: 11.5px; color: var(--muted); flex-wrap: wrap; }
 
 /* Scope readout / over-grant warning (UX5). */
 .agent-tools-scoperead { flex-basis: 100%; display: flex; flex-direction: column; gap: 3px; }

@@ -265,6 +265,10 @@ function GrantCard({ grant, tool, readiness, connection, connectorsReady, connec
               <button className="btn ghost sm" onClick={() => setConfirming(false)}>{t("cancel")}</button>
             </div>
           </div>
+        ) : connecting ? (
+          <p className="agent-tools-conn-connecting" role="status">
+            <Icon name="refresh" size={12} />{t("agentToolsConnectingPopup")}
+          </p>
         ) : (
           <button className="btn sm agent-tools-connect-btn" onClick={() => setConfirming(true)} disabled={grant.operations.length === 0}>
             <Icon name="external" size={13} />{t("agentToolsConnect")}

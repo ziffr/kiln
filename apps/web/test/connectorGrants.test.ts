@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import type { AgentGrant, AgentInput, ToolDef } from "@kiln/compiler";
 import {
   connectorCatalog, isMutating, grantReadiness, readinessRollup, scopeReport, suggestGrants,
-  authorityLedger, type ConnectionStatus,
+  authorityLedger, newlyConnected, pollForConnection, type ConnectionStatus,
 } from "../src/connectorGrants.ts";
 
 const SHEETS = connectorCatalog().find((t) => t.id === "spreadsheet") as ToolDef;
@@ -114,4 +114,62 @@ test("authorityLedger flattens agent × connector × op × connection with readi
   assert.equal(write.autonomous, true);
   assert.equal(write.readiness, "connected");
   assert.equal(write.toolName, "Spreadsheet");
+});
+
+test("newlyConnected picks the account that appeared AFTER the popup, not a pre-existing one", () => {
+  const before: ConnectionStatus[] = [{ connectionId: "old", provider: "google-sheets", connected: true }];
+  const after: ConnectionStatus[] = [
+    { connectionId: "old", provider: "google-sheets", connected: true },
+    { connectionId: "fresh", provider: "google-sheets", connected: true },
+  ];
+  assert.equal(newlyConnected(before, after)?.connectionId, "fresh");
+  // no new connection yet → undefined (keep polling / stay honest)
+  assert.equal(newlyConnected(before, before), undefined);
+});
+
+test("newlyConnected narrows to the requested provider when one is given", () => {
+  const before: ConnectionStatus[] = [];
+  const after: ConnectionStatus[] = [
+    { connectionId: "slack1", provider: "slack", connected: true },
+    { connectionId: "sheets1", provider: "google-sheets", connected: true },
+  ];
+  assert.equal(newlyConnected(before, after, "google-sheets")?.connectionId, "sheets1");
+});
+
+test("pollForConnection resolves the captured connectionId once the account shows up (mint → popup → poll)", async () => {
+  const before: ConnectionStatus[] = [];
+  // list: empty for the first two ticks, then the authorized account appears.
+  let call = 0;
+  const snapshots: ConnectionStatus[][] = [[], [], [{ connectionId: "conn_new", provider: "google-sheets", connected: true }]];
+  const bound = await pollForConnection({
+    before,
+    list: async () => snapshots[Math.min(call++, snapshots.length - 1)],
+    sleep: async () => {},
+    intervalMs: 0,
+    timeoutMs: 10_000,
+  });
+  assert.equal(bound?.connectionId, "conn_new");
+});
+
+test("pollForConnection resolves undefined when the popup is closed without authorizing (no error spam)", async () => {
+  const bound = await pollForConnection({
+    before: [],
+    list: async () => [],          // account never appears
+    isCancelled: () => true,       // user closed the popup
+    sleep: async () => {},
+    intervalMs: 0,
+    timeoutMs: 10_000,
+  });
+  assert.equal(bound, undefined);
+});
+
+test("pollForConnection gives up at the timeout (undefined) rather than looping forever", async () => {
+  const bound = await pollForConnection({
+    before: [],
+    list: async () => [],
+    sleep: async () => {},
+    intervalMs: 0,
+    timeoutMs: -1, // already past the deadline → one check then give up
+  });
+  assert.equal(bound, undefined);
 });

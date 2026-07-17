@@ -124,6 +124,55 @@ export function scopeReport(tool: ToolDef, grantedOps: string[], conn?: Connecti
   return { needed, actual, excess, actualKnown };
 }
 
+/**
+ * Pick the connection that NEWLY appeared — connected, and not present in the `before` snapshot taken just
+ * before the Connect popup opened. That is the account the user just authorized in Nango's hosted UI. A
+ * `provider` narrows the choice to a specific integration when one is known; otherwise the newest fresh
+ * connection is taken. Pure — the in-flow poll loop calls it each tick to detect the returned account.
+ */
+export function newlyConnected(before: ConnectionStatus[], current: ConnectionStatus[], provider?: string): ConnectionStatus | undefined {
+  const beforeIds = new Set(before.map((c) => c.connectionId));
+  const fresh = current.filter((c) => c.connected && c.connectionId && !beforeIds.has(c.connectionId));
+  return (provider ? fresh.find((c) => c.provider === provider) : undefined) ?? fresh[0];
+}
+
+export interface PollForConnectionDeps {
+  /** re-fetch the (non-secret) connection list — B1's `/api/connectors/connections`. */
+  list: () => Promise<ConnectionStatus[]>;
+  /** the connections known BEFORE the popup opened, so a returning account reads as NEW (not a pre-existing one). */
+  before: ConnectionStatus[];
+  /** narrow to a specific integration's provider when the grant targets one (else the newest fresh connection). */
+  provider?: string;
+  /** true → stop polling (the user closed the popup without authorizing). Leaves the honest "granted" state. */
+  isCancelled?: () => boolean;
+  /** injectable so tests never actually wait. */
+  sleep?: (ms: number) => Promise<void>;
+  intervalMs?: number;
+  timeoutMs?: number;
+}
+
+/**
+ * Poll the connection list until the just-authorized account appears (via `newlyConnected`), then resolve
+ * it — so the SPA can bind its opaque `connectionId` onto the grant WITHOUT leaving the app. Resolves
+ * `undefined` on cancel (popup closed) or timeout — the caller then leaves the grant in its honest
+ * "granted (no live connection)" state, no error. Deps are injected so this is unit-testable with no browser,
+ * no network, and no real timers.
+ */
+export async function pollForConnection(deps: PollForConnectionDeps): Promise<ConnectionStatus | undefined> {
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const interval = deps.intervalMs ?? 2000;
+  const timeout = deps.timeoutMs ?? 120000;
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    const current = await deps.list();
+    const found = newlyConnected(deps.before, current, deps.provider);
+    if (found) return found;
+    if (deps.isCancelled?.()) return undefined;
+    if (Date.now() >= deadline) return undefined;
+    await sleep(interval);
+  }
+}
+
 /** A model-proposed grant, grounded in the agent — inert until a human accepts it (UX3). */
 export interface GrantSuggestion {
   toolId: string;

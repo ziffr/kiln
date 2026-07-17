@@ -18,7 +18,10 @@ const config = {
   trailingSlash: false,
 
   onBrokenLinks: "throw",
-  markdown: { hooks: { onBrokenMarkdownLinks: "warn" } },
+  markdown: { hooks: { onBrokenMarkdownLinks: "warn" }, mermaid: true },
+
+  // Mermaid diagrams in ```mermaid fences (the concept page's pipeline/dependency figures).
+  themes: ["@docusaurus/theme-mermaid"],
 
   // English-only docs for now (the Studio app itself stays bilingual EN/DE — this is only the docs site).
   i18n: {

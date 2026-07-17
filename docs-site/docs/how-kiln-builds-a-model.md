@@ -30,14 +30,20 @@ narrative and not one shared blob.
 When you open a stage, this is what happens — the same shape for capabilities, entities, roles,
 every layer:
 
-```
-  deterministic        LLM           LLM · optional      LLM · optional        you
- ┌──────────────┐  ┌──────────┐   ┌──────────────┐   ┌────────────────┐   ┌──────────┐
- │ Mock scaffold│─▶│ Generate │─▶ │  Enrich  ✨  │─▶ │ Second opinion │─▶ │  Accept  │─▶ next layer
- │   no LLM     │  │  writes  │   │  add detail  │   │   critic  🔍   │   │ you keep │
- └──────────────┘  └──────────┘   └──────────────┘   └────────────────┘   └──────────┘
-                        ▲                                     │
-                        └─────────────── refine ◀─────────────┘
+```mermaid
+flowchart LR
+  M["Mock scaffold<br/>no LLM"] --> G["Generate<br/>LLM"]
+  G --> E["Enrich ✨<br/>LLM · optional"]
+  E --> R["Second opinion 🔍<br/>LLM · optional"]
+  R --> A["Accept<br/>you decide"]
+  A --> N["next layer's input"]
+  R -.->|refine| G
+  classDef det stroke:#3b7dd8,stroke-width:2px;
+  classDef llm stroke:#8b5cf6,stroke-width:2px;
+  classDef you stroke:#3fa66a,stroke-width:2px;
+  class M det;
+  class G,E,R llm;
+  class A you;
 ```
 
 - **Mock scaffold — deterministic, offline, instant.** Before any model runs, the layer is filled
@@ -62,19 +68,26 @@ scaffolding, real generated content, enriched, and reviewed — all visible and 
 
 ## The layers, and what each one reads
 
-Because each layer reads only its parent, the layers form a dependency tree. This is the exact
-read-order (each *reads* is the literal input to that layer's generator):
+Because each layer reads only its parent, the layers form a dependency tree. **An arrow points from
+a layer to the layer built from it** — so a child *reads* its parent:
 
-```
-narrative
-  └─▶ capabilities        reads narrative → Core Activities
-        ├─▶ entities      reads capabilities
-        │     └─▶ behaviour            reads entities → commands + events
-        │           ├─▶ automations    reads events + commands
-        │           └─▶ workflows      reads commands
-        ├─▶ areas         reads capabilities
-        ├─▶ roles         reads capabilities
-        └─▶ agents        reads capabilities
+```mermaid
+flowchart TD
+  NAR["Narrative<br/>the only text read"] -->|Core Activities| CAP["Capabilities"]
+  subgraph MODEL["The model — every box runs the engine above"]
+    direction TB
+    CAP --> ENT["Entities"]
+    CAP --> AREA["Areas"]
+    CAP --> ROLE["Roles"]
+    CAP --> AGENT["Agents"]
+    ENT --> BEH["Behaviour<br/>commands + events"]
+    BEH --> AUTO["Automations<br/>reads events + commands"]
+    BEH --> WF["Workflows<br/>reads commands"]
+  end
+  classDef inp stroke:#6b7280,stroke-width:2px;
+  classDef llm stroke:#8b5cf6,stroke-width:2px;
+  class NAR inp;
+  class CAP,ENT,AREA,ROLE,AGENT,BEH,AUTO,WF llm;
 ```
 
 Two things worth reading off this tree:
@@ -103,11 +116,14 @@ role that owns nothing.
 So before you can export, Kiln runs **one whole-model coherence check** — the only step that reasons
 across *all* layers at once:
 
-```
-  all layers  ─▶  Holistic coherence check  ─▶  Export
-                  ├─ deterministic score  (coverage matrix — free, always runs)
-                  └─ LLM whole-model review  (a second opinion on the whole model)
-                  gates export 🔒 — nothing exports until it passes
+```mermaid
+flowchart TD
+  L["All layers"] --> HOL["Holistic coherence check<br/>① deterministic score — coverage matrix, always runs<br/>② LLM whole-model review — a second opinion"]
+  HOL -->|"gate 🔒 — nothing exports until it passes"| EXP["Export"]
+  classDef gate stroke:#c98a2b,stroke-width:2px;
+  classDef inp stroke:#6b7280,stroke-width:2px;
+  class HOL gate;
+  class L,EXP inp;
 ```
 
 - The **deterministic score** builds a coverage matrix — for every capability, does an entity, a

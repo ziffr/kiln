@@ -30,7 +30,7 @@ export function WorkflowDetail({ workflow, domain, rationale, services, t, onSel
     <div className="nd wf-detail">
       <div className="nd-head">
         <strong>{w.name || w.id}</strong>
-        <button className="nd-close" onClick={onClose} aria-label="close">×</button>
+        <button className="nd-close" onClick={onClose} aria-label="close"><Icon name="x" size={15} /></button>
       </div>
       <div className="wf-detail-meta">
         <span className={`wf-mode-chip wf-mode-${mode}`}><Icon name={MODE_ICON[mode]} size={12} />{t(MODE_KEY[mode])}</span>

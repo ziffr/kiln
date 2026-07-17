@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Drawer } from "./Drawer";
+import { Drawer, DrawerTabs } from "./Drawer";
 import { Icon } from "./Icon";
 import { PlacementEditor } from "./PlacementEditor";
 import type { Binding } from "@kiln/codegen";
@@ -33,8 +33,8 @@ interface Props {
   /** Reviewer (Second-opinion) engine override. Empty provider = match the layer being reviewed. */
   reviewer: { provider?: string; model?: string; effort?: string };
   onSetReviewer: (field: "provider" | "model" | "effort", value: string) => void;
-  /** Deep link to the docs page explaining engines/models/stages. */
-  docsUrl?: string;
+  /** Opens the docs drawer at the page explaining engines/models/stages (in place, not a new tab). */
+  onOpenDocs?: () => void;
   stages: StageRow[];
   overrides: Record<string, Override>;
   resolvedFor: (key: string) => { provider: string; model: string; effort: string };
@@ -55,7 +55,7 @@ interface Props {
 type Tab = "ai" | "deploy" | "general";
 
 export function SettingsModal(props: Props): React.JSX.Element {
-  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, autoReviewAfterGen, onSetAutoReview, confirmReviewCost, onSetConfirmReviewCost, reviewer, onSetReviewer, docsUrl, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, language, languages, onSetLanguage, t } = props;
+  const { providers, efforts, defaultEngine, defaultModel, defaultEffort, adaptive, onSetAdaptive, autoReviewAfterGen, onSetAutoReview, confirmReviewCost, onSetConfirmReviewCost, reviewer, onSetReviewer, onOpenDocs, stages, overrides, resolvedFor, onSetDefault, onSetStage, onReset, onClose, binding, onBindingChange, language, languages, onSetLanguage, t } = props;
   const [tab, setTab] = useState<Tab>("general");
   const providerOf = (id: string): ProviderOpt | undefined => providers.find((p) => p.id === id);
   const providerLabel = (id: string): string => providerOf(id)?.label ?? id;
@@ -81,26 +81,19 @@ export function SettingsModal(props: Props): React.JSX.Element {
   ];
 
   return (
-    <Drawer title={t("settingsTitle")} icon="settings" onClose={onClose} wide
+    <Drawer title={t("settingsTitle")} icon="settings" onClose={onClose} wide closeLabel={t("close")}
+      tabs={<DrawerTabs tabs={tabs} active={tab} onSelect={setTab} label={t("settingsTitle")} />}
       footer={<>
         {/* Reset only concerns the AI tab's per-stage overrides — hide it elsewhere so it can't mislead. */}
         {tab === "ai" && <button className="btn ghost" onClick={onReset}>{t("settingsReset")}</button>}
         <button className="btn primary" onClick={onClose}>{t("settingsDone")}</button>
       </>}>
-      <div className="settings-tabs" role="tablist">
-        {tabs.map((tb) => (
-          <button key={tb.id} role="tab" aria-selected={tab === tb.id} className={tab === tb.id ? "active" : ""} onClick={() => setTab(tb.id)}>
-            {tb.label}
-          </button>
-        ))}
-      </div>
-
       {tab === "ai" && (
         <div className="settings">
           {/* ---- The default engine / model / effort ---- */}
           <h3 className="settings-h" style={{ display: "flex", alignItems: "center", gap: 10 }}>
             Engine &amp; models
-            {docsUrl && <a className="settings-doclink" href={docsUrl} target="_blank" rel="noreferrer">Learn more ↗</a>}
+            {onOpenDocs && <button className="settings-doclink" onClick={onOpenDocs}>Learn more</button>}
           </h3>
           <p className="muted" style={{ marginTop: 0 }}>
             The engine, model and effort every stage uses unless you override it below. Anthropic is the

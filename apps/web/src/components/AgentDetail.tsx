@@ -96,7 +96,7 @@ export function AgentDetail({
     <div className="nd agent-detail">
       <div className="nd-head">
         <strong className="agent-title"><Icon name="bot" size={15} />{agent.name || agent.id}</strong>
-        <button className="nd-close" onClick={onClose} aria-label={t("close")}>×</button>
+        <button className="nd-close" onClick={onClose} aria-label={t("close")}><Icon name="x" size={15} /></button>
       </div>
       <div className="agent-detail-meta">
         {/* AG6: an agent with no authored behaviour is UNDESIGNED — say so wherever the agent is named. */}
@@ -106,13 +106,13 @@ export function AgentDetail({
       </div>
       {agent.goal && <p className="agent-detail-goal muted">{agent.goal}</p>}
 
-      <div className="ps-tabs agent-detail-tabs" role="tablist">
+      <div className="drawer-tabs agent-detail-tabs" role="tablist">
         {(["contract", "behaviour", "runs"] as Tab[]).map((k) => (
           <button
             key={k}
             role="tab"
             aria-selected={tab === k}
-            className={`ps-tab${tab === k ? " active" : ""}`}
+            className={`drawer-tab${tab === k ? " active" : ""}`}
             onClick={() => setTab(k)}
           >
             {t(k === "contract" ? "agentContract" : k === "behaviour" ? "agentTabBehaviour" : "agentTabRuns")}

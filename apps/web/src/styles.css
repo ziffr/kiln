@@ -256,12 +256,9 @@ textarea {
    stranding ~190px of empty panel beside it, and still reading as a pop-up card. The column owns the
    scroll and the padding now, so this sets neither. */
 .node-detail { display: flex; flex-direction: column; }
-.nd-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.nd-head h3 { margin: 0; font-size: 15px; }
-.nd-close {
-  background: transparent; color: var(--muted); border: none; font-size: 20px; line-height: 1;
-  cursor: pointer; padding: 0 4px;
-}
+/* `.nd-head` / `.nd-close` are styled with the drawer chrome (see the Drawer block) so a detail panel
+   and a drawer share one header. They carried their own look before: a bare text `×` at 20px against
+   the drawer's icon button. Don't reintroduce a local head here. */
 .nd-id { display: inline-block; margin: 4px 0 8px; font-size: 11px; color: var(--accent); }
 .nd-purpose { margin: 0 0 10px; font-size: 13px; line-height: 1.5; }
 .nd-row { margin-bottom: 8px; }
@@ -272,9 +269,11 @@ textarea {
 .chip-x { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
 .chip-x:hover { color: var(--warn-fg); }
 
+/* The editable title input. Type comes from the shared head rule (see the Drawer block) so it matches
+   a drawer's <h3>; only the input affordance lives here. */
 .nd-name {
-  flex: 1; background: var(--bg); color: var(--fg); border: 1px solid var(--edge);
-  border-radius: 6px; padding: 5px 8px; font-size: 15px; font-weight: 600;
+  flex: 1; min-width: 0; background: var(--bg); color: var(--fg); border: 1px solid var(--edge);
+  border-radius: 6px; padding: 5px 8px;
 }
 .nd-field { display: block; margin: 8px 0; }
 .nd-field textarea, .nd-tag-input {
@@ -640,15 +639,8 @@ textarea {
 /* Section header inside settings — a quiet, "designed" label. */
 .settings-h { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; margin: 18px 0 6px; color: var(--muted); }
 .settings-h:first-child { margin-top: 2px; }
-/* Settings tab strip — underline-style tabs at the top of the modal body. */
-.settings-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin: -2px 0 6px; }
-.settings-tabs button { appearance: none; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 550; color: var(--muted); cursor: pointer; }
-.settings-tabs button:hover { color: var(--fg); }
-.settings-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
-/* In the drawer the whole body scrolls (the modal card sized to its content), so pin the strip to the
-   top of it — the AI tab is long enough that its own tabs would otherwise scroll out of reach. The
-   negative top/margin pair lets the sticky element's own padding cover the scrollport's top gutter. */
-.drawer-scroll .settings-tabs { position: sticky; top: -14px; z-index: 1; background: var(--panel); padding-top: 14px; margin-top: -14px; }
+/* Settings' tab strip is `.drawer-tabs` now — it used to carry its own underline style, the app's
+   second tab design, which is exactly the inconsistency the shared drawer chrome exists to prevent. */
 .settings-tier-tag { margin-left: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; }
 .settings-doclink { font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--accent-2); text-decoration: none; }
 .settings-doclink:hover { text-decoration: underline; }
@@ -1450,8 +1442,15 @@ textarea {
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 18px; }
 
 /* ── Drawer (right-hand slide-in) ──────────────────────────────────────────────────────────────────
-   The roomy alternative to a modal card for content-heavy chrome (settings). Same shell language as the
-   Prompt studio, plus a backdrop: it IS app chrome, so click-outside-to-dismiss should stay available. */
+   THE canonical secondary surface. The Prompt studio's shell was the template; this is now that shell,
+   shared by every drawer (prompt studio, settings, docs). Two rules keep the app coherent:
+
+     1. A drawer and a docked detail panel must READ THE SAME. `.drawer-head`/`.drawer-tabs` are used by
+        both — the docked panels in `.stage-detail` reuse the head + tab CSS below (see `.nd-head`).
+        Only the mechanic differs: a drawer overlays, a detail reflows the canvas it's read against.
+     2. New chrome extends these classes; it does not invent a third head or a second tab style. The app
+        had both before this — an `.nd-head` with a text `×`, a `.ps-head` with an icon, and Settings
+        carrying underline tabs while everything else used pills. */
 .drawer-overlay {
   position: fixed; inset: 0; z-index: 100; display: flex; justify-content: flex-end;
   background: rgba(20, 17, 13, .38); backdrop-filter: blur(2px);
@@ -1467,15 +1466,41 @@ textarea {
 @keyframes drawer-slide { from { transform: translateX(18px); opacity: .5; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .drawer, .drawer-overlay { animation: none; } }
 
-.drawer-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--edge); }
+/* Head — `.nd-head` (the docked detail panels) rides along so a detail and a drawer share one header. */
+.drawer-head, .nd-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.drawer-head { padding: 14px 18px; border-bottom: 1px solid var(--edge); }
 .drawer-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.drawer-title h3 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+/* ONE title type scale across every head. The detail panels name their subject with whatever element
+   fits (an h3, a plain <strong>, or an editable <input class="nd-name"> where the name IS the model),
+   so all of them are pulled onto the drawer's scale here — left alone they fell back to the browser's
+   <strong> (16px/700) or the input's own 600, and the heads read as three different surfaces. */
+.drawer-title h3, .nd-head h3, .nd-head > strong, .nd-head > .nd-name { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
 .drawer-title > svg { color: var(--accent-2); flex: none; }
-.drawer-x { flex: none; display: inline-flex; padding: 6px; border: 0; background: none; color: var(--muted); border-radius: 6px; cursor: pointer; line-height: 0; }
-.drawer-x:hover { color: var(--fg); background: var(--panel-2); }
-.drawer-x:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.drawer-badge { font-size: 12px; padding-left: 8px; margin-left: 2px; border-left: 1px solid var(--edge); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drawer-x, .nd-close { flex: none; display: inline-flex; padding: 6px; border: 0; background: none; color: var(--muted); border-radius: 6px; cursor: pointer; line-height: 0; }
+.drawer-x:hover, .nd-close:hover { color: var(--fg); background: var(--panel-2); }
+.drawer-x:focus-visible, .nd-close:focus-visible, .drawer-tab:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.drawer-lead { flex: none; margin: 12px 18px 0; font-size: 12.5px; line-height: 1.5; }
 .drawer-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px 20px; }
+/* Content that owns its own surface + scrolling (the docs iframe) — no gutter, no outer scrollbar. */
+.drawer-scroll.flush { padding: 0; overflow: hidden; display: flex; }
 .drawer-foot { flex: none; display: flex; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--edge); }
+
+/* Docs drawer — the docs site read in place. The frame is white in both themes: it renders the real
+   docs site, which brings its own light background; tinting the container would only show as a seam. */
+.drawer-ext { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--accent-2); text-decoration: none; padding-left: 8px; margin-left: 2px; border-left: 1px solid var(--edge); white-space: nowrap; }
+.drawer-ext:hover { text-decoration: underline; }
+.docs-frame { position: relative; flex: 1; min-width: 0; display: flex; background: #fff; }
+.docs-frame iframe { flex: 1; min-width: 0; border: 0; }
+.docs-frame-load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--panel); }
+
+/* Tabs — segmented pills, the app's ONE tab design. Pinned (never inside a scroll container): a tab
+   strip that scrolls away with its own content is unreachable exactly when a long tab needs it. */
+.drawer-tabs { flex: none; display: inline-flex; gap: 2px; align-self: flex-start; margin: 12px 18px 0; padding: 3px; background: var(--panel-2); border: 1px solid var(--edge); border-radius: 8px; }
+.drawer-tab { font: inherit; font-size: 12.5px; font-weight: 550; padding: 5px 12px; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+.drawer-tab.active { background: var(--panel); color: var(--fg); box-shadow: var(--shadow); }
+/* Inside a docked detail panel the strip is part of the flow, not pinned under a drawer head. */
+.stage-detail .drawer-tabs { margin-left: 0; margin-right: 0; }
 
 /* icon buttons keep their glyph centered */
 .projectbar button, .side-foot-btn, .modal-x { line-height: 0; }
@@ -1487,34 +1512,14 @@ textarea {
 .projectbar button { display: inline-flex; align-items: center; justify-content: center; }
 .side-mark svg { display: block; }
 
-/* ── Prompt & Output studio (on-demand drawer) ─────────────────────────────────────────────────────
+/* ── Prompt & Output studio ────────────────────────────────────────────────────────────────────────
    Transparency into the LLM calls behind a stage: view the prompts, session-tune them, inspect the last
-   output. A right-side drawer (fixed → overlays without reflowing the canvas). Quiet indigo = the AI seam. */
+   output. Its shell is the shared Drawer now (see “Drawer” above) — this block is only its CONTENT.
+   Quiet indigo = the AI seam. */
 .btn.ghost.active { background: var(--accent-2-soft); border-color: var(--accent-2); color: var(--fg); }
 
-.prompt-studio {
-  position: fixed; z-index: 90; top: 0; right: 0; bottom: 0;
-  width: min(560px, 94vw); display: flex; flex-direction: column;
-  background: var(--panel); border-left: 1px solid var(--edge); box-shadow: var(--shadow);
-  animation: ps-slide .16s ease;
-}
-@keyframes ps-slide { from { transform: translateX(18px); opacity: .5; } to { transform: none; opacity: 1; } }
-
-.ps-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--edge); }
-.ps-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.ps-title h3 { margin: 0; font-size: 14px; font-weight: 650; }
-.ps-title > svg { color: var(--accent-2); flex: none; }
-.ps-stage { font-size: 12px; padding-left: 8px; margin-left: 2px; border-left: 1px solid var(--edge); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ps-x { flex: none; display: inline-flex; padding: 6px; border: 0; background: none; color: var(--muted); border-radius: 6px; cursor: pointer; }
-.ps-x:hover { color: var(--fg); background: var(--panel-2); }
-
-.ps-lead { margin: 12px 16px 0; font-size: 12.5px; line-height: 1.5; }
-
-.ps-tabs { display: inline-flex; gap: 2px; align-self: flex-start; margin: 12px 16px 0; padding: 3px; background: var(--panel-2); border: 1px solid var(--edge); border-radius: 8px; }
-.ps-tab { font: inherit; font-size: 12.5px; font-weight: 550; padding: 5px 12px; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
-.ps-tab.active { background: var(--panel); color: var(--fg); box-shadow: var(--shadow); }
-
-.ps-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 18px; }
+/* The studio's own scroll body: sections spaced apart. The Drawer owns the scroll + padding. */
+.ps-body { display: flex; flex-direction: column; gap: 18px; }
 .ps-section { display: flex; flex-direction: column; gap: 8px; }
 .ps-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .ps-label { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
@@ -1545,13 +1550,11 @@ textarea {
 }
 .ps-empty { margin: 0; font-size: 12.5px; padding: 16px; border: 1px dashed var(--edge); border-radius: 8px; text-align: center; }
 
-.ps-tab:focus-visible, .ps-mini:focus-visible, .ps-x:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.ps-mini:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 
-@media (prefers-reduced-motion: reduce) { .prompt-studio { animation: none; } }
 /* The run trace moved out of the (motion-guarded) drawer into the detail panel — carry the guard with it,
    which also honours the setting for the area/workflow/entity details that already used this slide-in. */
 @media (prefers-reduced-motion: reduce) { .stage-detail { animation: none; } }
-@media (max-width: 640px) { .prompt-studio { width: 100vw; } }
 
 /* ── Agents stage: the scannable list + the AgentDetail slide-in ───────────────────────────────── */
 .agents-stage { display: flex; flex-direction: column; gap: 20px; }
@@ -1638,8 +1641,8 @@ textarea {
 .agent-contract-fields, .agent-contract-proc { color: var(--muted); }
 .agent-contract-none { font-size: 11px; font-style: italic; }
 
-/* The agent detail slide-in — the ONE surface for a selected agent. Reuses the shared `nd` detail chrome
-   (head + close + detail-slide-in) and the `ps-tabs` control; only the agent-specific bits live here. */
+/* The agent detail slide-in — the ONE surface for a selected agent. Reuses the shared drawer chrome
+   (`nd-head` + `nd-close` + `drawer-tabs`); only the agent-specific bits live here. */
 .agent-detail { display: flex; flex-direction: column; gap: 0; }
 .agent-detail-meta { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; }
 .agent-detail-goal { margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; }

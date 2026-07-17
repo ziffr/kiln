@@ -4,6 +4,7 @@
 // entities it references / is referenced by. The one place the siloed layers are wired together.
 
 import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type AggregateInput } from "@kiln/compiler";
+import { Icon } from "./Icon";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 type Stage = "capabilities" | "areas" | "entities" | "behaviour" | "automations" | "roles" | "workflows" | "agents";
@@ -34,7 +35,7 @@ export function EntityTrace({ entity, domain, caps, roles, onSelectCap, onSelect
     <div className="trace">
       <div className="nd-head">
         <h3>{entity.name || entity.id}</h3>
-        <button className="nd-close" onClick={onClose} aria-label="close">×</button>
+        <button className="nd-close" onClick={onClose} aria-label="close"><Icon name="x" size={15} /></button>
       </div>
       <button className="trace-owner" onClick={() => onSelectCap(entity.owner)}>
         {t("traceOwner")}: {capName(entity.owner)} · {attributeSpecs(entity).length} {t("attributes")}

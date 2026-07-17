@@ -19,7 +19,35 @@ to click:
   anything is applied.
 - **▶ Run app** — boots the generated app **locally** and opens it in a new browser tab (see below).
 - **⤓ Export** — a menu: download just the **scaffold**, a **runnable app** with AI-written logic, or the
-  whole **Full stack** project, each as a zip.
+  whole **Full stack** project, each as a zip. Export stays **locked (🔒)** until the whole-model
+  coherence check below passes.
+
+The controls read as a sequence: **① Improve with AI** (optional) → **② Run app** (optional) →
+**③ Final step — whole-model coherence** → **Export**.
+
+## ③ Final step — the whole-model coherence check
+
+Kiln builds your model one layer at a time, each layer from the one above. That means an individual layer
+can look fine while the **whole model doesn't hang together** — a capability with a screen but no
+behaviour behind it, an entity nothing operates, a dangling reference between layers. Before you can
+export, Kiln runs a final coherence check and **gates export on it**.
+
+The card shows a deterministic **coherence score** (the share of capabilities whose chain is complete —
+an entity, behaviour, and a role or agent that owns it) plus a per-column count. Export unlocks only when:
+
+- **No broken chains.** A capability missing its entity or its behaviour is a hard break (nothing operates
+  it) — listed by name, and it **blocks export** until you fix the model. Dangling/orphan references
+  across layers block it too.
+- **Soft gaps acknowledged.** A capability that *is* operated but has no role or agent owner is a soft
+  gap — it doesn't block, but you must tick **"I've reviewed the whole-model coherence"** to proceed.
+- **The whole-model review has run.** Click **Run whole-model review** and an AI reviewer reads every
+  layer together and reports whether they tell one coherent story. It's required at least once. Its
+  findings are advisory — they don't hard-block — but any **concern** it raises must be **acknowledged**
+  before export.
+
+When everything clears, the card turns green — *"Coherence check passed — ready to export"* — and the
+Export lock disappears. The score is recomputed live from your model, so fixing the model in an earlier
+stage and returning here updates it.
 
 The **Full-Stack** export is a runnable app, not just a mockup: the shadcn UI **fetches real data** from
 the generated command API (spine) and drives its actions, and it uses real shadcn components — a

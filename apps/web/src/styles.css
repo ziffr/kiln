@@ -728,6 +728,20 @@ textarea {
 .verify-checks li { padding: 4px 0; font-size: 13px; border-top: 1px solid var(--panel-2); }
 .verify-checks code { font-size: 12px; padding: 0 4px; border-radius: 3px; margin-right: 6px; }
 
+/* ③ Final step — whole-model coherence gate. Reuses the .code-review panel idiom, with a left accent
+   that goes green once the gate clears (the "ready to export" state). */
+.coherence-card { border-left: 3px solid var(--warn-fg); }
+.coherence-card.coherence-ok { border-left-color: var(--ok-fg); }
+.coherence-headline { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--fg); }
+.coherence-counts { margin: 0; padding: 2px 12px 6px; font-size: 12px; }
+.coherence-breaks, .coherence-soft { padding: 2px 12px 4px; }
+.coherence-breaks > strong, .coherence-soft > strong { display: block; font-size: 12px; margin: 4px 0; }
+.coherence-ack { display: flex; gap: 8px; align-items: baseline; cursor: pointer; font-size: 13px; padding: 4px 0; }
+.coherence-review { display: flex; align-items: center; gap: 8px; padding: 8px 12px; flex-wrap: wrap; }
+.coherence-req { font-size: 12px; }
+.coherence-findings { padding-top: 0; }
+.coherence-passed { margin: 0; padding: 6px 12px 10px; font-size: 13px; font-weight: 600; }
+
 /* ============ Stage workspace (progressive disclosure) ============ */
 .workspace { flex: 1; display: grid; grid-template-columns: 210px minmax(0, 1fr) 320px; gap: 0; overflow: hidden; min-height: 0; }
 

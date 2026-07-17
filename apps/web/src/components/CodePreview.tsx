@@ -2,7 +2,8 @@ import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { generateAll, generateApp, assembleFullStack } from "@kiln/codegen";
 import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
-import type { CodeFinding } from "@kiln/skills";
+import type { CodeFinding, CritiqueFinding } from "@kiln/skills";
+import { scoreHolisticCoherence } from "@kiln/eval";
 import type { ModelDoc } from "../model";
 import { downloadZip } from "../zip";
 import { Icon } from "./Icon";
@@ -34,6 +35,7 @@ export function CodePreview({
   requestPolishUi,
   requestPolishVisual,
   requestCodeReview,
+  requestHolistic,
   buildModel,
   onClose,
 }: {
@@ -50,7 +52,8 @@ export function CodePreview({
   requestPolishUi?: (views: Record<string, unknown>) => Promise<{ views: Record<string, unknown>; improvements: Record<string, string[]> }>;
   requestPolishVisual?: (views: Record<string, unknown>) => Promise<{ views: Record<string, unknown>; improvements: Record<string, string[]>; unavailable?: boolean; error?: string }>;
   requestCodeReview: (handlerCode?: Record<string, string>) => Promise<CodeFinding[]>;
-  buildModel: () => ModelDoc; // the COMPLETE model (all layers) — for the full-stack export
+  requestHolistic: () => Promise<CritiqueFinding[]>; // the LLM whole-model coherence pass (holistic layer)
+  buildModel: () => ModelDoc; // the COMPLETE model (all layers) — for the full-stack export + coherence score
   onClose: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
@@ -74,7 +77,42 @@ export function CodePreview({
   const [polishAccept, setPolishAccept] = useState<Record<string, boolean>>({});
   const autoStop = useRef(false);
   const zipName = `${(caps.domain || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-app.zip`;
-  const busy = exporting || reviewing || fixing || auto || verifying || autoVerifying || running || polishing || visualPolishing;
+
+  // ── Whole-model coherence gate (the FINAL step before export) ────────────────────────────────
+  // Kiln generates layer by layer, so a layer can be sound while the whole model doesn't hang together.
+  // Export is gated on: (A) DETERMINISTIC — hard-block on any chain break or dangling ref; soft gaps need
+  // an explicit ack. (B) LLM PASS — the whole-model critique must have run once, and any concern it raises
+  // must be acknowledged. The score is deterministic (recomputed from the live model), the LLM pass is opt-in.
+  const [ackSoft, setAckSoft] = useState(false);
+  const [holisticRan, setHolisticRan] = useState(false);
+  const [holisticBusy, setHolisticBusy] = useState(false);
+  const [holisticFindings, setHolisticFindings] = useState<CritiqueFinding[] | null>(null);
+  const [ackConcerns, setAckConcerns] = useState<Set<string>>(new Set());
+  const coherence = useMemo(() => {
+    const m = buildModel();
+    return scoreHolisticCoherence({ caps: m.capabilities, domain: m.domain, contexts: m.contexts, roles: m.roles, agents: m.agents });
+  }, [buildModel]);
+  const hardBlocked = coherence.chainBreaks.length > 0 || coherence.danglingRefs > 0;
+  const openConcerns = (holisticFindings ?? []).filter((f) => f.severity === "concern" && !ackConcerns.has(f.id));
+  const exportBlocked = hardBlocked || (coherence.softGaps.length > 0 && !ackSoft) || !holisticRan || openConcerns.length > 0;
+
+  const busy = exporting || reviewing || fixing || auto || verifying || autoVerifying || running || polishing || visualPolishing || holisticBusy;
+
+  // Run the LLM whole-model coherence pass (the "holistic" critique layer). Required before export; the
+  // findings render inline and any `concern` must be acknowledged. Advisory — it never hard-blocks by itself.
+  async function runWholeReview(): Promise<void> {
+    setHolisticBusy(true);
+    setExportNote(null);
+    try {
+      const findings = await requestHolistic();
+      setHolisticFindings(findings);
+      setHolisticRan(true);
+    } catch (e) {
+      setExportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setHolisticBusy(false);
+    }
+  }
 
   // Phase-2 VISUAL pass: the service boots the app, screenshots each screen, and Claude vision critiques
   // what it SEES → improved specs. Same review panel as the structural pass. Local-only (needs a browser).
@@ -186,6 +224,7 @@ export function CodePreview({
     fs.map((f) => `[${f.severity}/${f.lens}] ${f.file}: ${f.message}${f.suggestion ? ` → ${f.suggestion}` : ""}`).join("\n");
 
   async function exportApp(withAI: boolean): Promise<void> {
+    if (exportBlocked) { setExportNote(t("exportLockedHint")); return; } // belt-and-suspenders: no path past the gate
     setExporting(true);
     setExportNote(null);
     try {
@@ -210,6 +249,7 @@ export function CodePreview({
   // agents + docker-compose + Dockerfiles + all docs/plumbing) — the same bytes the CLI exporter writes,
   // assembled in the browser via the pure assembleFullStack(). Includes any AI-drafted handlers already applied.
   async function exportFullStack(): Promise<void> {
+    if (exportBlocked) { setExportNote(t("exportLockedHint")); return; } // belt-and-suspenders: no path past the gate
     setExporting(true);
     setExportNote(null);
     try {
@@ -322,7 +362,7 @@ export function CodePreview({
           single live status line replaces the per-button "generating…" swaps. Non-sprawling on any width. */}
       <div className="code-toolbar">
         <div className="code-actions">
-          <Menu trigger={t("improveGroup")} icon="sparkles" disabled={busy} items={[
+          <Menu trigger={t("improveStep")} icon="sparkles" disabled={busy} items={[
             { key: "review", icon: "search", label: t("codeReview"), description: t("codeReviewHint"), onClick: () => void reviewCode() },
             { key: "autofix", icon: "wrench", label: t("codeReviewAuto"), description: t("codeReviewAutoHint"), onClick: () => void autoFix() },
             { key: "verify", icon: "beaker", label: t("verifyApp"), description: t("verifyHint"), onClick: () => void verifyApp() },
@@ -332,7 +372,7 @@ export function CodePreview({
           ]} />
           {requestRun && (
             <button className="code-export" onClick={() => void runApp()} disabled={busy} title={t("runAppHint")}>
-              <Icon name="play" size={14} />{running ? t("runAppBusy") : t("runApp")}
+              <Icon name="play" size={14} />{running ? t("runAppBusy") : t("runStep")}
             </button>
           )}
           {runUrl && !running && (
@@ -340,14 +380,97 @@ export function CodePreview({
               <Icon name="globe" size={14} />{t("openPreview")}
             </a>
           )}
-          <Menu trigger={t("exportGroup")} icon="download" align="right" accent={!requestRun} disabled={busy} items={[
-            { key: "scaffold", icon: "download", label: t("exportApp"), description: t("exportAppHint"), onClick: () => void exportApp(false) },
-            { key: "ailogic", icon: "sparkles", label: t("exportAppAi"), description: t("exportAppAiHint"), onClick: () => void exportApp(true) },
-            { key: "fullstack", icon: "package", label: t("exportFullStack"), description: t("exportFullStackShort"), onClick: () => void exportFullStack(), accent: true },
-          ]} />
+          <Menu trigger={t("exportGroup")} icon={exportBlocked ? "lock" : "download"} align="right" accent={!requestRun}
+            disabled={busy || exportBlocked} items={[
+              { key: "scaffold", icon: "download", label: t("exportApp"), description: t("exportAppHint"), disabled: exportBlocked, onClick: () => void exportApp(false) },
+              { key: "ailogic", icon: "sparkles", label: t("exportAppAi"), description: t("exportAppAiHint"), disabled: exportBlocked, onClick: () => void exportApp(true) },
+              { key: "fullstack", icon: "package", label: t("exportFullStack"), description: t("exportFullStackShort"), disabled: exportBlocked, onClick: () => void exportFullStack(), accent: true },
+            ]} />
           {busy && <span className="code-busy muted"><Icon name="refresh" size={13} />{t("working")}</span>}
         </div>
         {exportNote && <p className="code-export-note muted">{exportNote}</p>}
+      </div>
+
+      {/* ③ Final step — whole-model coherence. Deterministic score + the required LLM pass, gating export. */}
+      <div className={`code-review coherence-card${exportBlocked ? "" : " coherence-ok"}`}>
+        <div className="code-review-head">
+          <Icon name={exportBlocked ? "lock" : "check"} size={15} /> {t("finalStepTitle")}
+          <span className="coherence-headline">{t("coherenceScore", { pct: Math.round(coherence.coherence * 100) })}</span>
+        </div>
+        <p className="code-review-advisory">{t("finalStepIntro")}</p>
+        <p className="coherence-counts muted">{t("coherenceCounts", {
+          entity: coherence.matrix.filter((c) => c.entity).length,
+          behaviour: coherence.matrix.filter((c) => c.behaviour).length,
+          owner: coherence.matrix.filter((c) => c.owner).length,
+          total: coherence.matrix.length,
+        })}</p>
+
+        {coherence.chainBreaks.length > 0 && (
+          <div className="coherence-breaks">
+            <strong className="cr-fail">{t("chainBreaksTitle")}</strong>
+            <ul className="code-review-findings">
+              {coherence.chainBreaks.map((c) => (
+                <li key={c.id}>
+                  <code className="sev-high">break</code>
+                  <div className="cr-msg">⚠ {t(
+                    !c.entity && !c.behaviour ? "chainBreakNeither" : !c.entity ? "chainBreakNoEntity" : "chainBreakNoBehaviour",
+                    { name: c.name },
+                  )}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {coherence.danglingRefs > 0 && (
+          <p className="code-review-advisory cr-fail">⚠ {t("danglingRefsTitle", { count: coherence.danglingRefs })}</p>
+        )}
+
+        {coherence.softGaps.length > 0 && (
+          <div className="coherence-soft">
+            <strong>{t("softGapsTitle")}</strong>
+            <ul className="code-review-findings">
+              {coherence.softGaps.map((c) => (
+                <li key={c.id}><code className="sev-low">soft</code> <div className="cr-msg">{t("softGapItem", { name: c.name })}</div></li>
+              ))}
+            </ul>
+            <label className="coherence-ack">
+              <input type="checkbox" checked={ackSoft} onChange={(e) => setAckSoft(e.target.checked)} />
+              <span>{t("ackCoherence")}</span>
+            </label>
+          </div>
+        )}
+
+        <div className="coherence-review">
+          <button className="code-export" onClick={() => void runWholeReview()} disabled={busy}>
+            <Icon name="sparkles" size={14} />{holisticBusy ? t("runWholeReviewBusy") : t("runWholeReview")}
+          </button>
+          {!holisticRan && <span className="muted coherence-req"> {t("wholeReviewRequired")}</span>}
+        </div>
+
+        {holisticRan && holisticFindings !== null && (
+          holisticFindings.length === 0 ? (
+            <p className="code-review-advisory">{t("wholeReviewClean")}</p>
+          ) : (
+            <ul className="code-review-findings coherence-findings">
+              {holisticFindings.map((f) => (
+                <li key={f.id}>
+                  <code className={`sev-${f.severity === "concern" ? "high" : "low"}`}>{f.severity}</code>
+                  <div className="cr-msg">{f.message}{f.suggestion && <span className="review-fix"> → {f.suggestion}</span>}</div>
+                  {f.severity === "concern" && (
+                    <label className="coherence-ack">
+                      <input type="checkbox" checked={ackConcerns.has(f.id)}
+                        onChange={(e) => setAckConcerns((s) => { const n = new Set(s); if (e.target.checked) n.add(f.id); else n.delete(f.id); return n; })} />
+                      <span>{t("ackConcern")}</span>
+                    </label>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )
+        )}
+
+        {!exportBlocked && <p className="coherence-passed cr-pass">✓ {t("coherencePassed")}</p>}
       </div>
 
       {verdict && (

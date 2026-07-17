@@ -2419,6 +2419,7 @@ export default function App(): React.JSX.Element {
                   applySpend(data);
                   return data.findings ?? [];
                 }}
+                requestHolistic={() => reviewLayer("holistic")}
                 buildModel={() =>
                   assembleModel(
                     { name: active.name, description: active.description, narrative: text, capabilities: activeDoc, contexts: contextsDoc, domain: flowDoc, roles: rolesDoc, workflows: workflowsDoc, agents: agentsDoc },

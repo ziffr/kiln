@@ -105,6 +105,9 @@ const FALLBACK_PROVIDERS: ProviderCat[] = [
 const EST_IN_TOKENS = 12000;
 const EST_OUT_TOKENS = 3000;
 const EFFORTS = ["low", "medium", "high", "max"];
+// The tunable LLM calls behind a stage, as seen by the Prompt & Output studio. `agentReview` is the
+// PER-AGENT prompt critique (agent-prompt layer) — a third call the agents stage exposes.
+type PromptKind = "generate" | "review" | "agentReview";
 // Adaptive Anthropic defaults: when Adaptive is on and a stage runs on Anthropic with no explicit
 // per-stage override, its model + effort come from the layer's TIER — heavy reasoning stages get
 // Opus/high, standard stages Sonnet, mechanical (light) stages Haiku — instead of a flat global
@@ -241,9 +244,10 @@ export default function App(): React.JSX.Element {
   const [studioLocked, setStudioLocked] = useState(false);
   // Prompt & Output studio (on-demand). `showPromptStudio` opens the drawer for the active stage.
   // `promptOverrides` are SESSION-ONLY edits (never persisted / never written to the stored .md) — keyed by
-  // stage → { generate?, review? }; sent as `promptOverride` only when the user has actually edited a prompt.
+  // stage → { generate?, review?, agentReview? }; sent as `promptOverride` only when the user has actually
+  // edited a prompt. `agentReview` = the agents stage's per-agent prompt-critique prompt (agent-prompt layer).
   const [showPromptStudio, setShowPromptStudio] = useState(false);
-  const [promptOverrides, setPromptOverrides] = useState<Record<string, { generate?: string; review?: string }>>({});
+  const [promptOverrides, setPromptOverrides] = useState<Record<string, { generate?: string; review?: string; agentReview?: string }>>({});
   // Test-this-agent (on-demand drawer). `testAgentId` = the agent whose run panel is open; the last trace
   // per agent is persisted in the unified `observability.agentRuns` envelope, so it survives reload.
   const [testAgentId, setTestAgentId] = useState<string | null>(null);
@@ -283,6 +287,11 @@ export default function App(): React.JSX.Element {
   // layer, so all critique goes stale → clear it.
   const [critique, setCritique] = useState<Partial<Record<LayerKind, CritiqueFinding[]>>>({});
   const [reviewBusy, setReviewBusy] = useState<LayerKind | null>(null);
+  // Per-agent prompt critique ("agent-prompt" layer): findings are keyed by agent id (not layer) because
+  // each agent's behaviour prompt is reviewed against ITS OWN contract. undefined = not reviewed; [] =
+  // reviewed-clean; >0 = advisory findings. `agentReviewBusy` = the agent id currently under review.
+  const [agentCritique, setAgentCritique] = useState<Record<string, CritiqueFinding[]>>({});
+  const [agentReviewBusy, setAgentReviewBusy] = useState<string | null>(null);
   // Layers whose (previously reviewed) AI critique was invalidated because an upstream Apply regenerated
   // them (see APPLY_RESETS_BELOW). We can't know for free whether the regenerated content is now clean —
   // that's an LLM judgment — so instead of a misleading "not reviewed" we flag "changed upstream", nudging
@@ -903,12 +912,16 @@ export default function App(): React.JSX.Element {
     const lk = REVIEW_KIND[stage];
     return lk ? critiqueSystemPrompt(lk) : undefined;
   };
+  // The default system prompt behind a stage+kind. `agentReview` = the PER-AGENT prompt critique
+  // (agent-prompt layer), a third tunable call on the agents stage alongside generate + the roster review.
+  const promptDefaultFor = (stage: StageId, kind: PromptKind): string | undefined =>
+    kind === "generate" ? GEN_PROMPT[stage] : kind === "agentReview" ? critiqueSystemPrompt("agent-prompt") : reviewPromptFor(stage);
   // A stage's session override for a call kind, trimmed & only when it actually DIFFERS from the default
   // (so an untouched or reset-to-default textarea sends nothing → the stored prompt stays the fallback).
-  const effectiveOverride = (stage: StageId, kind: "generate" | "review"): string | undefined => {
+  const effectiveOverride = (stage: StageId, kind: PromptKind): string | undefined => {
     const edited = promptOverrides[stage]?.[kind];
     if (typeof edited !== "string") return undefined;
-    const def = kind === "generate" ? GEN_PROMPT[stage] : reviewPromptFor(stage);
+    const def = promptDefaultFor(stage, kind);
     return edited.trim() && edited !== (def ?? "") ? edited : undefined;
   };
   // Spread into a generation request body — adds `promptOverride` only when the user edited the gen prompt.
@@ -916,14 +929,14 @@ export default function App(): React.JSX.Element {
     const o = effectiveOverride(stage, "generate");
     return o ? { promptOverride: o } : {};
   };
-  const setPromptOverride = (stage: StageId, kind: "generate" | "review", value: string): void =>
+  const setPromptOverride = (stage: StageId, kind: PromptKind, value: string): void =>
     setPromptOverrides((m) => ({ ...m, [stage]: { ...m[stage], [kind]: value } }));
-  const resetPromptOverride = (stage: StageId, kind: "generate" | "review"): void =>
+  const resetPromptOverride = (stage: StageId, kind: PromptKind): void =>
     setPromptOverrides((m) => { const s = { ...m[stage] }; delete s[kind]; return { ...m, [stage]: s }; });
 
   // Capture the LAST raw output per stage+kind (Part 3, observability). Sidecar on the project — persisted
   // to localStorage AND the model.json round-trip, but never treated as IR (golden invariant #1).
-  const recordOutput = (stage: StageId, kind: "generate" | "review", raw: string, meta: { model?: string; effort?: string | null; provider?: string }, overridden: boolean): void => {
+  const recordOutput = (stage: StageId, kind: PromptKind, raw: string, meta: { model?: string; effort?: string | null; provider?: string }, overridden: boolean): void => {
     const rec: LlmOutputRecord = { raw, at: Date.now(), model: meta.model, effort: meta.effort ?? null, provider: meta.provider, overridden };
     setState((s) => ({
       ...s,
@@ -1065,6 +1078,50 @@ export default function App(): React.JSX.Element {
       return [];
     } finally {
       setReviewBusy(null);
+    }
+  }
+
+  // Review ONE agent's behaviour prompt against its derived contract ("agent-prompt" layer). Advisory,
+  // per-agent (findings keyed by agent id). The server derives the agent's contract (real tools · inputs ·
+  // outputs · context) from the SAME codegen seam the contract panel uses, so findings are grounded — it
+  // catches fabricated tools, ignored inputs, missing outputs, incomplete coverage, and unsafe behaviour.
+  async function reviewAgentPrompt(agentId: string): Promise<void> {
+    if (!active.agents) return; // gated: only a real (generated) roster, never the live-mock placeholder
+    setAgentReviewBusy(agentId);
+    setError(null);
+    try {
+      const override = effectiveOverride("agents", "agentReview");
+      const res = await fetch(`${SERVICE_URL}/api/critique`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          layer: "agent-prompt",
+          agentId,
+          capabilities: activeDoc,
+          domain: flowDoc,
+          agents: agentsDoc,
+          workflows: workflowsDoc,
+          comms: active.comms ?? undefined,
+          services: active.services ?? undefined,
+          ...reviewCfg("agents"),
+          ...(override ? { promptOverride: override } : {}),
+          // Concerns the human already accepted on THIS agent → the critic is told not to raise them again.
+          accepted: (active.ignoredFindings ?? [])
+            .filter((k) => k.startsWith(`ai|agent-prompt:${agentId}|`))
+            .map((k) => k.split("|").slice(3).join("|"))
+            .filter(Boolean),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      const findings = ((data.findings ?? []) as CritiqueFinding[]).filter((f) => !isAgentCritIgnored(agentId, f));
+      setAgentCritique((prev) => ({ ...prev, [agentId]: findings }));
+      recordOutput("agents", "agentReview", safeStringify(data.findings ?? findings), data, Boolean(override));
+      applySpend(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAgentReviewBusy(null);
     }
   }
 
@@ -1592,6 +1649,15 @@ export default function App(): React.JSX.Element {
   function ignoreCritFinding(layer: LayerKind, f: CritiqueFinding): void {
     ignoreFinding(critKey(layer, f));
   }
+  // Per-agent prompt-critique ignores: namespaced by agent id (`ai|agent-prompt:<agentId>|…`) so dismissing
+  // a finding on one agent never silences another's. Matched fuzzily like every other AI-critique ignore.
+  const agentCritKey = (agentId: string, f: { target?: string; message: string }): string => `ai|agent-prompt:${agentId}|${f.target ?? ""}|${f.message}`;
+  const isAgentCritIgnored = (agentId: string, f: { target?: string; message: string }): boolean =>
+    ignoredCrit.some((ic) => ic.layer === `agent-prompt:${agentId}` && concernsMatch(ic, f));
+  function ignoreAgentCritFinding(agentId: string, f: CritiqueFinding): void {
+    ignoreFinding(agentCritKey(agentId, f));
+    setAgentCritique((prev) => (prev[agentId] ? { ...prev, [agentId]: prev[agentId].filter((x) => x.id !== f.id) } : prev));
+  }
   function restoreLayerIgnored(layer: LayerKind): void {
     const keys = ignoredCrit.filter((ic) => ic.layer === layer).map((ic) => ic.key);
     if (keys.length) restoreIgnored(keys);
@@ -2022,12 +2088,15 @@ export default function App(): React.JSX.Element {
               stageLabel={activeStage.label}
               genPrompt={GEN_PROMPT[stage]}
               reviewPrompt={reviewPromptFor(stage)}
+              agentPrompt={stage === "agents" ? critiqueSystemPrompt("agent-prompt") : undefined}
               genOverride={promptOverrides[stage]?.generate}
               reviewOverride={promptOverrides[stage]?.review}
-              onEdit={(kind: "generate" | "review", value: string) => setPromptOverride(stage, kind, value)}
-              onReset={(kind: "generate" | "review") => resetPromptOverride(stage, kind)}
+              agentOverride={promptOverrides[stage]?.agentReview}
+              onEdit={(kind, value) => setPromptOverride(stage, kind, value)}
+              onReset={(kind) => resetPromptOverride(stage, kind)}
               lastGen={active.observability?.stages?.[stage]?.generate}
               lastReview={active.observability?.stages?.[stage]?.review}
+              lastAgentReview={active.observability?.stages?.[stage]?.agentReview}
               locale={i18n.language}
               onClose={() => setShowPromptStudio(false)}
               t={t}
@@ -2196,6 +2265,11 @@ export default function App(): React.JSX.Element {
                   contractFor={(id) => agentContracts[id]}
                   onTest={openAgentTest}
                   testingId={agentRunBusy ? testAgentId : null}
+                  onReviewPrompt={active.agents ? (id) => void reviewAgentPrompt(id) : undefined}
+                  reviewingPromptId={agentReviewBusy}
+                  critiqueFor={(id) => agentCritique[id]?.filter((f) => !isAgentCritIgnored(id, f))}
+                  onDismissFinding={ignoreAgentCritFinding}
+                  onSelectFinding={(_id, f) => selectFinding(f)}
                   t={t}
                 />
               </div>

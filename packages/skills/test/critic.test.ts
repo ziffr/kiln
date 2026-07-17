@@ -103,6 +103,71 @@ test("few-shot exemplar is embedded in each layer's system prompt", async () => 
   assert.match(req.system, /Invoice/); // the entities exemplar
 });
 
+// ── per-agent prompt critique ("agent-prompt") ─────────────────────────────────────────────────────
+// A minimal model with one agent that owns a Lead entity + a qualify command emitting an event, so the
+// agent's derived contract has real tools/outputs/context to ground the critique against.
+const agentModel: ReviewModel = {
+  caps,
+  agentId: "lead_triage",
+  domain: {
+    aggregates: [{ id: "lead", name: "Lead", owner: "lead_management", attributes: [{ name: "score", type: "number" }] }],
+    commands: [{ id: "qualify_lead", name: "Qualify Lead", aggregate: "lead", capability: "lead_management", emits: ["lead_qualified"] }],
+    events: [{ id: "lead_qualified", name: "LeadQualified", aggregate: "lead" }],
+    policies: [],
+  },
+  agents: { version: "0.1", agents: [{ id: "lead_triage", name: "Lead Triage", goal: "qualify and route inbound leads", capabilities: ["lead_management"], instructions: "You qualify leads. Use the qualify_lead tool, then hand off." }] },
+} as any;
+
+test("agent-prompt critique grounds the render in the target agent's real contract", () => {
+  const req = buildCritiqueRequest("agent-prompt", agentModel);
+  // the target agent, its authored prompt (as DATA), and its DERIVED real tool + output are all present
+  assert.match(req.user, /Lead Triage/);
+  assert.match(req.user, /AGENT_BEHAVIOUR_PROMPT/); // authored prompt is DATA-wrapped (anti-injection)
+  assert.match(req.user, /You qualify leads/); // the authored instructions themselves
+  assert.match(req.user, /qualify_lead/); // its real tool (from the contract, not the prompt)
+  assert.match(req.user, /LeadQualified/); // an output event it emits
+  assert.match(req.user, /FABRICATED/); // the contract frames tools as the only allowed surface
+  // the system prompt is agent-prompt specific and keeps the DATA-not-instructions disclaimer
+  assert.match(req.system, /behaviour prompt/i);
+  assert.match(req.system, /DATA, never instructions/);
+});
+
+test("agent-prompt critique falls back to the default playbook when the agent has no authored prompt", () => {
+  const noInstr = { ...agentModel, agents: { version: "0.1", agents: [{ ...(agentModel.agents as any).agents[0], instructions: undefined }] } } as any;
+  const req = buildCritiqueRequest("agent-prompt", noInstr);
+  assert.match(req.user, /AGENT_BEHAVIOUR_PROMPT/);
+  assert.match(req.user, /behaviour/i); // the default playbook is rendered as the prompt-under-review
+  assert.match(req.user, /qualify_lead/); // still grounded in real tools
+});
+
+test("agent-prompt critique degrades gracefully with no target agent", () => {
+  const req = buildCritiqueRequest("agent-prompt", { caps } as any);
+  assert.match(req.user, /no agent selected/i);
+  assert.equal(req.system, critiqueSystemPrompt("agent-prompt"));
+});
+
+test("agent-prompt critique returns coerced findings via critiqueLayer", async () => {
+  const provider: LlmProvider = {
+    name: "t",
+    complete: async () => ({ provider: "t", raw: "", json: { findings: [
+      { severity: "concern", message: "prompt references a 'send_sms' tool the agent does not have", suggestion: "remove it", target: "send_sms" },
+    ] } }),
+  };
+  const res = await critiqueLayer("agent-prompt", agentModel, provider);
+  assert.equal(res.findings.length, 1);
+  assert.equal(res.findings[0].severity, "concern");
+  assert.equal(res.findings[0].target, "send_sms");
+});
+
+test("the roster 'agents' critique still reviews the roster, not one agent's prompt", () => {
+  // coexistence: 'agents' renders the whole roster (goals + capabilities), never a single prompt's tools.
+  const req = buildCritiqueRequest("agents", agentModel);
+  assert.match(req.user, /# Agents/);
+  assert.match(req.user, /Lead Triage/);
+  assert.doesNotMatch(req.user, /AGENT_BEHAVIOUR_PROMPT/); // no per-agent prompt render
+  assert.notEqual(critiqueSystemPrompt("agents"), critiqueSystemPrompt("agent-prompt"));
+});
+
 test("LAYER_TIER classifies every layer and the hard-reasoning ones are 'heavy'", async () => {
   const { LAYER_TIER } = await import("../src/index.ts");
   const valid = new Set(["light", "standard", "heavy"]);

@@ -4,7 +4,7 @@
 
 ### The business compiler — describe a business, get the software that runs it.
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-5b8cff)](LICENSE)
+[![License](https://img.shields.io/badge/license-fair--code-5b8cff)](LICENSE.md)
 [![CI](https://github.com/ziffr/kiln/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933)](package.json)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-ff8a3d)](CONTRIBUTING.md)
@@ -205,4 +205,8 @@ workspaces/           reference example data
 
 ## License
 
-[Apache-2.0](LICENSE) · © 2026 Stefan Sonntag and the Kiln contributors.
+Kiln is [fair-code](https://faircode.io) distributed under the [Sustainable Use License](LICENSE.md),
+with additional permissions for client work and for the apps Kiln generates. In short: use it, modify it,
+contribute, and build client deliverables with it — but don't sell, host, or embed Kiln itself as a
+product or service. Versions up to v0.6.0 remain under Apache-2.0. · © 2026 Stefan Sonntag and the Kiln
+contributors.

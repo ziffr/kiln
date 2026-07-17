@@ -147,6 +147,16 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
 - `.env`, `node_modules/`, `.kiln/`, `dist/` are gitignored — never commit them.
 
 ## Status (keep current)
+- **RELICENSED to fair-code, NOT open source (from v0.7.0).** Kiln is under **n8n's Sustainable Use License
+  1.0** (`LICENSE.md`), with two additive permissions on top: **Client Work** (using Kiln as a tool to produce
+  deliverables for a paying third party is allowed; conveying Kiln *itself* to them is not) and **Generated
+  Output** (the apps Kiln generates carry no restriction and are the user's; the templates Kiln emits into them
+  are MIT — keeps the exporter's MIT stamp honest, stops copyleft leaking into client deliverables). Everyone
+  may use/modify/contribute and build paid client work with Kiln; **no one may sell, host, resell, or embed Kiln
+  itself.** Call it **fair-code**, never "open source" (a use restriction fails the OSI definition). v0.6.0 and
+  earlier stay Apache-2.0 (granted rights can't be pulled back). Licensor: Stefan Sonntag. NOTE: AI-drafted, not
+  lawyer-reviewed — the SUL spine is battle-tested; risk lives in the two additions. Older Status bullets below
+  that say "OSS"/"Apache-2.0 LICENSE" are HISTORICAL (true at v0.1.0), superseded by this.
 - **AI-review panel → dependency-aware worklist BUILT (presentation-only, no engine change).** The whole-model
   "AI review" (`ReviewPanel` + `autoReview`) no longer shows a flat, equal list — it now reflects the arc's
   dependency order the engine already walked. (1) **Severity sort** — concerns before optional suggestions

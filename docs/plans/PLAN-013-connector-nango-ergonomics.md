@@ -78,6 +78,16 @@ deprecated singular `/connection/{id}`); the session route uses `POST /connect/s
 - Out: additional connectors (Phase C), the `n8n-credentials`/`n8n-node` axes, per-tenant connection
   isolation beyond the connectionRef.
 
+### 4.1 Future UX enhancement (deferred) — slide-in connect
+Today the connect step opens Nango's hosted Connect UI in a **popup window** (`window.open(connect_link)`),
+in both Studio and the exported app. A nicer future variant is an **in-app slide-in drawer** (like Kiln's
+docs/help drawer) hosting the connect wrapper, so it feels fully in-app. **Constraint:** the provider's
+OAuth consent screen (e.g. Google) **cannot be iframed** (clickjacking protection), so a slide-in can host
+the wrapper/status but the actual consent still surfaces as a brief popup. That embedded-drawer experience
+is essentially what `@nangohq/frontend`'s `openConnectUI` modal provides — so a slide-in would be the moment
+to reconsider adopting the SDK vs. building a Kiln drawer around `connect_link`. Pure polish on top of the
+shipped flow; the flow-continuity requirement (poll → flip to *connected*, no manual detour) is already met.
+
 ## 5. Verified Nango reference (July 2026)
 - **Self-host** — `docker compose up`; `nango-server` = `nangohq/nango-server:hosted`, API **:3003**,
   Connect UI **:3009**; required `NANGO_ENCRYPTION_KEY` (base64 32-byte), DB vars, `NANGO_SERVER_URL`

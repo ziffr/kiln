@@ -59,6 +59,52 @@ This is a hard rule (Kiln's golden invariant #3). The browser calls Kiln's serve
 On a keyed hosted instance these routes require the studio passphrase (`KILN_STUDIO_TOKEN`), exactly
 like the other API routes.
 
+## Granting a connector in the Studio
+
+Open an agent on the **Agents** stage and switch to its **Tools** tab. Granting is deliberately split
+into three separate acts, so a human knowingly authorizes each one:
+
+1. **Suggest.** Kiln may propose a grant grounded in the agent's goal — for example, a lead-handling
+   agent gets a Spreadsheet suggestion. Suggestions are inert: you **accept each one at a time**, or
+   dismiss it. There is deliberately **no "accept all"**.
+2. **Grant.** A granted connector shows a per-operation control **grouped by kind** — read/list ops
+   are visually separated from the write/send/delete ops, which are marked *mutating*. Each operation
+   has an on-demand "what this lets the agent do" explanation. Ticking an operation is a **reversible
+   model edit with no real-world effect** — it changes your model, nothing else. A per-grant
+   **Autonomous** toggle (default off) governs whether the runtime's write gate applies.
+3. **Connect a live account.** A separate, deliberately-confirmed step names the provider and the
+   **scopes being authorized**, then mints the Nango Connect session on the server and runs the OAuth
+   flow. Your browser only ever receives the short-lived session token.
+
+### Honest readiness
+
+Each grant carries a **shape + text** status (never colour alone):
+
+- **granted (no live connection)** — the authority exists in the model, but no account is connected.
+- **connected** — a live Nango connection is bound.
+- **error** — a bound connection reference no longer resolves (revoked at Nango, or a failed check).
+
+The status is rolled up per agent **pessimistically**: an agent only reads as *connected* when every
+one of its grants is connected. A grant with no live account never looks wired.
+
+### Real scopes, revoke, and the authority view
+
+Once connected, the grant shows the **scopes the granted operations need**. (A Nango token carries the
+integration's configured scopes, which can exceed a single grant's needs — Kiln surfaces the over-grant
+when the connection reports its live scopes, and recommends one integration per scope tier.)
+
+**Revoke** removes the grant and detaches its connection reference. It does **not** delete the Nango
+connection itself — do that in Nango.
+
+A per-project **Granted authority** view lists every agent × connector × operation × connection in one
+place, so you can audit what the whole project has been granted at a glance.
+
+### Test runs stay mock by default
+
+Testing an agent (the **Runs** tab) uses **mock** tool dispatch — nothing hits a real system. A
+separate, distinctly-badged "run against the live connection" consent is opt-in and only available once
+a grant is connected.
+
 ## Reading untrusted data, then writing: the write gate
 
 The core risk with a connector is prompt injection — an agent reads attacker-controlled data and then

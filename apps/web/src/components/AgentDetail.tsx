@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { RunCompare } from "./RunCompare";
+import { AgentTools, type AgentToolsProps } from "./AgentTools";
 import { AGENT_RUN_HISTORY_MAX, diffWords } from "../runDiff";
 import type { AgentContract, ToolSchema } from "@kiln/codegen";
 import type { AgentInput, CapabilityDoc } from "@kiln/compiler";
@@ -22,7 +23,7 @@ import type { CritiqueFinding } from "@kiln/skills";
 import type { RunTrace, RunStep } from "../projects";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
-type Tab = "contract" | "behaviour" | "runs";
+type Tab = "contract" | "behaviour" | "tools" | "runs";
 
 /** Everything the Runs tab needs — the run itself is owned by App (fetch + persistence). */
 export type AgentRunProps = {
@@ -37,6 +38,9 @@ export type AgentRunProps = {
   /** The engine (provider) + model the run will use — the SAME configured for generation (set in Settings). */
   engineLabel?: string;
   modelLabel?: string;
+  /** SPEC-013 UX7 — the "run against the live connection" consent is armed (in the Tools tab). In B2 the
+   *  run STILL dispatches mock; the badge is honest about that rather than pretending the run went live. */
+  liveMode?: boolean;
 };
 
 /** A pending, human-gated revision proposal for this agent's behaviour — the diff the human accepts or
@@ -57,7 +61,7 @@ export type AgentRevision = {
 };
 
 export function AgentDetail({
-  agent, caps, contract, run, locale, t,
+  agent, caps, contract, run, tools, locale, t,
   onEditInstructions, onReviewPrompt, reviewing, critique, onDismissFinding, onSelectFinding,
   onApplyFinding, applying, revision, onAcceptRevision, onRejectRevision, revisionError,
   onSelectCapability, onClose,
@@ -67,6 +71,8 @@ export function AgentDetail({
   /** the DERIVED contract (input · tools · output · context) — a read-only projection of the model. */
   contract?: AgentContract;
   run: AgentRunProps;
+  /** SPEC-013 Phase B2 — everything the Tools tab needs (grant/connect/readiness). Owned by App. */
+  tools: AgentToolsProps;
   locale: string;
   t: T;
   /** persist an authored edit of the agent's behaviour (system prompt). */
@@ -107,7 +113,7 @@ export function AgentDetail({
       {agent.goal && <p className="agent-detail-goal muted">{agent.goal}</p>}
 
       <div className="drawer-tabs agent-detail-tabs" role="tablist">
-        {(["contract", "behaviour", "runs"] as Tab[]).map((k) => (
+        {(["contract", "behaviour", "tools", "runs"] as Tab[]).map((k) => (
           <button
             key={k}
             role="tab"
@@ -115,12 +121,14 @@ export function AgentDetail({
             className={`drawer-tab${tab === k ? " active" : ""}`}
             onClick={() => setTab(k)}
           >
-            {t(k === "contract" ? "agentContract" : k === "behaviour" ? "agentTabBehaviour" : "agentTabRuns")}
+            {t(k === "contract" ? "agentContract" : k === "behaviour" ? "agentTabBehaviour" : k === "tools" ? "agentTabTools" : "agentTabRuns")}
+            {k === "tools" && (agent.grants?.length ?? 0) > 0 && <span className="agent-tab-count">{agent.grants!.length}</span>}
           </button>
         ))}
       </div>
 
       {tab === "contract" && <ContractTab agent={agent} caps={caps} contract={contract} onSelectCapability={onSelectCapability} t={t} />}
+      {tab === "tools" && <AgentTools {...tools} />}
       {tab === "behaviour" && (
         <BehaviourTab
           agent={agent}
@@ -465,7 +473,7 @@ function StepView({ step, t }: { step: RunStep; t: T }): React.JSX.Element {
 }
 
 function RunsTab({ run, locale, t }: { run: AgentRunProps; locale: string; t: T }): React.JSX.Element {
-  const { trace, history, task, onTask, onRun, busy, error, engineLabel, modelLabel } = run;
+  const { trace, history, task, onTask, onRun, busy, error, engineLabel, modelLabel, liveMode } = run;
   const [showSystem, setShowSystem] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
@@ -506,6 +514,10 @@ function RunsTab({ run, locale, t }: { run: AgentRunProps; locale: string; t: T 
           <Icon name={busy ? "refresh" : "play"} size={14} />{busy ? t("agentRunRunning") : t("agentRunGo")}
         </button>
       </div>
+
+      {liveMode && (
+        <p className="run-live-note" role="status"><Icon name="alert" size={13} />{t("agentRunLiveArmed")}</p>
+      )}
 
       {error && <p className="run-error" role="alert"><Icon name="info" size={13} />{error}</p>}
 

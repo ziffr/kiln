@@ -1759,3 +1759,106 @@ textarea {
 .rc-ins { background: var(--ok-bg); color: var(--ok-fg); border-radius: 3px; }
 .rc-del { background: var(--err-bg); color: var(--err-fg); border-radius: 3px; text-decoration: line-through; }
 .rc-none, .rc-empty { font-size: 12px; }
+
+/* ── SPEC-013 Phase B2: the Agents-stage Tools tab (grant/connect connectors) ─────────────────────── */
+.agent-tools { gap: 12px; }
+.agent-tab-count { display: inline-block; margin-left: 5px; min-width: 15px; padding: 0 4px; border-radius: 8px; background: var(--accent-2-soft); color: var(--accent-2); font-size: 10px; font-weight: 700; line-height: 15px; text-align: center; }
+
+/* Readiness badge — shape (icon) + text, never colour alone (UX2). */
+.agent-tools-badge, .agent-tools-auth-state { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 650; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--edge); white-space: nowrap; }
+.agent-tools-badge.rd-granted, .agent-tools-auth-state.rd-granted { background: var(--panel-2); color: var(--muted); }
+.agent-tools-badge.rd-connected, .agent-tools-auth-state.rd-connected { background: var(--ok-bg); color: var(--ok-fg); border-color: color-mix(in srgb, var(--ok-fg) 40%, var(--edge)); }
+.agent-tools-badge.rd-error, .agent-tools-auth-state.rd-error { background: var(--err-bg); color: var(--err-fg); border-color: color-mix(in srgb, var(--err-fg) 40%, var(--edge)); }
+
+.agent-tools-rollup { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--edge); border-radius: 8px; background: var(--panel-2); }
+.agent-tools-rollup-detail { font-size: 11.5px; }
+
+.agent-tools-section-head { display: flex; align-items: center; justify-content: space-between; }
+.agent-tools-section-title { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-2); }
+.agent-tools-empty { font-size: 12px; }
+
+/* Suggested grants. */
+.agent-tools-suggest { border: 1px solid var(--edge); border-left: 3px solid var(--accent-2); border-radius: 8px; background: var(--accent-2-soft); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.agent-tools-suggest-lead { font-size: 11px; margin: 0; }
+.agent-tools-suggest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.agent-tools-suggest-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 6px 8px; }
+.agent-tools-suggest-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.agent-tools-suggest-name { font-weight: 650; font-size: 12.5px; }
+.agent-tools-suggest-provider { font-size: 11px; }
+.agent-tools-suggest-reason { font-size: 11px; }
+.agent-tools-suggest-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+
+/* A granted connector card. */
+.agent-tools-grant { border: 1px solid var(--edge); border-radius: 8px; background: var(--panel); padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.agent-tools-grant.unknown { border-color: color-mix(in srgb, var(--err-fg) 40%, var(--edge)); }
+.agent-tools-grant-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.agent-tools-grant-id { display: flex; flex-direction: column; gap: 1px; }
+.agent-tools-grant-name { font-weight: 700; font-size: 13px; }
+.agent-tools-grant-provider { font-size: 11px; }
+
+/* Op groups — read vs write, visually separated (UX6). */
+.agent-tools-ops { display: flex; flex-direction: column; gap: 8px; }
+.agent-tools-opgroup { border: 1px solid var(--edge); border-radius: 6px; padding: 6px 8px 8px; margin: 0; min-width: 0; }
+.agent-tools-opgroup.mutating { border-color: color-mix(in srgb, var(--warn-fg) 45%, var(--edge)); background: color-mix(in srgb, var(--warn-bg) 40%, transparent); }
+.agent-tools-opgroup-title { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 0 4px; }
+.agent-tools-write-mark { display: inline-flex; align-items: center; gap: 3px; color: var(--warn-fg); font-weight: 700; }
+.agent-tools-op { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 3px 0; }
+.agent-tools-op-label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; }
+.agent-tools-op-name { font-size: 12px; }
+.agent-tools-op-kind { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 1px 5px; border-radius: 6px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--edge); }
+.agent-tools-op-kind.kind-write, .agent-tools-op-kind.kind-send, .agent-tools-op-kind.kind-delete { background: var(--warn-bg); color: var(--warn-fg); border-color: color-mix(in srgb, var(--warn-fg) 35%, var(--edge)); }
+.agent-tools-op-explain { display: inline-flex; align-items: center; justify-content: center; background: none; border: none; color: var(--muted); cursor: pointer; padding: 2px; border-radius: 4px; }
+.agent-tools-op-explain:hover { color: var(--accent-2); background: var(--accent-2-soft); }
+.agent-tools-op-explain-text { flex-basis: 100%; margin: 2px 0 2px 22px; font-size: 11px; line-height: 1.45; color: var(--muted); }
+
+.agent-tools-autonomous { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+.agent-tools-autonomous-hint { margin: 0; font-size: 11px; line-height: 1.4; }
+.agent-tools-autonomous-hint.warn { color: var(--warn-fg); }
+
+/* Connect step. */
+.agent-tools-connect { display: flex; flex-direction: column; gap: 6px; }
+.agent-tools-connect-btn { align-self: flex-start; }
+.agent-tools-confirm { border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--edge)); border-radius: 8px; background: var(--accent-soft); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.agent-tools-confirm-title { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-weight: 650; font-size: 12px; }
+.agent-tools-confirm-body { margin: 0; font-size: 12px; line-height: 1.5; }
+.agent-tools-confirm-scopes { display: flex; flex-direction: column; gap: 3px; }
+.agent-tools-scopes-label { font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.agent-tools-scope-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.agent-tools-scope-list li code { font-size: 11px; padding: 1px 6px; border-radius: 5px; background: var(--panel); border: 1px solid var(--edge); }
+.agent-tools-connect-warn { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-size: 11.5px; color: var(--warn-fg); }
+.agent-tools-confirm-actions, .agent-tools-conn-ok { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.agent-tools-conn-ok { justify-content: space-between; }
+.agent-tools-conn-ref { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ok-fg); }
+.agent-tools-ref { font-size: 10.5px; padding: 1px 5px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--edge); color: var(--muted); }
+.agent-tools-revoke { color: var(--err-fg); }
+.agent-tools-conn-err { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-size: 11.5px; color: var(--err-fg); flex-wrap: wrap; }
+
+/* Scope readout / over-grant warning (UX5). */
+.agent-tools-scoperead { flex-basis: 100%; display: flex; flex-direction: column; gap: 3px; }
+.agent-tools-scoperead p { margin: 0; font-size: 11px; line-height: 1.45; }
+.agent-tools-scope-note { font-style: italic; }
+.agent-tools-scope-excess { display: inline-flex; align-items: flex-start; gap: 5px; color: var(--warn-fg) !important; }
+
+/* Add a connector. */
+.agent-tools-add { display: flex; flex-direction: column; gap: 6px; }
+.agent-tools-add-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.agent-tools-add-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 8px; border: 1px solid var(--edge); border-radius: 6px; background: var(--panel-2); }
+.agent-tools-add-name { font-size: 12px; }
+
+/* Live-run consent + badge. */
+.agent-tools-liverun { border-top: 1px solid var(--edge); padding-top: 10px; display: flex; flex-direction: column; gap: 3px; }
+.agent-tools-liverun-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+.agent-tools-liverun-hint { margin: 0; font-size: 11px; line-height: 1.4; }
+.agent-tools-live-badge, .run-live-note { display: inline-flex; align-items: center; gap: 4px; }
+.agent-tools-live-badge { font-size: 9.5px; font-weight: 800; letter-spacing: .05em; padding: 1px 6px; border-radius: 6px; background: var(--warn-bg); color: var(--warn-fg); border: 1px solid color-mix(in srgb, var(--warn-fg) 40%, var(--edge)); }
+.run-live-note { margin: 0; font-size: 11.5px; color: var(--warn-fg); }
+
+/* Authority audit view. */
+.agent-tools-authority { border-top: 1px solid var(--edge); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.agent-tools-authority-empty { font-size: 12px; margin: 0; }
+.agent-tools-authority-tablewrap { overflow-x: auto; }
+.agent-tools-authority-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.agent-tools-authority-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--edge); }
+.agent-tools-authority-table td { padding: 5px 6px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+.agent-tools-authority-table td code { font-size: 11px; margin-right: 4px; }
+.agent-tools-auto-tag { display: inline-block; margin-left: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; padding: 1px 4px; border-radius: 5px; background: var(--warn-bg); color: var(--warn-fg); }

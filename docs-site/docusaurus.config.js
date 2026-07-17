@@ -39,7 +39,7 @@ const config = {
           // Versioning: exactly ONE version is kept — the latest release, served at the root and matching
           // the published app version. Old versions are pruned on each release (no history / no dropdown).
           // The live docs/ folder is "Next" (dev preview at /next).
-          lastVersion: "0.5.1",
+          lastVersion: "0.6.0",
           versions: {
             current: { label: "Next 🚧", path: "next" },
           },

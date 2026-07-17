@@ -15,7 +15,7 @@
  * options object, call assembleFullStack, write `files` to disk, do the (bin-only) `--since` migration, and
  * `git init`. The console logging there reads the returned `report`.
  */
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc, ProcessMode } from "@kiln/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc, ProcessMode, ToolsDoc } from "@kiln/compiler";
 import { projectTargets, engineDescriptor, type Binding, type TargetsReport } from "./targets.ts";
 import { commandBriefs, briefsIndex } from "./briefs.ts";
 import { generateOpenApi } from "./index.ts";
@@ -51,6 +51,8 @@ export interface FullStackInput {
   integrations?: IntegrationsDoc;
   triggers?: TriggersDoc;
   services?: ExternalServicesDoc;
+  /** SPEC-013 — the authored connector catalog. A grant on an agent projects a connector tool + its runtime. */
+  tools?: ToolsDoc;
   /** i18n: source language + already-merged LLM translations (the assembled i18nOpt the caller resolved). */
   i18n?: { sourceLang?: string; translations?: Record<string, Record<string, string>> };
   /** the model's absolute path — used ONLY as the `_run.json` manifest's `model` field (kept identical to the bin). */
@@ -110,7 +112,7 @@ export function assembleFullStack(input: FullStackInput): { files: Record<string
 
   // i18n: the caller resolved the source language + any LLM translations (from the model's i18n or CLI flags).
   const i18nOpt = input.i18n ?? { sourceLang: "en" };
-  const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, m.theme, handlers, comms, integrations, m.agents, triggers, input.services, i18nOpt, input.views);
+  const rep = projectTargets(binding, m.capabilities, m.domain, m.contexts, m.roles, m.workflows, m.theme, handlers, comms, integrations, m.agents, triggers, input.services, i18nOpt, input.views, input.tools);
 
   // The file map (relative path → content). `write` mirrors the bin's helper but targets the object, so the
   // template blocks below are copied VERBATIM from the bin (write/written.push preserved) → byte-identical.

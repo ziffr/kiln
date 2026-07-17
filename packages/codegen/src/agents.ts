@@ -15,6 +15,7 @@ import type { CommunicationsDoc } from "./comms.ts";
 import type { ExternalServicesDoc } from "./services.ts";
 import { buildToolSchemas, type ToolSchema } from "./agentSim.ts";
 import { mockTriggers, type TriggerInput, type TriggersDoc } from "./triggers.ts";
+import { getConnectorAdapter } from "./connectors/index.ts";
 
 const CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 
@@ -681,6 +682,153 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
   ".gitignore": "node_modules\n.env\n",
 };
 
+// ── SPEC-013 Phase B1: the emitted CONNECTOR runtime (only added when a grant references a connector) ──
+//
+// `agents/src/nango.ts` — the executable mirror of `@kiln/codegen/connectorRuntime.ts`: the async Nango
+// token resolver (raw fetch, no SDK), the write-op invocation gate, and the secret-free audit log. It uses
+// `process.env` / `fetch` (Node globals in the generated app). The SECRET (`NANGO_SECRET_KEY`) and the
+// resolved provider token are EPHEMERAL — used for the one call, never persisted or logged (SEC5/SEC7/TA1).
+const NANGO_TS = `export type ConnectorAuth = Record<string, string>;
+export type ConnectorOp = (auth: ConnectorAuth, input: Record<string, unknown>) => Promise<unknown>;
+export interface ConnectorInvoke { connector: string; op: string; kind: "read" | "list" | "write" | "send" | "delete"; autonomous?: boolean; connectionRef?: string; }
+export interface ConnectorAuditEntry { agentId: string; toolId: string; op: string; connectionRef: string; ts: number; outcome: "ok" | "error" | "confirmation-required" | "no-adapter"; }
+
+// SEC4 — the ops gated by a per-invocation human confirmation (a write with reach into a real system).
+export const GATED_KINDS = new Set<ConnectorInvoke["kind"]>(["write", "send", "delete"]);
+export function requiresConfirmation(kind: ConnectorInvoke["kind"], autonomous?: boolean): boolean {
+  return GATED_KINDS.has(kind) && !autonomous;
+}
+
+// SEC5 — a secret-free audit entry: identity + what ran + outcome. NEVER the token or the response body.
+function auditEntry(base: Omit<ConnectorAuditEntry, "ts">): ConnectorAuditEntry {
+  return { agentId: base.agentId, toolId: base.toolId, op: base.op, connectionRef: base.connectionRef, ts: Date.now(), outcome: base.outcome };
+}
+
+// SEC1/SEC7/TA1 — resolve a FRESH provider token for a Nango connection via a RAW fetch to Nango's REST API
+// (no Nango SDK). NANGO_SECRET_KEY is server-only; the token is returned for the one call, never stored/logged.
+export async function resolveConnectorAuth(connectionRef: string): Promise<ConnectorAuth> {
+  const secret = process.env.NANGO_SECRET_KEY;
+  if (!secret) throw new Error("NANGO_SECRET_KEY is not set — cannot resolve a connector token. Set it in .env (server-side only; it must never reach the browser or the model).");
+  if (!connectionRef) throw new Error("this connector grant has no connectionRef — connect a live account first (a grant with no connection is not runnable).");
+  const host = (process.env.NANGO_HOST || "https://api.nango.dev").replace(/\\/+$/, "");
+  const providerConfigKey = process.env.NANGO_PROVIDER_CONFIG_KEY || "google-sheets";
+  const url = host + "/connection/" + encodeURIComponent(connectionRef) + "?provider_config_key=" + encodeURIComponent(providerConfigKey) + "&refresh_token=true";
+  // The SECRET goes ONLY to Nango over this server-side call — never returned to the agent loop.
+  const res = await fetch(url, { headers: { authorization: "Bearer " + secret } });
+  if (!res.ok) throw new Error("Nango connection lookup failed (" + res.status + ") — check NANGO_HOST / NANGO_SECRET_KEY / NANGO_PROVIDER_CONFIG_KEY and that the connection is live.");
+  const data = (await res.json().catch(() => ({}))) as { credentials?: { access_token?: string; raw?: { access_token?: string } } };
+  const token = data?.credentials?.access_token ?? data?.credentials?.raw?.access_token;
+  if (!token) throw new Error("Nango returned no access token for this connection (is the live account still connected and authorized?).");
+  return { authorization: "Bearer " + token };
+}
+
+// SEC4 — the human-confirmation seam. DEFAULT is DENY: a headless run must never silently perform a write.
+// It routes a notify (the same human-escalation idiom the runtime uses) and returns false. Wire this to your
+// real approval channel to let an approved write proceed; an 'autonomous' grant bypasses the gate entirely.
+async function requestApproval(entry: { agentId: string; toolId: string; op: string; kind: string }): Promise<boolean> {
+  console.log("[notify] connector write needs approval: " + JSON.stringify(entry));
+  return false;
+}
+
+// Execute one granted connector op — the write-op gate + audit (SEC4/SEC5). The gate is at INVOCATION.
+export async function runConnector(invoke: ConnectorInvoke, input: Record<string, unknown>, connectors: Record<string, Record<string, ConnectorOp>>, agentId: string): Promise<unknown> {
+  const connectionRef = invoke.connectionRef || "";
+  const base = { agentId, toolId: invoke.connector, op: invoke.op, connectionRef };
+  if (requiresConfirmation(invoke.kind, invoke.autonomous)) {
+    const approved = await requestApproval({ ...base, kind: invoke.kind });
+    if (!approved) {
+      console.log("[connector-audit] " + JSON.stringify(auditEntry({ ...base, outcome: "confirmation-required" })));
+      return { status: "pending_confirmation", message: "The '" + invoke.op + "' operation writes to " + invoke.connector + " and needs human approval before it runs. It was NOT executed. Approve it, or grant this connector 'autonomous' access." };
+    }
+  }
+  const opFn = connectors?.[invoke.connector]?.[invoke.op];
+  if (!opFn) {
+    console.log("[connector-audit] " + JSON.stringify(auditEntry({ ...base, outcome: "no-adapter" })));
+    return { error: "no connector runtime is registered for " + invoke.connector + "." + invoke.op };
+  }
+  try {
+    const auth = await resolveConnectorAuth(connectionRef); // ephemeral token — used here, never stored
+    const out = await opFn(auth, input);
+    console.log("[connector-audit] " + JSON.stringify(auditEntry({ ...base, outcome: "ok" })));
+    return out;
+  } catch (e: unknown) {
+    console.log("[connector-audit] " + JSON.stringify(auditEntry({ ...base, outcome: "error" })));
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+`;
+
+/**
+ * Build the emitted `agents/src/connectors.ts` — the per-connector op dispatch table. For each granted
+ * (connector, op) whose adapter is REGISTERED, embed the adapter's `emitNango(op).runtime` (the provider
+ * glue). Deterministic: connectors + ops sorted. Returns `undefined` when no granted op resolves to an
+ * adapter (→ no connector runtime is emitted, and the export stays byte-identical to the no-grant case).
+ */
+export function connectorsModule(defs: AgentDef[]): string | undefined {
+  // Collect the granted (connector, op) pairs across every agent.
+  const byConnector = new Map<string, Set<string>>();
+  for (const d of defs) {
+    for (const t of d.tools) {
+      if (t.kind !== "connector") continue;
+      const inv = t.invoke as { connector?: string; op?: string };
+      if (!inv.connector || !inv.op) continue;
+      (byConnector.get(inv.connector) ?? byConnector.set(inv.connector, new Set()).get(inv.connector)!).add(inv.op);
+    }
+  }
+  const blocks: string[] = [];
+  for (const connectorId of [...byConnector.keys()].sort()) {
+    const adapter = getConnectorAdapter(connectorId);
+    if (!adapter) continue; // granted but no registered adapter — nothing to emit (runtime → outcome:"no-adapter").
+    const ops = [...byConnector.get(connectorId)!].sort();
+    const opLines = ops.map((op) => `    ${JSON.stringify(op)}: ${adapter.emitNango(op, { toolId: connectorId, connectionRef: "" } as never).runtime},`);
+    blocks.push(`  ${JSON.stringify(connectorId)}: {\n${opLines.join("\n")}\n  },`);
+  }
+  if (!blocks.length) return undefined;
+  return `import type { ConnectorOp } from "./nango";
+
+// SPEC-013 — the per-connector op dispatch table. ALL provider glue (base URL, method, path, param mapping)
+// is emitted HERE from each ConnectorAdapter's emitNango — NEVER from model.json (SEC3). Each op is an
+// \`async (auth, input) => …\` that presents the Nango-brokered \`auth\` header and calls the provider.
+export const CONNECTORS: Record<string, Record<string, ConnectorOp>> = {
+${blocks.join("\n")}
+};
+`;
+}
+
+/**
+ * The connector-aware `agents/src/tools.ts` — the base runtime with the `connector` branch + its imports
+ * spliced in. Built by REPLACING two anchors in the base string, so the no-connector path returns the base
+ * bytes verbatim (byte-identity, TA6). Only used when `connectorsModule` emitted a dispatch table.
+ */
+function toolsWithConnectors(): string {
+  const base = RUNTIME["src/tools.ts"];
+  const withImport = base.replace(
+    'import { externalAuthHeaders, type ExternalInvoke } from "./auth";',
+    'import { externalAuthHeaders, type ExternalInvoke } from "./auth";\nimport { CONNECTORS } from "./connectors";\nimport { runConnector, type ConnectorInvoke } from "./nango";',
+  );
+  return withImport.replace(
+    '  console.log("[" + tool.kind + "] " + tool.name, JSON.stringify(input));',
+    `  if (tool.kind === "connector") {
+    // SPEC-013 — resolve the Nango token, run the write-op gate (SEC4), execute the adapter glue, audit (SEC5).
+    // The provider glue + destination live in CONNECTORS (emitted from the adapter), never in the model.
+    return runConnector(tool.invoke as ConnectorInvoke, input, CONNECTORS, process.env.AGENT_ID || "agent");
+  }
+  console.log("[" + tool.kind + "] " + tool.name, JSON.stringify(input));`,
+  );
+}
+
+// SPEC-013 — the Nango broker vars, appended to .env.example ONLY when a connector is granted. NAMES ONLY:
+// the SECRET's value lives in .env (gitignored), never in the committed model. Self-host NANGO_HOST (SEC7).
+const CONNECTOR_ENV_EXAMPLE = `
+# ── Connectors (Nango — brokered OAuth for agent tools) ────────────────────────────────────────────
+# An agent is granted a connector (e.g. Google Sheets). The runtime resolves a FRESH provider token from
+# Nango at call time — the secret is server-side only, the token is ephemeral (never persisted or logged).
+NANGO_SECRET_KEY=                 # your Nango SECRET key (server-side only — NEVER ship to a browser/model)
+NANGO_HOST=https://api.nango.dev  # self-host recommended (e.g. http://localhost:3003) — see the docs
+NANGO_PROVIDER_CONFIG_KEY=google-sheets  # the Nango integration id whose OAuth scopes back the connection
+# GOOGLE_SHEETS_SPREADSHEET_ID=   # optional default spreadsheet id if an op doesn't pass one
+`;
+
 /** Default agent-runtime engine, baked into the exported .env.example so an app built on a gateway ships
  *  pre-pointed at it (still overridable at deploy time). Unset → Anthropic-first. */
 export interface AgentDefaults { provider?: string; model?: string; baseUrl?: string }
@@ -817,7 +965,10 @@ export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?
           name,
           kind: "connector",
           description: `${op.name} on ${tool.providerLabel || tool.name} (${op.kind}) via ${tool.name}`,
-          invoke: { connector: tool.id, op: op.name, kind: op.kind, ...(g.autonomous ? { autonomous: true } : {}) },
+          // NO destination — only the connector id (which ConnectorAdapter to run), the op, its kind (the
+          // Phase-B invocation gate reads this), the opaque connectionRef (TC7: never a token/PII), and the
+          // autonomous flag. The provider glue lives in the adapter's emitNango, resolved at export time.
+          invoke: { connector: tool.id, op: op.name, kind: op.kind, ...(g.connectionRef ? { connectionRef: g.connectionRef } : {}), ...(g.autonomous ? { autonomous: true } : {}) },
           io: { input: op.input ?? [], output: op.output ?? [], kind: op.kind },
         });
       }
@@ -841,8 +992,19 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
 
   const files: Record<string, string> = {};
   for (const [rel, content] of Object.entries(RUNTIME)) files[`agents/${rel}`] = content;
-  // engine-aware (leads with the built-on provider) + a named var per external service credential.
-  files["agents/.env.example"] = agentEnvExample(agentDefaults, services);
+  // SPEC-013 Phase B1 — CONNECTOR runtime. Emitted ONLY when a grant references a registered connector; the
+  // `connector` branch + its imports are then spliced into tools.ts. With no grant, nothing below runs and
+  // the export stays byte-identical to the pre-connector runtime (TA6, guarded by the connectors test).
+  const connectors = connectorsModule(defs);
+  const hasConnectors = !!connectors;
+  if (hasConnectors) {
+    files["agents/src/nango.ts"] = NANGO_TS;
+    files["agents/src/connectors.ts"] = connectors!;
+    files["agents/src/tools.ts"] = toolsWithConnectors();
+  }
+  // engine-aware (leads with the built-on provider) + a named var per external service credential + (when a
+  // connector is granted) the Nango broker vars (names only — the real secret stays in .env, never the model).
+  files["agents/.env.example"] = agentEnvExample(agentDefaults, services) + (hasConnectors ? CONNECTOR_ENV_EXAMPLE : "");
   for (const d of defs) {
     // definition = structure + config (WHAT it may do); behaviour = the authored markdown playbook (HOW it
     // decides). With no authored behaviour we ship an obvious TBD, never a generated template: Kiln does

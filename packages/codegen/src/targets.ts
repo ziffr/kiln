@@ -23,7 +23,7 @@ import { mockIntegrations, integrationsAdapter, type IntegrationsDoc } from "./i
 import { agentsAdapter } from "./agents.ts";
 import { mockTriggers, triggersAdapter, type TriggersDoc } from "./triggers.ts";
 import { mockExternalServices, externalServicesAdapter, type ExternalServicesDoc } from "./services.ts";
-import type { AgentsDoc } from "@kiln/compiler";
+import type { AgentsDoc, ToolsDoc } from "@kiln/compiler";
 // SPEC-010 engine plugin seam: the registry the built-ins register into. Importing engines/index.ts
 // REGISTERS the six built-ins as a side effect, so `ENGINES` below (derived from the registry) is
 // populated before it is read. NODE_SPINE is imported for `engineFor`'s spine fallback.
@@ -824,6 +824,7 @@ export function projectTargets(
   services?: ExternalServicesDoc,
   i18n?: { sourceLang?: string; translations?: Record<string, Record<string, string>> },
   views?: Record<string, ViewSpecInput>,
+  tools?: ToolsDoc,
 ): TargetsReport {
   const resolved = resolveBinding(binding, caps, domain, contexts, roles, workflows);
   const validation = validateBinding(resolved, workflows, domain);
@@ -889,7 +890,7 @@ export function projectTargets(
     integrations: integrationsAdapter(integrations ?? mockIntegrations(caps, domain), domain, spineRootUrl),
     // the agent runtime's behaviour prompts are grounded in each agent's contract — including its INPUT
     // (the triggers routed to it), so pass the same triggers doc the Triggers artifact below uses.
-    agents: agentsAdapter(caps, domain, agents, commsDoc, workflows, servicesDoc, binding.agent, triggersDoc),
+    agents: agentsAdapter(caps, domain, agents, commsDoc, workflows, servicesDoc, binding.agent, triggersDoc, tools),
     triggers: { doc: triggersDoc, n8n: triggersAdapter(triggersDoc, domain, spineApiUrl, agentUrl) },
     services: (() => {
       const doc = servicesDoc;

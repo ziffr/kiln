@@ -280,6 +280,7 @@ export function CodePreview({
         integrations: m.integrations,
         triggers: m.triggers,
         services: m.services,
+        tools: m.tools, // SPEC-013 — export any connector grants (a granted agent gets its connector runtime)
         i18n: m.i18n,
         modelPath: "model.json",
         gitInitialized: false, // a browser zip isn't a git repo — the README tells the user to run `git init`

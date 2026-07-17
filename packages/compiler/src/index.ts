@@ -20,6 +20,9 @@ export const COMPILER_VERSION = "0.1.0";
 export const SCHEMA_VERSION = "0.2";
 export const IR_VERSION = "ir/0.1";
 
+// Whole-model coherence: the shared coverage matrix (one source of truth for the holistic critic + gate).
+export { coverageMatrix, type CapCoverage, type CoverageModel } from "./coherence.ts";
+
 /** Mirror of the authored `capabilities.yaml` shape (SPEC-001 §3.2). */
 export interface CapabilityInput {
   id: string;

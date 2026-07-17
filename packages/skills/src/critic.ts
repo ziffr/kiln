@@ -8,7 +8,7 @@
  */
 
 import { slug, sha256 } from "@kiln/ir";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
+import { coverageMatrix, type CapabilityDoc, type DomainDoc, type ContextsDoc, type RolesDoc, type WorkflowsDoc, type AgentsDoc } from "@kiln/compiler";
 import { agentContract, resolveAgentDefs, mockTriggers, type AgentContract, type AgentDef, type CommunicationsDoc, type ExternalServicesDoc, type TriggersDoc } from "@kiln/codegen";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
@@ -219,14 +219,14 @@ const CONFIGS: Record<LayerKind, LayerConfig> = {
     look: "a capability with NO entity, NO behaviour, or NO role/agent owner (a gap in the chain); an entity no command ever touches (orphan); a workflow/role/agent referencing something that doesn't exist; a capability the narrative implies but that is absent everywhere; behaviour or automations that contradict the stated area boundaries. Judge whether the layers tell ONE coherent story, not each in isolation.",
     example: `{"severity":"concern","message":"The 'monitoring' capability has an entity but no behaviour and no role — nothing actually operates it, so the chain breaks there.","suggestion":"Either add monitoring commands + an owning role, or drop the capability if it's out of scope.","target":"monitoring"}`,
     render: (m) => {
-      const caps = m.caps.capabilities;
-      const owners = new Set((m.domain?.aggregates ?? []).map((a) => a.owner));
-      const withCmd = new Set((m.domain?.commands ?? []).map((c) => (c as { capability?: string; aggregate?: string }).capability ?? ""));
-      const roleCaps = new Set((m.roles?.roles ?? []).flatMap((r) => r.capabilities ?? []));
+      // ONE coverage function (shared with the deterministic gate) so the prose the LLM reviews and the
+      // number the export gate shows are computed from the same reduction — they cannot drift apart.
+      const matrix = coverageMatrix(m);
       const agentCaps = new Set((m.agents?.agents ?? []).flatMap((a) => a.capabilities ?? []));
+      const roleCaps = new Set((m.roles?.roles ?? []).flatMap((r) => r.capabilities ?? []));
       return [
         "# Whole-model coverage (capability → which layers touch it)",
-        ...caps.map((c) => `- ${c.id} (${c.name}): entity=${owners.has(c.id) ? "y" : "NO"} behaviour=${withCmd.has(c.id) ? "y" : "?"} role=${roleCaps.has(c.id) ? "y" : "NO"} agent=${agentCaps.has(c.id) ? "y" : "-"}`),
+        ...matrix.map((c) => `- ${c.id} (${c.name}): entity=${c.entity ? "y" : "NO"} behaviour=${c.behaviour ? "y" : "?"} role=${roleCaps.has(c.id) ? "y" : "NO"} agent=${agentCaps.has(c.id) ? "y" : "-"}`),
         "",
         `# Layer sizes: ${(m.domain?.aggregates ?? []).length} entities · ${(m.domain?.commands ?? []).length} commands · ${(m.domain?.events ?? []).length} events · ${(m.domain?.policies ?? []).length} automations · ${(m.roles?.roles ?? []).length} roles · ${(m.workflows?.workflows ?? []).length} workflows · ${(m.agents?.agents ?? []).length} agents`,
         "# Areas: " + ((m.contexts?.contexts ?? []).map((a) => `${a.name}[${(a.capabilities ?? []).length}]`).join(", ") || "none"),

@@ -8,14 +8,24 @@ title: Agents
 **Why.** Agents describe where software or AI could take over parts of the business, each with a clear
 goal. This is forward-looking: it maps the automation opportunities.
 
-**How.** Click **Generate agents**. Each agent card shows its goal and is wired to the capabilities it
-would run.
+**How.** Click **Generate agents**. The stage shows a diagram wiring each agent to the capabilities it
+would run, and below it a list of your agents — name, goal, and whether it's designed yet.
+
+**Select an agent** — click it in the diagram or in the list — and its detail opens on the right, with
+three tabs:
+
+- **Contract** — what the agent *may* do: the read-only, derived four-quadrant spec (input · tools ·
+  output · context).
+- **Behaviour** — *how* it decides: the system prompt you author, plus **Review prompt**.
+- **Runs** — what it *did*: run it against a task and read the trace, with the run history and compare.
+
+Close the panel with **×** to get the full canvas back.
 
 > **Example.** A "Sales Agent" whose goal is to convert incoming leads into scheduled installations.
 
 ## The agent contract (input · tools · output · context)
 
-Beside the behaviour editor, each agent card shows a compact, **read-only** spec — the agent's **contract** —
+The **Contract** tab of a selected agent shows a compact, **read-only** spec — the agent's **contract** —
 in four quadrants:
 
 - **Input** — the external signals routed to this agent (webhook / schedule / external triggers) plus the
@@ -125,7 +135,7 @@ generation never invents a credential.
 
 ## Behaviour (the system prompt)
 
-Each agent card has an editable **Behaviour (system prompt)** field — the agent's operating instructions:
+The **Behaviour** tab has an editable **Behaviour (system prompt)** field — the agent's operating instructions:
 its role, how it works its tools, when to escalate to a human, and its guardrails. This is what the agent
 would actually be told to do.
 
@@ -140,7 +150,8 @@ nothing while making an agent nobody designed look designed. So an empty behavio
 - **Type** to author your own — your text becomes the agent's system prompt. An authored behaviour is an
   authored part of the model: it saves with the project and round-trips through `model.json` and the
   code export (it becomes the agent's `behaviours/<id>.md` in the generated runtime).
-- **Leave it empty** and the card says *not designed yet*. Nothing fills the gap for you. On export the
+- **Leave it empty** and the tab says *not designed yet* (and the agent reads **Not designed** in the list
+  and its detail head). Nothing fills the gap for you. On export the
   agent ships a **TBD** `behaviours/<id>.md` that names what to write and points at its
   `definitions/<id>.json` contract, and **the generated runtime refuses to run that agent** — it throws,
   naming the file, rather than starting on a placeholder. An agent holds command authority over your
@@ -151,8 +162,8 @@ nothing while making an agent nobody designed look designed. So an empty behavio
 
 Writing an agent's prompt is easy to get subtly wrong: it's simple to tell an agent to "email the client"
 when it has no email tool, or to leave out the escalation path entirely. Click **Review prompt** on an
-agent card and Kiln asks the AI to review **that one agent's behaviour prompt against its derived
-contract** — the real tools, inputs, outputs and context shown in the panel above it.
+agent's **Behaviour** tab and Kiln asks the AI to review **that one agent's behaviour prompt against its
+derived contract** — the real tools, inputs, outputs and context shown in its **Contract** tab.
 
 It checks five things:
 
@@ -168,7 +179,7 @@ It checks five things:
 Because the critique is grounded in the contract rather than in the prompt alone, its findings name your
 real entities, commands, and events — not invented ones.
 
-**Findings are advisory.** They appear on the agent's card as **concerns** (likely wrong) and
+**Findings are advisory.** They appear in the agent's **Behaviour** tab as **concerns** (likely wrong) and
 **suggestions** (could be better), in the same review surface the rest of the model uses: read each one,
 act on it by **editing the behaviour text yourself**, or **dismiss** (×) the ones you've considered and
 accepted. Kiln **never rewrites your prompt** — the behaviour field stays yours. A dismissed finding stays
@@ -194,7 +205,7 @@ visible — and tunable for the session — under **Prompt & output → Prompt r
 
 ## Test this agent
 
-Click **Test agent** on any agent card to open the run panel, enter a task (or leave it empty to use the
+Open a selected agent's **Runs** tab, enter a task (or leave it empty to use the
 agent's goal), and click **Run test**. Kiln runs a short, bounded agent loop and shows you the **run
 trace**:
 

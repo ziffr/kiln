@@ -785,7 +785,7 @@ textarea {
 
 /* Cards (entities, agents, areas) */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.entity-card, .agent-card, .area-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: var(--panel-2); cursor: pointer; }
+.entity-card, .area-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: var(--panel-2); cursor: pointer; }
 .entity-card:hover, .area-card:hover { border-color: var(--accent-2); }
 .entity-card-head, .area-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .area-card-head { justify-content: flex-start; }
@@ -795,7 +795,6 @@ textarea {
 .entity-fields li { display: flex; justify-content: space-between; padding: 2px 0; font-size: 13px; border-bottom: 1px solid var(--bg); }
 .ftype { font-size: 11px; color: var(--muted); }
 .entity-refs { margin-top: 6px; font-size: 12px; }
-.agent-goal { font-size: 13px; margin: 4px 0 8px; }
 .agent-caps { display: flex; flex-wrap: wrap; gap: 4px; }
 .wf-chip { display: inline-block; padding: 1px 8px; border-radius: 10px; background: var(--panel-2); color: var(--fg); font-size: 12px; }
 
@@ -970,11 +969,11 @@ textarea {
 .stage-detail { background: var(--panel-2); border-left: 1px solid var(--border); }
 
 /* Cards — one consistent surface + a subtle hover lift */
-.entity-card, .agent-card, .area-card, .workflow-card, .reaction-row, .er-node {
+.entity-card, .area-card, .workflow-card, .reaction-row, .er-node {
   background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius);
 }
-.entity-card, .agent-card, .area-card { transition: border-color .12s, transform .12s; }
-.entity-card:hover, .area-card:hover, .agent-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.entity-card, .area-card { transition: border-color .12s, transform .12s; }
+.entity-card:hover, .area-card:hover { border-color: var(--accent); transform: translateY(-1px); }
 .entity-card-head strong, .area-card-head strong { font-size: 14px; }
 .wf-chip { background: var(--panel-2); border: 1px solid var(--border); }
 
@@ -1066,7 +1065,11 @@ textarea {
 .dep-cross { stroke: var(--warn-fg); stroke-width: 2; stroke-dasharray: 5 3; }
 
 /* Agent bipartite graph (hand-rolled) */
-.agent-graph .ag-box { position: absolute; border: 1px solid var(--accent-2); background: #150f2b; border-radius: 10px; padding: 8px 11px; overflow: hidden; }
+/* The agent box is the way IN to an agent — a button, selectable, marked when selected. */
+.agent-graph .ag-box { position: absolute; display: block; text-align: left; font: inherit; color: var(--fg); border: 1px solid var(--accent-2); background: #150f2b; border-radius: 10px; padding: 8px 11px; overflow: hidden; cursor: pointer; }
+.agent-graph .ag-box:hover { outline: 1px solid var(--accent); }
+.agent-graph .ag-box.on { outline: 2px solid var(--accent); }
+.agent-graph .ag-box:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 .ag-wire { stroke: var(--accent-2); }
 .ag-cap { cursor: pointer; }
 .ag-cap:hover { outline: 1px solid var(--accent); }
@@ -1499,18 +1502,32 @@ textarea {
 .ps-tab:focus-visible, .ps-mini:focus-visible, .ps-x:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) { .prompt-studio { animation: none; } }
+/* The run trace moved out of the (motion-guarded) drawer into the detail panel — carry the guard with it,
+   which also honours the setting for the area/workflow/entity details that already used this slide-in. */
+@media (prefers-reduced-motion: reduce) { .stage-detail { animation: none; } }
 @media (max-width: 640px) { .prompt-studio { width: 100vw; } }
 
-/* ── Agents stage: behaviour editor + Test-this-agent ──────────────────────────────────────────── */
+/* ── Agents stage: the scannable list + the AgentDetail slide-in ───────────────────────────────── */
 .agents-stage { display: flex; flex-direction: column; gap: 20px; }
-.agents-cards { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-.agent-edit-card { cursor: default; display: flex; flex-direction: column; gap: 8px; }
-.agent-edit-card .entity-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.btn.ghost.sm, .agent-test-btn { font-size: 12px; padding: 4px 9px; }
-.agent-test-btn { flex: none; }
-/* the per-agent action row (Review prompt + Test agent) sits at the card head, right-aligned. */
-.agent-card-actions { display: inline-flex; align-items: center; gap: 6px; flex: none; }
-.agent-review-btn { flex: none; }
+/* The list is a map you scan: one row per agent — name, goal, designed-or-not. The detail holds the rest. */
+.agent-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.agent-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+  text-align: left; font: inherit; cursor: pointer; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); color: var(--fg);
+  transition: border-color .12s;
+}
+.agent-row:hover { border-color: var(--accent-2); }
+.agent-row.on { border-color: var(--accent-2); box-shadow: inset 3px 0 0 var(--accent-2); }
+.agent-row:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.agent-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.agent-row-goal { font-size: 12.5px; line-height: 1.4; }
+/* Designed vs not — the same signal in the row and in the detail head, so it reads the same both places. */
+.agent-status { display: inline-flex; align-items: center; gap: 4px; flex: none; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; border: 1px solid transparent; }
+.agent-status.on { color: var(--muted); border-color: var(--edge); }
+.agent-status.off { color: var(--warn-fg); background: var(--warn-bg); border-color: var(--warn-fg); }
+.btn.ghost.sm { font-size: 12px; padding: 4px 9px; }
+.agent-review-btn { align-self: flex-start; flex: none; }
 .agent-review-btn:not(:disabled) { color: var(--accent-2); }
 /* per-agent prompt-critique findings reuse the inline critique surface; a touch of separation above. */
 .agent-prompt-findings { margin: 2px 0 0; }
@@ -1548,20 +1565,33 @@ textarea {
 .agent-contract-fields, .agent-contract-proc { color: var(--muted); }
 .agent-contract-none { font-size: 11px; font-style: italic; }
 
-/* Test-agent run panel (reuses .prompt-studio drawer chrome) */
-.agent-run-panel .ps-title > svg { color: var(--accent-2); }
-.run-engine { display: flex; align-items: center; gap: 6px; margin: 8px 16px 0; font-size: 11.5px; }
+/* The agent detail slide-in — the ONE surface for a selected agent. Reuses the shared `nd` detail chrome
+   (head + close + detail-slide-in) and the `ps-tabs` control; only the agent-specific bits live here. */
+.agent-detail { display: flex; flex-direction: column; gap: 0; }
+.agent-detail-meta { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; }
+.agent-detail-goal { margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; }
+.agent-detail-tabs { margin: 12px 0 0; }
+.agent-tab { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; }
+/* In the detail column the four quadrants stack: 2×2 inside 340px shreds the tool/field lists. */
+.agent-detail .agent-contract-grid { grid-template-columns: 1fr; }
+
+/* Runs tab — the test loop + trace. Mock dispatch: every tool step is badged simulated. */
+.run-lead { margin: 0; font-size: 12px; line-height: 1.5; }
+.run-engine { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11.5px; }
 .run-engine > svg { flex: none; opacity: .8; }
-.run-input { display: flex; flex-direction: column; gap: 8px; margin: 12px 16px 0; }
+.run-input { display: flex; flex-direction: column; gap: 8px; margin: 0; }
 .run-task-label { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+/* A task is one line of intent, not an essay — opt out of the global textarea's 220px editor min-height
+   (it dwarfed the trace it sits above) and honour the rows=2 the markup asks for. Still resizable. */
 .run-task-input {
-  width: 100%; resize: vertical; font: inherit; font-size: 13px; line-height: 1.5;
+  width: 100%; resize: vertical; flex: none; min-height: 0; font: inherit; font-size: 13px; line-height: 1.5;
   color: var(--fg); background: var(--panel-2); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 10px;
 }
 .run-task-input:focus { outline: none; border-color: var(--accent-2); box-shadow: 0 0 0 3px var(--accent-2-soft); }
 .run-go { align-self: flex-start; }
-.run-error { display: flex; align-items: center; gap: 6px; margin: 10px 16px 0; font-size: 12.5px; color: var(--danger, #b3261e); }
-.run-scroll { gap: 14px; }
+.run-error { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--danger, #b3261e); }
+/* The trace flows with the detail panel's own scroll — no nested scroller, no fixed drawer height. */
+.run-scroll { display: flex; flex-direction: column; gap: 14px; }
 .run-totals { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .run-total { font-size: 12.5px; }
 .run-total strong { font-size: 14px; }

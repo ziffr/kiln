@@ -1,13 +1,25 @@
 // Agents as a bipartite graph: agents (left) linked by curved arrows to the capabilities they operate
 // (right). A capability targeted by two agents shows converging arrows. Hand-rolled SVG (reliable,
 // like the automations wiring) — no graph library needed for a two-column relation.
+//
+// Two click targets, split like AreaDiagram's onSelectArea/onSelectCap: an AGENT box selects the agent
+// (opening its detail on this stage — the graph is a projection, the detail is where you read/edit it);
+// a CAPABILITY box is a cross-layer jump to that capability.
 
 import { type CapabilityDoc, type AgentsDoc } from "@kiln/compiler";
 import { Icon } from "./Icon";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 
-export function AgentDiagram({ agents, caps, onSelect, t }: { agents: AgentsDoc; caps: CapabilityDoc; onSelect: (id: string) => void; t: T }): React.JSX.Element {
+export function AgentDiagram({ agents, caps, selectedId, onSelectAgent, onSelectCap, t }: {
+  agents: AgentsDoc;
+  caps: CapabilityDoc;
+  /** the selected agent's id (plain, un-prefixed) — highlights its box. */
+  selectedId?: string | null;
+  onSelectAgent: (id: string) => void;
+  onSelectCap: (id: string) => void;
+  t: T;
+}): React.JSX.Element {
   if (!agents.agents.length) return <div className="stage-empty">{t("emptyAgents")}</div>;
   const capName = (id: string) => caps.capabilities.find((c) => c.id === id)?.name || id;
   const usedCaps = [...new Set(agents.agents.flatMap((a) => a.capabilities ?? []))];
@@ -29,13 +41,20 @@ export function AgentDiagram({ agents, caps, onSelect, t }: { agents: AgentsDoc;
         }))}
       </svg>
       {agents.agents.map((a, i) => (
-        <div key={a.id} className="ag-box" style={{ top: agTop(i), left: 0, width: AG_W, height: AG_H }}>
+        <button
+          key={a.id}
+          type="button"
+          className={`ag-box${selectedId === a.id ? " on" : ""}`}
+          style={{ top: agTop(i), left: 0, width: AG_W, height: AG_H }}
+          aria-pressed={selectedId === a.id}
+          onClick={() => onSelectAgent(a.id)}
+        >
           <div className="ag-node-head"><Icon name="bot" size={14} />{a.name || a.id}</div>
           {a.goal && <div className="ag-node-goal">{a.goal}</div>}
-        </div>
+        </button>
       ))}
       {usedCaps.map((c, j) => (
-        <div key={c} className="wire-box command ag-cap" style={{ top: capTop(j), left: GAP_X, width: CAP_W }} onClick={() => onSelect(c)}>{capName(c)}</div>
+        <div key={c} className="wire-box command ag-cap" style={{ top: capTop(j), left: GAP_X, width: CAP_W }} onClick={() => onSelectCap(c)}>{capName(c)}</div>
       ))}
     </div>
   );

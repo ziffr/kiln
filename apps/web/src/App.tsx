@@ -37,7 +37,7 @@ import { CapabilityMap } from "./components/CapabilityMap";
 import { StageRail, type StageId, type StageInfo } from "./components/StageRail";
 import { StageGuide } from "./components/StageGuide";
 import { BehaviourView, AutomationsView, RolesMatrix, WorkflowsView, AgentsView } from "./components/StageViews";
-import { AgentRunPanel } from "./components/AgentRunPanel";
+import { AgentDetail } from "./components/AgentDetail";
 import { EntityDiagram } from "./components/EntityDiagram";
 import { AreaDiagram } from "./components/AreaDiagram";
 import { AgentDiagram } from "./components/AgentDiagram";
@@ -249,9 +249,6 @@ export default function App(): React.JSX.Element {
   // edited a prompt. `agentReview` = the agents stage's per-agent prompt-critique prompt (agent-prompt layer).
   const [showPromptStudio, setShowPromptStudio] = useState(false);
   const [promptOverrides, setPromptOverrides] = useState<Record<string, { generate?: string; review?: string; agentReview?: string }>>({});
-  // Test-this-agent (on-demand drawer). `testAgentId` = the agent whose run panel is open; the last trace
-  // per agent is persisted in the unified `observability.agentRuns` envelope, so it survives reload.
-  const [testAgentId, setTestAgentId] = useState<string | null>(null);
   const [agentTask, setAgentTask] = useState("");
   const [agentRunBusy, setAgentRunBusy] = useState(false);
   const [agentRunError, setAgentRunError] = useState<string | null>(null);
@@ -448,6 +445,8 @@ export default function App(): React.JSX.Element {
   const selectedAggregate = selected ? domainDoc.aggregates.find((a) => a.id === selected) : undefined;
   // A selected workflow (pseudo-id "wf:<id>") opens its routing/steps detail.
   const selectedWorkflow = selected?.startsWith("wf:") ? workflowsDoc.workflows.find((w) => `wf:${w.id}` === selected) : undefined;
+  // A selected agent (pseudo-id "ag:<id>", same convention as "wf:") opens its contract/behaviour/runs detail.
+  const selectedAgent = selected?.startsWith("ag:") ? agentsDoc.agents.find((a) => `ag:${a.id}` === selected) : undefined;
   const areaTerms = (area: ContextInput): string[] => {
     const terms = new Set<string>();
     for (const m of [...(area.capabilities ?? []), ...(area.shared_kernel ?? [])]) {
@@ -982,11 +981,15 @@ export default function App(): React.JSX.Element {
     return contracts;
   }, [activeDoc, flowDoc, agentsDoc, workflowsDoc, active.comms, active.services]);
 
+  // The run target IS the selected agent: the Runs tab lives inside its detail, so there is no second
+  // "which agent am I testing?" state to drift out of sync with the selection.
+  const testAgentId: string | null = selectedAgent?.id ?? null;
   const lastAgentTrace: RunTrace | undefined = testAgentId ? active.observability?.agentRuns?.[testAgentId] : undefined;
   // The agent's recent runs (newest first, bounded). Empty on a project whose last run predates the history
-  // field — the panel falls back to `lastAgentTrace`, so nothing regresses for them.
+  // field — the tab falls back to `lastAgentTrace`, so nothing regresses for them.
   const agentRunHistory: RunTrace[] = (testAgentId ? active.observability?.agentRunHistory?.[testAgentId] : undefined) ?? [];
-  const openAgentTest = (agentId: string): void => { setTestAgentId(agentId); setAgentRunError(null); };
+  // A previous agent's run error is not this agent's — clear it when the selection moves.
+  useEffect(() => { setAgentRunError(null); }, [testAgentId]);
   const runAgentTest = async (): Promise<void> => {
     if (!testAgentId) return;
     setAgentRunBusy(true); setAgentRunError(null);
@@ -1610,6 +1613,7 @@ export default function App(): React.JSX.Element {
   // to a display NAME — used for breadcrumb labels AND for the meaning-key of an ignored finding.
   const nameFor = (id: string): string => {
     if (id.startsWith("wf:")) { const w = workflowsDoc.workflows.find((x) => `wf:${x.id}` === id); if (w) return w.name || w.id; }
+    if (id.startsWith("ag:")) { const a = agentsDoc.agents.find((x) => `ag:${x.id}` === id); if (a) return a.name || a.id; }
     const cap = activeDoc.capabilities.find((c) => c.id === id); if (cap) return cap.name || id;
     const area = contextsDoc.contexts.find((c) => contextNodeId(c.id) === id || c.id === id); if (area) return area.name || id;
     const agg = domainDoc.aggregates.find((a) => a.id === id); if (agg) return agg.name || id;
@@ -1785,7 +1789,7 @@ export default function App(): React.JSX.Element {
   // The detail panel only opens for artifacts that HAVE a detail view (area / entity / capability);
   // selecting a command/role/etc. just highlights the canvas without an empty slide-in.
   const selectedCap = selected ? activeDoc.capabilities.find((c) => c.id === selected) : undefined;
-  const hasDetail = !!(selectedArea || selectedAggregate || selectedCap || selectedWorkflow);
+  const hasDetail = !!(selectedArea || selectedAggregate || selectedCap || selectedWorkflow || selectedAgent);
 
   return (
     <div className={`app${sidebarOpen ? "" : " sidebar-collapsed"}`}>
@@ -2125,26 +2129,6 @@ export default function App(): React.JSX.Element {
             />
           )}
 
-          {/* Test-this-agent — on-demand drawer: run the agent against a task with MOCK tool dispatch and
-              show the run-trace (last trace persisted per agent via observability.agentRuns). */}
-          {stage === "agents" && testAgentId && (
-            <AgentRunPanel
-              agentName={agentsDoc.agents.find((a) => a.id === testAgentId)?.name || testAgentId}
-              trace={lastAgentTrace}
-              history={agentRunHistory}
-              task={agentTask}
-              onTask={setAgentTask}
-              onRun={() => void runAgentTest()}
-              busy={agentRunBusy}
-              error={agentRunError}
-              engineLabel={catalog.find((p) => p.id === providerFor("agents"))?.label ?? providerFor("agents")}
-              modelLabel={(() => { const m = modelFor("agents"); return catalog.find((p) => p.id === providerFor("agents"))?.models.find((x) => x.id === m)?.label ?? m; })()}
-              locale={i18n.language}
-              onClose={() => setTestAgentId(null)}
-              t={t}
-            />
-          )}
-
           {error && (
             <div className="err-banner" role="alert">
               <Icon name="alert" size={16} />
@@ -2279,21 +2263,15 @@ export default function App(): React.JSX.Element {
             {stage === "workflows" && <WorkflowsView workflows={workflowsDoc} domain={behaviourDoc} t={t} onSetMode={setWorkflowMode} onSetService={setWorkflowService} onBindStep={setWorkflowStepBinding} onClassify={classifyOrchestration} classifyBusy={orchestrationBusy} rationales={orchestrationRationales} services={serviceOptions} selectedId={selected} onSelectWorkflow={(id) => navTo("workflows", `wf:${id}`)} onSelectStep={(cmdId) => navTo("behaviour", cmdId)} />}
             {stage === "agents" && (
               <div className="agents-stage">
-                <AgentDiagram agents={agentsDoc} caps={activeDoc} onSelect={(id) => navTo("capabilities", id)} t={t} />
-                <AgentsView
+                <AgentDiagram
                   agents={agentsDoc}
                   caps={activeDoc}
-                  onEditInstructions={editAgentInstructions}
-                  contractFor={(id) => agentContracts[id]}
-                  onTest={openAgentTest}
-                  testingId={agentRunBusy ? testAgentId : null}
-                  onReviewPrompt={active.agents ? (id) => void reviewAgentPrompt(id) : undefined}
-                  reviewingPromptId={agentReviewBusy}
-                  critiqueFor={(id) => agentCritique[id]?.filter((f) => !isAgentCritIgnored(id, f))}
-                  onDismissFinding={ignoreAgentCritFinding}
-                  onSelectFinding={(_id, f) => selectFinding(f)}
+                  selectedId={selectedAgent?.id}
+                  onSelectAgent={(id) => navTo("agents", `ag:${id}`)}
+                  onSelectCap={(id) => navTo("capabilities", id)}
                   t={t}
                 />
+                <AgentsView agents={agentsDoc} selectedId={selectedAgent?.id} onSelect={(id) => navTo("agents", `ag:${id}`)} t={t} />
               </div>
             )}
             {stage === "code" && (
@@ -2380,6 +2358,34 @@ export default function App(): React.JSX.Element {
               <EntityTrace entity={selectedAggregate} domain={flowDoc} caps={activeDoc} roles={rolesDoc} onSelectCap={(id) => navTo("capabilities", id)} onSelectEntity={(id) => navTo("entities", id)} onGo={(s) => navTo(s, selected)} onClose={() => navTo(stage, null)} t={t} />
             ) : selectedWorkflow ? (
               <WorkflowDetail workflow={selectedWorkflow} domain={behaviourDoc} rationale={orchestrationRationales?.[selectedWorkflow.id]} services={serviceOptions} t={t} onSelectStep={(cmdId) => navTo("behaviour", cmdId)} onClose={() => navTo(stage, null)} />
+            ) : selectedAgent ? (
+              <AgentDetail
+                key={selectedAgent.id}
+                agent={selectedAgent}
+                caps={activeDoc}
+                contract={agentContracts[selectedAgent.id]}
+                run={{
+                  trace: lastAgentTrace,
+                  history: agentRunHistory,
+                  task: agentTask,
+                  onTask: setAgentTask,
+                  onRun: () => void runAgentTest(),
+                  busy: agentRunBusy,
+                  error: agentRunError,
+                  engineLabel: catalog.find((p) => p.id === providerFor("agents"))?.label ?? providerFor("agents"),
+                  modelLabel: (() => { const m = modelFor("agents"); return catalog.find((p) => p.id === providerFor("agents"))?.models.find((x) => x.id === m)?.label ?? m; })(),
+                }}
+                locale={i18n.language}
+                onEditInstructions={editAgentInstructions}
+                onReviewPrompt={active.agents ? (id) => void reviewAgentPrompt(id) : undefined}
+                reviewing={agentReviewBusy === selectedAgent.id}
+                critique={agentCritique[selectedAgent.id]?.filter((f) => !isAgentCritIgnored(selectedAgent.id, f))}
+                onDismissFinding={(f) => ignoreAgentCritFinding(selectedAgent.id, f)}
+                onSelectFinding={(f) => selectFinding(f)}
+                onSelectCapability={(id) => navTo("capabilities", id)}
+                onClose={() => navTo(stage, null)}
+                t={t}
+              />
             ) : (
               <NodeDetail
                 doc={activeDoc}

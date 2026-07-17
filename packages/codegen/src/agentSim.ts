@@ -11,7 +11,7 @@
  * Vercel function share ONE implementation, and it's unit-testable with a fake `NextTurn` at zero cost.
  */
 
-import { agentToolParams, type AgentDef, type AgentTool } from "./agents.ts";
+import { agentToolParams, capReadRows, READ_ROW_CAP, type AgentDef, type AgentTool } from "./agents.ts";
 
 /** One JSON-Schema tool definition, provider-neutral (Anthropic `input_schema` / OpenAI `parameters`). */
 export interface ToolSchema {
@@ -68,6 +68,19 @@ export function toOpenAiMessages(messages: LoopMessage[], system: string): Array
  */
 export function mockDispatch(tool: AgentTool, input: Record<string, unknown>): unknown {
   switch (tool.kind) {
+    case "read": {
+      // A real run GETs the spine; here we hand back a plausible shape so the loop can proceed. `list_*`
+      // (no id) → a small record list; `get_*` → one record. Same cap + honest-truncation contract as the
+      // real runtime, so what the model sees here matches what it will see in production.
+      const entity = tool.name.replace(/^(list|get)_/, "").replace(/_records$|_\d+$/, "");
+      const byId = (tool.input ?? []).includes("id");
+      if (byId) {
+        const id = String(input.id ?? "").trim() || `${entity}-0001`;
+        return { status: 200, record: { id }, note: `Simulated ${tool.name} — no spine call was made; a real run returns the record's current fields.` };
+      }
+      const rows = [1, 2, 3].map((n) => ({ id: `${entity}-000${n}` }));
+      return { status: 200, ...capReadRows(rows), note: `Simulated ${tool.name} — no spine call was made; a real run reads at most ${READ_ROW_CAP} records from the spine.` };
+    }
     case "command": {
       const id = String(input.id ?? "").trim() || `${tool.name.replace(/_/g, "-")}-0001`;
       const { id: _id, ...fields } = input;

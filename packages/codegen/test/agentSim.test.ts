@@ -125,3 +125,20 @@ test("runAgentLoop honours the step cap even if the model keeps calling tools", 
   const res = await runAgentLoop(def, "loop", looping, 3);
   assert.equal(res.stepCount, 3, "capped at maxSteps");
 });
+
+test("mockDispatch simulates read tools so they work in the in-Studio Test-agent loop", () => {
+  const list: AgentTool = { name: "list_lead", kind: "read", description: "List Lead records", invoke: { method: "GET", url: "{{SPINE_URL}}/leads" } };
+  const get: AgentTool = { name: "get_lead", kind: "read", description: "Fetch one Lead by id", invoke: { method: "GET", url: "{{SPINE_URL}}/leads/{id}" }, input: ["id"] };
+
+  const listed = mockDispatch(list, {}) as { status: number; rows: Array<{ id: string }>; total: number; note: string };
+  assert.equal(listed.status, 200);
+  assert.ok(listed.rows.length > 0 && listed.total === listed.rows.length);
+  assert.match(listed.note, /Simulated list_lead/);
+  assert.match(listed.note, /no spine call was made/); // honest: it's a simulation, not real data
+
+  const one = mockDispatch(get, { id: "lead-42" }) as { status: number; record: { id: string }; note: string };
+  assert.equal(one.record.id, "lead-42"); // echoes the requested id
+  assert.match(one.note, /no spine call was made/);
+  // a get with no id still returns a plausible record so the loop can proceed
+  assert.equal((mockDispatch(get, {}) as { record: { id: string } }).record.id, "lead-0001");
+});

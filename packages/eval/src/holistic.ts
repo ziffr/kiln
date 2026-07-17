@@ -13,6 +13,11 @@
  *   chainBreaks      — capabilities missing an entity OR behaviour: HARD breaks (nothing operates them).
  *   softGaps         — capabilities with entity+behaviour but no role/agent owner: a soft gap.
  *   danglingRefs     — count of cross-layer dangling/orphan findings from the deterministic validators.
+ *   generatedCoverage— 0..1: the fraction of capabilities whose whole chain is REALLY generated (every
+ *                      cell provenance 'real'), NOT blanket mock scaffolding. Structural `coherence`
+ *                      can't tell a 100%-mock model from a built one; this can.
+ *   scaffoldOnly     — capabilities structurally covered but partly/only mock scaffolding (or owned only
+ *                      by an undesigned agent): "looks coherent, isn't really generated yet."
  *
  * Pure and deterministic — no LLM, key, or cost. Gold-free (like every scorer in this package).
  */
@@ -41,6 +46,13 @@ export interface HolisticCoherence {
   softGaps: CapCoverage[];
   /** count of structural dangling/orphan findings across the layers (a hard structural break). */
   danglingRefs: number;
+  /** 0..1 — fraction of capabilities whose FULL chain is REAL (entity, behaviour AND owner all
+   *  provenance 'real'). Structural `coherence` can't tell blanket mock scaffolding from generated
+   *  content; this can. A 100%-mock model scores high on `coherence` but 0 here. */
+  generatedCoverage: number;
+  /** capabilities that are structurally covered (NOT a chainBreak) but whose coverage is partly/only
+   *  mock scaffolding or an undesigned-agent owner — "still scaffolding, not really generated". */
+  scaffoldOnly: CapCoverage[];
   /** the full coverage matrix (for display). */
   matrix: CapCoverage[];
 }
@@ -66,6 +78,18 @@ export function scoreHolisticCoherence(model: CoherenceModel): HolisticCoherence
   const behaviourCoverage = frac(matrix.filter((c) => c.behaviour).length);
   const ownerCoverage = frac(matrix.filter((c) => c.owner).length);
 
+  // A capability's chain is REALLY generated only when every cell is provenance 'real' (not blanket mock
+  // scaffolding, and its owner is a designed agent or a real role). `scaffoldOnly` = structurally covered
+  // (entity + behaviour, so NOT a hard chain break) but at least one PRESENT cell is still mock scaffolding
+  // or an undesigned-agent owner — it looks coherent but isn't really built. A missing owner is NOT mock —
+  // that's a soft gap (surfaced separately), so absence ('none') doesn't count here, only 'mock' does.
+  const fullyReal = (c: CapCoverage): boolean =>
+    c.entityProv === "real" && c.behaviourProv === "real" && c.ownerProv === "real";
+  const generatedCoverage = frac(matrix.filter(fullyReal).length);
+  const scaffoldOnly = matrix.filter(
+    (c) => c.entity && c.behaviour && (c.entityProv === "mock" || c.behaviourProv === "mock" || c.ownerProv === "mock"),
+  );
+
   // Dangling/orphan findings from the deterministic validators — only for layers that are present, so an
   // absent layer never manufactures a break. Each validator needs the capability/command id universe.
   const findings: Finding[] = [...validateV5(model.caps)];
@@ -81,5 +105,5 @@ export function scoreHolisticCoherence(model: CoherenceModel): HolisticCoherence
   // not actually wire together, so it cannot score above 0.5.
   const coherence = danglingRefs > 0 ? Math.min(chained, 0.5) : chained;
 
-  return { coherence, entityCoverage, behaviourCoverage, ownerCoverage, chainBreaks, softGaps, danglingRefs, matrix };
+  return { coherence, entityCoverage, behaviourCoverage, ownerCoverage, chainBreaks, softGaps, danglingRefs, generatedCoverage, scaffoldOnly, matrix };
 }

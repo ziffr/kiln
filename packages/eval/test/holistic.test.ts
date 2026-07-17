@@ -86,3 +86,117 @@ test("an empty capability list is coherent by convention (1)", () => {
   assert.equal(s.chainBreaks.length, 0);
   assert.equal(s.matrix.length, 0);
 });
+
+// ── Provenance-awareness: structural coverage vs. really-generated coverage ──────────────────────
+const mock = { origin: "mock" };
+const real = { origin: "llm" };
+
+test("a 100%-MOCK model is structurally coherent but 0% really generated — every cap is scaffoldOnly", () => {
+  // A blanket-scaffolding model: mock aggregates + mock commands + one mock Operator role over ALL caps.
+  const mockDomain: DomainDoc = {
+    version: "1",
+    aggregates: [
+      { id: "order", name: "Order", owner: "sales", meta: mock },
+      { id: "shipment", name: "Shipment", owner: "fulfilment", meta: mock },
+    ],
+    commands: [
+      { id: "place_order", name: "Place Order", aggregate: "order", capability: "sales", meta: mock },
+      { id: "ship_order", name: "Ship Order", aggregate: "shipment", capability: "fulfilment", meta: mock },
+    ],
+    events: [],
+  };
+  const mockRoles: RolesDoc = { version: "1", roles: [{ id: "operator", name: "Operator", capabilities: ["sales", "fulfilment"], meta: mock }] };
+  const s = scoreHolisticCoherence({ caps, domain: mockDomain, roles: mockRoles });
+  // Structural coherence is still high — the chain reaches every capability.
+  assert.equal(s.coherence, 1, "structurally the chain is complete");
+  assert.equal(s.chainBreaks.length, 0);
+  // But nothing has actually been generated: every cell is mock scaffolding.
+  assert.equal(s.generatedCoverage, 0, "no capability is really generated");
+  assert.equal(s.scaffoldOnly.length, 2, "both capabilities are still scaffolding");
+  assert.deepEqual(s.scaffoldOnly.map((c) => c.id).sort(), ["fulfilment", "sales"]);
+});
+
+test("a fully-REAL model is 100% really generated with no scaffolding", () => {
+  const realDomain: DomainDoc = {
+    version: "1",
+    aggregates: [
+      { id: "order", name: "Order", owner: "sales", meta: real },
+      { id: "shipment", name: "Shipment", owner: "fulfilment", meta: real },
+    ],
+    commands: [
+      { id: "place_order", name: "Place Order", aggregate: "order", capability: "sales", meta: real },
+      { id: "ship_order", name: "Ship Order", aggregate: "shipment", capability: "fulfilment", meta: real },
+    ],
+    events: [],
+  };
+  const realRoles: RolesDoc = { version: "1", roles: [{ id: "clerk", name: "Clerk", capabilities: ["sales", "fulfilment"], meta: real }] };
+  const s = scoreHolisticCoherence({ caps, domain: realDomain, roles: realRoles });
+  assert.equal(s.coherence, 1);
+  assert.equal(s.generatedCoverage, 1, "every capability is really generated");
+  assert.equal(s.scaffoldOnly.length, 0, "no scaffolding remains");
+});
+
+test("hand-authored content (no origin) counts as REAL, not scaffolding", () => {
+  // Elements a human authored carry no `origin` (or 'authored') — real === origin !== 'mock'.
+  const authored: DomainDoc = {
+    version: "1",
+    aggregates: [
+      { id: "order", name: "Order", owner: "sales" },
+      { id: "shipment", name: "Shipment", owner: "fulfilment" },
+    ],
+    commands: [
+      { id: "place_order", name: "Place Order", aggregate: "order", capability: "sales" },
+      { id: "ship_order", name: "Ship Order", aggregate: "shipment", capability: "fulfilment" },
+    ],
+    events: [],
+  };
+  const s = scoreHolisticCoherence({ caps, domain: authored, roles });
+  assert.equal(s.generatedCoverage, 1, "authored (origin-less) content is real");
+  assert.equal(s.scaffoldOnly.length, 0);
+});
+
+test("an agent owner with NO instructions is not a REAL owner — the cap is scaffoldOnly, not really generated", () => {
+  const realDomain: DomainDoc = {
+    version: "1",
+    aggregates: [
+      { id: "order", name: "Order", owner: "sales", meta: real },
+      { id: "shipment", name: "Shipment", owner: "fulfilment", meta: real },
+    ],
+    commands: [
+      { id: "place_order", name: "Place Order", aggregate: "order", capability: "sales", meta: real },
+      { id: "ship_order", name: "Ship Order", aggregate: "shipment", capability: "fulfilment", meta: real },
+    ],
+    events: [],
+  };
+  // An llm-origin agent owns both caps but its behaviour is undesigned (no `instructions`) → NOT a real owner.
+  const undesigned: AgentsDoc = { version: "1", agents: [{ id: "bot", name: "Bot", capabilities: ["sales", "fulfilment"], meta: real }] };
+  const s = scoreHolisticCoherence({ caps, domain: realDomain, agents: undesigned });
+  assert.equal(s.chainBreaks.length, 0, "entity + behaviour are present");
+  assert.equal(s.ownerCoverage, 1, "structurally an owner exists");
+  assert.equal(s.generatedCoverage, 0, "an undesigned agent is not a real owner");
+  assert.equal(s.scaffoldOnly.length, 2, "both caps hang on an undesigned agent");
+  // Design the agent (give it instructions) → it becomes a real owner and the caps are really generated.
+  const designed: AgentsDoc = { version: "1", agents: [{ id: "bot", name: "Bot", capabilities: ["sales", "fulfilment"], instructions: "You run sales and fulfilment. Escalate refunds.", meta: real }] };
+  const s2 = scoreHolisticCoherence({ caps, domain: realDomain, agents: designed });
+  assert.equal(s2.generatedCoverage, 1, "a designed agent IS a real owner");
+  assert.equal(s2.scaffoldOnly.length, 0);
+});
+
+test("a REAL entity/behaviour with no owner is a soft gap, NOT scaffolding (absence isn't mock)", () => {
+  const realDomain: DomainDoc = {
+    version: "1",
+    aggregates: [
+      { id: "order", name: "Order", owner: "sales", meta: real },
+      { id: "shipment", name: "Shipment", owner: "fulfilment", meta: real },
+    ],
+    commands: [
+      { id: "place_order", name: "Place Order", aggregate: "order", capability: "sales", meta: real },
+      { id: "ship_order", name: "Ship Order", aggregate: "shipment", capability: "fulfilment", meta: real },
+    ],
+    events: [],
+  };
+  const s = scoreHolisticCoherence({ caps, domain: realDomain }); // no roles/agents
+  assert.equal(s.softGaps.length, 2, "no owner → soft gap");
+  assert.equal(s.scaffoldOnly.length, 0, "a missing owner is a soft gap, not mock scaffolding");
+  assert.equal(s.generatedCoverage, 0, "still not a fully-real chain (no owner)");
+});

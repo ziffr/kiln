@@ -84,6 +84,7 @@ export function CodePreview({
   // an explicit ack. (B) LLM PASS — the whole-model critique must have run once, and any concern it raises
   // must be acknowledged. The score is deterministic (recomputed from the live model), the LLM pass is opt-in.
   const [ackSoft, setAckSoft] = useState(false);
+  const [ackScaffold, setAckScaffold] = useState(false);
   const [holisticRan, setHolisticRan] = useState(false);
   const [holisticBusy, setHolisticBusy] = useState(false);
   const [holisticFindings, setHolisticFindings] = useState<CritiqueFinding[] | null>(null);
@@ -94,7 +95,14 @@ export function CodePreview({
   }, [buildModel]);
   const hardBlocked = coherence.chainBreaks.length > 0 || coherence.danglingRefs > 0;
   const openConcerns = (holisticFindings ?? []).filter((f) => f.severity === "concern" && !ackConcerns.has(f.id));
-  const exportBlocked = hardBlocked || (coherence.softGaps.length > 0 && !ackSoft) || !holisticRan || openConcerns.length > 0;
+  // A SOFT (acknowledged) block for capabilities that are structurally covered but still only mock
+  // scaffolding — not a hard gap, but you should mean to export scaffolding rather than do it by accident.
+  const exportBlocked =
+    hardBlocked ||
+    (coherence.softGaps.length > 0 && !ackSoft) ||
+    (coherence.scaffoldOnly.length > 0 && !ackScaffold) ||
+    !holisticRan ||
+    openConcerns.length > 0;
 
   const busy = exporting || reviewing || fixing || auto || verifying || autoVerifying || running || polishing || visualPolishing || holisticBusy;
 
@@ -396,6 +404,7 @@ export function CodePreview({
         <div className="code-review-head">
           <Icon name={exportBlocked ? "lock" : "check"} size={15} /> {t("finalStepTitle")}
           <span className="coherence-headline">{t("coherenceScore", { pct: Math.round(coherence.coherence * 100) })}</span>
+          <span className="coherence-headline coherence-generated">{t("generatedScore", { pct: Math.round(coherence.generatedCoverage * 100) })}</span>
         </div>
         <p className="code-review-advisory">{t("finalStepIntro")}</p>
         <p className="coherence-counts muted">{t("coherenceCounts", {
@@ -437,6 +446,22 @@ export function CodePreview({
             <label className="coherence-ack">
               <input type="checkbox" checked={ackSoft} onChange={(e) => setAckSoft(e.target.checked)} />
               <span>{t("ackCoherence")}</span>
+            </label>
+          </div>
+        )}
+
+        {coherence.scaffoldOnly.length > 0 && (
+          <div className="coherence-soft coherence-scaffold">
+            <strong>{t("scaffoldTitle", { count: coherence.scaffoldOnly.length })}</strong>
+            <p className="code-review-advisory muted">{t("scaffoldIntro")}</p>
+            <ul className="code-review-findings">
+              {coherence.scaffoldOnly.map((c) => (
+                <li key={c.id}><code className="sev-medium">mock</code> <div className="cr-msg">{t("scaffoldItem", { name: c.name })}</div></li>
+              ))}
+            </ul>
+            <label className="coherence-ack">
+              <input type="checkbox" checked={ackScaffold} onChange={(e) => setAckScaffold(e.target.checked)} />
+              <span>{t("ackScaffold")}</span>
             </label>
           </div>
         )}

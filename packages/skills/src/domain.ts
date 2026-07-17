@@ -29,7 +29,7 @@ export function mockGenerateDomain(caps: CapabilityDoc): DomainDoc {
         owner: c.id,
         attributes: [],
         references: [],
-        meta: { origin: "llm", skillVersion: "domaingen-mock@0.1", derivedFrom: [{ capability: c.id }] },
+        meta: { origin: "mock", skillVersion: "domaingen-mock@0.1", derivedFrom: [{ capability: c.id }] },
       });
     }
   }

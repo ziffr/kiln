@@ -96,7 +96,7 @@ export function mockEnrichDomain(caps: CapabilityDoc, domain: DomainDoc, depth: 
           owner: a.owner,
           attributes: childDef.fields,
           references: [a.id],
-          meta: { origin: "llm", skillVersion: "enrich-mock@0.1", derivedFrom: [{ capability: a.owner }] },
+          meta: { origin: "mock", skillVersion: "enrich-mock@0.1", derivedFrom: [{ capability: a.owner }] },
         });
       }
     }

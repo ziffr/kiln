@@ -10,7 +10,7 @@ import type { CapabilityDoc, RoleInput, RolesDoc } from "@kiln/compiler";
 import { validateRoles, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
-const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }] });
+const grounded = (anchor: string) => ({ origin: "mock", derivedFrom: [{ anchor }] });
 
 /** Offline default: one Operator role authorized for every capability (a safe, complete baseline). */
 export function mockGenerateRoles(caps: CapabilityDoc): RolesDoc {

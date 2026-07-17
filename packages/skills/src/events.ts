@@ -14,7 +14,7 @@ import type { CapabilityDoc, DomainDoc, CommandInput, EventInput, AggregateInput
 import { validateEvents, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
-const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }] });
+const grounded = (anchor: string) => ({ origin: "mock", derivedFrom: [{ anchor }] });
 
 /** Deterministic offline behaviour: a create/update command + event per aggregate (structural stand-in). */
 export function mockGenerateEvents(domain: DomainDoc): DomainDoc {

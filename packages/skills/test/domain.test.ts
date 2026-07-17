@@ -32,7 +32,7 @@ test("generated aggregates carry capability-targeting provenance", () => {
   const d = mockGenerateDomain(caps);
   for (const a of d.aggregates) {
     const meta = a.meta as { origin?: string; derivedFrom?: Array<{ capability?: string }> };
-    assert.equal(meta.origin, "llm");
+    assert.equal(meta.origin, "mock");
     assert.ok(meta.derivedFrom?.[0]?.capability);
   }
 });

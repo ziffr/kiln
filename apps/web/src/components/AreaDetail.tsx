@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { CapabilityDoc, ContextInput } from "@kiln/compiler";
+import { Icon } from "./Icon";
 
 /**
  * Area (business-area / subdomain) detail — an editable form for one area (SPEC-003 §7). Rename,
@@ -33,7 +34,7 @@ export function AreaDetail({
     <aside className="node-detail area-detail">
       <div className="nd-head">
         <input className="nd-name" value={area.name} onChange={(e) => patch({ name: e.target.value })} />
-        <button className="nd-close" onClick={onClose} aria-label="close">×</button>
+        <button className="nd-close" onClick={onClose} aria-label="close"><Icon name="x" size={15} /></button>
       </div>
       <code className="nd-id">{t("area")} · {area.id}</code>
 

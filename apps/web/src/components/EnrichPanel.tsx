@@ -1,4 +1,5 @@
 import type { EnrichProposal } from "../enrichReview";
+import { Icon } from "./Icon";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 
@@ -23,7 +24,7 @@ export function EnrichPanel({ proposals, busy, onToggle, onApply, onClose, onWeb
       <div className="guide review-overlay" onClick={(e) => e.stopPropagation()}>
         <div className="guide-head">
           <h2>✨ {t("enrichTitle")}</h2>
-          <button className="nd-close" onClick={onClose} aria-label="close">×</button>
+          <button className="nd-close" onClick={onClose} aria-label="close"><Icon name="x" size={15} /></button>
         </div>
         <div className="guide-body">
           <p className="hint">{t("enrichHint")}</p>

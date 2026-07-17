@@ -9,8 +9,9 @@
  * override — it just swaps the request's system prompt at the provider boundary (system = override ?? default).
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "./Icon";
+import { Drawer, DrawerTabs } from "./Drawer";
 import type { LlmOutputRecord } from "../projects";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
@@ -45,15 +46,8 @@ export function PromptStudio({
   const kinds = useMemo<Kind[]>(() => [...(genPrompt ? ["generate" as const] : []), ...(reviewPrompt ? ["review" as const] : []), ...(agentPrompt ? ["agentReview" as const] : [])], [genPrompt, reviewPrompt, agentPrompt]);
   const [tab, setTab] = useState<Kind>(kinds[0] ?? "generate");
   const [copied, setCopied] = useState(false);
-  const closeRef = useRef<HTMLButtonElement>(null);
 
-  // Esc closes; focus the panel on open so keyboard users land inside it.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    closeRef.current?.focus();
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // Esc + open-focus are the Drawer shell's job now.
   useEffect(() => { if (!kinds.includes(tab)) setTab(kinds[0] ?? "generate"); }, [kinds, tab]);
   useEffect(() => { setCopied(false); }, [tab]);
 
@@ -69,29 +63,23 @@ export function PromptStudio({
   };
 
   return (
-    <aside className="prompt-studio" role="region" aria-label={t("promptStudio")}>
-      <header className="ps-head">
-        <div className="ps-title">
-          <Icon name="code" size={15} />
-          <h3>{t("promptStudio")}</h3>
-          <span className="muted ps-stage">{stageLabel}</span>
-        </div>
-        <button ref={closeRef} className="ps-x" onClick={onClose} aria-label={t("close")} title={t("close")}><Icon name="x" size={15} /></button>
-      </header>
-
-      <p className="ps-lead muted">{t("promptStudioLead")}</p>
-
-      {kinds.length > 1 && (
-        <div className="ps-tabs" role="tablist" aria-label={t("promptStudio")}>
-          {kinds.map((k) => (
-            <button key={k} role="tab" aria-selected={tab === k} className={`ps-tab${tab === k ? " active" : ""}`} onClick={() => setTab(k)}>
-              {t(k === "generate" ? "promptKindGen" : k === "agentReview" ? "promptKindAgentReview" : "promptKindReview")}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="ps-scroll">
+    <Drawer
+      title={t("promptStudio")}
+      icon="code"
+      badge={stageLabel}
+      lead={t("promptStudioLead")}
+      onClose={onClose}
+      closeLabel={t("close")}
+      tabs={kinds.length > 1 ? (
+        <DrawerTabs
+          tabs={kinds.map((k) => ({ id: k, label: t(k === "generate" ? "promptKindGen" : k === "agentReview" ? "promptKindAgentReview" : "promptKindReview") }))}
+          active={tab}
+          onSelect={setTab}
+          label={t("promptStudio")}
+        />
+      ) : undefined}
+    >
+      <div className="ps-body">
         <section className="ps-section">
           <div className="ps-section-head">
             <span className="ps-label">{t("promptSystem")}</span>
@@ -133,6 +121,6 @@ export function PromptStudio({
           )}
         </section>
       </div>
-    </aside>
+    </Drawer>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { attributeSpecs, type AggregateInput, type AttributeSpec, type AttrType, type CapabilityDoc, type CapabilityInput, type CommandInput, type EventInput, type PolicyInput } from "@kiln/compiler";
+import { Icon } from "./Icon";
 import type { StageId } from "./StageRail";
 
 const ATTR_TYPES: AttrType[] = ["text", "number", "boolean", "date", "money", "reference"];
@@ -330,7 +331,7 @@ export function NodeDetail({
     <aside className="node-detail">
       <div className="nd-head">
         <input className="nd-name" value={cap.name} onChange={(e) => patch({ name: e.target.value })} />
-        <button className="nd-close" onClick={onClose} aria-label="close">×</button>
+        <button className="nd-close" onClick={onClose} aria-label="close"><Icon name="x" size={15} /></button>
       </div>
       <code className="nd-id">{cap.id}</code>
 

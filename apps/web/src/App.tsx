@@ -26,6 +26,7 @@ import { mockGenerateCapabilities, mockGenerateDomain, mockGroupContexts, mockGe
 // isomorphic/browser-safe — golden invariant #4), so the app can SHOW and session-tune the exact prompts.
 import { CAPABILITY_SYSTEM_PROMPT, CONTEXT_SYSTEM_PROMPT, DOMAIN_SYSTEM_PROMPT, EVENT_SYSTEM_PROMPT, POLICY_SYSTEM_PROMPT, ROLE_SYSTEM_PROMPT, WORKFLOW_SYSTEM_PROMPT, AGENT_SYSTEM_PROMPT, critiqueSystemPrompt } from "@kiln/skills";
 import { PromptStudio } from "./components/PromptStudio";
+import { DocsDrawer } from "./components/DocsDrawer";
 import type { LlmOutputRecord, RunTrace } from "./projects";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
@@ -76,7 +77,7 @@ import {
 const hasRealNarrative = (n: string): boolean => n.trim().length > 0 && n.trim() !== NARRATIVE_TEMPLATE.trim();
 import { serverListProjects, serverSaveProject, serverDeleteProject } from "./projectStore";
 import { assembleModel, parseModel, type ResolvedCore } from "./model";
-import { SERVICE_URL, DOCS_URL } from "./config";
+import { SERVICE_URL } from "./config";
 
 
 
@@ -248,6 +249,8 @@ export default function App(): React.JSX.Element {
   // stage → { generate?, review?, agentReview? }; sent as `promptOverride` only when the user has actually
   // edited a prompt. `agentReview` = the agents stage's per-agent prompt-critique prompt (agent-prompt layer).
   const [showPromptStudio, setShowPromptStudio] = useState(false);
+  // Docs drawer: null = closed, "" = the docs root, a path = deep-link (Settings' "Learn more").
+  const [docsPath, setDocsPath] = useState<string | null>(null);
   const [promptOverrides, setPromptOverrides] = useState<Record<string, { generate?: string; review?: string; agentReview?: string }>>({});
   const [agentTask, setAgentTask] = useState("");
   const [agentRunBusy, setAgentRunBusy] = useState(false);
@@ -1927,6 +1930,11 @@ export default function App(): React.JSX.Element {
           t={t}
         />
       )}
+      {/* Docs, read in place — opened from the sidebar (root) or Settings' "Learn more" (deep link).
+          Rendered at the app root, NOT inside the stage subtree: the sidebar's docs button is visible
+          on Home too, and Home doesn't render a stage, so a stage-nested drawer silently did nothing
+          there. Same reason Settings lives here. */}
+      {docsPath !== null && <DocsDrawer path={docsPath} onClose={() => setDocsPath(null)} t={t} />}
       {showSettings && (
         <SettingsModal
           providers={catalog.map((p) => ({ id: p.id, label: p.label, note: p.note, allowCustomModel: p.allowCustomModel, models: p.models.map((m) => ({ id: m.id, label: m.label, supportsEffort: m.supportsEffort })) }))}
@@ -1942,7 +1950,7 @@ export default function App(): React.JSX.Element {
           onSetConfirmReviewCost={(v) => patchActive({ confirmReviewCost: v })}
           reviewer={active.reviewer ?? {}}
           onSetReviewer={(field, value) => patchActive({ reviewer: { ...(active.reviewer ?? {}), [field]: value || undefined } })}
-          docsUrl="https://docs.kilnstudio.app/reference/choosing-an-engine"
+          onOpenDocs={() => setDocsPath("reference/choosing-an-engine")}
           stages={[...reviewLayers.map((r) => ({ key: r.kind as string, label: r.label, description: t(`stageDesc_${r.kind}`) })),
             { key: "polish", label: t("polishLayout"), description: t("stageDesc_polish") },
             { key: "visual", label: t("visualReview"), description: t("stageDesc_visual"), lockProvider: "anthropic" }]}
@@ -2060,7 +2068,9 @@ export default function App(): React.JSX.Element {
         <StageRail stages={stages} active={showHome ? ("" as StageId) : stage} nextStep={stages.find((s) => s.id !== "code" && s.status !== "ready")?.id} onSelect={(s) => navRoot(s)} t={t} />
 
         <div className="side-foot">
-          <a className="side-foot-btn" href={DOCS_URL} target="_blank" rel="noreferrer"><Icon name="book" size={15} /> {t("docsOpen")}</a>
+          {/* Opens the docs in a drawer rather than navigating away — reading "how does this work?"
+              shouldn't cost you the stage you're on. The drawer keeps an open-in-new-tab escape. */}
+          <button className="side-foot-btn" onClick={() => setDocsPath("")}><Icon name="book" size={15} /> {t("docsOpen")}</button>
           <button className="side-foot-btn" onClick={() => setShowSettings(true)}><Icon name="settings" size={15} /> {t("settingsOpen")}</button>
           {/* Session usage (estimated AI spend this page-session — same figures as the Home usage line)
               + build meta. The old storage-mode text was unclear; that signal survives as the small status

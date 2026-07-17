@@ -65,7 +65,14 @@ function Flow({ nodes, edges, bounds, paneRef, onSelect }: { nodes: Node[]; edge
       }
     };
     const timers = [40, 160, 400, 900].map((ms) => setTimeout(fit, ms));
-    return () => timers.forEach(clearTimeout);
+    // The detail slide-in reflows the canvas, so the pane loses width while `nodes`/`bounds` are
+    // unchanged — the timers above have long since fired and nothing re-fits. Re-fit on any pane
+    // resize; here it also re-decides `fitsReadably`, so a narrowed pane re-anchors to the top
+    // rather than silently clipping the first entities. No RO loop: fit writes only the transform.
+    const el = paneRef.current;
+    const ro = el ? new ResizeObserver(fit) : null;
+    if (el && ro) ro.observe(el);
+    return () => { timers.forEach(clearTimeout); ro?.disconnect(); };
   }, [nodes, bounds, rf, paneRef]);
   return (
     <ReactFlow nodes={nodes} edges={edges} minZoom={0.15} proOptions={{ hideAttribution: true }} onNodeClick={(_, n) => onSelect(n.id)}>

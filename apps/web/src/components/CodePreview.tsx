@@ -314,7 +314,7 @@ export function CodePreview({
             <button key={k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>{t(`code_${k}`)}</button>
           ))}
         </div>
-        <button className="nd-close" onClick={onClose} aria-label="close">×</button>
+        <button className="nd-close" onClick={onClose} aria-label="close"><Icon name="x" size={15} /></button>
       </div>
 
       {/* Action bar: three controls, not ten. Two menus (Improve with AI · Export) collapse the many
@@ -357,7 +357,7 @@ export function CodePreview({
             {verdict.configured === false ? <span className="muted"> — {t("verifyNotConfigured")}</span>
               : verdict.ok ? <span className="cr-pass"> — {t("verifyPass")}</span>
                 : <span className="cr-fail"> — {t("verifyFail")}</span>}
-            <button className="nd-close" onClick={() => setVerdict(null)} aria-label="close">×</button>
+            <button className="nd-close" onClick={() => setVerdict(null)} aria-label="close"><Icon name="x" size={15} /></button>
           </div>
           {verdict.error && <p className="code-review-advisory">{verdict.error}</p>}
           {verdict.checks && (
@@ -374,7 +374,7 @@ export function CodePreview({
         <div className="code-review">
           <div className="code-review-head">
             <Icon name="sparkles" size={15} /> UX pass — review the improvements
-            <button className="nd-close" onClick={() => setPolish(null)} aria-label="close">×</button>
+            <button className="nd-close" onClick={() => setPolish(null)} aria-label="close"><Icon name="x" size={15} /></button>
           </div>
           {Object.keys(polish.improvements).length === 0 ? (
             <p className="code-review-advisory">Every screen already follows the design best practices — nothing to change.</p>
@@ -416,7 +416,7 @@ export function CodePreview({
                 {fixing ? t("generating") : <><Icon name="wrench" size={13} /> {t("codeReviewFix", { count: review.length })}</>}
               </button>
             )}
-            <button className="nd-close" onClick={() => setReview(null)} aria-label="close">×</button>
+            <button className="nd-close" onClick={() => setReview(null)} aria-label="close"><Icon name="x" size={15} /></button>
           </div>
           <p className="code-review-advisory">⚠ {t("codeReviewAdvisory")}</p>
           <ul className="code-review-findings">

@@ -21,9 +21,10 @@ in four quadrants:
 - **Input** — the external signals routed to this agent (webhook / schedule / external triggers) plus the
   run task. This is what *wakes* the agent.
 - **Tools** — the exact tools the agent can call: the **read** tools that look data up (`list_<entity>` /
-  `get_<entity>`), the commands on the entities its capabilities own, the `notify` human-in-the-loop
-  router, and any comm actions or external services. These are the same tool schemas the run loop (and the
-  exported runtime) send to the model.
+  `get_<entity>` / `find_<entity>`), the commands on the entities its capabilities own, the `notify`
+  human-in-the-loop router, and any comm actions or external services. A `find_<entity>` tool is listed
+  with the fields it can filter on (`find_lead · email, status`). These are the same tool schemas the run
+  loop (and the exported runtime) send to the model.
 - **Output** — the events the agent's commands emit and the records they change. This is what the agent
   *produces*.
 - **Context** — the entities the agent operates and their typed fields, plus any processes it owns.
@@ -35,25 +36,53 @@ It is **not** something you author or edit; it updates automatically as the mode
 ### Looking data up
 
 An agent can **read the records it works on**, not just act on them. For every entity its capabilities
-own it gets two read-only tools:
+own it gets read-only tools:
 
 - `list_<entity>` — list the records (no arguments), to find the one it needs.
 - `get_<entity>` — fetch one record by `id`, to check its current state.
+- `find_<entity>` — **look records up by field value**, when the agent knows what it's looking for.
 
 **Read access is capability-scoped, exactly like commands.** An agent can only look up the entities its
 capabilities own — a Sales Agent that owns Lead and Offer cannot read Invoice. Change an agent's
-capabilities and its read tools change with them.
+capabilities and its read tools change with them. Querying is no way around this: `find_<entity>` exists
+only for the entities the agent already owns.
 
 **The spine is the single data path.** Reads go to the generated spine's own read endpoints (the same API
 the UI and workflows use, behind the same optional `API_TOKEN` bearer as the writes). An agent has **no**
 direct access to the database, Odoo, Excel, or any other store — if it isn't exposed by the spine, the
 agent cannot see it.
 
+#### Querying by field
+
+"Is this email already a lead?" should be one lookup, not a full table read. `find_<entity>` answers it:
+
+```
+find_lead(email: "ada@example.com")   →  GET /leads?email=ada%40example.com
+```
+
+**Which fields are filterable?** The entity's own typed attributes — the ones you defined on the
+[Entities](./entities.md) stage. A Lead with `email`, `status`, and `source` gets a `find_lead` that
+filters on exactly those three, and the model sees them by name, so it knows what it can ask for rather
+than guessing. (Fetching by `id` is `get_<entity>`'s job, so `id` isn't repeated here.) An entity with no
+attributes gets no `find` tool — there would be nothing to filter by.
+
+Matching is deliberately boring: **exact match only**, and several fields narrow the result (they AND
+together). There are no operators, no wildcards, and no sorting — if you need those, model the question
+as a command. A field the entity doesn't have is rejected outright rather than silently ignored, so a
+typo can never come back as a misleading "no matches".
+
 :::note Large tables are capped
-A list read returns every row the spine has — there is no pagination. So the runtime hands the model at
-most **50 records** and tells it when it did: the result carries the true `total` and a `truncated` flag,
-so the agent knows there is more rather than silently assuming it saw everything. When a list is cut
-short, the agent should narrow the question or fetch a specific record by id.
+Reads are bounded at **50 records**, whichever tool asks:
+
+- A `list_<entity>` read pulls every row the spine has (there is no pagination), so the runtime hands the
+  model at most 50 and *tells* it: the result carries the true `total` and a `truncated` flag, so the
+  agent knows there is more rather than assuming it saw everything.
+- A `find_<entity>` query is capped by the spine itself, so a filter that happens to match the whole table
+  still can't dump it.
+
+This cap is also why querying matters: scanning a `list_` result works at 200 rows and quietly breaks at
+200,000 — the record you wanted may simply not be in the first 50. A field lookup asks the store the
+question directly, so it stays correct at any size.
 :::
 
 ## Behaviour (the system prompt)

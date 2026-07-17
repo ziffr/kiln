@@ -62,6 +62,19 @@ export function toOpenAiMessages(messages: LoopMessage[], system: string): Array
 }
 
 /**
+ * Does a simulated `find_*` match anything? A deterministic function of the query (djb2 over the canonical
+ * filter), so the SAME lookup always simulates the same way — no randomness in a trace — while different
+ * lookups exercise both the found and the not-found path. It is a coin-flip, not a claim about real data;
+ * the result always carries a `Simulated …` note saying so.
+ */
+function simulatedHit(query: Record<string, string>): boolean {
+  const canonical = Object.keys(query).sort().map((k) => `${k}=${query[k]}`).join("&");
+  let h = 5381;
+  for (let i = 0; i < canonical.length; i++) h = ((h * 33) ^ canonical.charCodeAt(i)) >>> 0;
+  return h % 2 === 0;
+}
+
+/**
  * Simulate ONE tool call — a plausible result WITHOUT any network call. Every tool kind (command, notify,
  * email, slack, external, pdf/…) gets a realistic shape so the loop can proceed and the trace reads
  * naturally. The result never leaves the process; the loop flags each step `simulated: true`.
@@ -69,14 +82,35 @@ export function toOpenAiMessages(messages: LoopMessage[], system: string): Array
 export function mockDispatch(tool: AgentTool, input: Record<string, unknown>): unknown {
   switch (tool.kind) {
     case "read": {
-      // A real run GETs the spine; here we hand back a plausible shape so the loop can proceed. `list_*`
-      // (no id) → a small record list; `get_*` → one record. Same cap + honest-truncation contract as the
-      // real runtime, so what the model sees here matches what it will see in production.
-      const entity = tool.name.replace(/^(list|get)_/, "").replace(/_records$|_\d+$/, "");
-      const byId = (tool.input ?? []).includes("id");
-      if (byId) {
+      // A real run GETs the spine; here we hand back a plausible shape so the loop can proceed. `get_*` →
+      // one record; `find_*` → the rows matching a field filter; `list_*` → a small record list. Same cap +
+      // honest-truncation contract as the real runtime, so what the model sees here matches production.
+      const entity = tool.name.replace(/^(list|get|find)_/, "").replace(/_records$|_\d+$/, "");
+      const fields = tool.input ?? [];
+      if (fields.includes("id")) {
         const id = String(input.id ?? "").trim() || `${entity}-0001`;
         return { status: 200, record: { id }, note: `Simulated ${tool.name} — no spine call was made; a real run returns the record's current fields.` };
+      }
+      if (fields.length) {
+        // find_*: echo the filter back and simulate BOTH branches. "No match" is the interesting answer for
+        // the dedup question this tool exists to answer ("is this email already a lead?"), so a mock that
+        // always found a record would mislead the agent half the time. The choice is derived from the query
+        // itself → the same filter always simulates the same way, so a trace stays reproducible.
+        const query: Record<string, string> = {};
+        for (const f of fields) {
+          const v = input[f];
+          if (v !== undefined && v !== null && String(v) !== "") query[f] = String(v);
+        }
+        const asked = Object.keys(query);
+        if (!asked.length)
+          return { status: 400, error: `bad query — pass at least one of: ${fields.join(", ")}`, note: `Simulated ${tool.name} — no spine call was made; a real run needs a field value to match on.` };
+        const rows = simulatedHit(query) ? [{ id: `${entity}-0001`, ...query }] : [];
+        return {
+          status: 200,
+          query,
+          ...capReadRows(rows),
+          note: `Simulated ${tool.name} — no spine call was made; a real run returns the ${entity} records matching ${asked.join(" + ")} exactly (at most ${READ_ROW_CAP}).`,
+        };
       }
       const rows = [1, 2, 3].map((n) => ({ id: `${entity}-000${n}` }));
       return { status: 200, ...capReadRows(rows), note: `Simulated ${tool.name} — no spine call was made; a real run reads at most ${READ_ROW_CAP} records from the spine.` };

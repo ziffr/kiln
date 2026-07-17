@@ -142,3 +142,36 @@ test("mockDispatch simulates read tools so they work in the in-Studio Test-agent
   // a get with no id still returns a plausible record so the loop can proceed
   assert.equal((mockDispatch(get, {}) as { record: { id: string } }).record.id, "lead-0001");
 });
+
+test("mockDispatch simulates find_* — a plausible match, and a plausible NOT-FOUND", () => {
+  const find: AgentTool = { name: "find_lead", kind: "read", description: "Find Lead records by field", invoke: { method: "GET", url: "{{SPINE_URL}}/leads" }, input: ["email", "status"] };
+  type FindOut = { status: number; query: Record<string, string>; rows: Array<Record<string, string>>; total: number; note: string; error?: string };
+
+  // Deterministic on the query itself → a trace is reproducible; the same lookup never flips.
+  const twice = [1, 2].map(() => JSON.stringify(mockDispatch(find, { email: "ada@example.com" })));
+  assert.equal(twice[0], twice[1], "the same filter always simulates the same way");
+
+  // Both branches are reachable — "no match" is the interesting answer for a dedup check, so a mock that
+  // always found a record would mislead the agent half the time.
+  const outcomes = ["a@x.com", "b@x.com", "c@x.com", "d@x.com", "e@x.com", "f@x.com"].map((email) => (mockDispatch(find, { email }) as FindOut).rows.length > 0);
+  assert.ok(outcomes.includes(true), "some lookups simulate a match");
+  assert.ok(outcomes.includes(false), "some lookups simulate NOT FOUND (the dedup branch)");
+
+  // A match echoes the filter back and carries the same shape as the real runtime's response.
+  const hit = ["a@x.com", "b@x.com", "c@x.com", "d@x.com"].map((email) => mockDispatch(find, { email }) as FindOut).find((o) => o.rows.length > 0)!;
+  assert.equal(hit.status, 200);
+  assert.equal(hit.total, hit.rows.length); // the capReadRows contract, same as list_*
+  assert.equal(hit.rows[0].email, hit.query.email, "the matched record carries the field it matched on");
+  assert.ok(hit.rows[0].id, "a matched record has an id the agent can act on");
+  assert.match(hit.note, /Simulated find_lead/);
+  assert.match(hit.note, /no spine call was made/); // honest: simulated, never real data
+
+  // Only the fields actually passed become the query; empty/absent ones are dropped, not sent as "".
+  const partial = mockDispatch(find, { email: "ada@example.com", status: "" }) as FindOut;
+  assert.deepEqual(Object.keys(partial.query), ["email"]);
+
+  // No filter at all → the same 400 the spine's route would give, not a silent full-table dump.
+  const none = mockDispatch(find, {}) as FindOut;
+  assert.equal(none.status, 400);
+  assert.match(none.error!, /pass at least one of: email, status/);
+});

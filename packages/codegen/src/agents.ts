@@ -137,17 +137,33 @@ function commandTool(c: { id: string; name?: string; aggregate: string; emits?: 
 }
 
 /**
- * The READ tools for one owned entity — the agent's DATA path. The spine already exposes both routes
- * (`GET /<entity>s` list, `GET /<entity>s/:id` by id, behind the same opt-in bearer as the writes); until
- * now the agent had no tool pointing at them, so a playbook telling it to "read the relevant record" was
+ * The fields an agent may FILTER an entity by: its typed attributes (`email`, `status`, …). Exposing these
+ * by name is the point of `find_<entity>` — the model should see what it can look a record up by, not a
+ * free-text query string it has to guess at. They're a subset of the spine's own column allow-list (`id` +
+ * attributes + refs), so a name that passes here always passes there. `id` is excluded on purpose: `get_
+ * <entity>` already fetches by id, and `input: ["id"]` is the discriminator the by-id read schema keys on.
+ */
+export function filterableFields(agg: Pick<AggregateInput, "attributes">): string[] {
+  return [...new Set(attributeSpecs(agg).map((a) => slug(a.name)).filter((n) => n && n !== "id"))];
+}
+
+/**
+ * The READ tools for one owned entity — the agent's DATA path. The spine exposes the routes (`GET /<entity>s`
+ * list, `?<field>=<value>` filtered, `/:id` by id, all behind the same opt-in bearer as the writes); until
+ * recently the agent had no tool pointing at them, so a playbook telling it to "read the relevant record" was
  * a lie. The resource is `${slug(aggregate)}s` — byte-identical to `commandTool` and to the spine's own
  * `routesFor`, so the URLs line up. Read stays capability-SCOPED: the caller only passes owned entities.
+ *
+ * `find_<entity>` is the one that scales: "is this email already a lead?" is a filtered GET, not `list_*` +
+ * scan-the-table — fine at 200 rows, broken at 200k (and the list is capped at READ_ROW_CAP anyway, so a
+ * scan would silently miss the answer).
  */
-function readTools(agg: { id: string; name?: string }, taken: Set<string>): AgentTool[] {
+function readTools(agg: AggregateInput, taken: Set<string>): AgentTool[] {
   const entity = slug(agg.id);
   const res = `${entity}s`;
   const label = agg.name || agg.id;
-  return [
+  const filterable = filterableFields(agg);
+  const tools: AgentTool[] = [
     {
       name: uniqueToolName(`list_${entity}`, taken),
       kind: "read",
@@ -162,6 +178,15 @@ function readTools(agg: { id: string; name?: string }, taken: Set<string>): Agen
       input: ["id"],
     },
   ];
+  if (filterable.length)
+    tools.push({
+      name: uniqueToolName(`find_${entity}`, taken),
+      kind: "read",
+      description: `Find ${label} records by field value — read-only. Prefer this over listing everything when you know what you're looking for (e.g. "does this one already exist?"). Exact match on ${filterable.join(", ")}; pass at least one, several narrow it (AND). Returns at most ${READ_ROW_CAP} matches; an empty result means no ${label} matches.`,
+      invoke: { method: "GET", url: `{{SPINE_URL}}/${res}` },
+      input: filterable,
+    });
+  return tools;
 }
 
 /**
@@ -184,7 +209,7 @@ function uniqueToolName(base: string, taken: Set<string>): string {
  */
 export function defaultPlaybook(d: AgentDef, contract?: AgentContract): string {
   const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
-  const reads = d.tools.filter((t) => t.kind === "read").map((t) => t.name);
+  const reads = d.tools.filter((t) => t.kind === "read");
   const notify = d.tools.some((t) => t.kind === "notify");
   return [
     `# ${d.name} — behaviour`,
@@ -211,7 +236,11 @@ export function defaultPlaybook(d: AgentDef, contract?: AgentContract): string {
     ...(contract ? contractSection("Your context", contextLines(contract)) : []),
     `## What you can look up`,
     ...(reads.length
-      ? [`Read-only — these go to the records you own. Look before you act; never guess a record's state.`, ...reads.map((r) => `- \`${r}\``)]
+      ? [
+          `Read-only — these go to the records you own. Look before you act; never guess a record's state.`,
+          `When you know what you're looking for, look it up BY FIELD — don't list a whole table and scan it.`,
+          ...reads.map((r) => `- \`${r.name}\`${readLookupBy(r)}`),
+        ]
       : ["- (nothing — you have no read access; act only on what the task gives you)"]),
     "",
     `## Your commands`,
@@ -221,6 +250,17 @@ export function defaultPlaybook(d: AgentDef, contract?: AgentContract): string {
     `> This file is the agent's system prompt — **edit it to change HOW this agent behaves.**`,
     "",
   ].join("\n");
+}
+
+/**
+ * What a read tool looks records up BY, for the playbook. Keeps the prompt's claim accurate: the `find_*`
+ * tools name their filterable fields, so "look it up by field" is actionable rather than aspirational.
+ * The shape IS the discriminator (same rule as `agentToolParams`): `id` → by id; other fields → a filter.
+ */
+function readLookupBy(t: AgentTool): string {
+  const fields = t.input ?? [];
+  if (!fields.length || fields.includes("id")) return "";
+  return ` — look one up by ${fields.map((f) => `\`${f}\``).join(", ")} (exact match)`;
 }
 
 // ── grounded-contract playbook sections (input · context · output) ──
@@ -280,11 +320,13 @@ const SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown
     for (const f of t.input ?? []) properties[f] = { type: "string" };
     return { type: "object", properties };
   }
-  // read: by-id needs the id (required); a list takes no arguments.
+  // read: by-id needs the id (required); find exposes the entity's filterable fields (all optional — pass
+  // at least one); a plain list takes no arguments.
   if (t.kind === "read") {
-    return (t.input ?? []).includes("id")
-      ? { type: "object", properties: { id: { type: "string" } }, required: ["id"] }
-      : { type: "object", properties: {} };
+    if ((t.input ?? []).includes("id")) return { type: "object", properties: { id: { type: "string" } }, required: ["id"] };
+    const properties: Record<string, { type: string }> = {};
+    for (const f of t.input ?? []) properties[f] = { type: "string" };
+    return { type: "object", properties };
   }
   if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
   return { type: "object", properties: {} };
@@ -301,11 +343,13 @@ export function agentToolParams(t: AgentTool): Record<string, unknown> {
     for (const f of t.input ?? []) properties[f] = { type: "string" };
     return { type: "object", properties };
   }
-  // read: by-id needs the id (required); a list takes no arguments.
+  // read: by-id needs the id (required); find exposes the entity's filterable fields (all optional — pass
+  // at least one); a plain list takes no arguments.
   if (t.kind === "read") {
-    return (t.input ?? []).includes("id")
-      ? { type: "object", properties: { id: { type: "string" } }, required: ["id"] }
-      : { type: "object", properties: {} };
+    if ((t.input ?? []).includes("id")) return { type: "object", properties: { id: { type: "string" } }, required: ["id"] };
+    const properties: Record<string, { type: string }> = {};
+    for (const f of t.input ?? []) properties[f] = { type: "string" };
+    return { type: "object", properties };
   }
   if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
   return { type: "object", properties: {} };
@@ -337,7 +381,19 @@ export async function executeTool(tool: AgentTool, input: Record<string, unknown
   if (tool.kind === "read") {
     // The agent's DATA path: the spine's read routes (same bearer as the writes). A list returns the whole
     // table — cap it so a big table can't blow the agent's context, and SAY so rather than truncate silently.
-    const url = String(tool.invoke.url ?? "").replace("{{SPINE_URL}}", SPINE).replace("{id}", encodeURIComponent(String(input.id ?? "")));
+    const template = String(tool.invoke.url ?? "");
+    let url = template.replace("{{SPINE_URL}}", SPINE).replace("{id}", encodeURIComponent(String(input.id ?? "")));
+    // find_<entity>: turn the tool's declared fields into an exact-match query string (?email=a%40b.com).
+    // Only the fields the tool DECLARES are sent, and the spine independently allow-lists them against the
+    // entity's real columns — so a filter it doesn't recognise is a 400, not a silently unfiltered dump.
+    if (!template.includes("{id}")) {
+      const params = new URLSearchParams();
+      for (const field of tool.input ?? []) {
+        const value = input[field];
+        if (value !== undefined && value !== null && String(value) !== "") params.set(field, String(value));
+      }
+      if ([...params].length) url += "?" + params.toString();
+    }
     const headers: Record<string, string> = {};
     if (API_TOKEN) headers.authorization = "Bearer " + API_TOKEN;
     const res = await fetch(url, { method: "GET", headers });

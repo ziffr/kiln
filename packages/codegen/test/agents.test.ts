@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { agentsAdapter, resolveAgentDefs, agentContract, agentToolParams, capReadRows, READ_ROW_CAP } from "../src/index.ts";
+import { agentsAdapter, resolveAgentDefs, agentContract, agentToolParams, capReadRows, filterableFields, READ_ROW_CAP } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@kiln/compiler";
 import type { CommunicationsDoc } from "../src/comms.ts";
 
@@ -181,4 +181,88 @@ test("the agent contract's tools facet includes the read tools", () => {
   const def = resolveAgentDefs(caps, domain, agents, comms)[0];
   const names = agentContract(def, domain).tools.map((t) => t.name);
   assert.ok(names.includes("list_lead") && names.includes("get_lead"));
+});
+
+// ── find_<entity>: look a record up BY FIELD instead of listing the table and scanning it ──
+
+const typed: DomainDoc = {
+  ...domain,
+  aggregates: [{ id: "lead", name: "Lead", owner: "leads", attributes: [{ name: "email", type: "text" }, { name: "Status", type: "text" }, { name: "score", type: "number" }], references: ["invoice"] }],
+} as unknown as DomainDoc;
+
+test("filterableFields = the entity's TYPED attributes (slugged, deduped); never id", () => {
+  assert.deepEqual(filterableFields(typed.aggregates[0]), ["email", "status", "score"]); // "Status" → slug
+  // `id` is get_<entity>'s job — and `input: ["id"]` is the by-id schema's discriminator, so it must not leak in
+  assert.deepEqual(filterableFields({ attributes: [{ name: "id", type: "text" }, { name: "email", type: "text" }] }), ["email"]);
+  assert.deepEqual(filterableFields({ attributes: [] }), []);
+  // legacy untyped `string[]` attributes still work (attributeSpecs coerces them)
+  assert.deepEqual(filterableFields({ attributes: ["Email Address", "Email Address"] }), ["email_address"]);
+});
+
+test("agents get a find_<entity> tool exposing the entity's filterable fields by NAME", () => {
+  const tool = resolveAgentDefs(caps, typed, agents, comms)[0].tools.find((t) => t.name === "find_lead");
+  assert.ok(tool, "find tool resolved for the owned entity");
+  assert.equal(tool!.kind, "read");
+  // Same resource as list_* — the filter rides in the query string the runtime builds (see tools.ts).
+  assert.deepEqual(tool!.invoke, { method: "GET", url: "{{SPINE_URL}}/leads" });
+  assert.deepEqual(tool!.input, ["email", "status", "score"]);
+  // The POINT: the model sees the fields it can filter on, not a free-text query string.
+  assert.deepEqual(agentToolParams(tool!), {
+    type: "object",
+    properties: { email: { type: "string" }, status: { type: "string" }, score: { type: "string" } },
+  });
+  assert.match(tool!.description, /Exact match on email, status, score/);
+  assert.match(tool!.description, /at most 50 matches/); // the same cap the runtime + spine enforce
+});
+
+test("an entity with no attributes gets no find tool (there'd be nothing to filter by)", () => {
+  const bare = { ...domain, aggregates: [{ id: "lead", name: "Lead", owner: "leads", attributes: [], references: [] }] } as unknown as DomainDoc;
+  const tools = resolveAgentDefs(caps, bare, agents, comms)[0].tools.map((t) => t.name);
+  assert.ok(tools.includes("list_lead") && tools.includes("get_lead"));
+  assert.ok(!tools.some((n) => n.startsWith("find_")), "no filterable fields → no find tool");
+});
+
+test("find access stays capability-SCOPED — no find tool for an entity the agent doesn't own", () => {
+  const twoEntities = {
+    ...domain,
+    aggregates: [
+      { id: "lead", name: "Lead", owner: "leads", attributes: [{ name: "email", type: "text" }], references: [] },
+      { id: "invoice", name: "Invoice", owner: "billing", attributes: [{ name: "amount", type: "money" }], references: [] },
+    ],
+  } as unknown as DomainDoc;
+  const capsTwo = { ...caps, capabilities: [...caps.capabilities, { id: "billing", name: "Billing", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
+  const tools = resolveAgentDefs(capsTwo, twoEntities, agents, comms)[0].tools.map((t) => t.name);
+  assert.ok(tools.includes("find_lead"), "owned entity is queryable");
+  assert.ok(!tools.includes("find_invoice"), "querying is NOT a way around the capability scope");
+});
+
+test("a command named like the find tool wins the collision; find takes a stable suffixed name", () => {
+  const clashing = { ...typed, commands: [...(typed.commands ?? []), { id: "find_lead", name: "Find Lead", aggregate: "lead", emits: [] }] } as unknown as DomainDoc;
+  const tools = resolveAgentDefs(caps, clashing, agents, comms)[0].tools;
+  assert.equal(tools.find((t) => t.name === "find_lead")!.kind, "command", "the authored command keeps the name");
+  assert.equal(tools.find((t) => t.kind === "read" && t.name.startsWith("find_"))!.name, "find_lead_records");
+  assert.equal(tools.filter((t) => t.name === "find_lead").length, 1, "no duplicate names");
+});
+
+test("the emitted runtime turns a find tool's input into an exact-match query string (URL-encoded)", () => {
+  const tools = agentsAdapter(caps, typed, agents, comms)["agents/src/tools.ts"];
+  assert.match(tools, /new URLSearchParams\(\)/); // URLSearchParams encodes values (a@b.com → a%40b.com)
+  assert.match(tools, /for \(const field of tool\.input \?\? \[\]\)/);
+  assert.match(tools, /if \(!template\.includes\("\{id\}"\)\)/); // by-id reads keep the path substitution
+  assert.match(tools, /url \+= "\?" \+ params\.toString\(\)/);
+});
+
+test("the playbook says what the agent can look records up BY — so the prompt's claim is true", () => {
+  const behaviour = agentsAdapter(caps, typed, agents, comms)["agents/behaviours/lead_agent.md"];
+  assert.match(behaviour, /look it up BY FIELD — don't list a whole table and scan it/);
+  assert.match(behaviour, /`find_lead` — look one up by `email`, `status`, `score` \(exact match\)/);
+  assert.doesNotMatch(behaviour, /`list_lead` — look one up/); // a plain list has nothing to look up BY
+  assert.doesNotMatch(behaviour, /`get_lead` — look one up/); // nor does the by-id read
+});
+
+test("the agent contract's tools facet picks find_* up with its filterable params", () => {
+  const def = resolveAgentDefs(caps, typed, agents, comms)[0];
+  const find = agentContract(def, typed).tools.find((t) => t.name === "find_lead");
+  assert.ok(find, "contract renders the find tool");
+  assert.deepEqual(Object.keys((find!.input_schema as { properties: Record<string, unknown> }).properties), ["email", "status", "score"]);
 });

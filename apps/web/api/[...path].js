@@ -3908,14 +3908,37 @@ function toOpenAiMessages(messages, system) {
   }
   return out;
 }
+function simulatedHit(query) {
+  const canonical2 = Object.keys(query).sort().map((k) => `${k}=${query[k]}`).join("&");
+  let h = 5381;
+  for (let i = 0; i < canonical2.length; i++) h = (h * 33 ^ canonical2.charCodeAt(i)) >>> 0;
+  return h % 2 === 0;
+}
 function mockDispatch(tool, input) {
   switch (tool.kind) {
     case "read": {
-      const entity = tool.name.replace(/^(list|get)_/, "").replace(/_records$|_\d+$/, "");
-      const byId = (tool.input ?? []).includes("id");
-      if (byId) {
+      const entity = tool.name.replace(/^(list|get|find)_/, "").replace(/_records$|_\d+$/, "");
+      const fields = tool.input ?? [];
+      if (fields.includes("id")) {
         const id = String(input.id ?? "").trim() || `${entity}-0001`;
         return { status: 200, record: { id }, note: `Simulated ${tool.name} \u2014 no spine call was made; a real run returns the record's current fields.` };
+      }
+      if (fields.length) {
+        const query = {};
+        for (const f of fields) {
+          const v = input[f];
+          if (v !== void 0 && v !== null && String(v) !== "") query[f] = String(v);
+        }
+        const asked = Object.keys(query);
+        if (!asked.length)
+          return { status: 400, error: `bad query \u2014 pass at least one of: ${fields.join(", ")}`, note: `Simulated ${tool.name} \u2014 no spine call was made; a real run needs a field value to match on.` };
+        const rows2 = simulatedHit(query) ? [{ id: `${entity}-0001`, ...query }] : [];
+        return {
+          status: 200,
+          query,
+          ...capReadRows(rows2),
+          note: `Simulated ${tool.name} \u2014 no spine call was made; a real run returns the ${entity} records matching ${asked.join(" + ")} exactly (at most ${READ_ROW_CAP}).`
+        };
       }
       const rows = [1, 2, 3].map((n) => ({ id: `${entity}-000${n}` }));
       return { status: 200, ...capReadRows(rows), note: `Simulated ${tool.name} \u2014 no spine call was made; a real run reads at most ${READ_ROW_CAP} records from the spine.` };
@@ -4038,11 +4061,15 @@ function commandTool(c, fields, evName) {
     input: fields
   };
 }
+function filterableFields(agg) {
+  return [...new Set(attributeSpecs(agg).map((a) => slug(a.name)).filter((n) => n && n !== "id"))];
+}
 function readTools(agg, taken) {
   const entity = slug(agg.id);
   const res = `${entity}s`;
   const label = agg.name || agg.id;
-  return [
+  const filterable = filterableFields(agg);
+  const tools = [
     {
       name: uniqueToolName(`list_${entity}`, taken),
       kind: "read",
@@ -4057,6 +4084,15 @@ function readTools(agg, taken) {
       input: ["id"]
     }
   ];
+  if (filterable.length)
+    tools.push({
+      name: uniqueToolName(`find_${entity}`, taken),
+      kind: "read",
+      description: `Find ${label} records by field value \u2014 read-only. Prefer this over listing everything when you know what you're looking for (e.g. "does this one already exist?"). Exact match on ${filterable.join(", ")}; pass at least one, several narrow it (AND). Returns at most ${READ_ROW_CAP} matches; an empty result means no ${label} matches.`,
+      invoke: { method: "GET", url: `{{SPINE_URL}}/${res}` },
+      input: filterable
+    });
+  return tools;
 }
 function uniqueToolName(base, taken) {
   let name = base;
@@ -4067,7 +4103,7 @@ function uniqueToolName(base, taken) {
 }
 function defaultPlaybook(d, contract) {
   const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
-  const reads = d.tools.filter((t) => t.kind === "read").map((t) => t.name);
+  const reads = d.tools.filter((t) => t.kind === "read");
   const notify = d.tools.some((t) => t.kind === "notify");
   return [
     `# ${d.name} \u2014 behaviour`,
@@ -4091,7 +4127,11 @@ function defaultPlaybook(d, contract) {
     "",
     ...contract ? contractSection("Your context", contextLines(contract)) : [],
     `## What you can look up`,
-    ...reads.length ? [`Read-only \u2014 these go to the records you own. Look before you act; never guess a record's state.`, ...reads.map((r) => `- \`${r}\``)] : ["- (nothing \u2014 you have no read access; act only on what the task gives you)"],
+    ...reads.length ? [
+      `Read-only \u2014 these go to the records you own. Look before you act; never guess a record's state.`,
+      `When you know what you're looking for, look it up BY FIELD \u2014 don't list a whole table and scan it.`,
+      ...reads.map((r) => `- \`${r.name}\`${readLookupBy(r)}`)
+    ] : ["- (nothing \u2014 you have no read access; act only on what the task gives you)"],
     "",
     `## Your commands`,
     ...cmds.length ? cmds.map((c) => `- \`${c}\``) : ["- (none)"],
@@ -4100,6 +4140,11 @@ function defaultPlaybook(d, contract) {
     `> This file is the agent's system prompt \u2014 **edit it to change HOW this agent behaves.**`,
     ""
   ].join("\n");
+}
+function readLookupBy(t) {
+  const fields = t.input ?? [];
+  if (!fields.length || fields.includes("id")) return "";
+  return ` \u2014 look one up by ${fields.map((f) => `\`${f}\``).join(", ")} (exact match)`;
 }
 function contractSection(title, lines) {
   return [`## ${title}`, ...lines, ""];
@@ -4131,11 +4176,13 @@ var SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown> 
     for (const f of t.input ?? []) properties[f] = { type: "string" };
     return { type: "object", properties };
   }
-  // read: by-id needs the id (required); a list takes no arguments.
+  // read: by-id needs the id (required); find exposes the entity's filterable fields (all optional \u2014 pass
+  // at least one); a plain list takes no arguments.
   if (t.kind === "read") {
-    return (t.input ?? []).includes("id")
-      ? { type: "object", properties: { id: { type: "string" } }, required: ["id"] }
-      : { type: "object", properties: {} };
+    if ((t.input ?? []).includes("id")) return { type: "object", properties: { id: { type: "string" } }, required: ["id"] };
+    const properties: Record<string, { type: string }> = {};
+    for (const f of t.input ?? []) properties[f] = { type: "string" };
+    return { type: "object", properties };
   }
   if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
   return { type: "object", properties: {} };
@@ -4147,7 +4194,10 @@ function agentToolParams(t) {
     return { type: "object", properties };
   }
   if (t.kind === "read") {
-    return (t.input ?? []).includes("id") ? { type: "object", properties: { id: { type: "string" } }, required: ["id"] } : { type: "object", properties: {} };
+    if ((t.input ?? []).includes("id")) return { type: "object", properties: { id: { type: "string" } }, required: ["id"] };
+    const properties = {};
+    for (const f of t.input ?? []) properties[f] = { type: "string" };
+    return { type: "object", properties };
   }
   if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
   return { type: "object", properties: {} };
@@ -4178,7 +4228,19 @@ export async function executeTool(tool: AgentTool, input: Record<string, unknown
   if (tool.kind === "read") {
     // The agent's DATA path: the spine's read routes (same bearer as the writes). A list returns the whole
     // table \u2014 cap it so a big table can't blow the agent's context, and SAY so rather than truncate silently.
-    const url = String(tool.invoke.url ?? "").replace("{{SPINE_URL}}", SPINE).replace("{id}", encodeURIComponent(String(input.id ?? "")));
+    const template = String(tool.invoke.url ?? "");
+    let url = template.replace("{{SPINE_URL}}", SPINE).replace("{id}", encodeURIComponent(String(input.id ?? "")));
+    // find_<entity>: turn the tool's declared fields into an exact-match query string (?email=a%40b.com).
+    // Only the fields the tool DECLARES are sent, and the spine independently allow-lists them against the
+    // entity's real columns \u2014 so a filter it doesn't recognise is a 400, not a silently unfiltered dump.
+    if (!template.includes("{id}")) {
+      const params = new URLSearchParams();
+      for (const field of tool.input ?? []) {
+        const value = input[field];
+        if (value !== undefined && value !== null && String(value) !== "") params.set(field, String(value));
+      }
+      if ([...params].length) url += "?" + params.toString();
+    }
     const headers: Record<string, string> = {};
     if (API_TOKEN) headers.authorization = "Bearer " + API_TOKEN;
     const res = await fetch(url, { method: "GET", headers });
@@ -4573,6 +4635,63 @@ function routesFor(domain) {
     };
   });
 }
+var READ_LIMIT_CAP = 50;
+var QUERY_TS = `// Generated by @kiln/codegen spine \u2014 read-filter parsing + parameterised SQL. Regenerate from the model.
+//
+// SAFETY: a request param NEVER reaches the SQL string.
+//  \xB7 plan()      keeps only keys that are in the entity's generated column list (an ALLOW-LIST from the
+//                model, not from the request). Anything else is reported as an error, never guessed at.
+//  \xB7 filterSql() re-applies that allow-list at the SQL seam, concatenates only allow-listed column names,
+//                and binds every value AND the limit as placeholders.
+// Deliberately boring: exact match only (AND across fields) \u2014 no operators, no OR, no LIKE, no sorting.
+export const READ_LIMIT_CAP = ${READ_LIMIT_CAP};
+
+export interface ReadPlan {
+  /** allow-listed column \u2192 exact-match value. */
+  where: Record<string, string>;
+  /** rows to return, clamped to READ_LIMIT_CAP (an explicit ?limit= may only ever ask for FEWER). */
+  limit: number;
+  /** human-readable rejections ([] = the query is usable). */
+  errors: string[];
+  /** did the caller actually ask to narrow? (no \u2192 the route keeps its unfiltered list-everything behaviour) */
+  filtered: boolean;
+}
+
+/** Parse \`GET /<res>?<column>=<value>&limit=<n>\` against the entity's real columns. */
+export function plan(query: Record<string, unknown>, cols: string[]): ReadPlan {
+  const allowed = new Set(cols);
+  const where: Record<string, string> = {};
+  const errors: string[] = [];
+  let limit = READ_LIMIT_CAP;
+  let asked = false;
+  for (const [key, raw] of Object.entries(query ?? {})) {
+    const value = Array.isArray(raw) ? raw[0] : raw; // ?f=a&f=b \u2192 first wins (no implicit OR)
+    if (key === "limit") {
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 1) { errors.push("limit must be a positive integer"); continue; }
+      limit = Math.min(Math.floor(n), READ_LIMIT_CAP);
+      asked = true;
+      continue;
+    }
+    if (!allowed.has(key)) { errors.push("unknown filter field " + JSON.stringify(key)); continue; }
+    if (value === undefined || value === null) { errors.push(key + " needs a value"); continue; }
+    where[key] = String(value);
+  }
+  return { where, limit, errors, filtered: asked || Object.keys(where).length > 0 };
+}
+
+/**
+ * Build the parameterised SELECT. \`table\` + the column names come from the GENERATED model facts (schema.ts),
+ * never from the request; \`ph\` yields the dialect's placeholder ("$1" for pg, "?" for SQLite).
+ */
+export function filterSql(table: string, cols: string[], where: Record<string, string>, limit: number, ph: (i: number) => string): { sql: string; params: unknown[] } {
+  const keys = Object.keys(where).filter((k) => cols.includes(k)); // allow-list, re-checked at the SQL seam
+  const params: unknown[] = keys.map((k) => where[k]);             // every value is BOUND, never concatenated
+  const clause = keys.length ? " WHERE " + keys.map((k, i) => k + " = " + ph(i + 1)).join(" AND ") : "";
+  params.push(Math.max(1, Math.min(Math.floor(Number(limit)) || READ_LIMIT_CAP, READ_LIMIT_CAP)));
+  return { sql: "SELECT * FROM " + table + clause + " LIMIT " + ph(params.length), params };
+}
+`;
 var SPINE_SQLITE_TYPE = { text: "TEXT", number: "REAL", boolean: "INTEGER", date: "TEXT", money: "NUMERIC", reference: "TEXT" };
 function sqliteSchema(domain) {
   const ids = new Set(domain.aggregates.map((a) => a.id));
@@ -4699,6 +4818,16 @@ Logic lives in \`src/handlers.ts\` as \`h<Entity>((input, ctx) => record)\` \u20
 entity. LLM-drafted where possible; fill the pass-through defaults. Structure (routes, columns, types)
 is generated \u2014 regenerate from the model, don't hand-edit.
 
+## Reading records
+
+- \`GET /<entity>s\` \u2014 every row (what the UI lists).
+- \`GET /<entity>s/:id\` \u2014 one record.
+- \`GET /<entity>s?<field>=<value>\` \u2014 the records matching **exactly** on that field; repeat the param name
+  for more fields (they AND together), e.g. \`/leads?email=a@b.com&status=new\`. Only the entity's own
+  columns are filterable \u2014 anything else is a \`400\` listing the fields that are. Exact match only (no
+  operators/OR/LIKE), capped at ${READ_LIMIT_CAP} rows; \`?limit=<n>\` may ask for fewer. This is how an agent checks
+  "is this email already a lead?" without pulling the whole table.
+
 ## Auth & input validation
 
 - **Auth** \u2014 set \`API_TOKEN\` to require \`Authorization: Bearer <token>\` on every command route (unset =
@@ -4718,9 +4847,11 @@ export type Handler = (input: Record<string, unknown>, ctx: Ctx) => Record<strin
 // Wrap a drafted handler so \`input\` reads the entity's typed fields, while the boundary stays a Handler.
 export const h = <E>(fn: (input: Partial<E> & Record<string, unknown>, ctx: Ctx) => Record<string, unknown> | Promise<Record<string, unknown>>): Handler => fn as Handler;
 `,
+    "src/query.ts": QUERY_TS,
     "src/db.ts": sqlite ? `import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { filterSql } from "./query";
 // Embedded, file-based store \u2014 one file, no separate db service. better-sqlite3 is synchronous; we keep the
 // same async interface as the Postgres driver so the rest of the spine is identical. Tables are auto-created
 // on boot (idempotent), so the app runs with no manual schema step. sqlite/schema.sql stays for reference.
@@ -4749,7 +4880,14 @@ export async function update(table: string, id: string, cols: string[], record: 
 }
 export const all = async (table: string): Promise<Record<string, unknown>[]> => db.prepare("SELECT * FROM " + table).all() as Record<string, unknown>[];
 export const find = async (table: string, id: string): Promise<Record<string, unknown> | undefined> => db.prepare("SELECT * FROM " + table + " WHERE id=?").get(id) as Record<string, unknown> | undefined;
+// Look records up BY FIELD VALUE (exact match, AND) instead of listing the table and scanning it. \`cols\` is
+// the entity's generated column list \u2014 filterSql treats it as the allow-list and binds every value.
+export const filter = async (table: string, cols: string[], where: Record<string, string>, limit: number): Promise<Record<string, unknown>[]> => {
+  const q = filterSql(table, cols, where, limit, () => "?");
+  return db.prepare(q.sql).all(...q.params.map(norm)) as Record<string, unknown>[];
+};
 ` : `import pg from "pg";
+import { filterSql } from "./query";
 const DATABASE_URL = process.env.DATABASE_URL || "postgres://app:app@localhost:5432/app";
 // Managed Postgres (Supabase, Neon, RDS\u2026) needs TLS. PGSSL=require (or ?sslmode=require in the URL) \u2192
 // VERIFIED TLS. PGSSL=no-verify skips cert verification (dev/self-signed only \u2014 allows MITM; avoid in prod).
@@ -4772,6 +4910,12 @@ export async function update(table: string, id: string, cols: string[], record: 
 }
 export const all = (table: string): Promise<Record<string, unknown>[]> => pool.query("SELECT * FROM " + table).then((r) => r.rows as Record<string, unknown>[]);
 export const find = (table: string, id: string): Promise<Record<string, unknown> | undefined> => pool.query("SELECT * FROM " + table + " WHERE id=$1", [id]).then((r) => r.rows[0] as Record<string, unknown> | undefined);
+// Look records up BY FIELD VALUE (exact match, AND) instead of listing the table and scanning it. \`cols\` is
+// the entity's generated column list \u2014 filterSql treats it as the allow-list and binds every value.
+export const filter = (table: string, cols: string[], where: Record<string, string>, limit: number): Promise<Record<string, unknown>[]> => {
+  const q = filterSql(table, cols, where, limit, (i) => "$" + i);
+  return pool.query(q.sql, q.params).then((r) => r.rows as Record<string, unknown>[]);
+};
 `,
     "src/events.ts": `const N8N = process.env.N8N_BASE_URL;
 const N8N_TOKEN = process.env.N8N_WEBHOOK_TOKEN; // optional \u2014 secure a REMOTE n8n's webhook (Header Auth)
@@ -4794,11 +4938,12 @@ export async function emit(name: string, payload: Record<string, unknown>): Prom
     "src/validate.ts": validateTs,
     "src/app.ts": `import express, { type Request, type Response, type NextFunction, type Express } from "express";
 import { timingSafeEqual } from "node:crypto";
-import { insert, update, all, find } from "./db";
+import { insert, update, all, find, filter } from "./db";
 import { emit } from "./events";
 import { handlers } from "./handlers";
 import { columns, routes } from "./schema";
 import { validate } from "./validate";
+import { plan } from "./query";
 import type { Ctx } from "./runtime";
 
 // Opt-in bearer auth: set API_TOKEN to require \`Authorization: Bearer <token>\` on every command route.
@@ -4841,7 +4986,18 @@ export function createApp(): Express {
   // command routes so a command path can't shadow a read.
   for (const entity of Object.keys(columns)) {
     const res = entity + "s"; // match the command routes' plural resource (POST /<entity>s creates)
-    app.get("/" + res, requireAuth, async (_req: Request, response: Response) => { response.json(await all(entity)); });
+    // GET /<res>                      \u2192 every row (unchanged: the UI lists the table)
+    // GET /<res>?<column>=<value>     \u2192 the rows matching EXACTLY on the entity's own columns (AND across
+    //                                   fields), capped at READ_LIMIT_CAP \u2014 so "is this email already a
+    //                                   lead?" is one query, not a full-table scan by the caller.
+    // An unknown param is a 400 (with the filterable fields) \u2014 never silently ignored, so a typo'd filter
+    // can't read as "no matches". See query.ts for the allow-list + parameterisation.
+    app.get("/" + res, requireAuth, async (req: Request, response: Response) => {
+      const cols = columns[entity];
+      const p = plan(req.query as Record<string, unknown>, cols);
+      if (p.errors.length) { response.status(400).json({ error: "bad query", details: p.errors, filterable: cols }); return; }
+      response.json(p.filtered ? await filter(entity, cols, p.where, p.limit) : await all(entity));
+    });
     app.get("/" + res + "/:id", requireAuth, async (req: Request, response: Response) => {
       const row = await find(entity, req.params.id);
       if (row) response.json(row); else response.status(404).json({ error: "not found" });

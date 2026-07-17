@@ -1,5 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { spineAdapter, entityFieldTypes } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc } from "@kiln/compiler";
 
@@ -90,4 +94,115 @@ test("spine emits validate.ts + wires opt-in bearer auth + validation into app.t
   assert.match(f["src/app.ts"], /const errors = validate\(r\.entity, req\.body\)/);
   assert.match(f["src/app.ts"], /status\(400\)\.json\(\{ error: "validation failed"/);
   assert.match(f[".env.example"], /API_TOKEN/);
+});
+
+// ── query-by-field: GET /<res>?<column>=<value> (the agent's find_<entity> route) ──
+//
+// These exercise the ACTUAL GENERATED `src/query.ts` — written to a temp dir and imported — not a mirror of
+// it. The safety claim ("a hostile param can't reach the SQL") is only worth anything if it's checked against
+// the code the exported app really runs.
+
+async function loadQuery(dialect: "postgres" | "sqlite" = "postgres") {
+  const src = spineAdapter(caps, domain, {}, dialect)["src/query.ts"];
+  const file = join(mkdtempSync(join(tmpdir(), "kiln-spine-query-")), "query.ts");
+  writeFileSync(file, src);
+  return (await import(pathToFileURL(file).href)) as {
+    READ_LIMIT_CAP: number;
+    plan: (q: Record<string, unknown>, cols: string[]) => { where: Record<string, string>; limit: number; errors: string[]; filtered: boolean };
+    filterSql: (t: string, cols: string[], w: Record<string, string>, l: number, ph: (i: number) => string) => { sql: string; params: unknown[] };
+  };
+}
+const pg = (i: number) => "$" + i;
+const leadCols = ["id", "email"];
+
+test("spine emits query.ts and wires filtering into the read route (both dialects)", () => {
+  for (const dialect of ["postgres", "sqlite"] as const) {
+    const f = spineAdapter(caps, domain, {}, dialect);
+    assert.ok(f["src/query.ts"], `query.ts missing (${dialect})`);
+    // app.ts: plan the query against the entity's columns, 400 on a bad one, else filter — or list everything.
+    assert.match(f["src/app.ts"], /import \{ plan \} from ".\/query"/);
+    assert.match(f["src/app.ts"], /const p = plan\(req\.query as Record<string, unknown>, cols\)/);
+    assert.match(f["src/app.ts"], /status\(400\)\.json\(\{ error: "bad query", details: p\.errors, filterable: cols \}\)/);
+    assert.match(f["src/app.ts"], /p\.filtered \? await filter\(entity, cols, p\.where, p\.limit\) : await all\(entity\)/);
+    assert.match(f["src/app.ts"], /app\.get\("\/" \+ res, requireAuth,/); // reads keep the opt-in bearer
+    // db.ts: the dialect's filter, built through the shared parameterised builder.
+    assert.match(f["src/db.ts"], /import \{ filterSql \} from ".\/query"/);
+    assert.match(f["src/db.ts"], /export const filter/);
+  }
+  // the placeholder style is the ONLY difference: pg binds $1.. ; sqlite binds ?
+  assert.match(spineAdapter(caps, domain, {}, "postgres")["src/db.ts"], /filterSql\(table, cols, where, limit, \(i\) => "\$" \+ i\)/);
+  assert.match(spineAdapter(caps, domain, {}, "sqlite")["src/db.ts"], /filterSql\(table, cols, where, limit, \(\) => "\?"\)/);
+});
+
+test("plan() keeps only the entity's real columns — an unknown param is a 400, never silently ignored", async () => {
+  const q = await loadQuery();
+  const p = q.plan({ email: "a@b.com" }, leadCols);
+  assert.deepEqual(p.where, { email: "a@b.com" });
+  assert.deepEqual(p.errors, []);
+  assert.equal(p.filtered, true);
+  // a typo'd / unknown filter must NOT read as "no matches" — that's a silent wrong answer
+  const bad = q.plan({ emial: "a@b.com" }, leadCols);
+  assert.deepEqual(bad.where, {});
+  assert.deepEqual(bad.errors, ['unknown filter field "emial"']);
+});
+
+test("plan() ANDs several fields; no query at all keeps the route's list-everything behaviour", async () => {
+  const q = await loadQuery();
+  const both = q.plan({ id: "r_1", email: "a@b.com" }, leadCols);
+  assert.deepEqual(both.where, { id: "r_1", email: "a@b.com" });
+  // no params → filtered:false → the route still returns every row (the UI's list is unchanged)
+  const none = q.plan({}, leadCols);
+  assert.equal(none.filtered, false);
+  assert.deepEqual(none.where, {});
+});
+
+test("plan() clamps the limit: default 50, an explicit one may only ask for FEWER", async () => {
+  const q = await loadQuery();
+  assert.equal(q.READ_LIMIT_CAP, 50);
+  assert.equal(q.plan({ email: "a@b.com" }, leadCols).limit, 50, "default = the cap");
+  assert.equal(q.plan({ limit: "5" }, leadCols).limit, 5);
+  assert.equal(q.plan({ limit: "5000" }, leadCols).limit, 50, "a filter matching everything can't dump the table");
+  assert.equal(q.plan({ limit: "7.9" }, leadCols).limit, 7, "floored");
+  assert.equal(q.plan({ limit: "5" }, leadCols).filtered, true, "an explicit limit alone still bounds the read");
+  for (const l of ["0", "-1", "abc", ""]) assert.deepEqual(q.plan({ limit: l }, leadCols).errors, ["limit must be a positive integer"], `limit=${l}`);
+});
+
+test("SECURITY: a hostile param NAME cannot reach the SQL — the column allow-list rejects it", async () => {
+  const q = await loadQuery();
+  const hostile = ["email; DROP TABLE lead; --", "1=1", "email OR 1=1", "*", "email)", "__proto__", "constructor"];
+  for (const name of hostile) {
+    const p = q.plan({ [name]: "x" }, leadCols);
+    assert.deepEqual(p.where, {}, `${name} must not become a filter`);
+    assert.equal(p.errors.length, 1, `${name} must be reported`);
+    // even if it somehow got past plan(), filterSql re-applies the allow-list at the SQL seam
+    const { sql, params } = q.filterSql("lead", leadCols, { [name]: "x" }, 50, pg);
+    assert.equal(sql, "SELECT * FROM lead LIMIT $1", `${name} reached the SQL string`);
+    assert.deepEqual(params, [50]);
+  }
+});
+
+test("SECURITY: a hostile param VALUE is BOUND, never concatenated into the SQL", async () => {
+  const q = await loadQuery();
+  for (const value of ["a@b.com' OR 1=1 --", "'; DROP TABLE lead; --", "\\'; DELETE FROM lead; --", "1 UNION SELECT * FROM lead"]) {
+    const { sql, params } = q.filterSql("lead", leadCols, { email: value }, 50, pg);
+    assert.equal(sql, "SELECT * FROM lead WHERE email = $1 LIMIT $2", "the SQL shape is fixed by the model, not the input");
+    assert.deepEqual(params, [value, 50], "the value only ever travels as a bind param");
+    assert.ok(!sql.includes(value), "the value never appears in the SQL string");
+    assert.ok(!/DROP|DELETE|UNION|OR 1=1/i.test(sql));
+  }
+});
+
+test("filterSql: allow-listed columns AND together; the limit is a bind param too (both dialects)", async () => {
+  const q = await loadQuery();
+  const two = q.filterSql("lead", leadCols, { email: "a@b.com", id: "r_1" }, 10, pg);
+  assert.equal(two.sql, "SELECT * FROM lead WHERE email = $1 AND id = $2 LIMIT $3");
+  assert.deepEqual(two.params, ["a@b.com", "r_1", 10]);
+  // sqlite: same builder, `?` placeholders — the params line up positionally
+  const lite = q.filterSql("lead", leadCols, { email: "a@b.com" }, 10, () => "?");
+  assert.equal(lite.sql, "SELECT * FROM lead WHERE email = ? LIMIT ?");
+  assert.deepEqual(lite.params, ["a@b.com", 10]);
+  // the limit is clamped at the SQL seam as well, not only in plan()
+  assert.deepEqual(q.filterSql("lead", leadCols, {}, 9999, pg).params, [50]);
+  assert.deepEqual(q.filterSql("lead", leadCols, {}, 0, pg).params, [50]);
+  assert.deepEqual(q.filterSql("lead", leadCols, {}, -3, pg).params, [1]);
 });

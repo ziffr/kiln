@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type WorkflowsDoc, type AgentsDoc, type ContextsDoc } from "@kiln/compiler";
-import type { AgentContract } from "@kiln/codegen";
+import type { AgentContract, ToolSchema } from "@kiln/codegen";
 import type { CritiqueFinding } from "@kiln/skills";
 import { Icon, type IconName } from "./Icon";
 
@@ -369,13 +369,31 @@ function AgentPromptFindings({ findings, onDismiss, onSelect, t }: { findings?: 
   );
 }
 
+/**
+ * The named fields a contract tool TAKES, for the Tools quadrant — e.g. `find_lead · email, status` tells the
+ * reader what the agent can look a record up BY, which is the whole point of a find tool (the alternative is
+ * listing a table and scanning it). Reuses the ` · fields` idiom the Context quadrant already uses.
+ *
+ * The kind isn't in a `ToolSchema` (it's the provider-neutral shape sent to the model), so the SHAPE is the
+ * discriminator — the same rule `agentToolParams` builds by: a command carries `id` among its properties, a
+ * by-id read / notify declares `required`, a plain list has no properties. What's left — named, optional,
+ * id-less params — is exactly the "call me with these fields" tools: `find_*` and external delegations.
+ * Language-neutral (field names come from the model), so it reads the same in every locale.
+ */
+function toolFields(tool: ToolSchema): string {
+  const schema = tool.input_schema as { properties?: Record<string, unknown>; required?: string[] };
+  const fields = Object.keys(schema?.properties ?? {});
+  if (!fields.length || schema.required?.length || fields.includes("id")) return "";
+  return ` · ${fields.join(", ")}`;
+}
+
 // The agent CONTRACT — a compact, READ-ONLY four-quadrant spec (input · tools · output · context) DERIVED
 // from the model (AgentsDoc + DomainDoc + TriggersDoc). It's a projection, not authored truth (golden
 // invariant #2) — the system prompt above is grounded in exactly these facts. Not editable.
 function AgentContractPanel({ contract, t }: { contract?: AgentContract; t: T }): React.JSX.Element | null {
   if (!contract) return null;
   const input = contract.input.triggers.map((tr) => `${tr.name} (${tr.kind})`);
-  const tools = contract.tools.map((tl) => tl.name);
+  const tools = contract.tools.map((tl) => `${tl.name}${toolFields(tl)}`);
   const output = [
     ...contract.output.events.map((e) => `▲ ${e}`),
     ...contract.output.recordChanges.map((r) => `✎ ${r}`),

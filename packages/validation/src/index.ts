@@ -198,13 +198,13 @@ export function validateV7(doc: CapabilityDoc, threshold = 0.7): Finding[] {
   return findings;
 }
 
-/** V8 — every LLM-authored capability must carry valid provenance (SPEC-001 §3.2). */
+/** V8 — every machine-produced capability (llm|mock) must carry valid provenance (SPEC-001 §3.2). */
 export function validateV8(doc: CapabilityDoc): Finding[] {
   const findings: Finding[] = [];
   for (const c of doc.capabilities) {
     const meta = c.meta as { origin?: string; derivedFrom?: unknown[] } | undefined;
     if (!isMachine(meta?.origin)) continue; // only machine-produced caps (llm|mock) are held to provenance
-    if (!Array.isArray(meta.derivedFrom) || meta.derivedFrom.length === 0) {
+    if (!Array.isArray(meta?.derivedFrom) || meta.derivedFrom.length === 0) {
       findings.push(finding("V8.provenance", "major", `capability '${c.id}' (${meta?.origin}) has no provenance`, [c.id || "<unknown>"]));
     }
   }

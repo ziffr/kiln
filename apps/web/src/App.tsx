@@ -1103,7 +1103,10 @@ export default function App(): React.JSX.Element {
           workflows: workflowsDoc,
           comms: active.comms ?? undefined,
           services: active.services ?? undefined,
-          ...reviewCfg("agents"),
+          // Size the call to the CRITIQUE's own layer, not the agents stage: judging a prompt against its
+          // contract is "standard" tier at "high" effort (Sonnet), whereas the agents stage is "light"
+          // (Haiku) — a reviewer must not be weaker than what it reviews. A reviewer override still wins.
+          ...reviewCfg("agent-prompt"),
           ...(override ? { promptOverride: override } : {}),
           // Concerns the human already accepted on THIS agent → the critic is told not to raise them again.
           accepted: (active.ignoredFindings ?? [])

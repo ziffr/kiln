@@ -79,8 +79,11 @@ stage: that one reviews the *roster* (are agents missing, too broad, or overlapp
 reviews *one agent's prompt*. Both can be used. Like every AI call in Kiln, the exact review prompt is
 visible — and tunable for the session — under **Prompt & output → Prompt review**.
 
-> **Costs a call.** Each **Review prompt** click is one LLM call on the engine configured for the Agents
-> stage, so review the agents you care about rather than all of them by reflex.
+> **Costs a call.** Each **Review prompt** click is one LLM call on your configured engine, so review the
+> agents you care about rather than all of them by reflex. The review deliberately runs on a **stronger
+> model than the Agents stage generates with** (a standard-tier model at high effort — a reviewer should
+> not be weaker than what it reviews), so it costs more per call than a generation on that stage. Point it
+> somewhere else with the **Reviewer** override in **Settings → Engine**.
 
 ## Test this agent
 

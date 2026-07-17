@@ -143,7 +143,7 @@ export interface RunStep {
 /** A single "Test agent" run-trace (Part 2/3). Shares the LlmCallMeta envelope with LlmOutputRecord.
  *  Sidecar/observability — NEVER IR (golden invariant #1); the codegen exporter ignores it. */
 export interface RunTrace extends LlmCallMeta {
-  /** the system prompt the loop actually used (authored instructions, else the default playbook). */
+  /** the system prompt the loop actually used (the agent's authored instructions — a run needs one). */
   system: string;
   task: string;
   steps: RunStep[];

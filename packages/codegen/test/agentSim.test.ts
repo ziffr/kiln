@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveAgentDefs, defaultPlaybook, agentToolParams, buildToolSchemas, mockDispatch, runAgentLoop, toOpenAiMessages, toOpenAiTools, type LoopMessage, type LoopTurn, type ToolSchema } from "../src/index.ts";
+import { agentsAdapter, resolveAgentDefs, tbdBehaviour, NO_BEHAVIOUR_MARKER, agentToolParams, buildToolSchemas, mockDispatch, runAgentLoop, toOpenAiMessages, toOpenAiTools, type LoopMessage, type LoopTurn, type ToolSchema } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@kiln/compiler";
 import type { AgentTool } from "../src/agents.ts";
 
@@ -24,11 +24,41 @@ test("resolveAgentDefs resolves each agent's tools (command + notify), reusing t
   assert.deepEqual(def.capabilities, ["Lead Management"]);
 });
 
-test("defaultPlaybook is a non-empty markdown fallback naming the agent + its commands", () => {
+// Kiln does not invent a behaviour. With none authored the export ships an obvious TBD carrying a
+// machine-detectable marker — NOT a template restating the contract, which is what made an undesigned
+// agent look designed (and made the prompt critique circular).
+test("tbdBehaviour is an obvious NOT-YET-DESIGNED placeholder, not a contract copy", () => {
   const [def] = resolveAgentDefs(caps, domain, agents);
-  const pb = defaultPlaybook(def);
-  assert.match(pb, /Lead Agent — behaviour/);
-  assert.match(pb, /qualify_lead/);
+  const tbd = tbdBehaviour(def);
+  assert.ok(tbd.startsWith(NO_BEHAVIOUR_MARKER), "carries the sentinel a runtime can detect");
+  assert.match(tbd, /NOT YET DESIGNED/);
+  assert.match(tbd, /Generate/, "says how to close the gap");
+  assert.match(tbd, /definitions\/lead_agent\.json/, "POINTS AT the contract");
+  // The whole point: it must not restate the contract (tools/commands/entities) as if it were a design.
+  assert.ok(!tbd.includes("qualify_lead"), "does not copy the agent's tools/commands into the prompt");
+  assert.ok(!tbd.includes("notify"), "does not copy the notify tool in");
+});
+
+test("export writes a TBD behaviour for an undesigned agent, and the runtime refuses it", () => {
+  const undesigned = { agents: [{ ...(agents as unknown as { agents: Array<Record<string, unknown>> }).agents[0], instructions: undefined }] } as unknown as AgentsDoc;
+  const files = agentsAdapter(caps, domain, undesigned);
+  const behaviour = files["agents/behaviours/lead_agent.md"];
+  assert.ok(behaviour.includes(NO_BEHAVIOUR_MARKER), "the exported behaviour carries the sentinel");
+  assert.match(behaviour, /NOT YET DESIGNED/);
+  assert.ok(!behaviour.includes("qualify_lead"), "no contract copy in the shipped file");
+  // The generated runtime detects the sentinel and throws, naming the file + what to do.
+  const run = files["agents/src/run.ts"];
+  assert.ok(run.includes(NO_BEHAVIOUR_MARKER), "the runtime bakes in the literal marker (not a bare identifier)");
+  assert.match(run, /system\.includes\(NO_BEHAVIOUR_MARKER\)/);
+  assert.match(run, /throw new Error/);
+  assert.match(run, /agents\/behaviours\//, "the error names the file to write");
+});
+
+test("an agent WITH an authored behaviour is untouched — it ships verbatim, no marker", () => {
+  const files = agentsAdapter(caps, domain, agents);
+  const behaviour = files["agents/behaviours/lead_agent.md"];
+  assert.equal(behaviour, "Be precise.\n", "authored instructions ship byte-for-byte");
+  assert.ok(!behaviour.includes(NO_BEHAVIOUR_MARKER));
 });
 
 test("agentToolParams / buildToolSchemas produce per-kind argument schemas", () => {

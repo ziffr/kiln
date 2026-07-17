@@ -545,6 +545,7 @@ function validateAgents(agents, capabilityIds) {
     for (const c of a.capabilities ?? []) if (!capIds.has(c)) findings.push(mk("AG2.capability", "major", `agent '${subj}' operates unknown capability '${c}'`, [subj, c]));
     if ((a.capabilities ?? []).length === 0) findings.push(mk("AG5.empty", "minor", `agent '${subj}' operates no capabilities`, [subj]));
     if (a.meta?.origin === "llm" && !isGroundedAnchor(a.meta)) findings.push(mk("AG4.provenance", "major", `agent '${subj}' lacks grounded evidence`, [subj]));
+    if (!a.instructions?.trim()) findings.push(mk("AG6.behaviour", "major", `agent '${subj}' has no authored behaviour \u2014 generate or write HOW it decides; it will not run without one`, [subj]));
   }
   for (const [id, n] of counts) if (n > 1) findings.push(mk("AG3.unique", "blocker", `duplicate agent id '${id}' (${n}\xD7)`, [id]));
   return findings;
@@ -4017,6 +4018,7 @@ function mockTriggers(_caps, domain, _workflows, agents) {
 
 // ../../packages/codegen/src/agents.ts
 var CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+var NO_BEHAVIOUR_MARKER = "<!-- KILN:NO_BEHAVIOUR -->";
 var READ_ROW_CAP = 50;
 function capReadRows(rows, cap = READ_ROW_CAP) {
   if (rows.length <= cap) return { rows, total: rows.length };
@@ -4105,75 +4107,6 @@ function uniqueToolName(base, taken) {
   for (let n = 2; taken.has(name); n++) name = `${base}_${n}`;
   taken.add(name);
   return name;
-}
-function defaultPlaybook(d, contract) {
-  const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
-  const reads = d.tools.filter((t) => t.kind === "read");
-  const notify = d.tools.some((t) => t.kind === "notify");
-  return [
-    `# ${d.name} \u2014 behaviour`,
-    "",
-    `**Role.** ${d.goal || `Operate the ${d.capabilities.join(", ")} capabilities.`}`,
-    "",
-    ...contract ? contractSection("Inputs", inputLines(contract)) : [],
-    `## How you work`,
-    `Work through the task with your tools. For each item: read the relevant record, decide, then act via`,
-    `the right command. Take one action at a time and check the result before the next. Keep going until`,
-    `the goal is met, then summarise what you did and why.`,
-    "",
-    `## When to escalate`,
-    notify ? `When a decision is ambiguous, high-value, or needs human judgement, use the \`notify\` tool to route` : `When a decision needs human judgement, stop and report it clearly`,
-    `it to a person \u2014 don't guess. Continue once they respond.`,
-    "",
-    `## Guardrails`,
-    `- Never fabricate data; use only what the records and tools give you.`,
-    `- Prefer the smallest correct action; don't take irreversible steps without cause.`,
-    `- Stay within your goal and capabilities.`,
-    "",
-    ...contract ? contractSection("Your context", contextLines(contract)) : [],
-    `## What you can look up`,
-    ...reads.length ? [
-      `Read-only \u2014 these go to the records you own. Look before you act; never guess a record's state.`,
-      `When you know what you're looking for, look it up BY FIELD \u2014 don't list a whole table and scan it.`,
-      ...reads.map((r) => `- \`${r.name}\`${readLookupBy(r)}`)
-    ] : ["- (nothing \u2014 you have no read access; act only on what the task gives you)"],
-    "",
-    `## Your commands`,
-    ...cmds.length ? cmds.map((c) => `- \`${c}\``) : ["- (none)"],
-    "",
-    ...contract ? contractSection("Outputs you produce", outputLines(contract)) : [],
-    `> This file is the agent's system prompt \u2014 **edit it to change HOW this agent behaves.**`,
-    ""
-  ].join("\n");
-}
-function readLookupBy(t) {
-  const fields = t.input ?? [];
-  if (!fields.length || fields.includes("id")) return "";
-  return ` \u2014 look one up by ${fields.map((f) => `\`${f}\``).join(", ")} (exact match)`;
-}
-function contractSection(title, lines) {
-  return [`## ${title}`, ...lines, ""];
-}
-function inputLines(c) {
-  const lines = c.input.triggers.length ? c.input.triggers.map((tr) => `- **${tr.name}** (${tr.kind} \`${tr.ref}\`) \u2014 wakes you with a signal to act on.`) : ["- No external trigger routes to you yet \u2014 you're started on demand with a task."];
-  lines.push(`- Run task: ${c.input.task}`);
-  return lines;
-}
-function contextLines(c) {
-  if (!c.context.entities.length && !c.context.processes.length) return ["- (no entities or processes resolved)"];
-  const lines = c.context.entities.map((e) => {
-    const fields = e.attributes.map((a) => a.type ? `${a.name}: ${a.type}` : a.name).join(", ");
-    return `- **${e.name}**${fields ? ` \u2014 ${fields}` : ""}`;
-  });
-  if (c.context.processes.length) lines.push(`- Processes you own: ${c.context.processes.join(", ")}`);
-  return lines;
-}
-function outputLines(c) {
-  const lines = [];
-  if (c.output.events.length) lines.push(`- Events you emit: ${c.output.events.join(", ")}`);
-  if (c.output.recordChanges.length) lines.push(`- Records you change: ${c.output.recordChanges.join(", ")}`);
-  if (!lines.length) lines.push("- (no events or record changes resolved)");
-  return lines;
 }
 var SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown> {
   if (t.kind === "command" || t.kind === "external") {
@@ -4420,6 +4353,10 @@ import type { AgentDef } from "./def";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+// The marker Kiln writes into a behaviour NOBODY has designed yet (see behaviours/<id>.md). A marker, not
+// prose-sniffing: write a real behaviour and it's gone, so the agent just runs.
+const NO_BEHAVIOUR_MARKER = ${JSON.stringify(NO_BEHAVIOUR_MARKER)};
+
 export function definitionPath(id: string): string { return join(here, "..", "definitions", id + ".json"); }
 export function agentExists(id: string): boolean { return existsSync(definitionPath(id)); }
 
@@ -4436,6 +4373,16 @@ export async function runAgent(id: string, task: string): Promise<AgentRunResult
   // behaviour = the agent's system prompt; edit behaviours/<id>.md to change how it works.
   const behaviourPath = join(here, "..", "behaviours", id + ".md");
   const system = existsSync(behaviourPath) ? readFileSync(behaviourPath, "utf8") : "You are " + def.name + ". Goal: " + def.goal;
+  // Nobody designed this agent: its behaviour is still the exported TBD. Refuse \u2014 a placeholder that only
+  // restates the contract is not a design, and this agent can issue commands against the business records.
+  if (system.includes(NO_BEHAVIOUR_MARKER)) {
+    throw new Error(
+      "agents/behaviours/" + id + ".md has no behaviour yet \u2014 it is still the NOT-YET-DESIGNED placeholder, so "
+      + def.name + " has no system prompt and will not run. Write HOW this agent decides (what your terms mean, "
+      + "when to escalate, what to check first) \u2014 or run Generate on the Agents stage in Kiln Studio and re-export "
+      + "\u2014 then remove the " + NO_BEHAVIOUR_MARKER + " marker.",
+    );
+  }
   // Provider: Anthropic native by default (best Claude fidelity); any OpenAI-compatible gateway otherwise
   // (openrouter | omniroute | openai-compatible). PROVIDER wins; else infer from whichever key is set.
   const provider = (process.env.PROVIDER
@@ -5845,9 +5792,11 @@ function renderAgentPrompt(m) {
   if (!def) return `# Agent prompt review
 (agent "${m.agentId}" was not found in the model)`;
   const contract = agentContract(def, domain, triggers);
-  const prompt = def.instructions?.trim() || defaultPlaybook(def, contract);
+  const prompt = def.instructions?.trim();
+  if (!prompt) return `# Agent prompt review
+(agent "${def.name}" has no authored behaviour \u2014 there is no prompt to review)`;
   const toolLines = contract.tools.length ? contract.tools.map((tl) => `- \`${tl.name}\` \u2014 ${tl.description}`) : ["- (no tools resolved)"];
-  const inputLines2 = contract.input.triggers.length ? contract.input.triggers.map((tr) => `- ${tr.name} (${tr.kind} \`${tr.ref}\`)`) : ["- (no external trigger routes to it \u2014 started on demand)"];
+  const inputLines = contract.input.triggers.length ? contract.input.triggers.map((tr) => `- ${tr.name} (${tr.kind} \`${tr.ref}\`)`) : ["- (no external trigger routes to it \u2014 started on demand)"];
   const ctxLines = contract.context.entities.length ? contract.context.entities.map((e) => `- ${e.name}${e.attributes.length ? ` (${e.attributes.map((a) => a.type ? `${a.name}:${a.type}` : a.name).join(", ")})` : ""}`) : ["- (no entities resolved)"];
   return [
     `# Agent under review: ${def.name}`,
@@ -5858,7 +5807,7 @@ function renderAgentPrompt(m) {
     "## Real tools it has \u2014 the ONLY tools it can call (anything the prompt names beyond these is FABRICATED)",
     ...toolLines,
     "## Input signals (triggers) routed to it \u2014 the prompt should honour these",
-    ...inputLines2,
+    ...inputLines,
     "## Output it should produce",
     `- Events it can emit: ${contract.output.events.join(", ") || "(none)"}`,
     `- Records it changes: ${contract.output.recordChanges.join(", ") || "(none)"}`,
@@ -5988,7 +5937,27 @@ ${ask}`,
     context: model.caps
   };
 }
+function notDesignedFinding(model) {
+  if (!model.agentId) return void 0;
+  const want = slug(model.agentId);
+  const agents = model.agents?.agents ?? [];
+  const a = agents.find((x) => slug(x.id) === want) ?? agents.find((x) => slug(x.name ?? "") === want);
+  if (!a || a.instructions?.trim()) return void 0;
+  const name = a.name || a.id;
+  const message = `${name} has no authored behaviour \u2014 there is nothing to review yet.`;
+  return [{
+    id: sha256(`agent-prompt|concern|${message}`).slice(0, 10),
+    severity: "concern",
+    message,
+    suggestion: "The contract says WHAT this agent may do; a behaviour must say HOW it decides \u2014 what your terms mean, when to escalate, what to check first. Run Generate (or write it), then review.",
+    target: a.id
+  }];
+}
 async function critiqueLayer(layer, model, provider, accepted = []) {
+  if (layer === "agent-prompt") {
+    const undesigned = notDesignedFinding(model);
+    if (undesigned) return { findings: undesigned, provider: "deterministic" };
+  }
   const res = await provider.complete(buildCritiqueRequest(layer, model, accepted));
   const obj = res.json && typeof res.json === "object" ? res.json : {};
   const raw = Array.isArray(obj.findings) ? obj.findings : [];
@@ -6658,7 +6627,8 @@ async function handler2(req, res) {
   const def = defs.find((d) => d.id === wantId);
   if (!def) return void res.status(404).json({ error: `unknown agent ${body.agentId}` });
   const agent = body.agentsDoc.agents.find((a) => slug(a.id) === wantId);
-  const system = agent?.instructions?.trim() ? agent.instructions.trim() : defaultPlaybook(def);
+  const system = agent?.instructions?.trim();
+  if (!system) return void res.status(400).json({ error: `${agent?.name || body.agentId} has no behaviour yet, so there is no prompt to run. Generate or write HOW it decides on the Agents stage, then test it.` });
   const task = (body.task ?? "").trim() || "Work toward your goal using the available tools and records.";
   const model = resolveModel(body);
   const wantEffort = EFFORTS.includes(body.effort ?? "") ? body.effort : pickEffort(def.effort);

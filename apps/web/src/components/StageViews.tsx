@@ -280,10 +280,12 @@ export function WorkflowsView({
 
 // Agents → cards: goal + operated capabilities.
 // Agents as editable cards: each agent's behaviour (system prompt) is an AUTHORED, editable textarea —
-// empty shows the default playbook as the placeholder — plus a "Test agent" affordance that opens the
-// run-trace panel. This is the GENERATE-side gap (the diagram above is the read-only relation view).
+// empty means NOBODY HAS DESIGNED this agent yet, and the card says so plainly rather than showing a
+// generated playbook as a placeholder (which would make an undesigned agent look filled in) — plus a
+// "Test agent" affordance that opens the run-trace panel. This is the GENERATE-side gap (the diagram
+// above is the read-only relation view).
 export function AgentsView({
-  agents, caps, t, onEditInstructions, placeholderFor, contractFor, onTest, testingId,
+  agents, caps, t, onEditInstructions, contractFor, onTest, testingId,
   onReviewPrompt, reviewingPromptId, critiqueFor, onDismissFinding, onSelectFinding,
 }: {
   agents: AgentsDoc;
@@ -291,8 +293,6 @@ export function AgentsView({
   t: T;
   /** persist an authored edit of the agent's behaviour (system prompt). */
   onEditInstructions?: (agentId: string, value: string) => void;
-  /** the default playbook to show as placeholder when instructions are empty. */
-  placeholderFor?: (agentId: string) => string;
   /** the DERIVED contract (input · tools · output · context) — a read-only spec beside the editor. */
   contractFor?: (agentId: string) => AgentContract | undefined;
   /** open the test-run panel for this agent. */
@@ -341,14 +341,14 @@ export function AgentsView({
                 className="agent-behaviour-input"
                 spellCheck={false}
                 value={a.instructions ?? ""}
-                placeholder={placeholderFor?.(a.id) ?? ""}
+                placeholder={t("agentBehaviourPlaceholder")}
                 aria-label={t("agentBehaviour")}
                 onChange={(e) => onEditInstructions(a.id, e.target.value)}
               />
             ) : (
-              <pre className="agent-behaviour-view">{a.instructions?.trim() || placeholderFor?.(a.id) || ""}</pre>
+              <pre className="agent-behaviour-view">{a.instructions?.trim() || ""}</pre>
             )}
-            <span className="agent-behaviour-note muted">{a.instructions?.trim() ? t("agentBehaviourAuthored") : t("agentBehaviourDefault")}</span>
+            <span className={`agent-behaviour-note ${a.instructions?.trim() ? "muted" : "warn"}`}>{a.instructions?.trim() ? t("agentBehaviourAuthored") : t("agentBehaviourNone")}</span>
           </label>
         </div>
       ))}

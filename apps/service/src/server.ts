@@ -73,7 +73,7 @@ import {
 import { openAiCompatibleProvider, type OpenAiCompatConfig } from "./providers/openaiCompatible.ts";
 import { startRun, getRun, stopRun, runClientHtml } from "./run.ts";
 import { screenshotUrl, screenshotAvailable } from "./screenshot.ts";
-import { generateApp, projectAppModel, resolveAgentDefs, defaultPlaybook, buildToolSchemas, toOpenAiMessages, toOpenAiTools, runAgentLoop, type LoopMessage, type LoopTurn, type NextTurn } from "@kiln/codegen";
+import { generateApp, projectAppModel, resolveAgentDefs, buildToolSchemas, toOpenAiMessages, toOpenAiTools, runAgentLoop, type LoopMessage, type LoopTurn, type NextTurn } from "@kiln/codegen";
 import { slug } from "@kiln/ir";
 import type { AgentsDoc } from "@kiln/compiler";
 import { deleteProject, listProjects, projectDir, saveProject, type StoredProject } from "./workspaces.ts";
@@ -959,8 +959,11 @@ const server = createServer(async (req, res) => {
       const def = defs.find((d) => d.id === wantId);
       if (!def) return send(res, 404, { error: `unknown agent ${body.agentId}` });
       const agent = body.agentsDoc.agents.find((a) => slug(a.id) === wantId);
-      // System prompt = the agent's authored instructions (the HOW), else the deterministic default playbook.
-      const system = agent?.instructions?.trim() ? agent.instructions.trim() : defaultPlaybook(def);
+      // System prompt = the agent's authored instructions (the HOW). No behaviour → refuse, exactly as the
+      // exported runtime does: there is nothing to test but a template restating the contract, and a green
+      // test run on an agent nobody designed is the most misleading result this endpoint could return.
+      const system = agent?.instructions?.trim();
+      if (!system) return send(res, 400, { error: `${agent?.name || body.agentId} has no behaviour yet, so there is no prompt to run. Generate or write HOW it decides on the Agents stage, then test it.` });
       const task = (body.task ?? "").trim() || "Work toward your goal using the available tools and records.";
 
       // Same engine as generation: resolve {provider,model} from the request. Per-agent effort applies (gated

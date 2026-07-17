@@ -31,7 +31,7 @@ import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enr
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
 import { pushRunHistory } from "./runDiff";
 import { EnrichPanel } from "./components/EnrichPanel";
-import { mockExternalServices, resolveAgentDefs, defaultPlaybook, agentContract, mockTriggers, type AgentContract } from "@kiln/codegen";
+import { mockExternalServices, resolveAgentDefs, agentContract, mockTriggers, type AgentContract } from "@kiln/codegen";
 import { SettingsModal } from "./components/SettingsModal";
 import { CapabilityMap } from "./components/CapabilityMap";
 import { StageRail, type StageId, type StageInfo } from "./components/StageRail";
@@ -957,30 +957,29 @@ export default function App(): React.JSX.Element {
 
   // ── Test this agent ─────────────────────────────────────────────────────────────────────────────
   // Editing an agent's behaviour (system prompt) is an AUTHORED model edit — it round-trips to text and
-  // persists like any other authored change. Empty instructions fall back to the default playbook.
+  // persists like any other authored change. Empty instructions = an agent nobody has designed: Kiln does
+  // NOT substitute a default — the export ships a TBD and the runtime refuses it.
   const editAgentInstructions = (agentId: string, value: string): void => {
     patchActive({ agents: { ...agentsDoc, agents: agentsDoc.agents.map((a) => (a.id === agentId ? { ...a, instructions: value, meta: { ...(a.meta ?? {}), origin: "authored" } } : a)) } });
   };
-  // The default playbook per agent (placeholder when instructions are empty). Resolved from the model via
-  // the SAME codegen seam the runtime + server use, so what you preview is what would ship.
-  // The derived agent CONTRACT (input · tools · output · context) + the grounded default playbook, both
-  // computed from the SAME codegen seam the runtime/server use. The contract is a READ-ONLY PROJECTION
-  // (golden invariant #2) — never persisted to the AgentsDoc — surfaced as a spec panel in AgentsView.
-  const { agentPlaybooks, agentContracts } = useMemo<{ agentPlaybooks: Record<string, string>; agentContracts: Record<string, AgentContract> }>(() => {
+  // The derived agent CONTRACT (input · tools · output · context), computed from the SAME codegen seam the
+  // runtime/server use. A READ-ONLY PROJECTION (golden invariant #2) — never persisted to the AgentsDoc —
+  // surfaced as a spec panel in AgentsView. It says WHAT an agent may do; the authored behaviour (the
+  // textarea) says HOW it decides. We deliberately do NOT render a default playbook as the textarea's
+  // placeholder: a full template in a grey font makes an undesigned agent look designed, and Kiln does not
+  // invent a behaviour — an empty prompt gets an honest hint and, on export, a TBD the runtime refuses.
+  const agentContracts = useMemo<Record<string, AgentContract>>(() => {
     // triggers = the agent's INPUT facet; the web app has no authored triggers doc yet → derive the
     // deterministic defaults (external/time events → webhook/schedule routes) so the input isn't empty.
     const triggers = mockTriggers(activeDoc, flowDoc, workflowsDoc, agentsDoc);
     const defs = resolveAgentDefs(activeDoc, flowDoc, agentsDoc, active.comms ?? undefined, workflowsDoc, active.services ?? undefined, triggers);
-    const playbooks: Record<string, string> = {};
     const contracts: Record<string, AgentContract> = {};
     for (let i = 0; i < agentsDoc.agents.length; i++) {
       const d = defs[i];
       if (!d) continue;
-      const contract = agentContract(d, flowDoc, triggers);
-      contracts[agentsDoc.agents[i].id] = contract;
-      playbooks[agentsDoc.agents[i].id] = defaultPlaybook(d, contract);
+      contracts[agentsDoc.agents[i].id] = agentContract(d, flowDoc, triggers);
     }
-    return { agentPlaybooks: playbooks, agentContracts: contracts };
+    return contracts;
   }, [activeDoc, flowDoc, agentsDoc, workflowsDoc, active.comms, active.services]);
 
   const lastAgentTrace: RunTrace | undefined = testAgentId ? active.observability?.agentRuns?.[testAgentId] : undefined;
@@ -2285,7 +2284,6 @@ export default function App(): React.JSX.Element {
                   agents={agentsDoc}
                   caps={activeDoc}
                   onEditInstructions={editAgentInstructions}
-                  placeholderFor={(id) => agentPlaybooks[id] ?? ""}
                   contractFor={(id) => agentContracts[id]}
                   onTest={openAgentTest}
                   testingId={agentRunBusy ? testAgentId : null}

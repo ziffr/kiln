@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { resolveAgentDefs, defaultPlaybook, buildToolSchemas, toOpenAiMessages, toOpenAiTools, runAgentLoop, type LoopMessage, type LoopTurn, type NextTurn } from "@kiln/codegen";
+import { resolveAgentDefs, buildToolSchemas, toOpenAiMessages, toOpenAiTools, runAgentLoop, type LoopMessage, type LoopTurn, type NextTurn } from "@kiln/codegen";
 import { slug } from "@kiln/ir";
 import type { AgentsDoc, CapabilityDoc, DomainDoc } from "@kiln/compiler";
 import { requireClient, readBody, newUsage, estCost, resolveModel, openrouterCfg, omnirouteCfg, providerLabel, pickEffort, EFFORTS, type Req, type Res } from "./_lib.ts";
@@ -35,7 +35,10 @@ export default async function handler(req: Req, res: Res): Promise<void> {
   const def = defs.find((d) => d.id === wantId);
   if (!def) return void res.status(404).json({ error: `unknown agent ${body.agentId}` });
   const agent = body.agentsDoc.agents.find((a) => slug(a.id) === wantId);
-  const system = agent?.instructions?.trim() ? agent.instructions.trim() : defaultPlaybook(def);
+  // No authored behaviour → refuse, as the exported runtime does. Running a contract-derived template would
+  // report a pass for an agent nobody designed.
+  const system = agent?.instructions?.trim();
+  if (!system) return void res.status(400).json({ error: `${agent?.name || body.agentId} has no behaviour yet, so there is no prompt to run. Generate or write HOW it decides on the Agents stage, then test it.` });
   const task = (body.task ?? "").trim() || "Work toward your goal using the available tools and records.";
 
   // Same engine as generation: resolve {provider,model} from the request. Per-agent effort (gated on support).

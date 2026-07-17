@@ -38,10 +38,10 @@ test("agentsAdapter emits a runnable runtime + a definition per agent with wired
   assert.match(files["agents/src/run.ts"], /runOpenAICompatible/);
   // default .env leads with Anthropic when no engine is baked
   assert.match(files["agents/.env.example"], /PROVIDER=anthropic/);
-  // the behaviour playbook (the "HOW") — a markdown file the runtime loads as the system prompt
-  assert.ok(files["agents/behaviours/lead_agent.md"], "behaviour playbook");
-  assert.match(files["agents/behaviours/lead_agent.md"], /How you work/);
-  assert.match(files["agents/behaviours/lead_agent.md"], /edit it to change HOW/i);
+  // the behaviour (the "HOW") — a markdown file the runtime loads as the system prompt. This fixture's
+  // agent has no authored behaviour, so what ships is the TBD, never a generated stand-in.
+  assert.ok(files["agents/behaviours/lead_agent.md"], "behaviour file");
+  assert.match(files["agents/behaviours/lead_agent.md"], /NOT YET DESIGNED/);
   assert.match(files["agents/src/run.ts"], /behaviours/); // runtime loads it
   // the definition
   assert.ok(files["agents/definitions/lead_agent.json"]);
@@ -170,13 +170,6 @@ test("the emitted runtime executes read tools: GET + bearer + the same row cap",
   assert.match(agentsAdapter(caps, domain, agents, comms)["agents/src/def.ts"], /"read"/);
 });
 
-test("the playbook lists the read tools — its 'read the relevant record' instruction is now true", () => {
-  const behaviour = agentsAdapter(caps, domain, agents, comms)["agents/behaviours/lead_agent.md"];
-  assert.match(behaviour, /## What you can look up/);
-  assert.match(behaviour, /`list_lead`/);
-  assert.match(behaviour, /`get_lead`/);
-});
-
 test("the agent contract's tools facet includes the read tools", () => {
   const def = resolveAgentDefs(caps, domain, agents, comms)[0];
   const names = agentContract(def, domain).tools.map((t) => t.name);
@@ -250,14 +243,6 @@ test("the emitted runtime turns a find tool's input into an exact-match query st
   assert.match(tools, /for \(const field of tool\.input \?\? \[\]\)/);
   assert.match(tools, /if \(!template\.includes\("\{id\}"\)\)/); // by-id reads keep the path substitution
   assert.match(tools, /url \+= "\?" \+ params\.toString\(\)/);
-});
-
-test("the playbook says what the agent can look records up BY — so the prompt's claim is true", () => {
-  const behaviour = agentsAdapter(caps, typed, agents, comms)["agents/behaviours/lead_agent.md"];
-  assert.match(behaviour, /look it up BY FIELD — don't list a whole table and scan it/);
-  assert.match(behaviour, /`find_lead` — look one up by `email`, `status`, `score` \(exact match\)/);
-  assert.doesNotMatch(behaviour, /`list_lead` — look one up/); // a plain list has nothing to look up BY
-  assert.doesNotMatch(behaviour, /`get_lead` — look one up/); // nor does the by-id read
 });
 
 test("the agent contract's tools facet picks find_* up with its filterable params", () => {

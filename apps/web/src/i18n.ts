@@ -432,7 +432,10 @@ const resources = {
       // Agenten-Verhalten + Test dieser Agent
       agentBehaviour: "Verhalten (System-Prompt)",
       agentBehaviourAuthored: "Bearbeitet — dieser Text ist der System-Prompt des Agenten.",
-      agentBehaviourDefault: "Leer → das Standard-Playbook (unten als Platzhalter) wird verwendet. Zum Anpassen tippen.",
+      // Leer = niemand hat diesen Agenten entworfen. Kiln erfindet kein Verhalten (der Kontrakt sagt WAS,
+      // das Verhalten sagt WIE) — also sag klar, dass nichts da ist, statt ein Standard-Playbook anzudeuten.
+      agentBehaviourNone: "Noch nicht entworfen — dieser Agent hat kein Verhalten und läuft ohne eins nicht. Generiere es, oder schreib selbst, WIE er entscheidet.",
+      agentBehaviourPlaceholder: "Wie entscheidet dieser Agent? Was deine Begriffe hier bedeuten, wann er an einen Menschen abgibt, was er zuerst prüft, was er nie tun darf.",
       // Agenten-Kontrakt (abgeleitet: Input · Tools · Output · Kontext)
       agentContract: "Kontrakt",
       agentContractDerived: "Abgeleitet",
@@ -1070,7 +1073,10 @@ const resources = {
       // Agent behaviour + Test this agent
       agentBehaviour: "Behaviour (system prompt)",
       agentBehaviourAuthored: "Edited — this text is the agent's system prompt.",
-      agentBehaviourDefault: "Empty → the default playbook (shown as placeholder below) is used. Type to customise.",
+      // Empty = nobody has designed this agent. Kiln does not invent a behaviour (the contract says WHAT,
+      // the behaviour says HOW) — so say plainly that nothing is there, never imply a default will fill in.
+      agentBehaviourNone: "Not designed yet — this agent has no behaviour and won't run without one. Generate it, or write HOW it decides.",
+      agentBehaviourPlaceholder: "How does this agent decide? What your terms mean here, when it hands off to a person, what it checks first, what it must never do.",
       // Agent contract (derived: input · tools · output · context)
       agentContract: "Contract",
       agentContractDerived: "Derived",

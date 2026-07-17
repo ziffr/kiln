@@ -127,16 +127,25 @@ generation never invents a credential.
 
 Each agent card has an editable **Behaviour (system prompt)** field — the agent's operating instructions:
 its role, how it works its tools, when to escalate to a human, and its guardrails. This is what the agent
-would actually be told to do. The system prompt is **grounded in the contract above** — the default
-playbook cites the agent's real inputs, tools, outputs, and context, and when Kiln generates the
-instructions with an LLM it is told to reference those real model facts (named entities, commands, and
-events) rather than invent any.
+would actually be told to do.
 
-- Leave it **empty** and Kiln uses a sensible **default playbook**, derived from the agent's goal and
-  tools. The default is shown as the placeholder so you can see what it would say.
-- **Type** to author your own — your text becomes the agent's system prompt. An edited behaviour is an
+**An agent must be designed — Kiln will not invent a behaviour for you.** The contract above says *what*
+an agent may do; the behaviour says **how it decides**, and only you or a generation grounded in your
+narrative knows that: what your terms mean here, when to hand off to a person, what to check first, what
+it must never do. Anything Kiln could produce deterministically would only restate the contract — adding
+nothing while making an agent nobody designed look designed. So an empty behaviour stays visibly empty:
+
+- **Generate** the agents stage and Kiln writes each agent's behaviour with an LLM, told to reference the
+  real model facts (named entities, commands, events) rather than invent any — then review and edit it.
+- **Type** to author your own — your text becomes the agent's system prompt. An authored behaviour is an
   authored part of the model: it saves with the project and round-trips through `model.json` and the
-  code export (it becomes the agent's `behaviours/<id>.md` playbook in the generated runtime).
+  code export (it becomes the agent's `behaviours/<id>.md` in the generated runtime).
+- **Leave it empty** and the card says *not designed yet*. Nothing fills the gap for you. On export the
+  agent ships a **TBD** `behaviours/<id>.md` that names what to write and points at its
+  `definitions/<id>.json` contract, and **the generated runtime refuses to run that agent** — it throws,
+  naming the file, rather than starting on a placeholder. An agent holds command authority over your
+  records; one that looks designed but isn't is worse than an obvious gap. The Agents stage flags an
+  agent with no behaviour in its health findings, so you see it without running a review.
 
 ## Review prompt — critique the prompt against its contract
 
@@ -166,6 +175,12 @@ accepted. Kiln **never rewrites your prompt** — the behaviour field stays your
 dismissed per agent (dismissing one on one agent never silences another's), and a re-review is told not to
 raise it again. An empty list means the review found nothing — the prompt matches its contract.
 
+**An agent with no behaviour is refused, not reviewed.** There is nothing to review yet: the only prompt
+available would be one derived from the contract, and checking that against the contract is circular — it
+passes by construction, rubber-stamping the case that most needs scrutiny. So the review returns a single
+honest finding (*no authored behaviour — generate or write it first*) and **costs nothing**: it never
+calls the model to tell you a field is empty.
+
 This is a **per-agent** review, and it's distinct from the whole-layer **Second opinion** on the Agents
 stage: that one reviews the *roster* (are agents missing, too broad, or overlapping?), while this one
 reviews *one agent's prompt*. Both can be used. Like every AI call in Kiln, the exact review prompt is
@@ -183,7 +198,7 @@ Click **Test agent** on any agent card to open the run panel, enter a task (or l
 agent's goal), and click **Run test**. Kiln runs a short, bounded agent loop and shows you the **run
 trace**:
 
-- the **system prompt** it used (your authored behaviour, or the default playbook),
+- the **system prompt** it used (your authored behaviour — an agent with none can't be tested; design it first),
 - each **step** — the agent's reasoning turns and the tool calls it makes, with the arguments and the
   result of each, and
 - the **final output**, plus step / token / cost totals.

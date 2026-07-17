@@ -1,0 +1,455 @@
+/**
+ * The detail slide-in for a selected agent — the ONE right-side surface for everything about it, so the
+ * Agents stage reads like every other stage (select → detail), instead of dumping every agent's full
+ * spec inline. Modelled on AreaDetail/WorkflowDetail: same `nd` chrome, same close affordance, same
+ * `detail-slide-in`.
+ *
+ * Three tabs, which are exactly the three honest questions about an agent:
+ *   Contract  — what it MAY do. DERIVED from the model (golden invariant #2): read-only, badged.
+ *   Behaviour — HOW it decides. AUTHORED (the system prompt) + its AI prompt-critique.
+ *   Runs      — what it DID. The test loop + trace + history/compare (mock dispatch; badged simulated).
+ *
+ * Presentational: every mutation, the run, and persistence live in App.
+ */
+
+import { useEffect, useRef, useState } from "react";
+import { Icon } from "./Icon";
+import { RunCompare } from "./RunCompare";
+import { AGENT_RUN_HISTORY_MAX } from "../runDiff";
+import type { AgentContract, ToolSchema } from "@kiln/codegen";
+import type { AgentInput, CapabilityDoc } from "@kiln/compiler";
+import type { CritiqueFinding } from "@kiln/skills";
+import type { RunTrace, RunStep } from "../projects";
+
+type T = (k: string, o?: Record<string, unknown>) => string;
+type Tab = "contract" | "behaviour" | "runs";
+
+/** Everything the Runs tab needs — the run itself is owned by App (fetch + persistence). */
+export type AgentRunProps = {
+  trace?: RunTrace;
+  /** the agent's recent runs, NEWEST FIRST and bounded (AGENT_RUN_HISTORY_MAX). `history[0]` === `trace`. */
+  history: RunTrace[];
+  task: string;
+  onTask: (v: string) => void;
+  onRun: () => void;
+  busy: boolean;
+  error?: string | null;
+  /** The engine (provider) + model the run will use — the SAME configured for generation (set in Settings). */
+  engineLabel?: string;
+  modelLabel?: string;
+};
+
+export function AgentDetail({
+  agent, caps, contract, run, locale, t,
+  onEditInstructions, onReviewPrompt, reviewing, critique, onDismissFinding, onSelectFinding,
+  onSelectCapability, onClose,
+}: {
+  agent: AgentInput;
+  caps: CapabilityDoc;
+  /** the DERIVED contract (input · tools · output · context) — a read-only projection of the model. */
+  contract?: AgentContract;
+  run: AgentRunProps;
+  locale: string;
+  t: T;
+  /** persist an authored edit of the agent's behaviour (system prompt). */
+  onEditInstructions?: (agentId: string, value: string) => void;
+  /** critique this agent's prompt against its contract (advisory; dismiss only — never rewrites). */
+  onReviewPrompt?: (agentId: string) => void;
+  reviewing?: boolean;
+  /** undefined = not reviewed, [] = reviewed-clean, >0 = advisory findings. */
+  critique?: CritiqueFinding[];
+  onDismissFinding?: (f: CritiqueFinding) => void;
+  onSelectFinding?: (f: CritiqueFinding) => void;
+  onSelectCapability: (id: string) => void;
+  onClose: () => void;
+}): React.JSX.Element {
+  const [tab, setTab] = useState<Tab>("contract");
+  const designed = Boolean(agent.instructions?.trim());
+
+  return (
+    <div className="nd agent-detail">
+      <div className="nd-head">
+        <strong className="agent-title"><Icon name="bot" size={15} />{agent.name || agent.id}</strong>
+        <button className="nd-close" onClick={onClose} aria-label={t("close")}>×</button>
+      </div>
+      <div className="agent-detail-meta">
+        {/* AG6: an agent with no authored behaviour is UNDESIGNED — say so wherever the agent is named. */}
+        <span className={`agent-status ${designed ? "on" : "off"}`}>
+          <Icon name={designed ? "check" : "alert"} size={11} />{designed ? t("agentDesigned") : t("agentNotDesigned")}
+        </span>
+      </div>
+      {agent.goal && <p className="agent-detail-goal muted">{agent.goal}</p>}
+
+      <div className="ps-tabs agent-detail-tabs" role="tablist">
+        {(["contract", "behaviour", "runs"] as Tab[]).map((k) => (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={tab === k}
+            className={`ps-tab${tab === k ? " active" : ""}`}
+            onClick={() => setTab(k)}
+          >
+            {t(k === "contract" ? "agentContract" : k === "behaviour" ? "agentTabBehaviour" : "agentTabRuns")}
+          </button>
+        ))}
+      </div>
+
+      {tab === "contract" && <ContractTab agent={agent} caps={caps} contract={contract} onSelectCapability={onSelectCapability} t={t} />}
+      {tab === "behaviour" && (
+        <BehaviourTab
+          agent={agent}
+          onEditInstructions={onEditInstructions}
+          onReviewPrompt={onReviewPrompt}
+          reviewing={reviewing}
+          critique={critique}
+          onDismissFinding={onDismissFinding}
+          onSelectFinding={onSelectFinding}
+          t={t}
+        />
+      )}
+      {tab === "runs" && <RunsTab run={run} locale={locale} t={t} />}
+    </div>
+  );
+}
+
+/* ── Contract: what the agent MAY do ──────────────────────────────────────────────────────────────
+   A read-only four-quadrant spec (input · tools · output · context) DERIVED from the model (AgentsDoc +
+   DomainDoc + TriggersDoc). A projection, not authored truth (golden invariant #2) — the system prompt in
+   the Behaviour tab is grounded in exactly these facts. Not editable. */
+function ContractTab({ agent, caps, contract, onSelectCapability, t }: {
+  agent: AgentInput;
+  caps: CapabilityDoc;
+  contract?: AgentContract;
+  onSelectCapability: (id: string) => void;
+  t: T;
+}): React.JSX.Element {
+  const capName = (id: string): string => caps.capabilities.find((c) => c.id === id)?.name || id;
+  const members = agent.capabilities ?? [];
+  return (
+    <div className="agent-tab">
+      <div className="nd-row">
+        <span className="nd-label">{t("capabilities")}</span>
+        <div className="nd-chips">
+          {members.length === 0 && <span className="muted">—</span>}
+          {members.map((c) => (
+            <button className="nd-chip clickable" key={c} onClick={() => onSelectCapability(c)}>{capName(c)}</button>
+          ))}
+        </div>
+      </div>
+      <AgentContractPanel contract={contract} t={t} />
+    </div>
+  );
+}
+
+/**
+ * The named fields a contract tool TAKES, for the Tools quadrant — e.g. `find_lead · email, status` tells the
+ * reader what the agent can look a record up BY, which is the whole point of a find tool (the alternative is
+ * listing a table and scanning it). Reuses the ` · fields` idiom the Context quadrant already uses.
+ *
+ * The kind isn't in a `ToolSchema` (it's the provider-neutral shape sent to the model), so the SHAPE is the
+ * discriminator — the same rule `agentToolParams` builds by: a command carries `id` among its properties, a
+ * by-id read / notify declares `required`, a plain list has no properties. What's left — named, optional,
+ * id-less params — is exactly the "call me with these fields" tools: `find_*` and external delegations.
+ * Language-neutral (field names come from the model), so it reads the same in every locale.
+ */
+function toolFields(tool: ToolSchema): string {
+  const schema = tool.input_schema as { properties?: Record<string, unknown>; required?: string[] };
+  const fields = Object.keys(schema?.properties ?? {});
+  if (!fields.length || schema.required?.length || fields.includes("id")) return "";
+  return ` · ${fields.join(", ")}`;
+}
+
+function AgentContractPanel({ contract, t }: { contract?: AgentContract; t: T }): React.JSX.Element | null {
+  if (!contract) return null;
+  const input = contract.input.triggers.map((tr) => `${tr.name} (${tr.kind})`);
+  const tools = contract.tools.map((tl) => `${tl.name}${toolFields(tl)}`);
+  const output = [
+    ...contract.output.events.map((e) => `▲ ${e}`),
+    ...contract.output.recordChanges.map((r) => `✎ ${r}`),
+  ];
+  return (
+    <div className="agent-contract" aria-label={t("agentContract")}>
+      <div className="agent-contract-head">
+        <span className="agent-contract-title"><Icon name="code" size={12} />{t("agentContract")}</span>
+        <span className="agent-contract-derived" title={t("agentContractDerivedHint")}><Icon name="lock" size={11} />{t("agentContractDerived")}</span>
+      </div>
+      <div className="agent-contract-grid">
+        <ContractQuadrant label={t("agentContractInput")} hint={t("agentContractInputHint")} items={input} empty={t("agentContractNoInput")} />
+        <ContractQuadrant label={t("agentContractTools")} hint={t("agentContractToolsHint")} items={tools} empty={t("agentContractNoTools")} />
+        <ContractQuadrant label={t("agentContractOutput")} hint={t("agentContractOutputHint")} items={output} empty={t("agentContractNoOutput")} />
+        <div className="agent-contract-cell">
+          <span className="agent-contract-cell-label">{t("agentContractContext")}</span>
+          <span className="agent-contract-cell-hint muted">{t("agentContractContextHint")}</span>
+          {contract.context.entities.length || contract.context.processes.length ? (
+            <ul className="agent-contract-list">
+              {contract.context.entities.map((e) => (
+                <li key={e.name}>
+                  <strong>{e.name}</strong>
+                  {e.attributes.length > 0 && (
+                    <span className="agent-contract-fields"> · {e.attributes.map((at) => (at.type ? `${at.name}:${at.type}` : at.name)).join(", ")}</span>
+                  )}
+                </li>
+              ))}
+              {contract.context.processes.map((p) => <li key={`proc-${p}`} className="agent-contract-proc">⟳ {p}</li>)}
+            </ul>
+          ) : (
+            <span className="agent-contract-none muted">{t("agentContractNoContext")}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContractQuadrant({ label, hint, items, empty }: { label: string; hint: string; items: string[]; empty: string }): React.JSX.Element {
+  return (
+    <div className="agent-contract-cell">
+      <span className="agent-contract-cell-label">{label}</span>
+      <span className="agent-contract-cell-hint muted">{hint}</span>
+      {items.length ? (
+        <ul className="agent-contract-list">{items.map((it, i) => <li key={`${it}-${i}`}>{it}</li>)}</ul>
+      ) : (
+        <span className="agent-contract-none muted">{empty}</span>
+      )}
+    </div>
+  );
+}
+
+/* ── Behaviour: HOW the agent decides ─────────────────────────────────────────────────────────────
+   The AUTHORED system prompt. Empty means NOBODY HAS DESIGNED this agent — the note says so plainly and
+   Kiln does NOT substitute a default playbook (a full template in a grey font makes an undesigned agent
+   look designed). On export an empty prompt ships a TBD the runtime refuses. */
+function BehaviourTab({ agent, onEditInstructions, onReviewPrompt, reviewing, critique, onDismissFinding, onSelectFinding, t }: {
+  agent: AgentInput;
+  onEditInstructions?: (agentId: string, value: string) => void;
+  onReviewPrompt?: (agentId: string) => void;
+  reviewing?: boolean;
+  critique?: CritiqueFinding[];
+  onDismissFinding?: (f: CritiqueFinding) => void;
+  onSelectFinding?: (f: CritiqueFinding) => void;
+  t: T;
+}): React.JSX.Element {
+  return (
+    <div className="agent-tab">
+      <label className="agent-behaviour">
+        <span className="agent-behaviour-label"><Icon name="code" size={12} />{t("agentBehaviour")}</span>
+        {onEditInstructions ? (
+          <textarea
+            className="agent-behaviour-input"
+            spellCheck={false}
+            value={agent.instructions ?? ""}
+            placeholder={t("agentBehaviourPlaceholder")}
+            aria-label={t("agentBehaviour")}
+            onChange={(e) => onEditInstructions(agent.id, e.target.value)}
+          />
+        ) : (
+          <pre className="agent-behaviour-view">{agent.instructions?.trim() || ""}</pre>
+        )}
+        <span className={`agent-behaviour-note ${agent.instructions?.trim() ? "muted" : "warn"}`}>
+          {agent.instructions?.trim() ? t("agentBehaviourAuthored") : t("agentBehaviourNone")}
+        </span>
+      </label>
+
+      {onReviewPrompt && (
+        <button className="btn ghost sm agent-review-btn" onClick={() => onReviewPrompt(agent.id)} disabled={reviewing} title={t("agentReviewPromptHint")}>
+          <Icon name="sparkles" size={13} />{reviewing ? t("agentReviewPromptRunning") : t("agentReviewPrompt")}
+        </button>
+      )}
+      <AgentPromptFindings findings={critique} onDismiss={onDismissFinding} onSelect={onSelectFinding} t={t} />
+    </div>
+  );
+}
+
+// The agent's PROMPT-CRITIQUE findings (advisory, dismiss) — the same surface the per-layer AI review uses,
+// rendered per agent. undefined = not yet reviewed (nothing shown); [] = reviewed clean; >0 = advisory
+// findings against the agent's real contract. Never rewrites the prompt.
+function AgentPromptFindings({ findings, onDismiss, onSelect, t }: { findings?: CritiqueFinding[]; onDismiss?: (f: CritiqueFinding) => void; onSelect?: (f: CritiqueFinding) => void; t: T }): React.JSX.Element | null {
+  if (!findings) return null; // not reviewed → show nothing (the button is the entry point)
+  return (
+    <ul className="findings cap-findings critique-inline agent-prompt-findings">
+      <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("agentReviewPromptTitle")}</li>
+      {findings.length === 0 && <li className="muted">{t("agentReviewPromptOk")}</li>}
+      {findings.map((f) => (
+        <li key={f.id} className={f.target && onSelect ? "clickable" : ""} onClick={() => f.target && onSelect?.(f)} title={f.target && onSelect ? t("findingGoHint") : undefined}>
+          <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
+          {onDismiss && <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); onDismiss(f); }}><Icon name="x" size={13} /></button>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* ── Runs: what the agent DID ─────────────────────────────────────────────────────────────────────
+   TESTS the agent against a task and shows the run-trace. The loop runs server-side with MOCK tool
+   dispatch: nothing hits a real system, and every tool step is badged "simulated".
+
+   The recent runs (bounded — newest first) sit behind an ON-DEMAND History disclosure: pick any past run
+   to view, or open Compare to diff two of them. Nothing is shown until asked for. */
+function formatWhen(at: number, locale: string): string {
+  try { return new Date(at).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" }); } catch { return new Date(at).toLocaleString(); }
+}
+const pretty = (v: unknown): string => { try { return typeof v === "string" ? v : JSON.stringify(v, null, 2); } catch { return String(v); } };
+
+function StepView({ step, t }: { step: RunStep; t: T }): React.JSX.Element {
+  if (step.assistantText) {
+    return (
+      <div className="run-step run-assistant">
+        <div className="run-step-head"><Icon name="bot" size={13} /><span>{t("agentRunAssistant")}</span></div>
+        <p className="run-assistant-text">{step.assistantText}</p>
+      </div>
+    );
+  }
+  if (step.toolCall) {
+    return (
+      <div className="run-step run-tool">
+        <div className="run-step-head">
+          <Icon name="code" size={13} />
+          <span className="run-tool-name">{step.toolCall.name}</span>
+          {step.simulated && <span className="run-sim-badge" title={t("agentRunSimulatedHint")}>{t("agentRunSimulated")}</span>}
+        </div>
+        <div className="run-tool-io">
+          <div className="run-io-block">
+            <span className="run-io-label">{t("agentRunArgs")}</span>
+            <pre>{pretty(step.toolCall.input)}</pre>
+          </div>
+          {step.toolResult && (
+            <div className="run-io-block">
+              <span className="run-io-label">{t("agentRunResult")}</span>
+              <pre>{pretty(step.toolResult.output)}</pre>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return <></>;
+}
+
+function RunsTab({ run, locale, t }: { run: AgentRunProps; locale: string; t: T }): React.JSX.Element {
+  const { trace, history, task, onTask, onRun, busy, error, engineLabel, modelLabel } = run;
+  const [showSystem, setShowSystem] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
+  // Which run of the history is on screen (0 = latest). A fresh run resets it — see below.
+  const [viewIdx, setViewIdx] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // A fresh trace snaps back to the latest run and scrolls the steps into view.
+  useEffect(() => { if (trace) { setViewIdx(0); scrollRef.current?.scrollTo({ top: 0 }); } }, [trace]);
+
+  // The run on screen: the picked history entry, else the last trace (history is empty on a pre-history project).
+  const shown: RunTrace | undefined = history[viewIdx] ?? trace;
+  const tokens = shown ? (shown.usage?.input ?? 0) + (shown.usage?.output ?? 0) : 0;
+  const canCompare = history.length > 1;
+
+  return (
+    <div className="agent-tab agent-runs">
+      <p className="run-lead muted">{t("agentRunLead")}</p>
+
+      {engineLabel && (
+        <p className="run-engine muted" title={t("agentRunEngineHint")}>
+          <Icon name="settings" size={12} />
+          {t("agentRunEngine", { engine: engineLabel, model: modelLabel ?? "" })}
+        </p>
+      )}
+
+      <div className="run-input">
+        <label className="run-task-label" htmlFor="agent-run-task">{t("agentRunTask")}</label>
+        <textarea
+          id="agent-run-task"
+          className="run-task-input"
+          rows={2}
+          value={task}
+          placeholder={t("agentRunTaskPlaceholder")}
+          onChange={(e) => onTask(e.target.value)}
+        />
+        <button className="btn primary run-go" onClick={onRun} disabled={busy}>
+          <Icon name={busy ? "refresh" : "play"} size={14} />{busy ? t("agentRunRunning") : t("agentRunGo")}
+        </button>
+      </div>
+
+      {error && <p className="run-error" role="alert"><Icon name="info" size={13} />{error}</p>}
+
+      <div className="run-scroll" ref={scrollRef}>
+        {shown ? (
+          <>
+            {/* On-demand: the recent runs + the compare. Only offered once there IS a history to look at. */}
+            {history.length > 1 && (
+              <div className="run-history-bar">
+                <button className="run-hist-toggle" onClick={() => setShowHistory((v) => !v)} aria-expanded={showHistory}>
+                  <Icon name="clock" size={12} />{t("agentRunHistory", { n: history.length })}
+                </button>
+                {canCompare && (
+                  <button
+                    className={`run-hist-toggle${showCompare ? " on" : ""}`}
+                    onClick={() => setShowCompare((v) => !v)}
+                    aria-expanded={showCompare}
+                    title={t("runCompareHint")}
+                  >
+                    <Icon name="route" size={12} />{t("runCompare")}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {showHistory && history.length > 1 && (
+              <ul className="run-history-list">
+                {history.map((r, i) => (
+                  <li key={i}>
+                    <button
+                      className={`run-hist-item${i === viewIdx ? " on" : ""}`}
+                      onClick={() => setViewIdx(i)}
+                      aria-current={i === viewIdx}
+                    >
+                      <span className="run-hist-n">#{history.length - i}</span>
+                      <span className="run-hist-when">{formatWhen(r.at, locale)}</span>
+                      {r.model && <span className="ps-tag">{r.model}</span>}
+                      <span className="muted run-hist-meta">
+                        {r.stepCount} {t("agentRunSteps")}
+                        {typeof r.estCostUsd === "number" ? ` · $${r.estCostUsd.toFixed(4)}` : ""}
+                      </span>
+                      {i === 0 && <span className="run-hist-latest">{t("runCompareLatest")}</span>}
+                    </button>
+                  </li>
+                ))}
+                <li className="run-hist-cap muted">{t("agentRunHistoryCap", { n: AGENT_RUN_HISTORY_MAX })}</li>
+              </ul>
+            )}
+
+            {showCompare && canCompare && (
+              <RunCompare history={history} locale={locale} onClose={() => setShowCompare(false)} t={t} />
+            )}
+
+            <div className="run-totals">
+              {viewIdx > 0 && <span className="run-hist-viewing">{t("agentRunViewing", { n: history.length - viewIdx })}</span>}
+              <span className="run-total"><strong>{shown.stepCount}</strong> {t("agentRunSteps")}</span>
+              <span className="run-total"><strong>{tokens}</strong> {t("tokens")}</span>
+              {typeof shown.estCostUsd === "number" && <span className="run-total"><strong>${shown.estCostUsd.toFixed(4)}</strong></span>}
+              {shown.model && <span className="ps-tag">{shown.model}</span>}
+              <span className="run-sim-badge" title={t("agentRunSimulatedHint")}>{t("agentRunMockMode")}</span>
+              <span className="muted run-when"><Icon name="clock" size={12} />{formatWhen(shown.at, locale)}</span>
+            </div>
+
+            <section className="ps-section run-system">
+              <button className="run-system-toggle" onClick={() => setShowSystem((v) => !v)} aria-expanded={showSystem}>
+                <Icon name={showSystem ? "refresh" : "code"} size={12} />{t("agentRunSystem")}
+              </button>
+              {showSystem && <pre className="run-system-pre">{shown.system}</pre>}
+            </section>
+
+            <section className="run-steps">
+              {shown.steps.map((s, i) => <StepView key={i} step={s} t={t} />)}
+            </section>
+
+            <section className="ps-section run-final">
+              <span className="ps-label">{t("agentRunFinal")}</span>
+              <p className="run-final-text">{shown.finalText || t("agentRunNoFinal")}</p>
+            </section>
+          </>
+        ) : (
+          <p className="ps-empty muted">{t("agentRunEmpty")}</p>
+        )}
+      </div>
+    </div>
+  );
+}

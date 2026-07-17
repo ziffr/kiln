@@ -3,8 +3,6 @@
 
 import { useState } from "react";
 import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type WorkflowsDoc, type AgentsDoc, type ContextsDoc } from "@kiln/compiler";
-import type { AgentContract, ToolSchema } from "@kiln/codegen";
-import type { CritiqueFinding } from "@kiln/skills";
 import { Icon, type IconName } from "./Icon";
 import { ServiceAuthNote, type ServiceOption } from "./ServiceAuth";
 
@@ -278,177 +276,41 @@ export function WorkflowsView({
   );
 }
 
-// Agents → cards: goal + operated capabilities.
-// Agents as editable cards: each agent's behaviour (system prompt) is an AUTHORED, editable textarea —
-// empty means NOBODY HAS DESIGNED this agent yet, and the card says so plainly rather than showing a
-// generated playbook as a placeholder (which would make an undesigned agent look filled in) — plus a
-// "Test agent" affordance that opens the run-trace panel. This is the GENERATE-side gap (the diagram
-// above is the read-only relation view).
-export function AgentsView({
-  agents, caps, t, onEditInstructions, contractFor, onTest, testingId,
-  onReviewPrompt, reviewingPromptId, critiqueFor, onDismissFinding, onSelectFinding,
-}: {
+// Agents → a compact list you SCAN: name, goal, and whether it's designed yet (AG6). Everything about one
+// agent — its derived contract, its authored behaviour, its runs — lives in the AgentDetail slide-in that
+// selecting a row opens, the same way every other stage works. The list is the map, not the territory.
+export function AgentsView({ agents, selectedId, onSelect, t }: {
   agents: AgentsDoc;
-  caps: CapabilityDoc;
+  /** the selected agent's id (plain, un-prefixed). */
+  selectedId?: string | null;
+  onSelect: (agentId: string) => void;
   t: T;
-  /** persist an authored edit of the agent's behaviour (system prompt). */
-  onEditInstructions?: (agentId: string, value: string) => void;
-  /** the DERIVED contract (input · tools · output · context) — a read-only spec beside the editor. */
-  contractFor?: (agentId: string) => AgentContract | undefined;
-  /** open the test-run panel for this agent. */
-  onTest?: (agentId: string) => void;
-  /** the agent currently running a test (spinner + disabled). */
-  testingId?: string | null;
-  /** critique this agent's prompt against its contract (advisory; apply/dismiss). */
-  onReviewPrompt?: (agentId: string) => void;
-  /** the agent whose prompt is currently being reviewed (spinner + disabled). */
-  reviewingPromptId?: string | null;
-  /** the agent's prompt-critique findings — undefined = not reviewed, [] = reviewed-clean, >0 = advisory. */
-  critiqueFor?: (agentId: string) => CritiqueFinding[] | undefined;
-  /** dismiss (acknowledge) one prompt-critique finding on an agent. */
-  onDismissFinding?: (agentId: string, f: CritiqueFinding) => void;
-  /** click a finding whose target resolves → navigate to it. */
-  onSelectFinding?: (agentId: string, f: CritiqueFinding) => void;
 }): React.JSX.Element {
   if (!agents.agents.length) return <Empty msg={t("emptyAgents")} />;
   return (
-    <div className="cards agents-cards">
-      {agents.agents.map((a) => (
-        <div key={a.id} className="agent-card agent-edit-card">
-          <div className="entity-card-head">
-            <strong className="agent-title"><Icon name="bot" size={15} />{a.name || a.id}</strong>
-            <div className="agent-card-actions">
-              {onReviewPrompt && (
-                <button className="btn ghost sm agent-review-btn" onClick={() => onReviewPrompt(a.id)} disabled={reviewingPromptId === a.id} title={t("agentReviewPromptHint")}>
-                  <Icon name="sparkles" size={13} />{reviewingPromptId === a.id ? t("agentReviewPromptRunning") : t("agentReviewPrompt")}
-                </button>
-              )}
-              {onTest && (
-                <button className="btn ghost sm agent-test-btn" onClick={() => onTest(a.id)} disabled={testingId === a.id} title={t("agentTestHint")}>
-                  <Icon name="play" size={13} />{testingId === a.id ? t("agentTestRunning") : t("agentTest")}
-                </button>
-              )}
-            </div>
-          </div>
-          {a.goal && <p className="agent-goal">{a.goal}</p>}
-          <div className="agent-caps">{(a.capabilities ?? []).map((c) => <span key={c} className="wf-chip">{capName(caps, c)}</span>)}</div>
-          {critiqueFor && <AgentPromptFindings findings={critiqueFor(a.id)} onDismiss={onDismissFinding ? (f) => onDismissFinding(a.id, f) : undefined} onSelect={onSelectFinding ? (f) => onSelectFinding(a.id, f) : undefined} t={t} />}
-          {contractFor && <AgentContractPanel contract={contractFor(a.id)} t={t} />}
-          <label className="agent-behaviour">
-            <span className="agent-behaviour-label"><Icon name="code" size={12} />{t("agentBehaviour")}</span>
-            {onEditInstructions ? (
-              <textarea
-                className="agent-behaviour-input"
-                spellCheck={false}
-                value={a.instructions ?? ""}
-                placeholder={t("agentBehaviourPlaceholder")}
-                aria-label={t("agentBehaviour")}
-                onChange={(e) => onEditInstructions(a.id, e.target.value)}
-              />
-            ) : (
-              <pre className="agent-behaviour-view">{a.instructions?.trim() || ""}</pre>
-            )}
-            <span className={`agent-behaviour-note ${a.instructions?.trim() ? "muted" : "warn"}`}>{a.instructions?.trim() ? t("agentBehaviourAuthored") : t("agentBehaviourNone")}</span>
-          </label>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// The agent's PROMPT-CRITIQUE findings (advisory, apply/dismiss) — the same apply/dismiss surface the
-// per-layer AI review uses, rendered per agent. undefined = not yet reviewed (nothing shown); [] =
-// reviewed clean; >0 = advisory findings against the agent's real contract. Never rewrites the prompt.
-function AgentPromptFindings({ findings, onDismiss, onSelect, t }: { findings?: CritiqueFinding[]; onDismiss?: (f: CritiqueFinding) => void; onSelect?: (f: CritiqueFinding) => void; t: T }): React.JSX.Element | null {
-  if (!findings) return null; // not reviewed → show nothing (the button is the entry point)
-  return (
-    <ul className="findings cap-findings critique-inline agent-prompt-findings">
-      <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("agentReviewPromptTitle")}</li>
-      {findings.length === 0 && <li className="muted">{t("agentReviewPromptOk")}</li>}
-      {findings.map((f) => (
-        <li key={f.id} className={f.target && onSelect ? "clickable" : ""} onClick={() => f.target && onSelect?.(f)} title={f.target && onSelect ? t("findingGoHint") : undefined}>
-          <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
-          {onDismiss && <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); onDismiss(f); }}><Icon name="x" size={13} /></button>}
-        </li>
-      ))}
+    <ul className="agent-list">
+      {agents.agents.map((a) => {
+        const designed = Boolean(a.instructions?.trim());
+        return (
+          <li key={a.id}>
+            <button
+              className={`agent-row${selectedId === a.id ? " on" : ""}`}
+              onClick={() => onSelect(a.id)}
+              aria-current={selectedId === a.id}
+            >
+              <span className="agent-row-main">
+                <span className="agent-title"><Icon name="bot" size={14} />{a.name || a.id}</span>
+                {a.goal && <span className="agent-row-goal muted">{a.goal}</span>}
+              </span>
+              {/* AG6: no authored behaviour = an undesigned agent. An honest gap, visible without opening it. */}
+              <span className={`agent-status ${designed ? "on" : "off"}`}>
+                <Icon name={designed ? "check" : "alert"} size={11} />{designed ? t("agentDesigned") : t("agentNotDesigned")}
+              </span>
+            </button>
+          </li>
+        );
+      })}
     </ul>
-  );
-}
-
-/**
- * The named fields a contract tool TAKES, for the Tools quadrant — e.g. `find_lead · email, status` tells the
- * reader what the agent can look a record up BY, which is the whole point of a find tool (the alternative is
- * listing a table and scanning it). Reuses the ` · fields` idiom the Context quadrant already uses.
- *
- * The kind isn't in a `ToolSchema` (it's the provider-neutral shape sent to the model), so the SHAPE is the
- * discriminator — the same rule `agentToolParams` builds by: a command carries `id` among its properties, a
- * by-id read / notify declares `required`, a plain list has no properties. What's left — named, optional,
- * id-less params — is exactly the "call me with these fields" tools: `find_*` and external delegations.
- * Language-neutral (field names come from the model), so it reads the same in every locale.
- */
-function toolFields(tool: ToolSchema): string {
-  const schema = tool.input_schema as { properties?: Record<string, unknown>; required?: string[] };
-  const fields = Object.keys(schema?.properties ?? {});
-  if (!fields.length || schema.required?.length || fields.includes("id")) return "";
-  return ` · ${fields.join(", ")}`;
-}
-
-// The agent CONTRACT — a compact, READ-ONLY four-quadrant spec (input · tools · output · context) DERIVED
-// from the model (AgentsDoc + DomainDoc + TriggersDoc). It's a projection, not authored truth (golden
-// invariant #2) — the system prompt above is grounded in exactly these facts. Not editable.
-function AgentContractPanel({ contract, t }: { contract?: AgentContract; t: T }): React.JSX.Element | null {
-  if (!contract) return null;
-  const input = contract.input.triggers.map((tr) => `${tr.name} (${tr.kind})`);
-  const tools = contract.tools.map((tl) => `${tl.name}${toolFields(tl)}`);
-  const output = [
-    ...contract.output.events.map((e) => `▲ ${e}`),
-    ...contract.output.recordChanges.map((r) => `✎ ${r}`),
-  ];
-  return (
-    <div className="agent-contract" aria-label={t("agentContract")}>
-      <div className="agent-contract-head">
-        <span className="agent-contract-title"><Icon name="code" size={12} />{t("agentContract")}</span>
-        <span className="agent-contract-derived" title={t("agentContractDerivedHint")}><Icon name="lock" size={11} />{t("agentContractDerived")}</span>
-      </div>
-      <div className="agent-contract-grid">
-        <ContractQuadrant label={t("agentContractInput")} hint={t("agentContractInputHint")} items={input} empty={t("agentContractNoInput")} />
-        <ContractQuadrant label={t("agentContractTools")} hint={t("agentContractToolsHint")} items={tools} empty={t("agentContractNoTools")} />
-        <ContractQuadrant label={t("agentContractOutput")} hint={t("agentContractOutputHint")} items={output} empty={t("agentContractNoOutput")} />
-        <div className="agent-contract-cell">
-          <span className="agent-contract-cell-label">{t("agentContractContext")}</span>
-          <span className="agent-contract-cell-hint muted">{t("agentContractContextHint")}</span>
-          {contract.context.entities.length || contract.context.processes.length ? (
-            <ul className="agent-contract-list">
-              {contract.context.entities.map((e) => (
-                <li key={e.name}>
-                  <strong>{e.name}</strong>
-                  {e.attributes.length > 0 && (
-                    <span className="agent-contract-fields"> · {e.attributes.map((at) => (at.type ? `${at.name}:${at.type}` : at.name)).join(", ")}</span>
-                  )}
-                </li>
-              ))}
-              {contract.context.processes.map((p) => <li key={`proc-${p}`} className="agent-contract-proc">⟳ {p}</li>)}
-            </ul>
-          ) : (
-            <span className="agent-contract-none muted">{t("agentContractNoContext")}</span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ContractQuadrant({ label, hint, items, empty }: { label: string; hint: string; items: string[]; empty: string }): React.JSX.Element {
-  return (
-    <div className="agent-contract-cell">
-      <span className="agent-contract-cell-label">{label}</span>
-      <span className="agent-contract-cell-hint muted">{hint}</span>
-      {items.length ? (
-        <ul className="agent-contract-list">{items.map((it, i) => <li key={`${it}-${i}`}>{it}</li>)}</ul>
-      ) : (
-        <span className="agent-contract-none muted">{empty}</span>
-      )}
-    </div>
   );
 }
 

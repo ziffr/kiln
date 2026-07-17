@@ -85,6 +85,44 @@ This cap is also why querying matters: scanning a `list_` result works at 200 ro
 question directly, so it stays correct at any size.
 :::
 
+## Calling a real vendor — external service credentials
+
+An agent's **external service** tools delegate to a vendor you already pay for (a lead qualifier, a
+contract reviewer). Most real vendors need a credential, so a service can declare one:
+
+| Field | What it is |
+| --- | --- |
+| `credentialEnv` | The **name** of the environment variable holding the credential — e.g. `CRM_API_TOKEN`. |
+| `auth` | How to present it: `bearer`, `header`, `basic`, or `none` (the default). |
+| `headerName` | For `auth: "header"` — the header the vendor expects, e.g. `X-API-Key`. |
+
+The exported agent calls the vendor **directly** — there is no n8n hop. n8n stays the default orchestrator
+for workflows, but it never becomes a hard dependency of an agent's tool call.
+
+:::caution The model carries the NAME; .env carries the value
+**Never put a credential value in the model.** `model.json` is meant to be committed to git — it holds the
+env var's *name*, and the value goes in the deployed app's `.env` at deploy time. The Studio shows the
+declared credential read-only (with the variable name), and the generated `agents/.env.example` lists each
+name with the service that needs it, ready for you to fill in.
+
+Kiln rejects a model that would leak a secret:
+
+- a credential embedded in the endpoint (`https://user:pass@…`),
+- a token pasted into `credentialEnv` where a variable *name* belongs,
+- a credential attached to a plain `http://` endpoint — **a credential always requires TLS** (`localhost`
+  is exempt so you can develop against a stub),
+- `auth: "header"` with no `headerName`, or an auth scheme with no `credentialEnv` to send.
+
+A declared `credentialEnv` with `auth: "none"` is a warning — the credential would never be sent.
+:::
+
+At run time the agent reads the variable from its own environment. **If the variable is missing, the call
+fails immediately** and names the variable — it is never sent unauthenticated, because a silent 401 loop
+looks like a vendor outage instead of a setup mistake. Credential values are never logged.
+
+The LLM may **suggest** an external service, but attaching a credential to one is always a human decision —
+generation never invents a credential.
+
 ## Behaviour (the system prompt)
 
 Each agent card has an editable **Behaviour (system prompt)** field — the agent's operating instructions:
@@ -154,7 +192,8 @@ trace**:
 result is a plausible stand-in, clearly badged **simulated** / **mock mode**, and **nothing hits a real
 system**: no records are created, no emails or messages are sent, no external service is called. It's for
 seeing how the agent reasons over its tools and for tuning its behaviour before you export and wire it to
-real systems.
+real systems. A simulated external call reports whether a real run *would* have authenticated (and with
+which variable), so a green test run never implies a real, authenticated vendor call happened.
 
 ### Run history
 

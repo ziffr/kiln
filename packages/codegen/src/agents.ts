@@ -370,7 +370,43 @@ export interface AgentDef {
   processes?: { id: string; name: string; steps: string[] }[]; // agent-mode processes routed here (SPEC-009)
 }
 `,
+  // Auth for EXTERNAL (vendor) calls. Standalone + dependency-free so it can be unit-tested as-is.
+  //
+  // The credential is only ever read from the environment, by the NAME the model declared. Nothing here
+  // returns, logs, or embeds the value — the caller merges the result into request headers and drops it.
+  "src/auth.ts": `export type ExternalAuth = "bearer" | "header" | "basic" | "none";
+export interface ExternalInvoke {
+  credentialEnv?: string; // NAME of the env var holding the credential (never the value)
+  auth?: ExternalAuth;    // how to present it; omitted = "none" = send nothing
+  headerName?: string;    // for auth: "header" — the header the vendor expects (e.g. X-API-Key)
+}
+
+/**
+ * Build the auth headers for an external service call from the process environment.
+ *
+ * Fails LOUDLY when a credential is declared but absent: calling a vendor unauthenticated yields an opaque
+ * 401 loop that looks like a vendor outage, so a missing env var is a startup-shaped error naming the var.
+ * Errors name the VARIABLE, never its value.
+ */
+export function externalAuthHeaders(invoke: ExternalInvoke, env: Record<string, string | undefined> = process.env, service = "external service"): Record<string, string> {
+  const scheme: ExternalAuth = invoke.auth ?? "none";
+  if (!invoke.credentialEnv) {
+    // A scheme with no credential to present would call the vendor in the clear — refuse rather than 401.
+    if (scheme !== "none") throw new Error(service + ': auth "' + scheme + '" is declared but no credentialEnv names the variable holding the credential.');
+    return {}; // nothing declared → send nothing (the pre-auth behaviour).
+  }
+  if (scheme === "none") return {}; // declared but deliberately unsent (the model validator warns: XS6).
+  const value = env[invoke.credentialEnv];
+  if (!value) throw new Error(service + ": environment variable " + invoke.credentialEnv + " is not set, so the call would go out unauthenticated. Set it in .env (the value belongs there, never in the model).");
+  if (scheme === "bearer") return { authorization: "Bearer " + value };
+  // Basic: the variable holds "user:pass"; the wire wants it base64'd.
+  if (scheme === "basic") return { authorization: "Basic " + Buffer.from(value, "utf8").toString("base64") };
+  if (!invoke.headerName) throw new Error(service + ': auth "header" needs a headerName (the header the vendor expects, e.g. X-API-Key).');
+  return { [invoke.headerName.toLowerCase()]: value };
+}
+`,
   "src/tools.ts": `import type { AgentTool } from "./def";
+import { externalAuthHeaders, type ExternalInvoke } from "./auth";
 
 const SPINE = process.env.SPINE_URL || "http://localhost:3000";
 const API_TOKEN = process.env.API_TOKEN; // if the spine requires auth, send the same bearer token
@@ -424,9 +460,14 @@ export async function executeTool(tool: AgentTool, input: Record<string, unknown
   if (tool.kind === "external") {
     // Delegate to an EXTERNAL service (a bought qualifier/reviewer). POST the vendor endpoint. For a sync
     // service the response IS the result; for async, the vendor calls back later (see the n8n callback
-    // workflow) — here we just kick it off. TODO: add the vendor's auth + map fields per the descriptor.
+    // workflow) — here we just kick it off.
+    //
+    // The credential comes from THIS process's env, by the name the model declared (auth/credentialEnv on
+    // the descriptor) — the agent calls the vendor directly, no n8n hop. A missing var throws rather than
+    // calling out unauthenticated. Headers are built, sent, and dropped: never logged, never returned.
     const url = String(tool.invoke.url ?? "");
-    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    const headers: Record<string, string> = { "content-type": "application/json", ...externalAuthHeaders(tool.invoke as ExternalInvoke, process.env, tool.name) };
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(input) });
     const body = await res.json().catch(() => ({}));
     return { status: res.status, invocation: tool.invoke.invocation, body };
   }
@@ -625,7 +666,27 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
 export interface AgentDefaults { provider?: string; model?: string; baseUrl?: string }
 
 /** The exported agents/.env.example — leads with the engine the model was built on, then lists the rest. */
-function agentEnvExample(d?: AgentDefaults): string {
+/**
+ * The credential block for the declared external services: one commented line per distinct env var, naming
+ * the service(s) that need it. NAMES ONLY — `.env.example` is committed; the real values go in `.env`.
+ * Services that declare no credential contribute nothing (an unauthenticated vendor needs no var).
+ */
+export function externalServicesEnvExample(services?: ExternalServicesDoc): string {
+  const byVar = new Map<string, string[]>();
+  for (const s of services?.services ?? []) {
+    if (!s.credentialEnv || (s.auth ?? "none") === "none") continue;
+    byVar.set(s.credentialEnv, [...(byVar.get(s.credentialEnv) ?? []), s.name || s.id]);
+  }
+  if (!byVar.size) return "";
+  const lines = [...byVar.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([v, names]) => `${v}=            # ${names.join(", ")}`);
+  return `\n# ── External services ─────────────────────────────────────────────────────────────
+# Credentials for the vendors your agents delegate to. Each agent calls its vendor DIRECTLY with the
+# value below — set it here in .env, never in the model (model.json is committed to git).
+${lines.join("\n")}
+`;
+}
+
+function agentEnvExample(d?: AgentDefaults, services?: ExternalServicesDoc): string {
   const provider = d?.provider || "anthropic";
   const blocks: Record<string, string> = {
     anthropic: `# Anthropic native — best Claude fidelity; per-agent model/effort apply here.
@@ -657,7 +718,7 @@ SPINE_URL=http://localhost:3000
 # If the spine requires auth (its API_TOKEN is set), send the SAME token on command calls:
 # API_TOKEN=change-me
 ${note}
-${order.map((k) => blocks[k]).join("\n")}`;
+${order.map((k) => blocks[k]).join("\n")}${externalServicesEnvExample(services)}`;
 }
 
 /**
@@ -715,7 +776,9 @@ export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?
     // External services the agent can DELEGATE to (a bought qualifier/reviewer) — for the entities it owns.
     for (const s of services?.services ?? []) {
       if (!s.entity || !ownedEntities.has(s.entity)) continue;
-      tools.push({ name: slug(s.id), kind: "external", description: `Delegate to ${s.name} (${s.invocation}) — ${s.rationale ?? "external service"}`, invoke: { url: s.endpoint, invocation: s.invocation, service: s.id }, input: Object.keys(s.requestMapping ?? {}) });
+      // invoke carries the credential's env var NAME (+ scheme) so the runtime can authenticate the call.
+      // Names only — the definition JSON this lands in is committed; the value stays in the deploy's .env.
+      tools.push({ name: slug(s.id), kind: "external", description: `Delegate to ${s.name} (${s.invocation}) — ${s.rationale ?? "external service"}`, invoke: { url: s.endpoint, invocation: s.invocation, service: s.id, auth: s.auth ?? "none", credentialEnv: s.credentialEnv, headerName: s.headerName }, input: Object.keys(s.requestMapping ?? {}) });
     }
     // TRIGGERS fold: the external signals (webhook/schedule/external) ROUTED to this agent are its INPUT.
     // Match a trigger whose target is this agent (target.kind === "agent" && ref === slug(a.id)) — the same
@@ -736,7 +799,8 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
 
   const files: Record<string, string> = {};
   for (const [rel, content] of Object.entries(RUNTIME)) files[`agents/${rel}`] = content;
-  files["agents/.env.example"] = agentEnvExample(agentDefaults); // engine-aware: leads with the built-on provider
+  // engine-aware (leads with the built-on provider) + a named var per external service credential.
+  files["agents/.env.example"] = agentEnvExample(agentDefaults, services);
   for (const d of defs) {
     // definition = structure + config; behaviour = the editable markdown playbook (the "HOW"), grounded in
     // the derived contract (its input · tools · output · context) so a default prompt cites real facts.

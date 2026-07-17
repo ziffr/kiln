@@ -417,7 +417,7 @@ export { hoppscotchCollection } from "./hoppscotch.ts";
 export { agentsAdapter, resolveAgentDefs, defaultPlaybook, agentContract, agentToolParams, capReadRows, filterableFields, READ_ROW_CAP, type AgentDef, type AgentTool, type AgentToolKind, type AgentContract } from "./agents.ts";
 export { runAgentLoop, mockDispatch, buildToolSchemas, toOpenAiMessages, toOpenAiTools, type RunStep, type LoopTurn, type LoopUsage, type LoopMessage, type NextTurn, type AgentRunResult, type ToolSchema } from "./agentSim.ts";
 export { mockTriggers, triggersAdapter, type TriggersDoc, type TriggerInput, type TriggerSource, type TriggerTarget, type TriggerTargetKind } from "./triggers.ts";
-export { mockExternalServices, externalServicesAdapter, type ExternalServicesDoc, type ExternalServiceInput, type ServiceKind, type ServiceInvocation, type ServiceResultTarget } from "./services.ts";
+export { mockExternalServices, externalServicesAdapter, validateExternalServices, type ExternalServicesDoc, type ExternalServiceInput, type ServiceKind, type ServiceInvocation, type ServiceResultTarget, type ServiceAuth } from "./services.ts";
 export { migrate, migratePostgres, type MigrationResult, type BreakingChange, type Dialect } from "./migrate.ts";
 export { diffModels, type ModelDiff, type LayerDiff, type DiffChange, type DiffModel } from "./modelDiff.ts";
 export { assembleFullStack, type FullStackInput } from "./fullstack.ts";

@@ -224,9 +224,15 @@ const CONFIGS: Record<LayerKind, LayerConfig> = {
       const matrix = coverageMatrix(m);
       const agentCaps = new Set((m.agents?.agents ?? []).flatMap((a) => a.capabilities ?? []));
       const roleCaps = new Set((m.roles?.roles ?? []).flatMap((r) => r.capabilities ?? []));
+      // A cell is shown as "mock" when it's covered ONLY by blanket scaffolding (or an undesigned-agent
+      // owner) — structurally present but not really generated. Lets the reviewer flag "nothing built here".
+      const cell = (present: boolean, prov: "none" | "mock" | "real", yes = "y", no = "NO"): string =>
+        present ? (prov === "mock" ? "mock" : yes) : no;
+      const anyMock = matrix.some((c) => c.entityProv === "mock" || c.behaviourProv === "mock" || c.ownerProv === "mock");
       return [
-        "# Whole-model coverage (capability → which layers touch it)",
-        ...matrix.map((c) => `- ${c.id} (${c.name}): entity=${c.entity ? "y" : "NO"} behaviour=${c.behaviour ? "y" : "?"} role=${roleCaps.has(c.id) ? "y" : "NO"} agent=${agentCaps.has(c.id) ? "y" : "-"}`),
+        "# Whole-model coverage (capability → which layers touch it; 'mock' = only blanket scaffolding, not really generated yet)",
+        ...matrix.map((c) => `- ${c.id} (${c.name}): entity=${cell(c.entity, c.entityProv)} behaviour=${cell(c.behaviour, c.behaviourProv, "y", "?")} owner=${cell(c.owner, c.ownerProv)} [role=${roleCaps.has(c.id) ? "y" : "-"} agent=${agentCaps.has(c.id) ? "y" : "-"}]`),
+        ...(anyMock ? ["", "NOTE: cells marked 'mock' are still placeholder scaffolding — flag capabilities that have not actually been generated."] : []),
         "",
         `# Layer sizes: ${(m.domain?.aggregates ?? []).length} entities · ${(m.domain?.commands ?? []).length} commands · ${(m.domain?.events ?? []).length} events · ${(m.domain?.policies ?? []).length} automations · ${(m.roles?.roles ?? []).length} roles · ${(m.workflows?.workflows ?? []).length} workflows · ${(m.agents?.agents ?? []).length} agents`,
         "# Areas: " + ((m.contexts?.contexts ?? []).map((a) => `${a.name}[${(a.capabilities ?? []).length}]`).join(", ") || "none"),

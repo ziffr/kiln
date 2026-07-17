@@ -32,14 +32,24 @@ can look fine while the **whole model doesn't hang together** — a capability w
 behaviour behind it, an entity nothing operates, a dangling reference between layers. Before you can
 export, Kiln runs a final coherence check and **gates export on it**.
 
-The card shows a deterministic **coherence score** (the share of capabilities whose chain is complete —
-an entity, behaviour, and a role or agent that owns it) plus a per-column count. Export unlocks only when:
+The card shows two deterministic headline scores side by side: a **coherence score** (the share of
+capabilities whose chain is complete — an entity, behaviour, and a role or agent that owns it) and a
+**generated score** (the share whose whole chain is *really generated*, not just placeholder scaffolding).
+The gap between them is the point: a brand-new model where every layer is still the default mock
+scaffolding is **structurally coherent** (100% coherence) yet **0% generated** — it looks wired up, but
+nothing has actually been generated for it yet. Export unlocks only when:
 
 - **No broken chains.** A capability missing its entity or its behaviour is a hard break (nothing operates
   it) — listed by name, and it **blocks export** until you fix the model. Dangling/orphan references
   across layers block it too.
 - **Soft gaps acknowledged.** A capability that *is* operated but has no role or agent owner is a soft
   gap — it doesn't block, but you must tick **"I've reviewed the whole-model coherence"** to proceed.
+- **Mock scaffolding acknowledged.** A capability that is structurally covered but only by blanket mock
+  scaffolding — or owned only by an agent whose behaviour hasn't been designed yet — is flagged as *still
+  scaffolding, not really generated*. This doesn't hard-block either, but you must tick **"I understand I'm
+  exporting scaffolding rather than generated content"** — the honest choice being to run **Generate** on
+  the affected layers first. (An agent counts as a real owner only once it has authored behaviour, so an
+  undesigned agent no longer silently passes as coverage.)
 - **The whole-model review has run.** Click **Run whole-model review** and an AI reviewer reads every
   layer together and reports whether they tell one coherent story. It's required at least once. Its
   findings are advisory — they don't hard-block — but any **concern** it raises must be **acknowledged**

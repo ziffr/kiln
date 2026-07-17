@@ -733,9 +733,12 @@ textarea {
 .coherence-card { border-left: 3px solid var(--warn-fg); }
 .coherence-card.coherence-ok { border-left-color: var(--ok-fg); }
 .coherence-headline { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--fg); }
+.coherence-headline.coherence-generated { margin-left: 10px; font-weight: 500; color: var(--muted); }
 .coherence-counts { margin: 0; padding: 2px 12px 6px; font-size: 12px; }
 .coherence-breaks, .coherence-soft { padding: 2px 12px 4px; }
 .coherence-breaks > strong, .coherence-soft > strong { display: block; font-size: 12px; margin: 4px 0; }
+.coherence-scaffold { border-left: 2px solid var(--warn-fg); margin: 4px 12px; padding-left: 10px; }
+.coherence-scaffold > strong { color: var(--warn-fg); }
 .coherence-ack { display: flex; gap: 8px; align-items: baseline; cursor: pointer; font-size: 13px; padding: 4px 0; }
 .coherence-review { display: flex; align-items: center; gap: 8px; padding: 8px 12px; flex-wrap: wrap; }
 .coherence-req { font-size: 12px; }

@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the repository level (see
 [RELEASING.md](RELEASING.md)).
 
+## [0.8.0](https://github.com/ziffr/kiln/compare/v0.7.0...v0.8.0) (2026-07-17)
+
+
+### Features
+
+* **web:** gate export on whole-model coherence check ([#63](https://github.com/ziffr/kiln/issues/63)) ([928f2df](https://github.com/ziffr/kiln/commit/928f2dfdd4f88caa068f7e95210d21c388f57901))
+
+
+### Bug Fixes
+
+* **skills:** mock generators stamp origin:"mock" not "llm" (honest provenance signal) ([#62](https://github.com/ziffr/kiln/issues/62)) ([8ce5f4c](https://github.com/ziffr/kiln/commit/8ce5f4cb2adb3199f353853553829e8ffb61044c))
+
+
+### Documentation
+
+* add "How Kiln builds a model" concept page ([#64](https://github.com/ziffr/kiln/issues/64)) ([063355c](https://github.com/ziffr/kiln/commit/063355c8f8ae77a4f6397a3b627284161bc83695))
+
 ## [0.7.0](https://github.com/ziffr/kiln/compare/v0.6.0...v0.7.0) (2026-07-17)
 
 

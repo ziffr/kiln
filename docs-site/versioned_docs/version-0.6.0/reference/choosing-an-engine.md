@@ -7,7 +7,7 @@ title: Choosing an AI engine
 
 Kiln uses an AI model to turn your description into a business model. **Anthropic's Claude is the
 default and recommended engine** — it has the strongest support for the structured output and
-"thinking effort" Kiln relies on. Because Kiln is open source, you can also point it at other engines.
+"thinking effort" Kiln relies on. Kiln is engine-agnostic, so you can also point it at other engines.
 
 ## Available engines
 

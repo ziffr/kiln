@@ -52,8 +52,11 @@ test("resolveConnectorAuth fetches a fresh token from Nango and returns it as an
   assert.deepEqual(auth, { authorization: "Bearer ya29.PROVIDER_TOKEN" });
   // the request went to the self-hosted Nango connection API, carrying the SECRET (server-side only).
   assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /^http:\/\/localhost:3003\/connection\/conn_opaque_42\?/);
+  // §3.4 — the PLURAL, non-deprecated endpoint with force_refresh (NOT the deprecated singular /connection/{id}).
+  assert.match(calls[0].url, /^http:\/\/localhost:3003\/connections\/conn_opaque_42\?/);
+  assert.doesNotMatch(calls[0].url, /\/connection\/conn_opaque_42/);
   assert.match(calls[0].url, /provider_config_key=google-sheets/);
+  assert.match(calls[0].url, /force_refresh=true/);
   assert.equal(calls[0].secret, "Bearer nango-secret-XYZ");
 });
 

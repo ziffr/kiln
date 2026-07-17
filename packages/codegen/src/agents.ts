@@ -712,7 +712,9 @@ export async function resolveConnectorAuth(connectionRef: string): Promise<Conne
   if (!connectionRef) throw new Error("this connector grant has no connectionRef — connect a live account first (a grant with no connection is not runnable).");
   const host = (process.env.NANGO_HOST || "https://api.nango.dev").replace(/\\/+$/, "");
   const providerConfigKey = process.env.NANGO_PROVIDER_CONFIG_KEY || "google-sheets";
-  const url = host + "/connection/" + encodeURIComponent(connectionRef) + "?provider_config_key=" + encodeURIComponent(providerConfigKey) + "&refresh_token=true";
+  // The PLURAL, non-deprecated connection endpoint; force_refresh returns a freshly-minted token (the
+  // singular /connection/{id} is deprecated — PLAN-013 §5).
+  const url = host + "/connections/" + encodeURIComponent(connectionRef) + "?provider_config_key=" + encodeURIComponent(providerConfigKey) + "&force_refresh=true";
   // The SECRET goes ONLY to Nango over this server-side call — never returned to the agent loop.
   const res = await fetch(url, { headers: { authorization: "Bearer " + secret } });
   if (!res.ok) throw new Error("Nango connection lookup failed (" + res.status + ") — check NANGO_HOST / NANGO_SECRET_KEY / NANGO_PROVIDER_CONFIG_KEY and that the connection is live.");
@@ -720,6 +722,43 @@ export async function resolveConnectorAuth(connectionRef: string): Promise<Conne
   const token = data?.credentials?.access_token ?? data?.credentials?.raw?.access_token;
   if (!token) throw new Error("Nango returned no access token for this connection (is the live account still connected and authorized?).");
   return { authorization: "Bearer " + token };
+}
+
+// SPEC-013 Phase B3 — the SELF-SUFFICIENT connect broker. The generated Connect panel (served by
+// server.ts) calls these so a deployer can point THIS app at any Nango and connect an account there —
+// without returning to Studio. The SECRET goes ONLY to Nango, server-side; the browser gets ONLY a
+// short-lived session token / a non-secret status. Mirrors the Studio broker (apps/service/connectors.ts).
+export interface ConnectSession { token: string; expiresAt?: string; connectLink?: string; }
+
+export async function mintConnectSession(input: { integrationId?: string; endUserId?: string } = {}): Promise<ConnectSession> {
+  const secret = process.env.NANGO_SECRET_KEY;
+  if (!secret) throw new Error("NANGO_SECRET_KEY is not set — cannot mint a Connect session. Set it in .env (server-side only; it must never reach the browser).");
+  const host = (process.env.NANGO_HOST || "https://api.nango.dev").replace(/\\/+$/, "");
+  const providerConfigKey = input.integrationId || process.env.NANGO_PROVIDER_CONFIG_KEY || "google-sheets";
+  const res = await fetch(host + "/connect/sessions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer " + secret },
+    body: JSON.stringify({ end_user: { id: input.endUserId || "kiln-app" }, allowed_integrations: [providerConfigKey] }),
+  });
+  if (!res.ok) throw new Error("Nango Connect session request failed (" + res.status + "). Check NANGO_HOST / NANGO_SECRET_KEY and that integration '" + providerConfigKey + "' exists.");
+  const data = (await res.json().catch(() => ({}))) as { data?: { token?: string; expires_at?: string; connect_link?: string } };
+  const token = data?.data?.token;
+  if (!token) throw new Error("Nango returned no Connect session token.");
+  return { token, expiresAt: data?.data?.expires_at, connectLink: data?.data?.connect_link }; // NEVER the secret
+}
+
+export async function listConnections(input: { integrationId?: string } = {}): Promise<{ connections: { connectionId: string; provider: string; connected: boolean }[] }> {
+  const secret = process.env.NANGO_SECRET_KEY;
+  if (!secret) throw new Error("NANGO_SECRET_KEY is not set — cannot list connections. Set it in .env (server-side only).");
+  const host = (process.env.NANGO_HOST || "https://api.nango.dev").replace(/\\/+$/, "");
+  const providerConfigKey = input.integrationId || process.env.NANGO_PROVIDER_CONFIG_KEY;
+  // The PLURAL, non-deprecated list endpoint (the singular /connection is deprecated — PLAN-013 §5).
+  const qs = providerConfigKey ? "?provider_config_key=" + encodeURIComponent(providerConfigKey) : "";
+  const res = await fetch(host + "/connections" + qs, { headers: { authorization: "Bearer " + secret } });
+  if (!res.ok) throw new Error("Nango connection list failed (" + res.status + ").");
+  const data = (await res.json().catch(() => ({}))) as { connections?: { connection_id?: string; provider_config_key?: string; provider?: string }[] };
+  // Project ONLY the non-secret fields — never the credentials block Nango may include.
+  return { connections: (data.connections ?? []).map((c) => ({ connectionId: String(c.connection_id ?? ""), provider: String(c.provider_config_key ?? c.provider ?? ""), connected: true })) };
 }
 
 // SEC4 — the human-confirmation seam. DEFAULT is DENY: a headless run must never silently perform a write.
@@ -817,14 +856,122 @@ function toolsWithConnectors(): string {
   );
 }
 
+/**
+ * SPEC-013 Phase B3 — the minimal "Connect account" panel served by the generated agents service at
+ * `/connect`. Dependency-free (no @nangohq/frontend, no bundler): it mints a session server-side, opens
+ * Nango's HOSTED Connect UI (the `connectLink` from the session) to run OAuth, and polls readiness. This is
+ * what lets an EXPORTED app point at ANY Nango and connect an account there — the secret stays server-side
+ * (the page only ever receives a session token + a non-secret status). Kept intentionally minimal (connect
+ * + status), not the Studio's full grant/scope richness.
+ */
+const CONNECT_PANEL_HTML = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connect an account</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.3rem; } code { background: rgba(127,127,127,.16); padding: .1em .35em; border-radius: 4px; }
+  .card { border: 1px solid rgba(127,127,127,.3); border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  button { font: inherit; padding: .5rem .9rem; border-radius: 8px; border: 1px solid rgba(127,127,127,.4); cursor: pointer; background: #2563eb; color: #fff; border-color: #2563eb; }
+  button:disabled { opacity: .5; cursor: default; }
+  .muted { opacity: .7; font-size: .9rem; } .ok { color: #16a34a; } .warn { color: #b45309; } .err { color: #dc2626; }
+  ul { padding-left: 1.1rem; } li { margin: .2rem 0; }
+</style></head>
+<body>
+  <h1>Connect an account</h1>
+  <p class="muted">This app brokers agent OAuth through <b>Nango</b>. It connects to whichever Nango you point it at
+  via <code>NANGO_HOST</code> + <code>NANGO_SECRET_KEY</code> — the secret stays on the server; your browser only
+  ever gets a short-lived session token.</p>
+  <div class="card" id="statusCard"><span class="muted">Checking Nango configuration…</span></div>
+  <button id="connectBtn" disabled>Connect account</button>
+  <p class="muted" id="hint"></p>
+<script>
+(function () {
+  var statusCard = document.getElementById("statusCard");
+  var btn = document.getElementById("connectBtn");
+  var hint = document.getElementById("hint");
+  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]; }); }
+  function renderStatus(s) {
+    if (!s.ready) { statusCard.innerHTML = '<span class="warn">Nango is not configured on the server.</span><p class="muted">Set <code>NANGO_SECRET_KEY</code> (and <code>NANGO_HOST</code>) in the agents service .env, then reload.</p>'; btn.disabled = true; return; }
+    var conns = s.connections || [];
+    var body = '<div><b>Nango:</b> <code>' + esc(s.host || "") + '</code></div>';
+    if (conns.length) {
+      body += '<p class="ok">' + conns.length + ' connected account' + (conns.length === 1 ? "" : "s") + ':</p><ul>';
+      for (var i = 0; i < conns.length; i++) body += '<li><code>' + esc(conns[i].connectionId) + '</code> — ' + esc(conns[i].provider) + '</li>';
+      body += '</ul>';
+    } else { body += '<p class="muted">No accounts connected yet.</p>'; }
+    statusCard.innerHTML = body; btn.disabled = false;
+  }
+  function refresh() { fetch("connect/status").then(function (r) { return r.json(); }).then(renderStatus).catch(function () { statusCard.innerHTML = '<span class="err">Could not reach the connect status endpoint.</span>'; }); }
+  btn.addEventListener("click", function () {
+    btn.disabled = true; hint.textContent = "Minting a Connect session…";
+    fetch("connect/session", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { hint.innerHTML = '<span class="err">' + esc(res.j && res.j.error || "session failed") + '</span>'; btn.disabled = false; return; }
+        if (res.j.connectLink) { window.open(res.j.connectLink, "nango-connect", "width=500,height=700"); hint.textContent = "Complete the OAuth in the popup, then this list refreshes."; }
+        else { hint.innerHTML = 'Session minted (token starts <code>' + esc(String(res.j.token).slice(0, 6)) + '…</code>). Your Nango returned no hosted connect link — run the flow with Nango\\'s frontend SDK.'; }
+        var tries = 0; var poll = setInterval(function () { tries++; if (tries > 40) { clearInterval(poll); return; } refresh(); }, 3000);
+        btn.disabled = false;
+      })
+      .catch(function () { hint.innerHTML = '<span class="err">Could not mint a session.</span>'; btn.disabled = false; });
+  });
+  refresh();
+})();
+</script>
+</body></html>`;
+
+/**
+ * The connector-aware `agents/src/server.ts` — the base HTTP server with the `/connect` panel + its two
+ * broker routes (session mint + status) spliced in. Anchor-replace like `toolsWithConnectors`, so the
+ * no-connector path returns the base bytes verbatim (byte-identity). Only used when a connector is granted.
+ */
+function serverWithConnectors(): string {
+  const base = RUNTIME["src/server.ts"];
+  const withImport = base.replace(
+    'import { runAgent, agentExists } from "./run";',
+    'import { runAgent, agentExists } from "./run";\nimport { mintConnectSession, listConnections } from "./nango";',
+  );
+  const panel = "const CONNECT_PANEL = " + JSON.stringify(CONNECT_PANEL_HTML) + ";";
+  return withImport.replace(
+    "const port = Number(process.env.AGENT_PORT || 3100);",
+    `${panel}
+
+// SPEC-013 Phase B3 — the self-sufficient Connect panel + broker. The panel is dependency-free; the two
+// routes keep NANGO_SECRET_KEY server-side (the browser gets only a session token / a non-secret status).
+app.get("/connect", (_req, res) => { res.type("html").send(CONNECT_PANEL); });
+
+app.get("/connect/status", async (_req, res) => {
+  const ready = !!process.env.NANGO_SECRET_KEY;
+  const host = process.env.NANGO_HOST || "https://api.nango.dev";
+  if (!ready) { res.json({ ready: false, host, connections: [] }); return; }
+  try { res.json({ ready: true, host, ...(await listConnections({})) }); }
+  catch (e: unknown) { res.json({ ready: true, host, connections: [], error: e instanceof Error ? e.message : String(e) }); }
+});
+
+app.post("/connect/session", async (req, res) => {
+  const body = (req.body ?? {}) as { integrationId?: string; endUserId?: string };
+  try { res.json(await mintConnectSession(body)); } // { token, expiresAt, connectLink } — NEVER the secret
+  catch (e: unknown) { res.status(503).json({ error: e instanceof Error ? e.message : String(e) }); }
+});
+
+const port = Number(process.env.AGENT_PORT || 3100);`,
+  ).replace(
+    'console.log("agent runner on :" + port + "  (POST /run { agent, task })"); });',
+    'console.log("agent runner on :" + port + "  (POST /run { agent, task }; GET /connect to connect an account)"); });',
+  );
+}
+
 // SPEC-013 — the Nango broker vars, appended to .env.example ONLY when a connector is granted. NAMES ONLY:
 // the SECRET's value lives in .env (gitignored), never in the committed model. Self-host NANGO_HOST (SEC7).
 const CONNECTOR_ENV_EXAMPLE = `
 # ── Connectors (Nango — brokered OAuth for agent tools) ────────────────────────────────────────────
 # An agent is granted a connector (e.g. Google Sheets). The runtime resolves a FRESH provider token from
 # Nango at call time — the secret is server-side only, the token is ephemeral (never persisted or logged).
+# Point at whichever Nango you choose — Cloud, an existing instance, or a local one (kiln.sh nango:up). To
+# connect an account without going back to Studio, run 'pnpm serve' and open http://localhost:3100/connect.
 NANGO_SECRET_KEY=                 # your Nango SECRET key (server-side only — NEVER ship to a browser/model)
-NANGO_HOST=https://api.nango.dev  # self-host recommended (e.g. http://localhost:3003) — see the docs
+NANGO_HOST=https://api.nango.dev  # or http://localhost:3003 for a local/co-located Nango — see the docs
 NANGO_PROVIDER_CONFIG_KEY=google-sheets  # the Nango integration id whose OAuth scopes back the connection
 # GOOGLE_SHEETS_SPREADSHEET_ID=   # optional default spreadsheet id if an op doesn't pass one
 `;
@@ -1001,6 +1148,9 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
     files["agents/src/nango.ts"] = NANGO_TS;
     files["agents/src/connectors.ts"] = connectors!;
     files["agents/src/tools.ts"] = toolsWithConnectors();
+    // Phase B3 — the self-sufficient Connect panel + broker routes, so the exported app can point at any
+    // Nango and connect an account there without returning to Studio (secret stays server-side).
+    files["agents/src/server.ts"] = serverWithConnectors();
   }
   // engine-aware (leads with the built-on provider) + a named var per external service credential + (when a
   // connector is granted) the Nango broker vars (names only — the real secret stays in .env, never the model).
@@ -1065,6 +1215,27 @@ The loop (\`src/providers/*\`) gives the LLM the goal + tools and executes each 
 command tools POST the spine (which persists + emits events); \`notify\`/comm tools call your integration
 (logged by default — wire them up). Agent-vs-workflow: an **agent** when the path is open-ended /
 judgement-heavy; a **workflow** when the steps are fixed.
+`;
+  if (hasConnectors)
+    files["agents/README.md"] += `
+## Connectors (Nango) — connect an account from this app
+
+An agent here is granted a **connector** (a typed tool onto a real system, e.g. Google Sheets). At call
+time the runtime resolves a FRESH OAuth token from **Nango** and drops it — the token is never stored or
+logged, and \`NANGO_SECRET_KEY\` stays server-side (never reaches a browser or the model).
+
+You choose which Nango this app uses — all three are equal, none is required:
+- **Nango Cloud** — set \`NANGO_HOST=https://api.nango.dev\` + \`NANGO_SECRET_KEY\`.
+- **An existing Nango** — point \`NANGO_HOST\` at your instance.
+- **A local one** — \`./kiln.sh nango:up\` in the Kiln repo, or the co-located \`nango\` compose profile
+  (\`docker compose --profile nango up -d\`, then \`NANGO_HOST=http://nango-server:3003\`).
+
+**Connect an account without going back to Studio:** run the service (\`pnpm serve\`) and open
+**http://localhost:3100/connect** — a minimal panel that mints a Connect session server-side, opens Nango's
+hosted OAuth flow, and shows which accounts are live. See \`.env.example\` for the \`NANGO_*\` vars.
+
+**Writes are gated:** an op whose kind is \`write\`/\`send\`/\`delete\` will not run autonomously — the runtime
+routes it for human approval (wire \`requestApproval\` in \`src/nango.ts\`) unless the grant is marked autonomous.
 `;
   return files;
 }

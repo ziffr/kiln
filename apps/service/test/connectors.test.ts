@@ -37,18 +37,24 @@ test("mintConnectSession fails loudly (ConnectorConfigError) when NANGO_SECRET_K
 });
 
 test("listConnections returns NON-SECRET status only — no token, no credentials block", async () => {
-  const mockFetch = (async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({
-      connections: [
-        // Nango may include a credentials block — the broker must NOT pass it through.
-        { connection_id: "conn_opaque_1", provider_config_key: "google-sheets", provider: "google-sheets", credentials: { access_token: "ya29.LEAK" } },
-      ],
-    }),
-  })) as unknown as typeof fetch;
+  const seen: string[] = [];
+  const mockFetch = (async (url: string) => {
+    seen.push(String(url));
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        connections: [
+          // Nango may include a credentials block — the broker must NOT pass it through.
+          { connection_id: "conn_opaque_1", provider_config_key: "google-sheets", provider: "google-sheets", credentials: { access_token: "ya29.LEAK" } },
+        ],
+      }),
+    };
+  }) as unknown as typeof fetch;
 
   const out = await listConnections({ integrationId: "google-sheets" }, { env: ENV, fetch: mockFetch });
+  // §3.4 — the PLURAL, non-deprecated list endpoint (not the deprecated singular /connection).
+  assert.match(seen[0], /\/connections\?provider_config_key=google-sheets$/);
   assert.deepEqual(out, { connections: [{ connectionId: "conn_opaque_1", provider: "google-sheets", connected: true }] });
   const serialized = JSON.stringify(out);
   assert.doesNotMatch(serialized, /ya29\.LEAK/, "a provider token must never appear in the connection status");

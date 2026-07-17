@@ -26,6 +26,23 @@ self-host.
 - **The generated agent runtime** resolves a fresh token from Nango at call time, calls Google Sheets
   directly, and drops the token. The token is never written to disk, your model, or the logs.
 
+## Choose your Nango
+
+The Nango instance is a **runtime binding you choose** — you point Kiln (and any app it generates) at it
+with two variables, `NANGO_HOST` + `NANGO_SECRET_KEY`. There are **three equal options**; none is
+privileged, and **self-hosting is never required**:
+
+1. **Nango Cloud** — nothing to run. Use `NANGO_HOST=https://api.nango.dev` and the secret key from your
+   Nango Cloud environment.
+2. **An existing Nango** — your company already runs one. Point `NANGO_HOST` at it and use its secret key.
+3. **A local Nango (optional helper)** — for developing connectors on your machine, Kiln ships a
+   convenience: `./kiln.sh nango:up`. It boots a local Nango with docker compose, generates the required
+   `NANGO_ENCRYPTION_KEY`, and prints the next steps. `./kiln.sh nango:down` stops it. This is a
+   convenience only — Cloud or an existing instance work identically.
+
+Whichever you choose, the setup is the same shape: **configure the Google integration in Nango → set the
+`NANGO_*` variables → grant + connect → run.**
+
 ## Setup
 
 Connectors are only needed when an agent is actually granted one. Set these on the **server** (your
@@ -34,7 +51,7 @@ Connectors are only needed when an agent is actually granted one. Set these on t
 | Variable | What it is |
 | --- | --- |
 | `NANGO_SECRET_KEY` | Your Nango **secret** key. Server-side only. |
-| `NANGO_HOST` | Your Nango instance. Defaults to `https://api.nango.dev`; **self-hosting is recommended**. |
+| `NANGO_HOST` | The Nango you chose (above). Defaults to `https://api.nango.dev`; a local helper serves `http://localhost:3003`. |
 | `NANGO_PROVIDER_CONFIG_KEY` | The Nango integration id whose OAuth scopes back the connection (e.g. `google-sheets`). |
 
 In Nango, create a **Google Sheets integration** and note its integration id. Kiln recommends one
@@ -43,9 +60,11 @@ the scopes its granted operations need.
 
 ### Self-hosting posture
 
-Nango becomes a point of trust concentration: it holds every connected account's tokens. Running your
-**own** Nango instance (`NANGO_HOST`) keeps those tokens inside your infrastructure. Kiln talks to
-Nango's REST API with a plain `fetch` (no SDK), so the generated app stays dependency-light.
+Nango is a point of trust concentration: it holds every connected account's tokens. Running your **own**
+Nango instance keeps those tokens inside your infrastructure — that's why the local helper exists — but
+it's a posture you *may* choose, not one Kiln forces. Kiln talks to Nango's REST API with a plain `fetch`
+(no SDK), so the generated app stays dependency-light. Prefer a **scoped** secret key (least privilege)
+where your Nango supports it.
 
 ## The secret never reaches the browser
 
@@ -58,6 +77,31 @@ This is a hard rule (Kiln's golden invariant #3). The browser calls Kiln's serve
 
 On a keyed hosted instance these routes require the studio passphrase (`KILN_STUDIO_TOKEN`), exactly
 like the other API routes.
+
+Under the hood, the session route calls Nango's `POST /connect/sessions`, and readiness/token lookups use
+Nango's **plural** connection endpoints (`GET /connections`, `GET /connections/{id}?...&force_refresh`) —
+the current, non-deprecated API.
+
+## In an exported app: connect an account without Studio
+
+An app Kiln generates is **self-sufficient**: you can point it at *any* Nango and connect an account there
+without coming back to Studio. The export references an **external** Nango (it does not bundle its own) —
+you choose which one exactly as above, by setting `NANGO_*` in the app's environment.
+
+- **The variables.** The generated `.env.example` includes the `NANGO_*` block (names only — the secret's
+  value goes in your `.env`, never the committed model). The generated `docker-compose.yml` and README
+  point you at them.
+- **The Connect panel.** Run the agents service (`cd agents && pnpm serve`) and open
+  **`http://localhost:3100/connect`**. It mints a Nango Connect session **on the server** (the browser only
+  ever receives a short-lived token), opens Nango's hosted OAuth flow, and shows which accounts are live —
+  the same server-mediated pattern as the Studio, minimized to *connect + status*.
+- **An optional co-located Nango.** If you want an all-in-one box, the generated compose file carries an
+  opt-in `nango` profile: `docker compose --profile nango up -d`, then set `NANGO_HOST=http://nango-server:3003`.
+  It is **off by default** — the app reaches whichever external Nango you configure. (Set `NANGO_ENCRYPTION_KEY`,
+  a base64 32-byte value, for the co-located instance.)
+
+The secret stays server-side in every one of these paths (golden invariant #3): the app's own backend holds
+`NANGO_SECRET_KEY` and brokers the calls, exactly like the Studio service does.
 
 ## Granting a connector in the Studio
 

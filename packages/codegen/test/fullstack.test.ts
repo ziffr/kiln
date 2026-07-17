@@ -70,3 +70,36 @@ test("assembleFullStack --sqlite → single-container store (sqlite schema, no a
   assert.ok(!("postgres/schema.sql" in files), "no postgres schema in sqlite mode");
   assert.ok(files["docker-compose.yml"].includes("sqlitedata"), "single-container compose uses a sqlite data volume");
 });
+
+// ── SPEC-013 Phase B3 — export chooses its Nango (env binding) + optional co-located compose profile ──
+
+const B3_CAPS = { domain: "Solar", capabilities: [{ id: "leads", name: "Lead Management", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
+const B3_DOMAIN = {
+  aggregates: [{ id: "lead", name: "Lead", owner: "leads", attributes: [{ name: "email", type: "text" }], references: [] }],
+  commands: [{ id: "capture_lead", name: "Capture Lead", aggregate: "lead", emits: ["lead_captured"] }],
+  events: [{ id: "lead_captured", name: "Lead Captured", aggregate: "lead", trigger: "command" }],
+} as unknown as DomainDoc;
+const B3_TOOLS = { version: "0.1", tools: [{ id: "spreadsheet", name: "Spreadsheet", providerLabel: "Google Sheets", operations: [{ name: "read_range", kind: "read", input: [], output: [] }], meta: { origin: "authored" } }] };
+const B3_GRANTED = { agents: [{ id: "lead_agent", name: "Lead Agent", capabilities: ["leads"], goal: "Qualify leads", grants: [{ toolId: "spreadsheet", operations: ["read_range"], connectionRef: "conn_x" }] }] } as unknown as AgentsDoc;
+const B3_UNGRANTED = { agents: [{ id: "lead_agent", name: "Lead Agent", capabilities: ["leads"], goal: "Qualify leads" }] } as unknown as AgentsDoc;
+
+test("granted connector → .env.example threads external NANGO_* + compose has an OPT-IN co-located Nango profile", () => {
+  const { files } = assembleFullStack({ capabilities: B3_CAPS, domain: B3_DOMAIN, agents: B3_GRANTED, tools: B3_TOOLS as never, binding: DEFAULT_BINDING, dialect: "postgres", modelPath: "model.json" });
+  // (a) the root .env.example threads the (external) Nango binding — names only, no baked secret.
+  assert.match(files[".env.example"], /NANGO_SECRET_KEY=/);
+  assert.match(files[".env.example"], /NANGO_HOST=https:\/\/api\.nango\.dev/);
+  assert.match(files[".env.example"], /localhost:3100\/connect/); // points the deployer at the self-sufficient panel
+  // (b) the co-located Nango is an OPT-IN compose profile — present, but gated so it does NOT start by default.
+  assert.match(files["docker-compose.yml"], /nango-server:/);
+  assert.match(files["docker-compose.yml"], /profiles: \["nango"\]/);
+  assert.match(files["docker-compose.yml"], /nangodb: \{\}/); // its volume is declared
+});
+
+test("no connector granted → compose/.env are byte-identical to the connectorless export (no Nango threading)", () => {
+  const withUnreferenced = assembleFullStack({ capabilities: B3_CAPS, domain: B3_DOMAIN, agents: B3_UNGRANTED, tools: B3_TOOLS as never, binding: DEFAULT_BINDING, dialect: "postgres", modelPath: "model.json" }).files;
+  const withNoTools = assembleFullStack({ capabilities: B3_CAPS, domain: B3_DOMAIN, agents: B3_UNGRANTED, binding: DEFAULT_BINDING, dialect: "postgres", modelPath: "model.json" }).files;
+  assert.equal(withUnreferenced["docker-compose.yml"], withNoTools["docker-compose.yml"]);
+  assert.equal(withUnreferenced[".env.example"], withNoTools[".env.example"]);
+  assert.doesNotMatch(withUnreferenced["docker-compose.yml"], /nango-server/, "no Nango profile when nothing is granted");
+  assert.doesNotMatch(withUnreferenced[".env.example"], /NANGO_SECRET_KEY/, "no Nango vars when nothing is granted");
+});

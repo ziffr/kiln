@@ -82,6 +82,15 @@ ${B}Alternative AI engines${N}   (optional — Anthropic is the default; OpenRou
   ${C}omniroute:up${N}         Run the self-hosted omniroute AI gateway as a sidecar (via npx, MIT). Prints next steps.
   ${C}omniroute:down${N}       Stop it.
 
+${B}Connectors — a local Nango${N}   (OPTIONAL convenience; NOT required — see below)
+  ${C}nango:up${N}             Boot a local Nango (OAuth broker) via docker compose + print setup steps.
+  ${C}nango:down${N}           Stop it.
+                       Connectors broker agent OAuth through ${B}Nango${N}. Kiln + every exported app reach
+                       whichever Nango you set via ${C}NANGO_HOST${N} + ${C}NANGO_SECRET_KEY${N} — three EQUAL options:
+                         1) ${B}Nango Cloud${N}      — nothing to run; use its host + secret key.
+                         2) ${B}an existing Nango${N} — your company's instance; point at it.
+                         3) ${B}nango:up${N}          — this local helper (convenience only, never mandatory).
+
 ${B}Verify sandbox${N}
   ${C}verify:up${N}            Build + start the Docker verifier (lets the app build/run/smoke-test generated apps).
 
@@ -214,6 +223,42 @@ case "$cmd" in
     port="${KILN_OMNIROUTE_PORT:-20128}"
     pids="$(lsof -ti:"$port" 2>/dev/null || true)"
     if [ -n "$pids" ]; then run kill $pids; ok "omniroute stopped"; else warn "omniroute not running on :$port"; fi
+    ;;
+
+  nango:up)
+    # OPTIONAL local Nango — ONE of three equal ways to point Kiln at a Nango (Cloud / existing / this).
+    # Self-hosting is never required; this just stands up a local instance for developing connectors.
+    NANGO_COMPOSE="tools/nango/docker-compose.yml"
+    [ -f "$NANGO_COMPOSE" ] || die "$NANGO_COMPOSE not found"
+    command -v docker >/dev/null || die "docker not found — needed for a local Nango (or use Nango Cloud / an existing instance instead)."
+    # Nango REQUIRES a base64 32-byte encryption key. Generate one into .env if it isn't set yet, so the
+    # local instance's encrypted connection store is stable across restarts (a new key orphans old connections).
+    if [ -f .env ] && grep -Eq '^NANGO_ENCRYPTION_KEY=.' .env; then
+      ok "NANGO_ENCRYPTION_KEY already set in .env"
+    else
+      command -v openssl >/dev/null || die "openssl not found — set NANGO_ENCRYPTION_KEY (base64 32 bytes) in .env by hand."
+      key="$(openssl rand -base64 32)"
+      printf "\n# Local Nango (tools/nango) — the base64 32-byte key encrypting its connection store.\nNANGO_ENCRYPTION_KEY=%s\n" "$key" >> .env
+      ok "generated NANGO_ENCRYPTION_KEY → appended to .env"
+    fi
+    say "booting a local Nango (Postgres + Redis + nango-server) — first run pulls images"
+    ( set -a; [ -f .env ] && . ./.env; set +a; run docker compose -f "$NANGO_COMPOSE" up -d )
+    ok "Nango up → API http://localhost:3003 · dashboard/Connect UI http://localhost:3009"
+    say "Next steps (one-time):"
+    printf "  1. Open the dashboard ${B}http://localhost:3009${N} (login: NANGO_DASHBOARD_USERNAME/PASSWORD, default admin/admin).\n"
+    printf "  2. Create a ${B}Google Sheets${N} integration (add your Google OAuth client id/secret + scopes).\n"
+    printf "  3. Copy the environment's ${B}Secret Key${N} from Settings, then add to your ${B}.env${N}:\n"
+    printf "       ${C}NANGO_SECRET_KEY=<secret key from the dashboard>${N}\n"
+    printf "       ${C}NANGO_HOST=http://localhost:3003${N}\n"
+    printf "       ${C}NANGO_PROVIDER_CONFIG_KEY=google-sheets${N}   # the integration id you created\n"
+    say "Then: grant + connect in Studio (Agents → Tools), or in an exported app's Connect panel. ${DIM}(This local Nango is optional — Nango Cloud or an existing instance work identically.)${N}"
+    ;;
+  nango:down)
+    NANGO_COMPOSE="tools/nango/docker-compose.yml"
+    [ -f "$NANGO_COMPOSE" ] || die "$NANGO_COMPOSE not found"
+    say "stopping the local Nango"
+    ( set -a; [ -f .env ] && . ./.env; set +a; run docker compose -f "$NANGO_COMPOSE" down )
+    ok "Nango stopped (volumes kept — ./kiln.sh nango:down does not delete connections; add 'docker compose -f $NANGO_COMPOSE down -v' to wipe them)"
     ;;
 
   verify:up)

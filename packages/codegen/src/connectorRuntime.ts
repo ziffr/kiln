@@ -73,7 +73,10 @@ export async function resolveConnectorAuth(connectionRef: string, opts: ResolveO
   if (!connectionRef) throw new Error("this connector grant has no connectionRef — connect a live account first (a grant with no connection is not runnable).");
   const host = (env.NANGO_HOST || "https://api.nango.dev").replace(/\/+$/, "");
   const providerConfigKey = env.NANGO_PROVIDER_CONFIG_KEY || "google-sheets";
-  const url = `${host}/connection/${encodeURIComponent(connectionRef)}?provider_config_key=${encodeURIComponent(providerConfigKey)}&refresh_token=true`;
+  // The PLURAL, non-deprecated connection endpoint (`GET /connections/{id}`); `force_refresh` makes Nango
+  // return a freshly-minted access token rather than a possibly-stale cached one. The singular
+  // `/connection/{id}` is deprecated (PLAN-013 §5) — do not reintroduce it.
+  const url = `${host}/connections/${encodeURIComponent(connectionRef)}?provider_config_key=${encodeURIComponent(providerConfigKey)}&force_refresh=true`;
   // The SECRET goes ONLY to Nango, over this server-side call. It is never returned to the caller.
   const res = await fetchImpl(url, { headers: { authorization: `Bearer ${secret}` } });
   if (!res.ok) throw new Error(`Nango connection lookup failed (${res.status}) — check NANGO_HOST / NANGO_SECRET_KEY / NANGO_PROVIDER_CONFIG_KEY and that the connection is live.`);
@@ -81,6 +84,65 @@ export async function resolveConnectorAuth(connectionRef: string, opts: ResolveO
   const token = data?.credentials?.access_token ?? data?.credentials?.raw?.access_token;
   if (!token) throw new Error("Nango returned no access token for this connection (is the live account still connected and authorized?).");
   return { authorization: `Bearer ${token}` };
+}
+
+/**
+ * SPEC-013 Phase B3 — the EXPORT's self-sufficient connect broker (mirrors B1's `apps/service/connectors.ts`).
+ * The generated agents HTTP service (`agents/src/server.ts`, which already holds `NANGO_SECRET_KEY`) exposes
+ * these so a deployer can point the exported app at ANY Nango and connect an account THERE — without going
+ * back to Studio. Same discipline as the Studio broker: the SECRET goes ONLY to Nango server-side; the
+ * browser (the Connect panel) receives ONLY a short-lived session token / a non-secret status. Injectable
+ * `env`/`fetch` keep these unit-testable + let the invariant test prove no secret escapes.
+ */
+export interface ConnectSession {
+  token: string;
+  expiresAt?: string;
+  /** the hosted Nango Connect UI URL (from the session response) — the panel opens it to run OAuth. */
+  connectLink?: string;
+}
+
+/** Mint a short-lived Nango Connect session token, scoped to the granted integration. Secret stays server-side. */
+export async function mintConnectSession(
+  input: { integrationId?: string; endUserId?: string } = {},
+  opts: ResolveOpts = {},
+): Promise<ConnectSession> {
+  const env = opts.env ?? process.env;
+  const fetchImpl = opts.fetch ?? fetch;
+  const secret = env.NANGO_SECRET_KEY;
+  if (!secret) throw new Error("NANGO_SECRET_KEY is not set — cannot mint a Connect session. Set it in .env (server-side only; it must never reach the browser).");
+  const host = (env.NANGO_HOST || "https://api.nango.dev").replace(/\/+$/, "");
+  const providerConfigKey = input.integrationId || env.NANGO_PROVIDER_CONFIG_KEY || "google-sheets";
+  const res = await fetchImpl(`${host}/connect/sessions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${secret}` },
+    body: JSON.stringify({ end_user: { id: input.endUserId || "kiln-app" }, allowed_integrations: [providerConfigKey] }),
+  });
+  if (!res.ok) throw new Error(`Nango Connect session request failed (${res.status}). Check NANGO_HOST / NANGO_SECRET_KEY and that integration '${providerConfigKey}' exists.`);
+  const data = (await res.json().catch(() => ({}))) as { data?: { token?: string; expires_at?: string; connect_link?: string } };
+  const token = data?.data?.token;
+  if (!token) throw new Error("Nango returned no Connect session token.");
+  // ONLY the session token / connect link leave the server — never the secret.
+  return { token, expiresAt: data?.data?.expires_at, connectLink: data?.data?.connect_link };
+}
+
+/** List the app's live connections for readiness — non-secret status only (no token, no credentials). */
+export async function listConnections(
+  input: { integrationId?: string } = {},
+  opts: ResolveOpts = {},
+): Promise<{ connections: Array<{ connectionId: string; provider: string; connected: boolean }> }> {
+  const env = opts.env ?? process.env;
+  const fetchImpl = opts.fetch ?? fetch;
+  const secret = env.NANGO_SECRET_KEY;
+  if (!secret) throw new Error("NANGO_SECRET_KEY is not set — cannot list connections. Set it in .env (server-side only).");
+  const host = (env.NANGO_HOST || "https://api.nango.dev").replace(/\/+$/, "");
+  const providerConfigKey = input.integrationId || env.NANGO_PROVIDER_CONFIG_KEY;
+  // The PLURAL, non-deprecated list endpoint (`GET /connections`) — the singular `/connection` is deprecated.
+  const qs = providerConfigKey ? `?provider_config_key=${encodeURIComponent(providerConfigKey)}` : "";
+  const res = await fetchImpl(`${host}/connections${qs}`, { headers: { authorization: `Bearer ${secret}` } });
+  if (!res.ok) throw new Error(`Nango connection list failed (${res.status}).`);
+  const data = (await res.json().catch(() => ({}))) as { connections?: Array<{ connection_id?: string; provider_config_key?: string; provider?: string }> };
+  // Project ONLY the non-secret fields — never the credentials block Nango may include.
+  return { connections: (data.connections ?? []).map((c) => ({ connectionId: String(c.connection_id ?? ""), provider: String(c.provider_config_key ?? c.provider ?? ""), connected: true })) };
 }
 
 export interface RunConnectorDeps {

@@ -450,6 +450,10 @@ written.push(write(".gitignore", "node_modules/\ndist/\n.env\n*.log\n"));
 const pruned = new Set(rep.placement.prunedComposeServices);
 const pgManaged = !useSqlite && pruned.has("postgres");
 const n8nManaged = pruned.has("n8n");
+// SPEC-013 Phase B3 — a connector is granted iff the agents adapter emitted the Nango runtime. When it is,
+// the root .env.example threads the (external) Nango binding + an OPTIONAL co-located Nango compose profile
+// is offered. With no connector granted this is false and every branch below reduces to today's bytes.
+const hasConnectors = !!rep.artifacts.agents["agents/src/nango.ts"];
 // .env reach vars: base owns DATABASE_URL/N8N_BASE_URL/etc.; a managed engine repoints ITS var to a
 // commented remote pointer (never a baked value/credential — REV-030). The placement section appends only
 // THIRD-PARTY reach vars the base doesn't already own, so a built-in never yields a duplicate line (REV-020).
@@ -492,7 +496,17 @@ PORT=3000
 # ── Agents runtime (only if you run agents/) ──
 # ANTHROPIC_API_KEY=sk-ant-...
 # SPINE_URL=http://localhost:3000
-${extraReach.length ? `\n# ── Deployment placement (SPEC-012) — reach vars for remote/managed third-party engines (see PLACEMENT.md) ──\n${extraReach.join("\n")}\n` : ""}`));
+${hasConnectors ? `
+# ── Connectors (Nango — brokered OAuth for agent tools) ──
+# This app reaches whichever Nango you point it at — Nango Cloud, an existing instance, or a local one
+# (\`./kiln.sh nango:up\`, or the co-located compose profile below). The secret is SERVER-SIDE ONLY; it must
+# never reach a browser or the model. Connect an account from the app itself: run the agents service
+# (\`cd agents && pnpm serve\`) and open http://localhost:3100/connect — no need to return to Studio.
+NANGO_SECRET_KEY=                 # your Nango SECRET key (server-side only)
+NANGO_HOST=https://api.nango.dev  # or http://localhost:3003 for a local/co-located Nango
+NANGO_PROVIDER_CONFIG_KEY=google-sheets  # the Nango integration id whose OAuth scopes back the connection
+# NANGO_ENCRYPTION_KEY=           # only for the co-located Nango profile: base64 32 bytes (openssl rand -base64 32)
+` : ""}${extraReach.length ? `\n# ── Deployment placement (SPEC-012) — reach vars for remote/managed third-party engines (see PLACEMENT.md) ──\n${extraReach.join("\n")}\n` : ""}`));
 // docker-compose from placement-aware SERVICE BLOCKS (SPEC-012). A managed engine drops its local
 // service (`pruned`, computed above) and dependants read its reach var instead of the in-cluster host. With
 // no `hosting` authored nothing is pruned and every value equals the old literal → the compose is byte-for-byte today's.
@@ -545,8 +559,44 @@ for (const [id, place] of Object.entries(rep.placement.engines)) {
   composeBlocks.push(eng.dockerService);
   if (eng.dockerVolume) extraVolumes.push(eng.dockerVolume);
 }
+// SPEC-013 Phase B3 — an OPTIONAL co-located Nango for the all-in-one box. Gated behind the `nango` compose
+// profile, so it does NOT start with `docker compose up` — the export references an EXTERNAL Nango by default
+// (Cloud / existing / local helper). Bring it up with `docker compose --profile nango up -d` and point
+// NANGO_HOST at http://nango-server:3003. Emitted ONLY when a connector is granted (byte-identity otherwise).
+const nangoVolumes: string[] = [];
+if (hasConnectors) {
+  composeBlocks.push(`  # OPTIONAL — a co-located Nango (OAuth broker). NOT started by default; opt in with:
+  #   docker compose --profile nango up -d      (then set NANGO_HOST=http://nango-server:3003 in .env)
+  # Or point at Nango Cloud / an existing instance instead — the app reaches whichever Nango you configure.
+  nango-db:
+    image: postgres:16-alpine
+    profiles: ["nango"]
+    environment: { POSTGRES_USER: nango, POSTGRES_PASSWORD: nango, POSTGRES_DB: nango }
+    volumes: ["nangodb:/var/lib/postgresql/data"]
+  nango-redis:
+    image: redis:7-alpine
+    profiles: ["nango"]
+  nango-server:
+    image: nangohq/nango-server:hosted
+    profiles: ["nango"]
+    depends_on: [nango-db, nango-redis]
+    environment:
+      NANGO_ENCRYPTION_KEY: "\${NANGO_ENCRYPTION_KEY}"
+      NANGO_SERVER_URL: http://localhost:3003
+      NANGO_PUBLIC_CONNECT_URL: http://localhost:3009
+      NANGO_DB_HOST: nango-db
+      NANGO_DB_PORT: "5432"
+      NANGO_DB_USER: nango
+      NANGO_DB_PASSWORD: nango
+      NANGO_DB_NAME: nango
+      NANGO_REDIS_URL: redis://nango-redis:6379
+      NANGO_LOGS_ENABLED: "false"
+      FLAG_SERVE_CONNECT_UI: "true"
+    ports: ["3003:3003", "3009:3009"]`);
+  nangoVolumes.push("nangodb");
+}
 const baseVolumes = useSqlite ? ["n8ndata", "odoodata", "sqlitedata"] : ["pgdata", "n8ndata", "odoodata"];
-const volumesLine = `volumes: { ${[...baseVolumes, ...extraVolumes].map((v) => `${v}: {}`).join(", ")} }`;
+const volumesLine = `volumes: { ${[...baseVolumes, ...extraVolumes, ...nangoVolumes].map((v) => `${v}: {}`).join(", ")} }`;
 // Guard the (theoretical) all-pruned case: an empty `services:` mapping is invalid YAML. If every service
 // is managed/remote there is nothing to run locally — say so as a comment instead (REV: delivery/arch).
 const composeBody = composeBlocks.length ? composeBlocks.join("\n") : "  # all engines are managed/remote — nothing runs locally (see PLACEMENT.md)";

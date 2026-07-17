@@ -84,8 +84,10 @@ export async function listConnections(input: { integrationId?: string }, deps: B
   const fetchImpl = deps.fetch ?? fetch;
   const { host, secret } = nangoBase(env);
   const providerConfigKey = input.integrationId || env.NANGO_PROVIDER_CONFIG_KEY;
-  const qs = providerConfigKey ? `?connectionId=&provider_config_key=${encodeURIComponent(providerConfigKey)}` : "";
-  const res = await fetchImpl(`${host}/connection${qs}`, { headers: { authorization: `Bearer ${secret}` } });
+  // The PLURAL, non-deprecated list endpoint (`GET /connections`); the singular `/connection` is deprecated
+  // (PLAN-013 §5). Filter by integration when one is given.
+  const qs = providerConfigKey ? `?provider_config_key=${encodeURIComponent(providerConfigKey)}` : "";
+  const res = await fetchImpl(`${host}/connections${qs}`, { headers: { authorization: `Bearer ${secret}` } });
   if (!res.ok) throw new ConnectorConfigError(`Nango connection list failed (${res.status}).`);
   const data = (await res.json().catch(() => ({}))) as { connections?: Array<{ connection_id?: string; provider_config_key?: string; provider?: string }> };
   // Project ONLY the non-secret fields — never the credentials block Nango may include.

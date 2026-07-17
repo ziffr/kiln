@@ -123,3 +123,15 @@ export {
 export { scoreWorkflowsCase, aggregateWorkflowsRecall, scoreWorkflowCoverage, type WorkflowsEvalCase, type WorkflowCoverage } from "./workflows.ts";
 export { scoreAgentsCase, aggregateAgentsRecall, scoreAgentCoverage, type AgentsEvalCase, type AgentCoverage } from "./agents.ts";
 export { scoreHolisticCoherence, type HolisticCoherence, type CoherenceModel } from "./holistic.ts";
+export {
+  connectorRecall,
+  spuriousSuggestionRate,
+  scoreConnectorCoverage,
+  scoreConnectorsCase,
+  scoreConnectorsFindings,
+  type ConnectorSuggestion,
+  type ConnectorReference,
+  type ConnectorCoverage,
+  type ConnectorsEvalCase,
+  type ConnectorsCaseScore,
+} from "./connectors.ts";

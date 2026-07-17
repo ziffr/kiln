@@ -4,7 +4,7 @@
  * last-generated capabilities, and model/effort prefs.
  */
 
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc, ToolsDoc } from "@kiln/compiler";
 import type { CommunicationsDoc, IntegrationsDoc, ExternalServicesDoc, TriggersDoc, Binding, Theme } from "@kiln/codegen";
 import type { CoachConfig } from "@kiln/skills";
 import { narrativeMd } from "./data/solar";
@@ -48,6 +48,8 @@ export interface Project {
   /** last workflows (SPEC-007) + agents (SPEC-008); null → live mock. */
   workflows?: WorkflowsDoc | null;
   agents?: AgentsDoc | null;
+  /** authored connector layer (SPEC-013; null/absent → no connectors). Agents carry the grants. */
+  tools?: ToolsDoc | null;
   /** Execution-layer decisions — folded into the model so the whole thing round-trips + is versionable.
    *  Absent → codegen fills the deterministic mock default. Authoring these makes them the source of truth. */
   services?: ExternalServicesDoc | null;

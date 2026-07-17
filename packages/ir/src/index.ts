@@ -37,7 +37,8 @@ export type NodeType =
   | "policy" // SPEC-005: a reaction rule (on event → then command)
   | "role" // SPEC-006: an authorized persona
   | "workflow" // SPEC-007: a named multi-step process
-  | "agent"; // SPEC-008: an autonomous operator
+  | "agent" // SPEC-008: an autonomous operator
+  | "tool"; // SPEC-013: an authored connector (grant-surface metadata only)
 
 export type EdgeType =
   | "produces"
@@ -55,7 +56,8 @@ export type EdgeType =
   | "then" // policy → command (SPEC-005: the reaction)
   | "authorizes" // role → capability (SPEC-006)
   | "step" // workflow → command (SPEC-007: an ordered step)
-  | "operates"; // agent → capability (SPEC-008)
+  | "operates" // agent → capability (SPEC-008)
+  | "grants"; // agent → tool (SPEC-013: a per-op connector grant; op is encoded in the edge id)
 
 /** authored = editable, round-trips to text; derived = read-only projection. */
 export type Origin = "authored" | "derived";

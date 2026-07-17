@@ -11,18 +11,23 @@
  * Vercel function share ONE implementation, and it's unit-testable with a fake `NextTurn` at zero cost.
  */
 
-import { agentToolParams, capReadRows, READ_ROW_CAP, type AgentDef, type AgentTool } from "./agents.ts";
+import { agentToolParams, connectorResponseSchema, capReadRows, READ_ROW_CAP, type AgentDef, type AgentTool } from "./agents.ts";
 
 /** One JSON-Schema tool definition, provider-neutral (Anthropic `input_schema` / OpenAI `parameters`). */
 export interface ToolSchema {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  /** SPEC-013 — a connector op's response shape, derived from its typed `io.output` (present on connectors). */
+  output_schema?: Record<string, unknown>;
 }
 
 /** Build the tool schemas for an agent — the same shapes the exported runtime would send. */
 export function buildToolSchemas(def: AgentDef): ToolSchema[] {
-  return def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: agentToolParams(t) }));
+  return def.tools.map((t) => {
+    const output = connectorResponseSchema(t);
+    return { name: t.name, description: t.description, input_schema: agentToolParams(t), ...(output ? { output_schema: output } : {}) };
+  });
 }
 
 /**
@@ -138,6 +143,14 @@ export function mockDispatch(tool: AgentTool, input: Record<string, unknown>): u
     }
     case "pdf":
       return { rendered: true, note: "Simulated document — a real run renders the PDF." };
+    case "connector": {
+      // SPEC-013 — NO provider call, and say so. A real run resolves the destination + a Nango-brokered
+      // token via the registered ConnectorAdapter (Phase B); here we only echo the op + its declared kind.
+      const op = typeof tool.invoke?.op === "string" ? tool.invoke.op : tool.name;
+      const kind = typeof tool.invoke?.kind === "string" ? tool.invoke.kind : (tool.io?.kind ?? "read");
+      const gated = kind === "write" || kind === "send" || kind === "delete";
+      return { accepted: true, connector: tool.invoke?.connector ?? tool.name, op, kind, wouldGate: gated && tool.invoke?.autonomous !== true, note: `Simulated connector op — no external system was called; a real run brokers a token and calls the provider (${kind}).` };
+    }
     default:
       return { triggered: tool.name, note: "Simulated action." };
   }

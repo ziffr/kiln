@@ -9,8 +9,8 @@
  * recompiles and re-runs.
  */
 
-import { sha256 } from "@kiln/ir";
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
+import { sha256, slug } from "@kiln/ir";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc, ToolsDoc, ToolDef } from "@kiln/compiler";
 
 const isGroundedAnchor = (meta: unknown): boolean => {
   const derived = (meta as { derivedFrom?: Array<Record<string, unknown>> } | undefined)?.derivedFrom ?? [];
@@ -539,6 +539,105 @@ export function validateAgents(agents: AgentsDoc, capabilityIds: string[]): Find
     if (!a.instructions?.trim()) findings.push(mk("AG6.behaviour", "major", `agent '${subj}' has no authored behaviour — generate or write HOW it decides; it will not run without one`, [subj]));
   }
   for (const [id, n] of counts) if (n > 1) findings.push(mk("AG3.unique", "blocker", `duplicate agent id '${id}' (${n}×)`, [id]));
+  return findings;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPEC-013 — connector/grant validators (TC-series). Pure/isomorphic.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CONNECTOR_KINDS = new Set(["read", "list", "write", "send", "delete"]);
+// A secret VALUE (not an env var name). Known key prefixes + a URL userinfo credential. Bounded, no
+// backtracking (mirrors the PB5/XS1 stance in @kiln/codegen). Messages never echo what was matched.
+const SECRET_LITERAL = /\b(sk-[A-Za-z0-9_-]{6,}|xox[baprs]-[A-Za-z0-9-]{6,}|ghp_[A-Za-z0-9]{6,}|AIza[A-Za-z0-9_-]{6,}|Bearer\s+[A-Za-z0-9._-]{8,})\b/;
+const URL_USERINFO = /\/\/[^/@:]*:[^/@]*@/;
+// A raw URL / host on a ToolDef (destinations must live in the adapter, never the model). A scheme, or a
+// dotted host, or an explicit host:port. Scope URLs are handled by scanning them separately (they're allowed).
+const RAW_URL = /https?:\/\/|\bwww\.[a-z0-9-]+\.[a-z]{2,}|\b[a-z0-9-]+\.[a-z0-9-]+\.[a-z]{2,}\b/i;
+// A PII-shaped connection ref (an email / anything with an @). connectionRef must be opaque (SEC6/TC7).
+const PII_REF = /@|\b\d{3}[- .]?\d{2}[- .]?\d{4}\b/;
+
+/** Collect every string a ToolDef carries EXCEPT the OAuth `scopes` (scope URLs are legitimate). */
+function toolLabelStrings(t: ToolDef): string[] {
+  const out: string[] = [t.id ?? "", t.name ?? "", t.providerLabel ?? ""];
+  for (const op of t.operations ?? []) {
+    out.push(op.name ?? "");
+    for (const io of [...(op.input ?? []), ...(op.output ?? [])]) out.push(io.name ?? "");
+  }
+  return out.filter(Boolean);
+}
+
+/** Every string a ToolDef carries INCLUDING scopes — the surface a secret must never appear on (TC5). */
+function toolAllStrings(t: ToolDef): string[] {
+  const out = toolLabelStrings(t);
+  for (const op of t.operations ?? []) out.push(...(op.scopes ?? []));
+  return out;
+}
+
+/**
+ * SPEC-013 §4.8 — connector + grant validators (TC1–TC7). Pure. `tools` is the authored connector layer;
+ * `agents` carries the per-agent grants. Every finding is deterministic and secret-safe (a message never
+ * echoes a matched secret). Not part of `validateAll` (that is capability-only) — called on the tools layer.
+ */
+export function validateConnectors(tools: ToolsDoc, agents: AgentsDoc): Finding[] {
+  const findings: Finding[] = [];
+  const byId = new Map((tools.tools ?? []).map((t) => [t.id, t]));
+
+  // ── ToolDef-level: TC3 (label + kinds), TC5 (no secret), TC6 (no raw URL/host) ──
+  for (const t of tools.tools ?? []) {
+    const subj = t.id || t.name || "<tool>";
+    // TC3 — provider label non-empty; every op has a (valid) kind.
+    if (!t.providerLabel || !t.providerLabel.trim()) findings.push(mk("TC3.label", "major", `connector '${subj}' has no providerLabel (the human provider name, e.g. "Google Sheets")`, [subj]));
+    for (const op of t.operations ?? []) {
+      if (!op.kind || !CONNECTOR_KINDS.has(op.kind)) findings.push(mk("TC3.kind", "major", `connector '${subj}' op '${op.name || "<op>"}' has no valid kind (read|list|write|send|delete)`, [subj, op.name || "<op>"]));
+    }
+    // TC5 — no secret literal / embedded token anywhere in the connector (labels, op names, scopes).
+    if (toolAllStrings(t).some((s) => SECRET_LITERAL.test(s) || URL_USERINFO.test(s))) findings.push(mk("TC5.secret", "blocker", `connector '${subj}' appears to embed a secret/token — declare secrets by NAME (Nango connection / env), never by value`, [subj]));
+    // TC6 — no raw URL/host/endpoint on a ToolDef; destinations live in the adapter (scopes exempt).
+    if (toolLabelStrings(t).some((s) => RAW_URL.test(s))) findings.push(mk("TC6.destination", "major", `connector '${subj}' carries a raw URL/host — a ToolDef is grant-surface metadata only; the destination belongs in the ConnectorAdapter, not the model`, [subj]));
+  }
+
+  // ── grant-level: TC1 (tool resolves), TC2 (op exists), TC5/TC7 on the grant, TC4 (prompt fabrication) ──
+  const opToolName = (toolId: string, op: string): string => `${slug(toolId)}_${slug(op)}`;
+  // Every real op tool-name across the catalog — the vocabulary an agent prompt may name.
+  const allOpNames = new Set<string>();
+  for (const t of tools.tools ?? []) for (const op of t.operations ?? []) allOpNames.add(opToolName(t.id, op.name));
+
+  for (const a of agents.agents ?? []) {
+    const asubj = a.id || a.name || "<agent>";
+    const grantedOpNames = new Set<string>();
+    for (const g of a.grants ?? []) {
+      const tsubj = g.toolId || "<toolId>";
+      const tool = byId.get(g.toolId);
+      // TC1 — the grant's toolId resolves to a declared connector.
+      if (!tool) {
+        findings.push(mk("TC1.tool", "major", `agent '${asubj}' is granted unknown connector '${tsubj}'`, [asubj, tsubj]));
+      } else {
+        const opNames = new Set((tool.operations ?? []).map((o) => o.name));
+        for (const op of g.operations ?? []) {
+          // TC2 — the granted op exists on the tool.
+          if (!opNames.has(op)) findings.push(mk("TC2.op", "major", `agent '${asubj}' is granted op '${op}' that connector '${tsubj}' does not declare`, [asubj, tsubj, op]));
+          else grantedOpNames.add(opToolName(g.toolId, op));
+        }
+      }
+      // TC5 — a secret pasted onto the grant (e.g. into connectionRef) rather than referenced by name.
+      const grantStrings = [g.toolId ?? "", ...(g.operations ?? []), g.connectionRef ?? ""];
+      if (grantStrings.some((s) => SECRET_LITERAL.test(s) || URL_USERINFO.test(s))) findings.push(mk("TC5.secret", "blocker", `agent '${asubj}' grant for '${tsubj}' appears to embed a secret/token — reference the connection by opaque name, never a value`, [asubj, tsubj]));
+      // TC7 — the connection ref must be opaque/non-PII (SEC6). Guards Phase-B connectionRef today.
+      if (g.connectionRef && PII_REF.test(g.connectionRef)) findings.push(mk("TC7.connection_ref", "major", `agent '${asubj}' grant for '${tsubj}' has a PII-shaped connectionRef — use an opaque, non-PII reference (model.json is committed and reveals connection topology)`, [asubj, tsubj]));
+    }
+    // TC4 — an agent prompt naming a real op tool-name it was NOT granted → fabrication. Word-boundary
+    // match on the deterministic `<toolId>_<op>` surface name, so a stray substring can't false-positive.
+    const prompt = a.instructions ?? "";
+    if (prompt.trim()) {
+      for (const name of allOpNames) {
+        if (grantedOpNames.has(name)) continue;
+        if (new RegExp(`(^|[^a-z0-9_])${name}([^a-z0-9_]|$)`).test(prompt)) {
+          findings.push(mk("TC4.fabrication", "major", `agent '${asubj}' behaviour names connector op '${name}' it was not granted — grant it, or remove the reference (the model must not imply authority it lacks)`, [asubj, name]));
+        }
+      }
+    }
+  }
   return findings;
 }
 

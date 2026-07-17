@@ -5,7 +5,7 @@
  * mock defaults on export, so the exported model is explicit and complete — nothing hidden behind a mock.
  */
 
-import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
+import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc, ToolsDoc } from "@kiln/compiler";
 import {
   mockCommunications,
   mockIntegrations,
@@ -33,6 +33,8 @@ export interface ModelDoc {
   roles: RolesDoc;
   workflows: WorkflowsDoc;
   agents: AgentsDoc;
+  /** SPEC-013 — the authored connector layer. Empty default when no connectors are authored. */
+  tools: ToolsDoc;
   services: ExternalServicesDoc;
   triggers: TriggersDoc;
   comms: CommunicationsDoc;
@@ -78,6 +80,8 @@ export function assembleModel(core: ResolvedCore, p: Project, agent?: { provider
     roles,
     workflows,
     agents,
+    // SPEC-013: the connector catalog. Empty-but-explicit default → byte-stable when no connectors exist.
+    tools: p.tools ?? { version: "0.1", tools: [] },
     services: p.services ?? mockExternalServices(capabilities, domain, workflows, agents),
     triggers: p.triggers ?? mockTriggers(capabilities, domain, workflows, agents),
     comms: p.comms ?? mockCommunications(capabilities, domain),
@@ -103,6 +107,7 @@ export function parseModel(json: unknown): Partial<Project> {
     roles: m.roles ?? null,
     workflows: m.workflows ?? null,
     agents: m.agents ?? null,
+    tools: m.tools ?? null,
     services: m.services ?? null,
     triggers: m.triggers ?? null,
     comms: m.comms ?? null,

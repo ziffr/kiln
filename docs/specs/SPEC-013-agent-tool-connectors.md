@@ -3,7 +3,7 @@ id: SPEC-013
 title: Agent Tool Connectors — typed external-system tools an agent can be granted
 type: spec
 status: Approved
-version: 1.0.0
+version: 1.1.0
 author: Claude (Opus 4.8)
 created: 2026-07-17
 updated: 2026-07-17
@@ -122,12 +122,29 @@ one file, assert zero edits to dispatch and byte-identical export when ungranted
 needs no dispatch edits; introducing the mechanism (Phase A/B) touches core once — steady-state authoring
 does not.
 
-### 4.4 Execution — Nango-brokered standalone default; n8n optional  *(owner override of PS2/TA3/D2)*
-`execution:"nango"` (default): the generated `agents/` runtime obtains a **fresh token from Nango** for
-the op's connection, then calls the provider API — **no n8n involved.** `execution:"n8n"` is an
-**optional** additive adapter (Phase C+) for owners already running n8n, using n8n's credential store;
-it is never required and never the default. The `ConnectorAdapter` seam is execution-target-agnostic, so
-the binding is swappable (SPEC-010/#8) — but the shipped, dependency-free-of-n8n path is Nango.
+### 4.4 Two swappable axes: auth source × execution  *(owner steer; refines D2)*
+A connector has **two orthogonal, swappable bindings** — and **no path ever requires installing n8n for
+OAuth.**
+
+**Auth source** — where the OAuth token comes from:
+- **`nango` (default)** — Kiln's service brokers a fresh token via Nango. No n8n.
+- **`n8n-credentials` (optional)** — for a company that **already runs n8n**: Kiln's service reads the
+  OAuth token from n8n's **credential store** via n8n's API, reusing an OAuth pool they already set up.
+  You do **not** stand up n8n for this — it's opt-in only when n8n is already present. Same
+  server-mediation discipline as Nango: the n8n API key is server-only, never in the browser or
+  `model.json`, the token is ephemeral (§4.7 SEC1/SEC5/SEC8 apply identically).
+- **`env`** — a static API key (the existing `credentialEnv` path) for non-OAuth services.
+
+**Execution** — who makes the provider call:
+- **`standalone` (default)** — the generated agent runtime calls the provider API directly with the
+  resolved token. No n8n.
+- **`n8n-node` (optional)** — the op runs as an n8n native node, for owners who prefer n8n to execute too.
+
+**Default = `nango` + `standalone` → zero n8n.** Every n8n touchpoint is opt-in for those who already
+have it: *tap the credential pool* (`n8n-credentials`, lightweight — n8n only serves the token, Kiln
+executes), and/or *route execution* (`n8n-node`). The `ConnectorAdapter` seam is source- and
+execution-agnostic (SPEC-010/#8), so these are bindings, not forks — a connector authored once works
+under any combination.
 
 ### 4.5 Op → agent tool projection  *(TA4, DX7)*
 Add a `connector` member to `AgentToolKind`. A granted op becomes a tool named **`<toolId>_<op>`**
@@ -223,6 +240,10 @@ a request with a fetched token and **no token leaks** into the bundle/logs/error
 - **D2 → Nango-brokered standalone default; n8n optional/additive, never required** — **owner override**
   of the product (PS2) and architecture (TA3) "n8n-first" recommendation, on the ground that a hard n8n
   dependency violates invariant #8 and Nango is the deliberate no-n8n OAuth path (§9).
+  *(v1.1.0: the n8n option is split into two orthogonal opt-in axes — an `n8n-credentials` **auth source**
+  and an `n8n-node` **execution** target — so a company already running n8n can tap its OAuth credential
+  pool as a lightweight token source without n8n ever being on the default path or being installed for
+  OAuth; §4.4.)*
 - **D3 → reuse `AttributeSpec`, extended to `IOSpec`** (array/object/json) (DX6).
 
 ## 9. Review & closure
@@ -285,3 +306,12 @@ Accepted, or Owner-overridden with logged rationale; both re-reviews clean. The 
 - security-data (v0.3.0, §4.7 in-scope Nango hardening): **Approve-with-changes** — SEC1 (Blocker)
   closed; all round-1 SEC/TA1 findings resolved and testable; one new Minor SEC8 → Fixed. **No Blocker
   remains.**
+
+### Post-approval refinement (v1.1.0)
+Owner clarification: separate the n8n option into two orthogonal opt-in axes — **auth source**
+(`nango` default · `n8n-credentials` · `env`) and **execution** (`standalone` default · `n8n-node`) —
+so a company already running n8n can tap its existing OAuth **credential pool** as a lightweight token
+source (n8n serves the token, Kiln executes) without n8n on the default path or installed for OAuth
+(§4.4). Additive and swappable; the default stays `nango` + `standalone` (zero n8n). The
+`n8n-credentials` source follows the same server-mediation discipline as Nango (§4.7); a light
+security check of that specific path is recommended at build time (Phase B/C).

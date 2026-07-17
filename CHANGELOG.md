@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the repository level (see
 [RELEASING.md](RELEASING.md)).
 
+## [0.9.0](https://github.com/ziffr/kiln/compare/v0.8.0...v0.9.0) (2026-07-17)
+
+
+### Features
+
+* **codegen:** SPEC-013 Phase A — connector model, validators & registry seam ([#70](https://github.com/ziffr/kiln/issues/70)) ([02bf68e](https://github.com/ziffr/kiln/commit/02bf68e9260475a3170c401b8348b0f060770bd9))
+* SPEC-013 Phase B — Spreadsheet connector over Nango (backend + Studio UI + ergonomics) ([#71](https://github.com/ziffr/kiln/issues/71)) ([905db0a](https://github.com/ziffr/kiln/commit/905db0ac9c78735ac119a5467880c5905d2bd475))
+* **web:** coherence score distinguishes real coverage from mock scaffolding ([#67](https://github.com/ziffr/kiln/issues/67)) ([6938736](https://github.com/ziffr/kiln/commit/69387369e5a65d8c5b1afddf69a6c990e18db15b))
+
+
+### Documentation
+
+* **spec:** SPEC-013 Agent Tool Connectors — reviewed to closure (Approved) ([#68](https://github.com/ziffr/kiln/issues/68)) ([0b53a26](https://github.com/ziffr/kiln/commit/0b53a26f885b590158de8f417a17ecbf2f9abef1))
+
 ## [0.8.0](https://github.com/ziffr/kiln/compare/v0.7.0...v0.8.0) (2026-07-17)
 
 

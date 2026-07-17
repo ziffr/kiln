@@ -9,7 +9,7 @@ import type { DomainDoc, WorkflowInput, WorkflowsDoc } from "@kiln/compiler";
 import { validateWorkflows, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
-const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }] });
+const grounded = (anchor: string) => ({ origin: "mock", derivedFrom: [{ anchor }] });
 
 /** Offline default: one "Main Process" chaining every command in a stable order. */
 export function mockGenerateWorkflows(domain: DomainDoc): WorkflowsDoc {

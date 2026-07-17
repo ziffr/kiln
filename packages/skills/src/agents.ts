@@ -9,7 +9,7 @@ import type { CapabilityDoc, AgentInput, AgentsDoc } from "@kiln/compiler";
 import { validateAgents, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
-const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }] });
+const grounded = (anchor: string) => ({ origin: "mock", derivedFrom: [{ anchor }] });
 
 /** Offline default: one autonomous operator over all capabilities. */
 export function mockGenerateAgents(caps: CapabilityDoc): AgentsDoc {

@@ -66,7 +66,7 @@ export function mockGenerateCapabilities(narrative: NarrativeDoc): CapabilityDoc
       produces: [rule.entity], // seeds the domain model (SPEC-002 DM1)
       depends_on: i > 0 ? [order[i - 1]] : [],
       meta: {
-        origin: "llm",
+        origin: "mock",
         skillVersion: "capgen-mock@0.1",
         derivedFrom: acts.map((a) => ({
           section: "Core Activities",

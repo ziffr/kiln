@@ -14,7 +14,7 @@ import type { DomainDoc, PolicyInput } from "@kiln/compiler";
 import { validatePolicies, type Finding } from "@kiln/validation";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
-const grounded = (anchor: string) => ({ origin: "llm", derivedFrom: [{ anchor }] });
+const grounded = (anchor: string) => ({ origin: "mock", derivedFrom: [{ anchor }] });
 export const policyId = (on: string, then: string): string => `pol_${sha256(`${on}|${then}`).slice(0, 8)}`;
 
 const HANDOFF = /(paid|approved|completed|qualified|issued|confirmed|converted|accepted|shipped|delivered|closed|won)$/i;

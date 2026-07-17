@@ -50,7 +50,7 @@ test("generated capabilities carry provenance and are valid", () => {
   const caps = mockGenerateCapabilities(doc);
   for (const c of caps.capabilities) {
     const meta = c.meta as { derivedFrom?: unknown[]; origin?: string };
-    assert.equal(meta.origin, "llm");
+    assert.equal(meta.origin, "mock");
     assert.ok(Array.isArray(meta.derivedFrom) && meta.derivedFrom.length > 0, `${c.id} lacks provenance`);
   }
   assert.deepEqual(validateAll(caps), []); // no V1/V2 issues

@@ -76,7 +76,7 @@ export function mockGroupContexts(doc: CapabilityDoc): ContextsDoc {
       intent: `Groups ${memberCaps.map(nameOf).join(", ")}`,
       capabilities: sorted,
       shared_kernel: [],
-      meta: { origin: "llm", skillVersion: "contextgen-mock@0.1", derivedFrom: [{ anchor }] },
+      meta: { origin: "mock", skillVersion: "contextgen-mock@0.1", derivedFrom: [{ anchor }] },
     };
   });
 

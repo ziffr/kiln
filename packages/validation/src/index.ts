@@ -17,6 +17,13 @@ const isGroundedAnchor = (meta: unknown): boolean => {
   return derived.some((d) => typeof d?.anchor === "string" && (d.anchor as string).trim());
 };
 
+/**
+ * Machine-produced elements ("llm" real generation OR "mock" deterministic scaffolding) must carry
+ * grounded provenance; hand-authored elements (no origin, or origin:"authored") are exempt. The mock
+ * generators honestly stamp origin:"mock", so they are held to the same grounding bar as real LLM output.
+ */
+const isMachine = (origin?: string): boolean => origin === "llm" || origin === "mock";
+
 export type Severity = "blocker" | "major" | "minor";
 
 export interface Finding {
@@ -196,9 +203,9 @@ export function validateV8(doc: CapabilityDoc): Finding[] {
   const findings: Finding[] = [];
   for (const c of doc.capabilities) {
     const meta = c.meta as { origin?: string; derivedFrom?: unknown[] } | undefined;
-    if (meta?.origin !== "llm") continue; // only LLM-authored caps are held to provenance
+    if (!isMachine(meta?.origin)) continue; // only machine-produced caps (llm|mock) are held to provenance
     if (!Array.isArray(meta.derivedFrom) || meta.derivedFrom.length === 0) {
-      findings.push(finding("V8.provenance", "major", `capability '${c.id}' (llm) has no provenance`, [c.id || "<unknown>"]));
+      findings.push(finding("V8.provenance", "major", `capability '${c.id}' (${meta?.origin}) has no provenance`, [c.id || "<unknown>"]));
     }
   }
   return findings;
@@ -295,7 +302,7 @@ export function validateContexts(contexts: ContextsDoc, doc: CapabilityDoc): Fin
 
     // BC8 — provenance must cite BOUNDARY EVIDENCE, not merely the area's own members (REV-013 C3).
     const origin = (ctx.meta as { origin?: string } | undefined)?.origin;
-    if (origin === "llm") {
+    if (isMachine(origin)) {
       const derived = (ctx.meta as { derivedFrom?: Array<Record<string, unknown>> } | undefined)?.derivedFrom ?? [];
       const grounded = derived.some((d) => typeof d?.anchor === "string" && (d.anchor as string).trim());
       if (!grounded) findings.push(mk("BC8.provenance", "major", `area '${subj}' lacks grounded boundary evidence`, [subj]));
@@ -358,7 +365,7 @@ export function validateEvents(domain: DomainDoc, capabilityIds: string[]): Find
         findings.push(mk("CE.emit_boundary", "major", `command '${subj}' emits '${ev}' of another entity ('${aggOfEvent.get(ev)}') — a hidden cross-entity reaction`, [subj, ev]));
       }
     }
-    if ((c.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(c.meta)) {
+    if (isMachine((c.meta as { origin?: string } | undefined)?.origin) && !isGroundedAnchor(c.meta)) {
       findings.push(mk("CE6.provenance", "major", `command '${subj}' lacks grounded evidence`, [subj]));
     }
   }
@@ -372,7 +379,7 @@ export function validateEvents(domain: DomainDoc, capabilityIds: string[]): Find
     }
     if (!e.name || !e.name.trim()) findings.push(mk("CE1.required", "major", `event '${subj}' is missing a name`, [subj]));
     if (!e.aggregate || !aggIds.has(e.aggregate)) findings.push(mk("CE3.event_source", "major", `event '${subj}' belongs to no existing entity`, [subj, e.aggregate ?? "?"]));
-    if ((e.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(e.meta)) {
+    if (isMachine((e.meta as { origin?: string } | undefined)?.origin) && !isGroundedAnchor(e.meta)) {
       findings.push(mk("CE6.provenance", "major", `event '${subj}' lacks grounded evidence`, [subj]));
     }
     // CE8 — a command-triggered event nobody emits is a fact with no cause (time/external exempt).
@@ -416,7 +423,7 @@ export function validatePolicies(domain: DomainDoc, _capabilityIds: string[]): F
     if (!p.name || !p.name.trim()) findings.push(mk("PL1.required", "major", `policy '${subj}' is missing a name`, [subj]));
     if (!p.on || !eventIds.has(p.on)) findings.push(mk("PL2.trigger", "major", `policy '${subj}' triggers on an unknown event '${p.on ?? "?"}'`, [subj, p.on ?? "?"]));
     if (!p.then || !commandIds.has(p.then)) findings.push(mk("PL3.reaction", "major", `policy '${subj}' reacts with an unknown command '${p.then ?? "?"}'`, [subj, p.then ?? "?"]));
-    if ((p.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(p.meta)) {
+    if (isMachine((p.meta as { origin?: string } | undefined)?.origin) && !isGroundedAnchor(p.meta)) {
       findings.push(mk("PL5.provenance", "major", `policy '${subj}' lacks grounded evidence`, [subj]));
     }
     // PL6 — a reaction that stays on the trigger's own entity is usually redundant with the command's own emit.
@@ -478,7 +485,7 @@ export function validateRoles(roles: RolesDoc, capabilityIds: string[]): Finding
       if (!capIds.has(c)) findings.push(mk("RO2.capability", "major", `role '${subj}' authorizes unknown capability '${c}'`, [subj, c]));
     }
     if ((r.capabilities ?? []).length === 0) findings.push(mk("RO6.empty", "minor", `role '${subj}' authorizes no capabilities`, [subj]));
-    if ((r.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(r.meta)) {
+    if (isMachine((r.meta as { origin?: string } | undefined)?.origin) && !isGroundedAnchor(r.meta)) {
       findings.push(mk("RO4.provenance", "major", `role '${subj}' lacks grounded evidence`, [subj]));
     }
   }
@@ -503,7 +510,7 @@ export function validateWorkflows(workflows: WorkflowsDoc, commandIds: string[])
     if (!w.name || !w.name.trim()) findings.push(mk("WF1.required", "major", `workflow '${subj}' is missing a name`, [subj]));
     for (const s of w.steps ?? []) if (!cmds.has(s)) findings.push(mk("WF2.step", "major", `workflow '${subj}' has an unknown step command '${s}'`, [subj, s]));
     if ((w.steps ?? []).length < 2) findings.push(mk("WF5.length", "minor", `workflow '${subj}' has fewer than 2 steps`, [subj]));
-    if ((w.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(w.meta)) findings.push(mk("WF4.provenance", "major", `workflow '${subj}' lacks grounded evidence`, [subj]));
+    if (isMachine((w.meta as { origin?: string } | undefined)?.origin) && !isGroundedAnchor(w.meta)) findings.push(mk("WF4.provenance", "major", `workflow '${subj}' lacks grounded evidence`, [subj]));
   }
   for (const [id, n] of counts) if (n > 1) findings.push(mk("WF3.unique", "blocker", `duplicate workflow id '${id}' (${n}×)`, [id]));
   return findings;
@@ -524,7 +531,7 @@ export function validateAgents(agents: AgentsDoc, capabilityIds: string[]): Find
     if (!a.name || !a.name.trim()) findings.push(mk("AG1.required", "major", `agent '${subj}' is missing a name`, [subj]));
     for (const c of a.capabilities ?? []) if (!capIds.has(c)) findings.push(mk("AG2.capability", "major", `agent '${subj}' operates unknown capability '${c}'`, [subj, c]));
     if ((a.capabilities ?? []).length === 0) findings.push(mk("AG5.empty", "minor", `agent '${subj}' operates no capabilities`, [subj]));
-    if ((a.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(a.meta)) findings.push(mk("AG4.provenance", "major", `agent '${subj}' lacks grounded evidence`, [subj]));
+    if (isMachine((a.meta as { origin?: string } | undefined)?.origin) && !isGroundedAnchor(a.meta)) findings.push(mk("AG4.provenance", "major", `agent '${subj}' lacks grounded evidence`, [subj]));
     // No authored behaviour = nobody has designed HOW this agent decides. Kiln will not invent one: the
     // export ships a TBD and the runtime refuses it. Surfaced in stage health so the gap is visible without
     // running a review. `major`, matching AG4 — it doesn't break the model's structure (an agent with no

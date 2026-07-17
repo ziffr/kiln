@@ -1526,6 +1526,8 @@ textarea {
 .agent-behaviour-input::placeholder { color: var(--muted); opacity: .7; }
 .agent-behaviour-view { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .agent-behaviour-note { font-size: 11px; }
+/* no authored behaviour = an undesigned agent: an honest gap, not a neutral default. */
+.agent-behaviour-note.warn { color: var(--warn-fg); }
 
 /* Agent CONTRACT — a read-only, derived four-quadrant spec (input · tools · output · context). */
 .agent-contract {

@@ -525,6 +525,11 @@ export function validateAgents(agents: AgentsDoc, capabilityIds: string[]): Find
     for (const c of a.capabilities ?? []) if (!capIds.has(c)) findings.push(mk("AG2.capability", "major", `agent '${subj}' operates unknown capability '${c}'`, [subj, c]));
     if ((a.capabilities ?? []).length === 0) findings.push(mk("AG5.empty", "minor", `agent '${subj}' operates no capabilities`, [subj]));
     if ((a.meta as { origin?: string } | undefined)?.origin === "llm" && !isGroundedAnchor(a.meta)) findings.push(mk("AG4.provenance", "major", `agent '${subj}' lacks grounded evidence`, [subj]));
+    // No authored behaviour = nobody has designed HOW this agent decides. Kiln will not invent one: the
+    // export ships a TBD and the runtime refuses it. Surfaced in stage health so the gap is visible without
+    // running a review. `major`, matching AG4 — it doesn't break the model's structure (an agent with no
+    // behaviour still compiles), but the agent can't run, and it holds command authority when it does.
+    if (!a.instructions?.trim()) findings.push(mk("AG6.behaviour", "major", `agent '${subj}' has no authored behaviour — generate or write HOW it decides; it will not run without one`, [subj]));
   }
   for (const [id, n] of counts) if (n > 1) findings.push(mk("AG3.unique", "blocker", `duplicate agent id '${id}' (${n}×)`, [id]));
   return findings;

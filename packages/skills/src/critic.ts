@@ -9,7 +9,7 @@
 
 import { slug, sha256 } from "@kiln/ir";
 import type { CapabilityDoc, DomainDoc, ContextsDoc, RolesDoc, WorkflowsDoc, AgentsDoc } from "@kiln/compiler";
-import { agentContract, resolveAgentDefs, defaultPlaybook, mockTriggers, type CommunicationsDoc, type ExternalServicesDoc, type TriggersDoc } from "@kiln/codegen";
+import { agentContract, resolveAgentDefs, mockTriggers, type CommunicationsDoc, type ExternalServicesDoc, type TriggersDoc } from "@kiln/codegen";
 import type { LlmProvider, LlmRequest } from "./types.ts";
 
 // "agent-prompt" is a PER-AGENT critique (distinct from the roster-level "agents"): it reviews ONE agent's
@@ -106,7 +106,12 @@ function renderAgentPrompt(m: ReviewModel): string {
   const def = defs.find((d) => d.id === want) ?? defs.find((d) => slug(d.name) === want);
   if (!def) return `# Agent prompt review\n(agent "${m.agentId}" was not found in the model)`;
   const contract = agentContract(def, domain, triggers);
-  const prompt = def.instructions?.trim() || defaultPlaybook(def, contract);
+  // Only an AUTHORED prompt is reviewable. Synthesizing one from the contract and then checking it against
+  // that same contract was a circular review: every check (real tools / honours inputs / delivers outputs /
+  // no fabrication) passed by construction. `critiqueLayer` short-circuits that case deterministically
+  // before we ever get here; this stays honest if the renderer is called directly.
+  const prompt = def.instructions?.trim();
+  if (!prompt) return `# Agent prompt review\n(agent "${def.name}" has no authored behaviour — there is no prompt to review)`;
   const toolLines = contract.tools.length
     ? contract.tools.map((tl) => `- \`${tl.name}\` — ${tl.description}`)
     : ["- (no tools resolved)"];
@@ -276,9 +281,40 @@ export interface CritiqueResult {
   provider: string;
 }
 
+/**
+ * The one honest finding for an agent nobody has designed — or undefined when there IS a prompt to review.
+ *
+ * An agent with no authored `instructions` has nothing to review: the only prompt available would be one
+ * derived from its contract, and checking that against the contract is circular — it passes by
+ * construction, rubber-stamping exactly where the review should bite. So we refuse the review and say so.
+ * Deterministic: an empty field is not a judgment call, and paying a model to tell us a field is empty is
+ * a fee for a foregone conclusion. Shaped like any other finding, so the apply/dismiss surface is unchanged.
+ */
+function notDesignedFinding(model: ReviewModel): CritiqueFinding[] | undefined {
+  if (!model.agentId) return undefined;
+  const want = slug(model.agentId);
+  const agents = model.agents?.agents ?? [];
+  const a = agents.find((x) => slug(x.id) === want) ?? agents.find((x) => slug(x.name ?? "") === want);
+  if (!a || a.instructions?.trim()) return undefined;
+  const name = a.name || a.id;
+  const message = `${name} has no authored behaviour — there is nothing to review yet.`;
+  return [{
+    id: sha256(`agent-prompt|concern|${message}`).slice(0, 10),
+    severity: "concern",
+    message,
+    suggestion: "The contract says WHAT this agent may do; a behaviour must say HOW it decides — what your terms mean, when to escalate, what to check first. Run Generate (or write it), then review.",
+    target: a.id,
+  }];
+}
+
 /** Run the semantic critic over one layer. Advisory only — never blocks. `accepted` lists concerns the
  *  human has already accepted, so the critic is asked not to raise them again. */
 export async function critiqueLayer(layer: LayerKind, model: ReviewModel, provider: LlmProvider, accepted: string[] = []): Promise<CritiqueResult> {
+  // Decidable without a model → decide it here, and spend nothing.
+  if (layer === "agent-prompt") {
+    const undesigned = notDesignedFinding(model);
+    if (undesigned) return { findings: undesigned, provider: "deterministic" };
+  }
   const res = await provider.complete(buildCritiqueRequest(layer, model, accepted));
   const obj = (res.json && typeof res.json === "object" ? res.json : {}) as Record<string, unknown>;
   const raw = Array.isArray(obj.findings) ? obj.findings : [];

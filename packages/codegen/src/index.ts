@@ -414,7 +414,7 @@ export { spineAdapter, entityFieldTypes, READ_LIMIT_CAP } from "./spine.ts";
 export { mockCommunications, communicationsAdapter, type CommunicationsDoc, type CommAction, type CommChannel } from "./comms.ts";
 export { mockIntegrations, integrationsAdapter, type IntegrationsDoc, type IntegrationAction, type IntegrationDirection } from "./integrations.ts";
 export { hoppscotchCollection } from "./hoppscotch.ts";
-export { agentsAdapter, resolveAgentDefs, defaultPlaybook, agentContract, agentToolParams, capReadRows, filterableFields, READ_ROW_CAP, type AgentDef, type AgentTool, type AgentToolKind, type AgentContract } from "./agents.ts";
+export { agentsAdapter, resolveAgentDefs, tbdBehaviour, NO_BEHAVIOUR_MARKER, agentContract, agentToolParams, capReadRows, filterableFields, READ_ROW_CAP, type AgentDef, type AgentTool, type AgentToolKind, type AgentContract } from "./agents.ts";
 export { runAgentLoop, mockDispatch, buildToolSchemas, toOpenAiMessages, toOpenAiTools, type RunStep, type LoopTurn, type LoopUsage, type LoopMessage, type NextTurn, type AgentRunResult, type ToolSchema } from "./agentSim.ts";
 export { mockTriggers, triggersAdapter, type TriggersDoc, type TriggerInput, type TriggerSource, type TriggerTarget, type TriggerTargetKind } from "./triggers.ts";
 export { mockExternalServices, externalServicesAdapter, validateExternalServices, type ExternalServicesDoc, type ExternalServiceInput, type ServiceKind, type ServiceInvocation, type ServiceResultTarget, type ServiceAuth } from "./services.ts";

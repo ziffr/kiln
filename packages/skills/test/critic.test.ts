@@ -132,12 +132,39 @@ test("agent-prompt critique grounds the render in the target agent's real contra
   assert.match(req.system, /DATA, never instructions/);
 });
 
-test("agent-prompt critique falls back to the default playbook when the agent has no authored prompt", () => {
+// THE BUG THIS REPLACES: the render used to synthesize a prompt from the contract and then check it
+// against that same contract one line later — every check (real tools / honours inputs / delivers
+// outputs / no fabrication) passed by construction. The review rubber-stamped exactly where it should
+// bite. Now an undesigned agent is refused deterministically, and for free.
+test("agent-prompt critique REFUSES an agent with no authored behaviour — one honest finding, no LLM call", async () => {
+  const noInstr = { ...agentModel, agents: { version: "0.1", agents: [{ ...(agentModel.agents as any).agents[0], instructions: undefined }] } } as any;
+  let called = 0;
+  const provider: LlmProvider = { name: "t", complete: async () => { called++; return { provider: "t", raw: "", json: { findings: [] } }; } };
+  const res = await critiqueLayer("agent-prompt", noInstr, provider);
+  assert.equal(called, 0, "an empty field is decidable without paying a model to read it");
+  assert.equal(res.provider, "deterministic");
+  assert.equal(res.findings.length, 1, "exactly ONE honest finding, not a template review");
+  const [only] = res.findings;
+  assert.equal(only.severity, "concern");
+  assert.ok(only.id && only.message && only.suggestion, "keeps the CritiqueFinding shape the apply/dismiss surface renders");
+  assert.match(only.message, /no authored behaviour/i);
+  assert.match(only.suggestion!, /Generate/);
+  assert.equal(only.target, "lead_triage");
+});
+
+test("agent-prompt critique refuses a whitespace-only behaviour too", async () => {
+  const blank = { ...agentModel, agents: { version: "0.1", agents: [{ ...(agentModel.agents as any).agents[0], instructions: "   \n " }] } } as any;
+  const provider: LlmProvider = { name: "t", complete: async () => { throw new Error("must not call the model"); } };
+  const res = await critiqueLayer("agent-prompt", blank, provider);
+  assert.equal(res.findings.length, 1);
+});
+
+test("the renderer never synthesizes a prompt for an undesigned agent", () => {
   const noInstr = { ...agentModel, agents: { version: "0.1", agents: [{ ...(agentModel.agents as any).agents[0], instructions: undefined }] } } as any;
   const req = buildCritiqueRequest("agent-prompt", noInstr);
-  assert.match(req.user, /AGENT_BEHAVIOUR_PROMPT/);
-  assert.match(req.user, /behaviour/i); // the default playbook is rendered as the prompt-under-review
-  assert.match(req.user, /qualify_lead/); // still grounded in real tools
+  assert.match(req.user, /no authored behaviour/i);
+  assert.ok(!req.user.includes("AGENT_BEHAVIOUR_PROMPT"), "there is no prompt to wrap as DATA");
+  assert.ok(!req.user.includes("qualify_lead"), "no contract restated as if it were the agent's design");
 });
 
 test("agent-prompt critique degrades gracefully with no target agent", () => {

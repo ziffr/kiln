@@ -18,6 +18,17 @@ import { mockTriggers, type TriggerInput, type TriggersDoc } from "./triggers.ts
 
 const CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 
+/**
+ * The machine-detectable marker that an agent's `behaviours/<id>.md` is a NOT-YET-DESIGNED placeholder
+ * rather than a real, authored behaviour. Kiln does not invent a behaviour: the contract says WHAT an
+ * agent may do, a behaviour says HOW it decides, and a deterministic template can only restate the
+ * contract — adding nothing while hiding that nobody designed the agent. So the export ships an obvious
+ * TBD carrying this marker and the runtime REFUSES to run it (an undesigned agent still holds command
+ * authority over the business database). It's a marker, not prose-sniffing: the moment a human writes a
+ * real behaviour the marker is gone and the agent just runs.
+ */
+export const NO_BEHAVIOUR_MARKER = "<!-- KILN:NO_BEHAVIOUR -->";
+
 export type AgentToolKind = "command" | "read" | "notify" | "email" | "slack" | "pdf" | "external";
 
 /**
@@ -203,92 +214,40 @@ function uniqueToolName(base: string, taken: Set<string>): string {
 }
 
 /**
- * A default BEHAVIOUR playbook (markdown) — the agent's "HOW": its role, how it works its tools, when to
- * escalate, guardrails. Deterministic + generic; the LLM agent generator writes a business-specific one
- * (an agent's `instructions`) that supersedes this. Either way it's the editable system prompt.
+ * The behaviour file for an agent NOBODY HAS DESIGNED yet — an obvious TBD, not a plausible template.
+ *
+ * The contract (`definitions/<id>.json`) says WHAT the agent may do; a behaviour must say HOW it decides
+ * — what the business's terms mean, when to escalate, what order to check things in. Anything Kiln could
+ * generate deterministically here could only restate the contract, so it would add nothing while making
+ * an undesigned agent look designed. This file therefore names the gap, says how to close it, and points
+ * at the contract rather than copying it — and carries `NO_BEHAVIOUR_MARKER` so the runtime refuses to
+ * run the agent until a human (or Generate) replaces it.
  */
-export function defaultPlaybook(d: AgentDef, contract?: AgentContract): string {
-  const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
-  const reads = d.tools.filter((t) => t.kind === "read");
-  const notify = d.tools.some((t) => t.kind === "notify");
+export function tbdBehaviour(d: AgentDef): string {
   return [
-    `# ${d.name} — behaviour`,
+    NO_BEHAVIOUR_MARKER,
+    `# ${d.name} — behaviour NOT YET DESIGNED`,
     "",
-    `**Role.** ${d.goal || `Operate the ${d.capabilities.join(", ")} capabilities.`}`,
+    "**This agent has no behaviour, so it has no system prompt. The runtime will refuse to run it.**",
     "",
-    ...(contract ? contractSection("Inputs", inputLines(contract)) : []),
-    `## How you work`,
-    `Work through the task with your tools. For each item: read the relevant record, decide, then act via`,
-    `the right command. Take one action at a time and check the result before the next. Keep going until`,
-    `the goal is met, then summarise what you did and why.`,
+    `Kiln does not invent a behaviour for you. \`../definitions/${d.id}.json\` already declares WHAT this`,
+    "agent may do — its goal, its real tools, its inputs and outputs. A behaviour is the other half: **HOW",
+    "it decides**. Restating the contract here would add nothing, and an undesigned agent that *looks*",
+    "designed is worse than an obvious gap — this one can issue commands against the business's records.",
     "",
-    `## When to escalate`,
-    notify
-      ? `When a decision is ambiguous, high-value, or needs human judgement, use the \`notify\` tool to route`
-      : `When a decision needs human judgement, stop and report it clearly`,
-    `it to a person — don't guess. Continue once they respond.`,
+    "## How to close this",
+    "Either **run Generate on the Agents stage in Kiln Studio** and re-export, or replace this whole file",
+    "with the real playbook — in your own words, grounded in the tools the definition actually gives it:",
     "",
-    `## Guardrails`,
-    `- Never fabricate data; use only what the records and tools give you.`,
-    `- Prefer the smallest correct action; don't take irreversible steps without cause.`,
-    `- Stay within your goal and capabilities.`,
+    "- **What the business's terms mean here** — what counts as qualified, urgent, complete, exceptional.",
+    "- **When to escalate to a person** — which calls are never this agent's to make.",
+    "- **What order to check things in** — what it reads before it acts, and what counts as enough to act.",
+    "- **What it must never do** — the guardrails that matter in THIS business.",
     "",
-    ...(contract ? contractSection("Your context", contextLines(contract)) : []),
-    `## What you can look up`,
-    ...(reads.length
-      ? [
-          `Read-only — these go to the records you own. Look before you act; never guess a record's state.`,
-          `When you know what you're looking for, look it up BY FIELD — don't list a whole table and scan it.`,
-          ...reads.map((r) => `- \`${r.name}\`${readLookupBy(r)}`),
-        ]
-      : ["- (nothing — you have no read access; act only on what the task gives you)"]),
-    "",
-    `## Your commands`,
-    ...(cmds.length ? cmds.map((c) => `- \`${c}\``) : ["- (none)"]),
-    "",
-    ...(contract ? contractSection("Outputs you produce", outputLines(contract)) : []),
-    `> This file is the agent's system prompt — **edit it to change HOW this agent behaves.**`,
+    `> Once this file says how ${d.name} decides, delete the \`${NO_BEHAVIOUR_MARKER}\` marker at the top`,
+    "> (replacing the file removes it anyway) — the runtime starts the agent as soon as the marker is gone.",
     "",
   ].join("\n");
-}
-
-/**
- * What a read tool looks records up BY, for the playbook. Keeps the prompt's claim accurate: the `find_*`
- * tools name their filterable fields, so "look it up by field" is actionable rather than aspirational.
- * The shape IS the discriminator (same rule as `agentToolParams`): `id` → by id; other fields → a filter.
- */
-function readLookupBy(t: AgentTool): string {
-  const fields = t.input ?? [];
-  if (!fields.length || fields.includes("id")) return "";
-  return ` — look one up by ${fields.map((f) => `\`${f}\``).join(", ")} (exact match)`;
-}
-
-// ── grounded-contract playbook sections (input · context · output) ──
-function contractSection(title: string, lines: string[]): string[] {
-  return [`## ${title}`, ...lines, ""];
-}
-function inputLines(c: AgentContract): string[] {
-  const lines = c.input.triggers.length
-    ? c.input.triggers.map((tr) => `- **${tr.name}** (${tr.kind} \`${tr.ref}\`) — wakes you with a signal to act on.`)
-    : ["- No external trigger routes to you yet — you're started on demand with a task."];
-  lines.push(`- Run task: ${c.input.task}`);
-  return lines;
-}
-function contextLines(c: AgentContract): string[] {
-  if (!c.context.entities.length && !c.context.processes.length) return ["- (no entities or processes resolved)"];
-  const lines = c.context.entities.map((e) => {
-    const fields = e.attributes.map((a) => (a.type ? `${a.name}: ${a.type}` : a.name)).join(", ");
-    return `- **${e.name}**${fields ? ` — ${fields}` : ""}`;
-  });
-  if (c.context.processes.length) lines.push(`- Processes you own: ${c.context.processes.join(", ")}`);
-  return lines;
-}
-function outputLines(c: AgentContract): string[] {
-  const lines: string[] = [];
-  if (c.output.events.length) lines.push(`- Events you emit: ${c.output.events.join(", ")}`);
-  if (c.output.recordChanges.length) lines.push(`- Records you change: ${c.output.recordChanges.join(", ")}`);
-  if (!lines.length) lines.push("- (no events or record changes resolved)");
-  return lines;
 }
 
 /**
@@ -568,6 +527,10 @@ import type { AgentDef } from "./def";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+// The marker Kiln writes into a behaviour NOBODY has designed yet (see behaviours/<id>.md). A marker, not
+// prose-sniffing: write a real behaviour and it's gone, so the agent just runs.
+const NO_BEHAVIOUR_MARKER = ${JSON.stringify(NO_BEHAVIOUR_MARKER)};
+
 export function definitionPath(id: string): string { return join(here, "..", "definitions", id + ".json"); }
 export function agentExists(id: string): boolean { return existsSync(definitionPath(id)); }
 
@@ -584,6 +547,16 @@ export async function runAgent(id: string, task: string): Promise<AgentRunResult
   // behaviour = the agent's system prompt; edit behaviours/<id>.md to change how it works.
   const behaviourPath = join(here, "..", "behaviours", id + ".md");
   const system = existsSync(behaviourPath) ? readFileSync(behaviourPath, "utf8") : "You are " + def.name + ". Goal: " + def.goal;
+  // Nobody designed this agent: its behaviour is still the exported TBD. Refuse — a placeholder that only
+  // restates the contract is not a design, and this agent can issue commands against the business records.
+  if (system.includes(NO_BEHAVIOUR_MARKER)) {
+    throw new Error(
+      "agents/behaviours/" + id + ".md has no behaviour yet — it is still the NOT-YET-DESIGNED placeholder, so "
+      + def.name + " has no system prompt and will not run. Write HOW this agent decides (what your terms mean, "
+      + "when to escalate, what to check first) — or run Generate on the Agents stage in Kiln Studio and re-export "
+      + "— then remove the " + NO_BEHAVIOUR_MARKER + " marker.",
+    );
+  }
   // Provider: Anthropic native by default (best Claude fidelity); any OpenAI-compatible gateway otherwise
   // (openrouter | omniroute | openai-compatible). PROVIDER wins; else infer from whichever key is set.
   const provider = (process.env.PROVIDER
@@ -802,10 +775,11 @@ export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: A
   // engine-aware (leads with the built-on provider) + a named var per external service credential.
   files["agents/.env.example"] = agentEnvExample(agentDefaults, services);
   for (const d of defs) {
-    // definition = structure + config; behaviour = the editable markdown playbook (the "HOW"), grounded in
-    // the derived contract (its input · tools · output · context) so a default prompt cites real facts.
+    // definition = structure + config (WHAT it may do); behaviour = the authored markdown playbook (HOW it
+    // decides). With no authored behaviour we ship an obvious TBD, never a generated template: Kiln does
+    // not invent a design, and the runtime refuses the TBD rather than run on a plausible-looking stand-in.
     files[`agents/definitions/${d.id}.json`] = JSON.stringify({ ...d, instructions: undefined }, null, 2);
-    files[`agents/behaviours/${d.id}.md`] = (d.instructions?.trim() ? d.instructions.trim() + "\n" : defaultPlaybook(d, agentContract(d, domain, trig))) + processesSection(d);
+    files[`agents/behaviours/${d.id}.md`] = (d.instructions?.trim() ? d.instructions.trim() + "\n" : tbdBehaviour(d)) + processesSection(d);
   }
   files["agents/README.md"] = `# Agents — a runnable, provider-flexible agent runtime
 

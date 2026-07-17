@@ -20,9 +20,10 @@ in four quadrants:
 
 - **Input** — the external signals routed to this agent (webhook / schedule / external triggers) plus the
   run task. This is what *wakes* the agent.
-- **Tools** — the exact tools the agent can call: the commands on the entities its capabilities own, the
-  `notify` human-in-the-loop router, and any comm actions or external services. These are the same tool
-  schemas the run loop (and the exported runtime) send to the model.
+- **Tools** — the exact tools the agent can call: the **read** tools that look data up (`list_<entity>` /
+  `get_<entity>`), the commands on the entities its capabilities own, the `notify` human-in-the-loop
+  router, and any comm actions or external services. These are the same tool schemas the run loop (and the
+  exported runtime) send to the model.
 - **Output** — the events the agent's commands emit and the records they change. This is what the agent
   *produces*.
 - **Context** — the entities the agent operates and their typed fields, plus any processes it owns.
@@ -30,6 +31,30 @@ in four quadrants:
 The contract is a **derived projection** — Kiln computes it from your capabilities, domain, and triggers.
 It is **not** something you author or edit; it updates automatically as the model changes (it is marked
 **Derived**). It makes explicit the four things every autonomous operator needs pinned down.
+
+### Looking data up
+
+An agent can **read the records it works on**, not just act on them. For every entity its capabilities
+own it gets two read-only tools:
+
+- `list_<entity>` — list the records (no arguments), to find the one it needs.
+- `get_<entity>` — fetch one record by `id`, to check its current state.
+
+**Read access is capability-scoped, exactly like commands.** An agent can only look up the entities its
+capabilities own — a Sales Agent that owns Lead and Offer cannot read Invoice. Change an agent's
+capabilities and its read tools change with them.
+
+**The spine is the single data path.** Reads go to the generated spine's own read endpoints (the same API
+the UI and workflows use, behind the same optional `API_TOKEN` bearer as the writes). An agent has **no**
+direct access to the database, Odoo, Excel, or any other store — if it isn't exposed by the spine, the
+agent cannot see it.
+
+:::note Large tables are capped
+A list read returns every row the spine has — there is no pagination. So the runtime hands the model at
+most **50 records** and tells it when it did: the result carries the true `total` and a `truncated` flag,
+so the agent knows there is more rather than silently assuming it saw everything. When a list is cut
+short, the agent should narrow the question or fetch a specific record by id.
+:::
 
 ## Behaviour (the system prompt)
 

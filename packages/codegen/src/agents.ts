@@ -18,7 +18,27 @@ import { mockTriggers, type TriggerInput, type TriggersDoc } from "./triggers.ts
 
 const CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
 
-export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf" | "external";
+export type AgentToolKind = "command" | "read" | "notify" | "email" | "slack" | "pdf" | "external";
+
+/**
+ * How many rows a `read` LIST tool hands back to the model. The spine's `GET /<entity>s` returns EVERY
+ * row (it has no pagination), so an unbounded list would blow the agent's context on a real table. The
+ * runtime (and the mock dispatcher, for consistency) caps the rows and SAYS so — `capReadRows` never
+ * truncates silently: it reports the true `total` and sets `truncated`.
+ */
+export const READ_ROW_CAP = 50;
+
+/** Cap a read LIST result. Honest by construction: `total` is the real count; `truncated` says it was cut. */
+export function capReadRows(rows: unknown[], cap = READ_ROW_CAP): { rows: unknown[]; total: number; truncated?: boolean; note?: string } {
+  if (rows.length <= cap) return { rows, total: rows.length };
+  return {
+    rows: rows.slice(0, cap),
+    total: rows.length,
+    truncated: true,
+    note: `Showing the first ${cap} of ${rows.length} records — narrow the question, or fetch a specific record by id.`,
+  };
+}
+
 export interface AgentTool {
   name: string;
   kind: AgentToolKind;
@@ -117,12 +137,54 @@ function commandTool(c: { id: string; name?: string; aggregate: string; emits?: 
 }
 
 /**
+ * The READ tools for one owned entity — the agent's DATA path. The spine already exposes both routes
+ * (`GET /<entity>s` list, `GET /<entity>s/:id` by id, behind the same opt-in bearer as the writes); until
+ * now the agent had no tool pointing at them, so a playbook telling it to "read the relevant record" was
+ * a lie. The resource is `${slug(aggregate)}s` — byte-identical to `commandTool` and to the spine's own
+ * `routesFor`, so the URLs line up. Read stays capability-SCOPED: the caller only passes owned entities.
+ */
+function readTools(agg: { id: string; name?: string }, taken: Set<string>): AgentTool[] {
+  const entity = slug(agg.id);
+  const res = `${entity}s`;
+  const label = agg.name || agg.id;
+  return [
+    {
+      name: uniqueToolName(`list_${entity}`, taken),
+      kind: "read",
+      description: `List ${label} records — read-only; use it to find the record you need before acting.`,
+      invoke: { method: "GET", url: `{{SPINE_URL}}/${res}` },
+    },
+    {
+      name: uniqueToolName(`get_${entity}`, taken),
+      kind: "read",
+      description: `Fetch one ${label} by id — read-only; use it to check a record's current state.`,
+      invoke: { method: "GET", url: `{{SPINE_URL}}/${res}/{id}` },
+      input: ["id"],
+    },
+  ];
+}
+
+/**
+ * Keep tool names unique + deterministic. A command tool is named `slug(command.id)`, so a command called
+ * e.g. "List Leads" would collide with the derived `list_lead`. Commands are resolved first and WIN (they
+ * are authored); a colliding read tool takes a stable suffixed name instead of clobbering the action.
+ */
+function uniqueToolName(base: string, taken: Set<string>): string {
+  let name = base;
+  if (taken.has(name)) name = `${base}_records`;
+  for (let n = 2; taken.has(name); n++) name = `${base}_${n}`;
+  taken.add(name);
+  return name;
+}
+
+/**
  * A default BEHAVIOUR playbook (markdown) — the agent's "HOW": its role, how it works its tools, when to
  * escalate, guardrails. Deterministic + generic; the LLM agent generator writes a business-specific one
  * (an agent's `instructions`) that supersedes this. Either way it's the editable system prompt.
  */
 export function defaultPlaybook(d: AgentDef, contract?: AgentContract): string {
   const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
+  const reads = d.tools.filter((t) => t.kind === "read").map((t) => t.name);
   const notify = d.tools.some((t) => t.kind === "notify");
   return [
     `# ${d.name} — behaviour`,
@@ -147,6 +209,11 @@ export function defaultPlaybook(d: AgentDef, contract?: AgentContract): string {
     `- Stay within your goal and capabilities.`,
     "",
     ...(contract ? contractSection("Your context", contextLines(contract)) : []),
+    `## What you can look up`,
+    ...(reads.length
+      ? [`Read-only — these go to the records you own. Look before you act; never guess a record's state.`, ...reads.map((r) => `- \`${r}\``)]
+      : ["- (nothing — you have no read access; act only on what the task gives you)"]),
+    "",
     `## Your commands`,
     ...(cmds.length ? cmds.map((c) => `- \`${c}\``) : ["- (none)"]),
     "",
@@ -213,6 +280,12 @@ const SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown
     for (const f of t.input ?? []) properties[f] = { type: "string" };
     return { type: "object", properties };
   }
+  // read: by-id needs the id (required); a list takes no arguments.
+  if (t.kind === "read") {
+    return (t.input ?? []).includes("id")
+      ? { type: "object", properties: { id: { type: "string" } }, required: ["id"] }
+      : { type: "object", properties: {} };
+  }
   if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
   return { type: "object", properties: {} };
 }`;
@@ -228,12 +301,18 @@ export function agentToolParams(t: AgentTool): Record<string, unknown> {
     for (const f of t.input ?? []) properties[f] = { type: "string" };
     return { type: "object", properties };
   }
+  // read: by-id needs the id (required); a list takes no arguments.
+  if (t.kind === "read") {
+    return (t.input ?? []).includes("id")
+      ? { type: "object", properties: { id: { type: "string" } }, required: ["id"] }
+      : { type: "object", properties: {} };
+  }
   if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
   return { type: "object", properties: {} };
 }
 
 const RUNTIME: Record<string, string> = {
-  "src/def.ts": `export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf" | "external";
+  "src/def.ts": `export type AgentToolKind = "command" | "read" | "notify" | "email" | "slack" | "pdf" | "external";
 export interface AgentTool { name: string; kind: AgentToolKind; description: string; invoke: Record<string, unknown>; input?: string[]; }
 export interface AgentDef {
   id: string;
@@ -251,9 +330,28 @@ export interface AgentDef {
 
 const SPINE = process.env.SPINE_URL || "http://localhost:3000";
 const API_TOKEN = process.env.API_TOKEN; // if the spine requires auth, send the same bearer token
+const READ_ROW_CAP = ${READ_ROW_CAP}; // a list read returns EVERY row — cap what we hand the model
 
-// Execute one tool call. command → POST the spine endpoint; notify/comm → your integration (logged here).
+// Execute one tool call. read → GET the spine; command → POST it; notify/comm → your integration (logged).
 export async function executeTool(tool: AgentTool, input: Record<string, unknown>): Promise<unknown> {
+  if (tool.kind === "read") {
+    // The agent's DATA path: the spine's read routes (same bearer as the writes). A list returns the whole
+    // table — cap it so a big table can't blow the agent's context, and SAY so rather than truncate silently.
+    const url = String(tool.invoke.url ?? "").replace("{{SPINE_URL}}", SPINE).replace("{id}", encodeURIComponent(String(input.id ?? "")));
+    const headers: Record<string, string> = {};
+    if (API_TOKEN) headers.authorization = "Bearer " + API_TOKEN;
+    const res = await fetch(url, { method: "GET", headers });
+    const body = await res.json().catch(() => ({}));
+    if (!Array.isArray(body)) return { status: res.status, body };
+    if (body.length <= READ_ROW_CAP) return { status: res.status, rows: body, total: body.length };
+    return {
+      status: res.status,
+      rows: body.slice(0, READ_ROW_CAP),
+      total: body.length,
+      truncated: true,
+      note: "Showing the first " + READ_ROW_CAP + " of " + body.length + " records — narrow the question, or fetch a specific record by id.",
+    };
+  }
   if (tool.kind === "command") {
     const url = String(tool.invoke.url ?? "").replace("{{SPINE_URL}}", SPINE).replace("{id}", encodeURIComponent(String(input.id ?? "")));
     const headers: Record<string, string> = { "content-type": "application/json" };
@@ -543,6 +641,14 @@ export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?
       if (!ownedEntities.has(c.aggregate)) continue;
       const agg = domain.aggregates.find((x) => x.id === c.aggregate);
       tools.push(commandTool(c, attributeSpecs(agg ?? { attributes: [] }).map((f) => slug(f.name)), evName));
+    }
+    // READ tools — the agent's data path (the spine's existing GET routes). Same capability scope as the
+    // commands: an agent can only look up the entities its capabilities OWN. Resolved after the commands
+    // so an authored command name always wins a name collision.
+    const taken = new Set(tools.map((t) => t.name));
+    for (const agg of domain.aggregates) {
+      if (!ownedEntities.has(agg.id)) continue;
+      tools.push(...readTools(agg, taken));
     }
     tools.push({ name: "notify", kind: "notify", description: "Send an email or Slack message to a person or channel — e.g. route to a human for a decision, then continue when they respond.", invoke: { channels: ["email", "slack"], via: "n8n" } });
     for (const cm of comms?.actions ?? []) {

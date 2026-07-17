@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { agentsAdapter } from "../src/index.ts";
+import { agentsAdapter, resolveAgentDefs, agentContract, agentToolParams, capReadRows, READ_ROW_CAP } from "../src/index.ts";
 import type { CapabilityDoc, DomainDoc, AgentsDoc } from "@kiln/compiler";
 import type { CommunicationsDoc } from "../src/comms.ts";
 
@@ -97,4 +97,88 @@ test("agent-mode processes fold into the covering agent's behaviour (SPEC-009)",
   // the routed process is also recorded on the definition (structure)
   const def = JSON.parse(files["agents/definitions/lead_agent.json"]);
   assert.ok(def.processes.some((p: { id: string }) => p.id === "triage_lead"));
+});
+
+// ── read tools: the agent's DATA path (the spine's existing GET routes) ──
+
+test("agents get read tools (list + get) pointing at the spine's read routes", () => {
+  const defs = resolveAgentDefs(caps, domain, agents, comms);
+  const tools = defs[0].tools;
+  const list = tools.find((t) => t.name === "list_lead");
+  const get = tools.find((t) => t.name === "get_lead");
+  assert.ok(list && get, "read tools resolved for the owned entity");
+  assert.equal(list!.kind, "read");
+  assert.equal(get!.kind, "read");
+  // URLs match the spine's routes exactly: `${slug(aggregate)}s` list + /:id by id (see spine.ts routesFor)
+  assert.deepEqual(list!.invoke, { method: "GET", url: "{{SPINE_URL}}/leads" });
+  assert.deepEqual(get!.invoke, { method: "GET", url: "{{SPINE_URL}}/leads/{id}" });
+  assert.deepEqual(get!.input, ["id"]);
+  assert.equal(list!.input, undefined);
+  // params: get_* requires an id; list_* takes none
+  assert.deepEqual(agentToolParams(get!), { type: "object", properties: { id: { type: "string" } }, required: ["id"] });
+  assert.deepEqual(agentToolParams(list!), { type: "object", properties: {} });
+});
+
+test("read access is capability-SCOPED — an agent gets no read tool for an entity it doesn't own", () => {
+  const twoEntities = {
+    ...domain,
+    aggregates: [
+      { id: "lead", name: "Lead", owner: "leads", attributes: [], references: [] },
+      { id: "invoice", name: "Invoice", owner: "billing", attributes: [], references: [] },
+    ],
+  } as unknown as DomainDoc;
+  const capsTwo = { ...caps, capabilities: [...caps.capabilities, { id: "billing", name: "Billing", purpose: "", outcomes: [] }] } as unknown as CapabilityDoc;
+  const tools = resolveAgentDefs(capsTwo, twoEntities, agents, comms)[0].tools.map((t) => t.name);
+  assert.ok(tools.includes("list_lead") && tools.includes("get_lead"), "owned entity is readable");
+  // `leads` is the agent's only capability → the billing-owned Invoice stays out of reach.
+  assert.ok(!tools.includes("list_invoice") && !tools.includes("get_invoice"), "unowned entity is NOT readable");
+});
+
+test("a command named like a read tool wins the collision; the read tool takes a stable suffixed name", () => {
+  const clashing = {
+    ...domain,
+    commands: [...(domain.commands ?? []), { id: "list_lead", name: "List Lead", aggregate: "lead", emits: [] }],
+  } as unknown as DomainDoc;
+  const tools = resolveAgentDefs(caps, clashing, agents, comms)[0].tools;
+  const cmd = tools.find((t) => t.name === "list_lead");
+  assert.equal(cmd!.kind, "command", "the authored command keeps the name");
+  const read = tools.find((t) => t.kind === "read" && t.name.startsWith("list_"));
+  assert.equal(read!.name, "list_lead_records"); // deterministic de-dup
+  assert.equal(tools.filter((t) => t.name === "list_lead").length, 1, "no duplicate names");
+});
+
+test("capReadRows caps an unbounded list HONESTLY (real total + truncated flag, never silent)", () => {
+  const small = capReadRows([{ id: "a" }, { id: "b" }]);
+  assert.deepEqual(small, { rows: [{ id: "a" }, { id: "b" }], total: 2 });
+  assert.equal(small.truncated, undefined);
+  // the spine's GET /<entity>s returns EVERY row — a big table must not blow the agent's context
+  const big = capReadRows(Array.from({ length: 500 }, (_, i) => ({ id: `lead-${i}` })));
+  assert.equal(big.rows.length, READ_ROW_CAP);
+  assert.equal(big.total, 500, "the TRUE total is reported, not the capped count");
+  assert.equal(big.truncated, true);
+  assert.match(big.note!, /first 50 of 500/);
+});
+
+test("the emitted runtime executes read tools: GET + bearer + the same row cap", () => {
+  const tools = agentsAdapter(caps, domain, agents, comms)["agents/src/tools.ts"];
+  assert.match(tools, /tool\.kind === "read"/);
+  assert.match(tools, /method: "GET"/);
+  assert.match(tools, /headers\.authorization = "Bearer " \+ API_TOKEN/); // same opt-in bearer as writes
+  assert.match(tools, /READ_ROW_CAP = 50/);
+  assert.match(tools, /truncated: true/);
+  // the emitted def.ts type must know the kind, or the runtime wouldn't typecheck
+  assert.match(agentsAdapter(caps, domain, agents, comms)["agents/src/def.ts"], /"read"/);
+});
+
+test("the playbook lists the read tools — its 'read the relevant record' instruction is now true", () => {
+  const behaviour = agentsAdapter(caps, domain, agents, comms)["agents/behaviours/lead_agent.md"];
+  assert.match(behaviour, /## What you can look up/);
+  assert.match(behaviour, /`list_lead`/);
+  assert.match(behaviour, /`get_lead`/);
+});
+
+test("the agent contract's tools facet includes the read tools", () => {
+  const def = resolveAgentDefs(caps, domain, agents, comms)[0];
+  const names = agentContract(def, domain).tools.map((t) => t.name);
+  assert.ok(names.includes("list_lead") && names.includes("get_lead"));
 });

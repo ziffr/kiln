@@ -3910,6 +3910,16 @@ function toOpenAiMessages(messages, system) {
 }
 function mockDispatch(tool, input) {
   switch (tool.kind) {
+    case "read": {
+      const entity = tool.name.replace(/^(list|get)_/, "").replace(/_records$|_\d+$/, "");
+      const byId = (tool.input ?? []).includes("id");
+      if (byId) {
+        const id = String(input.id ?? "").trim() || `${entity}-0001`;
+        return { status: 200, record: { id }, note: `Simulated ${tool.name} \u2014 no spine call was made; a real run returns the record's current fields.` };
+      }
+      const rows = [1, 2, 3].map((n) => ({ id: `${entity}-000${n}` }));
+      return { status: 200, ...capReadRows(rows), note: `Simulated ${tool.name} \u2014 no spine call was made; a real run reads at most ${READ_ROW_CAP} records from the spine.` };
+    }
     case "command": {
       const id = String(input.id ?? "").trim() || `${tool.name.replace(/_/g, "-")}-0001`;
       const { id: _id, ...fields } = input;
@@ -3979,6 +3989,16 @@ function mockTriggers(_caps, domain, _workflows, agents) {
 
 // ../../packages/codegen/src/agents.ts
 var CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit|plan|record)_/;
+var READ_ROW_CAP = 50;
+function capReadRows(rows, cap = READ_ROW_CAP) {
+  if (rows.length <= cap) return { rows, total: rows.length };
+  return {
+    rows: rows.slice(0, cap),
+    total: rows.length,
+    truncated: true,
+    note: `Showing the first ${cap} of ${rows.length} records \u2014 narrow the question, or fetch a specific record by id.`
+  };
+}
 function agentContract(def, domain, triggers) {
   const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
   const cmdBySlug = new Map((domain.commands ?? []).map((c) => [slug(c.id), c]));
@@ -4018,8 +4038,36 @@ function commandTool(c, fields, evName) {
     input: fields
   };
 }
+function readTools(agg, taken) {
+  const entity = slug(agg.id);
+  const res = `${entity}s`;
+  const label = agg.name || agg.id;
+  return [
+    {
+      name: uniqueToolName(`list_${entity}`, taken),
+      kind: "read",
+      description: `List ${label} records \u2014 read-only; use it to find the record you need before acting.`,
+      invoke: { method: "GET", url: `{{SPINE_URL}}/${res}` }
+    },
+    {
+      name: uniqueToolName(`get_${entity}`, taken),
+      kind: "read",
+      description: `Fetch one ${label} by id \u2014 read-only; use it to check a record's current state.`,
+      invoke: { method: "GET", url: `{{SPINE_URL}}/${res}/{id}` },
+      input: ["id"]
+    }
+  ];
+}
+function uniqueToolName(base, taken) {
+  let name = base;
+  if (taken.has(name)) name = `${base}_records`;
+  for (let n = 2; taken.has(name); n++) name = `${base}_${n}`;
+  taken.add(name);
+  return name;
+}
 function defaultPlaybook(d, contract) {
   const cmds = d.tools.filter((t) => t.kind === "command").map((t) => t.name);
+  const reads = d.tools.filter((t) => t.kind === "read").map((t) => t.name);
   const notify = d.tools.some((t) => t.kind === "notify");
   return [
     `# ${d.name} \u2014 behaviour`,
@@ -4042,6 +4090,9 @@ function defaultPlaybook(d, contract) {
     `- Stay within your goal and capabilities.`,
     "",
     ...contract ? contractSection("Your context", contextLines(contract)) : [],
+    `## What you can look up`,
+    ...reads.length ? [`Read-only \u2014 these go to the records you own. Look before you act; never guess a record's state.`, ...reads.map((r) => `- \`${r}\``)] : ["- (nothing \u2014 you have no read access; act only on what the task gives you)"],
+    "",
     `## Your commands`,
     ...cmds.length ? cmds.map((c) => `- \`${c}\``) : ["- (none)"],
     "",
@@ -4080,6 +4131,12 @@ var SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown> 
     for (const f of t.input ?? []) properties[f] = { type: "string" };
     return { type: "object", properties };
   }
+  // read: by-id needs the id (required); a list takes no arguments.
+  if (t.kind === "read") {
+    return (t.input ?? []).includes("id")
+      ? { type: "object", properties: { id: { type: "string" } }, required: ["id"] }
+      : { type: "object", properties: {} };
+  }
   if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
   return { type: "object", properties: {} };
 }`;
@@ -4089,11 +4146,14 @@ function agentToolParams(t) {
     for (const f of t.input ?? []) properties[f] = { type: "string" };
     return { type: "object", properties };
   }
+  if (t.kind === "read") {
+    return (t.input ?? []).includes("id") ? { type: "object", properties: { id: { type: "string" } }, required: ["id"] } : { type: "object", properties: {} };
+  }
   if (t.kind === "notify") return { type: "object", properties: { recipient: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["recipient", "body"] };
   return { type: "object", properties: {} };
 }
 var RUNTIME = {
-  "src/def.ts": `export type AgentToolKind = "command" | "notify" | "email" | "slack" | "pdf" | "external";
+  "src/def.ts": `export type AgentToolKind = "command" | "read" | "notify" | "email" | "slack" | "pdf" | "external";
 export interface AgentTool { name: string; kind: AgentToolKind; description: string; invoke: Record<string, unknown>; input?: string[]; }
 export interface AgentDef {
   id: string;
@@ -4111,9 +4171,28 @@ export interface AgentDef {
 
 const SPINE = process.env.SPINE_URL || "http://localhost:3000";
 const API_TOKEN = process.env.API_TOKEN; // if the spine requires auth, send the same bearer token
+const READ_ROW_CAP = ${READ_ROW_CAP}; // a list read returns EVERY row \u2014 cap what we hand the model
 
-// Execute one tool call. command \u2192 POST the spine endpoint; notify/comm \u2192 your integration (logged here).
+// Execute one tool call. read \u2192 GET the spine; command \u2192 POST it; notify/comm \u2192 your integration (logged).
 export async function executeTool(tool: AgentTool, input: Record<string, unknown>): Promise<unknown> {
+  if (tool.kind === "read") {
+    // The agent's DATA path: the spine's read routes (same bearer as the writes). A list returns the whole
+    // table \u2014 cap it so a big table can't blow the agent's context, and SAY so rather than truncate silently.
+    const url = String(tool.invoke.url ?? "").replace("{{SPINE_URL}}", SPINE).replace("{id}", encodeURIComponent(String(input.id ?? "")));
+    const headers: Record<string, string> = {};
+    if (API_TOKEN) headers.authorization = "Bearer " + API_TOKEN;
+    const res = await fetch(url, { method: "GET", headers });
+    const body = await res.json().catch(() => ({}));
+    if (!Array.isArray(body)) return { status: res.status, body };
+    if (body.length <= READ_ROW_CAP) return { status: res.status, rows: body, total: body.length };
+    return {
+      status: res.status,
+      rows: body.slice(0, READ_ROW_CAP),
+      total: body.length,
+      truncated: true,
+      note: "Showing the first " + READ_ROW_CAP + " of " + body.length + " records \u2014 narrow the question, or fetch a specific record by id.",
+    };
+  }
   if (tool.kind === "command") {
     const url = String(tool.invoke.url ?? "").replace("{{SPINE_URL}}", SPINE).replace("{id}", encodeURIComponent(String(input.id ?? "")));
     const headers: Record<string, string> = { "content-type": "application/json" };
@@ -4354,6 +4433,11 @@ function resolveAgentDefs(caps, domain, agents, comms, workflows, services, trig
       if (!ownedEntities.has(c.aggregate)) continue;
       const agg = domain.aggregates.find((x) => x.id === c.aggregate);
       tools.push(commandTool(c, attributeSpecs(agg ?? { attributes: [] }).map((f) => slug(f.name)), evName));
+    }
+    const taken = new Set(tools.map((t) => t.name));
+    for (const agg of domain.aggregates) {
+      if (!ownedEntities.has(agg.id)) continue;
+      tools.push(...readTools(agg, taken));
     }
     tools.push({ name: "notify", kind: "notify", description: "Send an email or Slack message to a person or channel \u2014 e.g. route to a human for a decision, then continue when they respond.", invoke: { channels: ["email", "slack"], via: "n8n" } });
     for (const cm of comms?.actions ?? []) {

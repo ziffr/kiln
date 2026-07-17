@@ -37,7 +37,7 @@ import { CapabilityMap } from "./components/CapabilityMap";
 import { StageRail, type StageId, type StageInfo } from "./components/StageRail";
 import { StageGuide } from "./components/StageGuide";
 import { BehaviourView, AutomationsView, RolesMatrix, WorkflowsView, AgentsView } from "./components/StageViews";
-import { AgentDetail } from "./components/AgentDetail";
+import { AgentDetail, type AgentRevision } from "./components/AgentDetail";
 import { EntityDiagram } from "./components/EntityDiagram";
 import { AreaDiagram } from "./components/AreaDiagram";
 import { AgentDiagram } from "./components/AgentDiagram";
@@ -290,6 +290,13 @@ export default function App(): React.JSX.Element {
   // reviewed-clean; >0 = advisory findings. `agentReviewBusy` = the agent id currently under review.
   const [agentCritique, setAgentCritique] = useState<Record<string, CritiqueFinding[]>>({});
   const [agentReviewBusy, setAgentReviewBusy] = useState<string | null>(null);
+  // A PENDING behaviour revision awaiting the human's accept/reject (keyed by agent id). Deliberately
+  // transient state, never persisted: an unaccepted proposal is not part of the model (golden invariant
+  // #2 — the behaviour is authored IR and only a human Accept writes it), so it must not survive a reload
+  // or ride in an exported model.json. Reject/close simply drops it.
+  const [agentRevision, setAgentRevision] = useState<Record<string, AgentRevision>>({});
+  const [agentReviseBusy, setAgentReviseBusy] = useState<string | null>(null);
+  const [agentReviseError, setAgentReviseError] = useState<string | null>(null);
   // Layers whose (previously reviewed) AI critique was invalidated because an upstream Apply regenerated
   // them (see APPLY_RESETS_BELOW). We can't know for free whether the regenerated content is now clean —
   // that's an LLM judgment — so instead of a misleading "not reviewed" we flag "changed upstream", nudging
@@ -1148,6 +1155,80 @@ export default function App(): React.JSX.Element {
     } finally {
       setAgentReviewBusy(null);
     }
+  }
+
+  // Apply ONE agent-prompt finding (or all of them): ask for the SMALLEST edit to the agent's authored
+  // behaviour that addresses it. This only PROPOSES — the result lands in `agentRevision` and renders as a
+  // diff; nothing is written until the human accepts (`acceptAgentRevision`).
+  //
+  // Unlike `refineLayer` (which regenerates a whole structured doc from its critique), this bounds the
+  // change: a behaviour prompt is prose the human wrote, so a regeneration would launder their voice on
+  // every Apply. Minimal edit + a diff is what keeps the human gate real instead of ceremonial.
+  async function applyAgentFinding(agentId: string, findings: CritiqueFinding[]): Promise<void> {
+    if (!active.agents || !findings.length) return; // gated: a real roster only, same as the review
+    setAgentReviseBusy(agentId);
+    setAgentReviseError(null);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVICE_URL}/api/agent-prompt-revise`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          agentId,
+          capabilities: activeDoc,
+          // the docs the server needs to derive this agent's contract — the ground truth the revision
+          // must stay inside (it must not invent a tool). The SAME set the critique sends.
+          domain: flowDoc,
+          agents: agentsDoc,
+          workflows: workflowsDoc,
+          comms: active.comms ?? undefined,
+          services: active.services ?? undefined,
+          findings,
+          // Sized like the critique it acts on ("agent-prompt"), not the light agents stage: editing a
+          // prompt against a contract is the same judgment as reviewing it.
+          ...reviewCfg("agent-prompt"),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setAgentRevision((prev) => ({
+        ...prev,
+        [agentId]: { findings, original: data.original ?? "", revised: data.revised ?? "", note: data.note ?? "", changed: Boolean(data.changed), repairedTools: data.fabricatedTools ?? data.repairedTools ?? [] },
+      }));
+      applySpend(data);
+    } catch (e) {
+      setAgentReviseError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAgentReviseBusy(null);
+    }
+  }
+
+  // Accept: the ONE place a revision becomes the agent's behaviour. Writes through the same authored-edit
+  // path as typing in the textarea (`editAgentInstructions` → origin: "authored"), so an accepted edit is
+  // the human's text from then on — it persists, round-trips, and is theirs to edit further.
+  function acceptAgentRevision(agentId: string): void {
+    const rev = agentRevision[agentId];
+    if (!rev || !rev.changed) return;
+    editAgentInstructions(agentId, rev.revised);
+    // The applied findings are ADDRESSED → drop them from the visible list. Deliberately NOT added to the
+    // durable ignore list (`ignoreAgentCritFinding`), which means "I considered this and accept it as-is"
+    // and permanently silences it: that's the wrong claim here. Whether the edit truly fixed the concern
+    // is an LLM judgment we haven't paid for — a re-review runs the critic against the NEW prompt and will
+    // say. Silencing it durably would assert a fix we can't verify.
+    const applied = new Set(rev.findings.map((f) => f.id));
+    setAgentCritique((prev) => (prev[agentId] ? { ...prev, [agentId]: prev[agentId].filter((f) => !applied.has(f.id)) } : prev));
+    dismissAgentRevision(agentId);
+  }
+
+  /** Reject/dismiss a pending proposal — the behaviour is left byte-identical. */
+  function dismissAgentRevision(agentId: string): void {
+    setAgentRevision((prev) => {
+      if (!prev[agentId]) return prev;
+      const next = { ...prev };
+      delete next[agentId];
+      return next;
+    });
+    setAgentReviseError(null);
   }
 
   // Refine: re-generate the layer feeding its own critique back in as guidance. Returns the override
@@ -2382,6 +2463,12 @@ export default function App(): React.JSX.Element {
                 critique={agentCritique[selectedAgent.id]?.filter((f) => !isAgentCritIgnored(selectedAgent.id, f))}
                 onDismissFinding={(f) => ignoreAgentCritFinding(selectedAgent.id, f)}
                 onSelectFinding={(f) => selectFinding(f)}
+                onApplyFinding={active.agents ? (id, fs) => void applyAgentFinding(id, fs) : undefined}
+                applying={agentReviseBusy === selectedAgent.id}
+                revision={agentRevision[selectedAgent.id]}
+                onAcceptRevision={() => acceptAgentRevision(selectedAgent.id)}
+                onRejectRevision={() => dismissAgentRevision(selectedAgent.id)}
+                revisionError={agentReviseError}
                 onSelectCapability={(id) => navTo("capabilities", id)}
                 onClose={() => navTo(stage, null)}
                 t={t}

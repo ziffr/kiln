@@ -179,18 +179,43 @@ It checks five things:
 Because the critique is grounded in the contract rather than in the prompt alone, its findings name your
 real entities, commands, and events — not invented ones.
 
-**Findings are advisory.** They appear in the agent's **Behaviour** tab as **concerns** (likely wrong) and
-**suggestions** (could be better), in the same review surface the rest of the model uses: read each one,
-act on it by **editing the behaviour text yourself**, or **dismiss** (×) the ones you've considered and
-accepted. Kiln **never rewrites your prompt** — the behaviour field stays yours. A dismissed finding stays
-dismissed per agent (dismissing one on one agent never silences another's), and a re-review is told not to
-raise it again. An empty list means the review found nothing — the prompt matches its contract.
+**You decide what happens to each finding.** They appear in the agent's **Behaviour** tab as **concerns**
+(likely wrong) and **suggestions** (could be better), in the same review surface the rest of the model
+uses. For each one you can **Apply** it (see below), edit the behaviour text yourself, or **dismiss** (×)
+the ones you've considered and accepted. A dismissed finding stays dismissed per agent (dismissing one on
+one agent never silences another's), and a re-review is told not to raise it again. An empty list means
+the review found nothing — the prompt matches its contract.
+
+### Applying a finding
+
+**Apply** on a finding asks AI for the **smallest edit** to your behaviour that addresses it, and shows
+you the result as a **diff** — struck-through text is what it removed, highlighted text is what it added,
+and everything unmarked is your own text, untouched. **Accept** writes it; **Reject** discards it and
+leaves your behaviour byte-identical. **Apply all** does the whole finding set in one edit — still one
+diff, still one decision.
+
+Kiln **never rewrites your prompt behind your back**: it proposes a revision and nothing lands without
+your explicit **Accept**. Apply removes the *typing*, not the *deciding* — the behaviour is yours, and an
+accepted edit is your text from that moment on, free to edit further. That's also why the edit is
+deliberately **minimal** rather than a regeneration: your voice, wording and structure survive, and the
+diff stays small enough to actually read.
+
+The revision is held to the agent's **contract**: it can never introduce a tool the agent doesn't have.
+If a draft names one, Kiln rejects it and asks again, naming the offender; if it happens twice, you get
+no proposal and an explanation instead of a prompt that tells your agent to call something that doesn't
+exist.
+
+An applied finding stops being listed once you accept — it's addressed. It is *not* silenced permanently:
+whether the edit truly resolved the concern is a judgment only a **re-review** can make, so run **Review
+prompt** again when you want that confirmed.
 
 **An agent with no behaviour is refused, not reviewed.** There is nothing to review yet: the only prompt
 available would be one derived from the contract, and checking that against the contract is circular — it
 passes by construction, rubber-stamping the case that most needs scrutiny. So the review returns a single
 honest finding (*no authored behaviour — generate or write it first*) and **costs nothing**: it never
-calls the model to tell you a field is empty.
+calls the model to tell you a field is empty. That finding has **no Apply** either — there is no prompt
+to revise, and Apply is not a back door for designing an agent nobody has designed. Write the behaviour
+(or **Generate agents**) first.
 
 This is a **per-agent** review, and it's distinct from the whole-layer **Second opinion** on the Agents
 stage: that one reviews the *roster* (are agents missing, too broad, or overlapping?), while this one
@@ -198,10 +223,12 @@ reviews *one agent's prompt*. Both can be used. Like every AI call in Kiln, the 
 visible — and tunable for the session — under **Prompt & output → Prompt review**.
 
 > **Costs a call.** Each **Review prompt** click is one LLM call on your configured engine, so review the
-> agents you care about rather than all of them by reflex. The review deliberately runs on a **stronger
-> model than the Agents stage generates with** (a standard-tier model at high effort — a reviewer should
-> not be weaker than what it reviews), so it costs more per call than a generation on that stage. Point it
-> somewhere else with the **Reviewer** override in **Settings → Engine**.
+> agents you care about rather than all of them by reflex. **Apply** (and **Apply all**) is one more call
+> each — **Apply all** is one call for the whole set, where applying findings one at a time is one call
+> apiece. Both the review and the revision deliberately run on a **stronger model than the Agents stage
+> generates with** (a standard-tier model at high effort — a reviewer should not be weaker than what it
+> reviews), so they cost more per call than a generation on that stage. Point them somewhere else with the
+> **Reviewer** override in **Settings → Engine**.
 
 ## Test this agent
 

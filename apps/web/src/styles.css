@@ -1574,3 +1574,57 @@ textarea {
 .run-io-block pre { margin: 0; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.45; color: var(--fg); background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 6px 8px; }
 .run-final { gap: 6px; }
 .run-final-text { margin: 0; font-size: 13px; line-height: 1.55; white-space: pre-wrap; padding: 10px 12px; border: 1px solid var(--accent-2); border-radius: 8px; background: var(--accent-2-soft); color: var(--fg); }
+
+/* Run history (bounded, newest first) + compare — both on-demand: nothing renders until asked for. */
+.run-history-bar { display: flex; flex-wrap: wrap; gap: 6px; }
+.run-hist-toggle { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; padding: 4px 8px; border: 1px solid var(--edge); border-radius: 6px; background: var(--panel-2); color: var(--fg); cursor: pointer; }
+.run-hist-toggle:hover { border-color: var(--accent-2); color: var(--accent-2); }
+.run-hist-toggle.on { border-color: var(--accent-2); color: var(--accent-2); background: var(--accent-2-soft); }
+.run-history-list { list-style: none; display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; }
+.run-hist-item { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; text-align: left; font: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid var(--edge); border-radius: 6px; background: var(--panel-2); color: var(--fg); cursor: pointer; }
+.run-hist-item:hover { border-color: var(--accent-2); }
+.run-hist-item.on { border-color: var(--accent-2); box-shadow: inset 2px 0 0 var(--accent-2); }
+.run-hist-n { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent-2); }
+.run-hist-when { font-size: 11.5px; }
+.run-hist-meta { font-size: 11px; }
+.run-hist-latest { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px 6px; border-radius: 999px; background: var(--accent-2-soft); color: var(--accent-2); margin-left: auto; }
+.run-hist-cap { font-size: 11px; padding: 2px 2px 0; }
+.run-hist-viewing { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; border: 1px dashed var(--accent-2); color: var(--accent-2); }
+
+.run-compare { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--accent-2); border-radius: 8px; padding: 10px 12px; background: color-mix(in srgb, var(--accent-2) 4%, transparent); }
+.rc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rc-title { display: flex; align-items: center; gap: 6px; }
+.rc-title > svg { color: var(--accent-2); }
+.rc-title h4 { margin: 0; font-size: 12.5px; font-weight: 700; }
+.rc-x { display: inline-flex; padding: 2px; border: none; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
+.rc-x:hover { background: var(--panel-2); color: var(--fg); }
+.rc-picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.rc-pick { display: flex; flex-direction: column; gap: 3px; flex: 1 1 180px; min-width: 0; }
+.rc-pick > span { font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+.rc-pick select { font: inherit; font-size: 11.5px; padding: 4px 6px; border: 1px solid var(--edge); border-radius: 6px; background: var(--panel); color: var(--fg); max-width: 100%; }
+/* The honesty lead — what the comparison can and cannot attribute, stated before any number. */
+.rc-verdict { display: flex; align-items: flex-start; gap: 6px; margin: 0; font-size: 12px; line-height: 1.45; padding: 6px 8px; border-radius: 6px; }
+.rc-verdict > svg { flex: none; margin-top: 1px; }
+.rc-verdict.rc-ai { color: var(--accent-2); background: var(--accent-2-soft); }
+.rc-verdict.rc-warn { color: var(--warn-fg); background: var(--warn-bg); }
+.rc-verdict.rc-flat { color: var(--muted); background: var(--panel-2); }
+.rc-metrics { display: flex; flex-wrap: wrap; gap: 8px; }
+.rc-metric { display: flex; flex-direction: column; gap: 2px; flex: 1 1 90px; padding: 6px 8px; border: 1px solid var(--edge); border-radius: 6px; background: var(--panel-2); }
+.rc-metric-label { font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+.rc-metric-vals { display: flex; align-items: center; gap: 4px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.rc-metric-vals > svg { flex: none; color: var(--muted); }
+.rc-before { color: var(--muted); }
+.rc-delta { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Direction only — NOT a verdict: fewer steps isn't automatically "better", so no green/red good/bad. */
+.rc-delta.rc-up { color: var(--warn-fg); }
+.rc-delta.rc-down { color: var(--ok-fg); }
+.rc-delta.rc-flat { color: var(--muted); }
+.rc-section { display: flex; flex-direction: column; gap: 5px; }
+.rc-tools { display: flex; flex-wrap: wrap; gap: 5px; }
+.rc-tool { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--edge); background: var(--panel-2); color: var(--muted); }
+.rc-tool-add { border-color: var(--ok-fg); background: var(--ok-bg); color: var(--ok-fg); }
+.rc-tool-del { border-color: var(--err-fg); background: var(--err-bg); color: var(--err-fg); text-decoration: line-through; }
+.rc-diff { margin: 0; font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; padding: 8px 10px; border: 1px solid var(--edge); border-radius: 6px; background: var(--panel); }
+.rc-ins { background: var(--ok-bg); color: var(--ok-fg); border-radius: 3px; }
+.rc-del { background: var(--err-bg); color: var(--err-fg); border-radius: 3px; text-decoration: line-through; }
+.rc-none, .rc-empty { font-size: 12px; }

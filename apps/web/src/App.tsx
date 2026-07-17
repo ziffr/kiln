@@ -29,6 +29,7 @@ import { PromptStudio } from "./components/PromptStudio";
 import type { LlmOutputRecord, RunTrace } from "./projects";
 import { flattenEnrichment, rebuildEnrichment, type EnrichProposal } from "./enrichReview";
 import { flattenLayerItems, applyLayerItems, groundedLayerItems, type EnrichLayer } from "./layerEnrich";
+import { pushRunHistory } from "./runDiff";
 import { EnrichPanel } from "./components/EnrichPanel";
 import { mockExternalServices, resolveAgentDefs, defaultPlaybook, agentContract, mockTriggers, type AgentContract } from "@kiln/codegen";
 import { SettingsModal } from "./components/SettingsModal";
@@ -979,6 +980,9 @@ export default function App(): React.JSX.Element {
   }, [activeDoc, flowDoc, agentsDoc, workflowsDoc, active.comms, active.services]);
 
   const lastAgentTrace: RunTrace | undefined = testAgentId ? active.observability?.agentRuns?.[testAgentId] : undefined;
+  // The agent's recent runs (newest first, bounded). Empty on a project whose last run predates the history
+  // field — the panel falls back to `lastAgentTrace`, so nothing regresses for them.
+  const agentRunHistory: RunTrace[] = (testAgentId ? active.observability?.agentRunHistory?.[testAgentId] : undefined) ?? [];
   const openAgentTest = (agentId: string): void => { setTestAgentId(agentId); setAgentRunError(null); };
   const runAgentTest = async (): Promise<void> => {
     if (!testAgentId) return;
@@ -992,12 +996,24 @@ export default function App(): React.JSX.Element {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       const trace = data.trace as RunTrace;
-      // Persist the last trace per agent in the unified observability envelope (sidecar — never IR).
+      // Persist in the unified observability envelope (sidecar — never IR): the last trace per agent AND a
+      // bounded history (newest first, capped) so a prompt edit can be compared before → after.
       setState((s) => ({
         ...s,
         projects: s.projects.map((p) =>
           p.id === s.activeId
-            ? { ...p, observability: { ...(p.observability ?? {}), agentRuns: { ...(p.observability?.agentRuns ?? {}), [testAgentId]: trace } }, updatedAt: Date.now() }
+            ? {
+                ...p,
+                observability: {
+                  ...(p.observability ?? {}),
+                  agentRuns: { ...(p.observability?.agentRuns ?? {}), [testAgentId]: trace },
+                  agentRunHistory: {
+                    ...(p.observability?.agentRunHistory ?? {}),
+                    [testAgentId]: pushRunHistory(p.observability?.agentRunHistory?.[testAgentId], trace),
+                  },
+                },
+                updatedAt: Date.now(),
+              }
             : p),
       }));
       applySpend(data);
@@ -2112,6 +2128,7 @@ export default function App(): React.JSX.Element {
             <AgentRunPanel
               agentName={agentsDoc.agents.find((a) => a.id === testAgentId)?.name || testAgentId}
               trace={lastAgentTrace}
+              history={agentRunHistory}
               task={agentTask}
               onTask={setAgentTask}
               onRun={() => void runAgentTest()}

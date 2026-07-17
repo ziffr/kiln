@@ -40,7 +40,8 @@ export interface ModelDoc {
   binding: Binding;
   theme: Theme;
   i18n: { sourceLang: string; translations?: Record<string, Record<string, string>> };
-  /** Prompt & Output studio sidecar (Part 3): the last generation + review output per stage. An OPTIONAL
+  /** Observability sidecar: the last generation + review output per stage (Prompt & Output studio) AND the
+   *  bounded agent run history (last 5 test-runs per agent, which the run COMPARE diffs). An OPTIONAL
    *  inspection artifact — NOT authored/derived IR (golden invariant #1). Round-trips with the model so a
    *  user can recall it, but the codegen exporter simply ignores it (it reads only the modelling layers). */
   observability?: Observability;

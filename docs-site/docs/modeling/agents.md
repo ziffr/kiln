@@ -102,8 +102,35 @@ system**: no records are created, no emails or messages are sent, no external se
 seeing how the agent reasons over its tools and for tuning its behaviour before you export and wire it to
 real systems.
 
-The last trace for each agent is kept with the project, so you can reopen the panel and see it again after
-navigating away or reloading.
+### Run history
+
+Kiln keeps the **last 5 runs per agent** with the project, so a trace survives navigating away or reloading.
+Open **History** in the run panel to list them — newest first, each with its timestamp, model and cost — and
+click any one to view its full trace. Older runs drop off once the cap is reached; the cap is deliberate,
+because traces are large (every step carries its tool arguments *and* the tool result) and they live in your
+browser's storage and ride along in an exported `model.json`.
+
+### Compare two runs — "did my prompt edit help?"
+
+A single trace tells you what the agent did once. **Compare** tells you what *changed*, which is the question
+you actually have after editing an agent's behaviour prompt. Click **Compare** to diff two runs — by default
+the latest against the one before it, or pick any two from the history. It shows:
+
+- **Deltas** — steps, tokens, cost, and how far apart the two runs were.
+- **Tools called** — a set diff: which tools the newer run *added*, which it *dropped*, which both used.
+- **Final output** — a word-level diff of what the agent actually concluded.
+
+Crucially, it tells you **what the comparison can and cannot attribute**, before showing you any number:
+
+- **Same model, changed prompt** — your edit is the candidate cause of the differences. This is the clean case.
+- **Identical prompt, same model** — whatever differs is the model being nondeterministic, *not* your edit.
+  Kiln says so plainly rather than letting you read meaning into noise.
+- **Different models** — this is **not a clean prompt A/B**. If the two runs used different models, the
+  differences may come from the model swap, so Kiln flags it and does not claim your prompt caused anything.
+
+A run that used **simulated** tools is marked as such, so a mock diff is never mistaken for a real one. The
+run history is an inspection record only — it is never part of your model and it is ignored by the code
+export.
 
 **Runs on the same engine as generation.** The test loop uses the **same AI engine you configured for the
 rest of the model** — Anthropic, or an OpenAI-compatible gateway (OpenRouter / omniroute), using the keys

@@ -56,7 +56,14 @@ function Flow({ nodes, edges, bounds, paneRef, onSelect }: { nodes: Node[]; edge
       }
     };
     const timers = [40, 160, 400, 900].map((ms) => setTimeout(fit, ms));
-    return () => timers.forEach(clearTimeout);
+    // The detail slide-in reflows the canvas, so the pane loses width while `nodes`/`bounds` are
+    // unchanged — the timers above have long since fired and nothing re-fits, leaving the graph
+    // centred on the pane it no longer has. Re-fit on any pane resize (the same trick AreaDiagram
+    // uses to re-wrap). No RO loop: fit only writes the viewport transform, never the pane's size.
+    const el = paneRef.current;
+    const ro = el ? new ResizeObserver(fit) : null;
+    if (el && ro) ro.observe(el);
+    return () => { timers.forEach(clearTimeout); ro?.disconnect(); };
   }, [nodes, bounds, rf, paneRef]);
 
   return (

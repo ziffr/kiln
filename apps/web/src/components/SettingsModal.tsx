@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Modal } from "./Modal";
+import { Drawer } from "./Drawer";
 import { Icon } from "./Icon";
 import { PlacementEditor } from "./PlacementEditor";
 import type { Binding } from "@kiln/codegen";
@@ -81,7 +81,7 @@ export function SettingsModal(props: Props): React.JSX.Element {
   ];
 
   return (
-    <Modal title={t("settingsTitle")} onClose={onClose} wide
+    <Drawer title={t("settingsTitle")} icon="settings" onClose={onClose} wide
       footer={<>
         {/* Reset only concerns the AI tab's per-stage overrides — hide it elsewhere so it can't mislead. */}
         {tab === "ai" && <button className="btn ghost" onClick={onReset}>{t("settingsReset")}</button>}
@@ -343,6 +343,6 @@ export function SettingsModal(props: Props): React.JSX.Element {
           </div>
         </div>
       )}
-    </Modal>
+    </Drawer>
   );
 }

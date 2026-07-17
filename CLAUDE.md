@@ -37,6 +37,15 @@ reviewable **Capability Map**. Text is the source of truth; the graphic is a pro
 7. **Secrets are declared by NAME, never by value.** The model (git-committable) carries `urlEnv` /
    `credentialEnv`; the value lives in the gitignored `.env` or n8n's credential store. Validator PB5
    already rejects a credential embedded in a `hosting.url` — hold that line everywhere.
+8. **Kiln is the brain and the face, not the muscle.** Kiln understands the business, decides the shape,
+   wires the pieces together, and owns the UI. It does **not execute**: workflows run on a developer's
+   code or an external engine (n8n by default), data lives in whatever store the owner chose, agents run
+   on whatever LLM engine is configured. The generated spine's `react`/`sequence: "native"` is a
+   **standalone fallback** so an exported app can run with no n8n — it is not the product. **Never grow
+   Kiln into a workflow engine.** The goal is that engines stay **swappable** (the SPEC-010 seam), not
+   that any particular one is absent — "works without n8n" means *n8n is replaceable*, not *n8n is bad*.
+   See VISION.md: the landscape is agents reasoning in one place, workflows executing in another, data
+   living wherever it belongs; Kiln's job is the coherence between them.
 
 ## Architecture (where things live)
 ```

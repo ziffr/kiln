@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the repository level (see
 [RELEASING.md](RELEASING.md)).
 
+## [0.7.0](https://github.com/ziffr/kiln/compare/v0.6.0...v0.7.0) (2026-07-17)
+
+
+### Features
+
+* **agents:** apply a prompt finding as a reviewed, minimal edit ([#57](https://github.com/ziffr/kiln/issues/57)) ([03cffeb](https://github.com/ziffr/kiln/commit/03cffeb450ddb9ece3c4ef66e8f76926a14f1336))
+
+
+### Bug Fixes
+
+* **web:** give detail panels room + one drawer design ([#59](https://github.com/ziffr/kiln/issues/59)) ([7c1beb0](https://github.com/ziffr/kiln/commit/7c1beb0acb45e940a43193e9be0ac921cac81b24))
+
 ## [0.6.0](https://github.com/ziffr/kiln/compare/v0.5.1...v0.6.0) (2026-07-17)
 
 

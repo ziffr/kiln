@@ -361,9 +361,13 @@ export default function App(): React.JSX.Element {
   const [orchestrationRationales, setOrchestrationRationales] = useState<Record<string, string>>({});
   const mockAgentsDoc = useMemo(() => mockGenerateAgents(activeDoc), [activeDoc]);
   // external services available to delegate a process to (the "External" routing option's picker).
+  // The project's AUTHORED services win — they carry the human's credential grant (credentialEnv/auth);
+  // the mock is only the not-yet-generated default. Auth rides along so the UI can show what a real run
+  // would present (the NAME of the env var — never a value, which lives in the deploy's .env).
   const serviceOptions = useMemo(
-    () => mockExternalServices(activeDoc, behaviourDoc, workflowsDoc, active.agents ?? mockGenerateAgents(activeDoc)).services.map((s) => ({ id: s.id, name: s.name, invocation: s.invocation })),
-    [activeDoc, behaviourDoc, workflowsDoc, active.agents],
+    () => (active.services ?? mockExternalServices(activeDoc, behaviourDoc, workflowsDoc, active.agents ?? mockGenerateAgents(activeDoc)))
+      .services.map((s) => ({ id: s.id, name: s.name, invocation: s.invocation, auth: s.auth ?? "none", credentialEnv: s.credentialEnv, headerName: s.headerName })),
+    [active.services, activeDoc, behaviourDoc, workflowsDoc, active.agents],
   );
   const agentsDoc = active.agents ?? mockAgentsDoc;
   const agentFindings = useMemo(() => validateAgents(agentsDoc, activeDoc.capabilities.map((c) => c.id)), [agentsDoc, activeDoc]);

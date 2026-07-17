@@ -126,8 +126,16 @@ export function mockDispatch(tool: AgentTool, input: Record<string, unknown>): u
       return { delivered: true, channel: "email", to: input.recipient ?? "(entity contact)", note: "Simulated email — a real run renders + sends the template." };
     case "slack":
       return { posted: true, channel: "slack", note: "Simulated Slack message — a real run posts to the channel." };
-    case "external":
-      return { accepted: true, invocation: tool.invoke?.invocation ?? "sync", service: tool.invoke?.service ?? tool.name, note: "Simulated delegation — no external service was called." };
+    case "external": {
+      // NO network call — and say so precisely: a Test-agent run must never read as a real vendor call. The
+      // auth line reports what a real run WOULD present (by env var NAME — the value is never read here).
+      const credentialEnv = typeof tool.invoke?.credentialEnv === "string" ? tool.invoke.credentialEnv : undefined;
+      const scheme = typeof tool.invoke?.auth === "string" ? tool.invoke.auth : "none";
+      const auth = credentialEnv && scheme !== "none"
+        ? `A real run would authenticate with ${scheme} from ${credentialEnv}; nothing was sent here.`
+        : "A real run would call this vendor unauthenticated — no credential is declared.";
+      return { accepted: true, invocation: tool.invoke?.invocation ?? "sync", service: tool.invoke?.service ?? tool.name, wouldAuthenticate: Boolean(credentialEnv && scheme !== "none"), note: `Simulated delegation — no external service was called. ${auth}` };
+    }
     case "pdf":
       return { rendered: true, note: "Simulated document — a real run renders the PDF." };
     default:

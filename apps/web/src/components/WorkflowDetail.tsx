@@ -2,6 +2,7 @@
 // steps — each step resolved to the command it runs, the entity that command acts on, the events it emits,
 // and any per-step delegation. Clicking a step jumps to that command in the Behaviour view.
 import { Icon, type IconName } from "./Icon";
+import { ServiceAuthNote, type ServiceOption } from "./ServiceAuth";
 import type { WorkflowInput, DomainDoc } from "@kiln/compiler";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
@@ -13,7 +14,7 @@ export function WorkflowDetail({ workflow, domain, rationale, services, t, onSel
   workflow: WorkflowInput;
   domain: DomainDoc;
   rationale?: string;
-  services?: Array<{ id: string; name: string; invocation: string }>;
+  services?: ServiceOption[];
   t: T;
   onSelectStep: (commandId: string) => void;
   onClose: () => void;
@@ -22,7 +23,8 @@ export function WorkflowDetail({ workflow, domain, rationale, services, t, onSel
   const mode = (w.mode ?? "workflow") as ProcessMode;
   const cmd = (id: string) => (domain.commands ?? []).find((c) => c.id === id);
   const evName = (id: string) => (domain.events ?? []).find((e) => e.id === id)?.name ?? id;
-  const svcName = (id?: string) => services?.find((s) => s.id === id)?.name ?? id;
+  const svc = (id?: string) => services?.find((s) => s.id === id);
+  const svcName = (id?: string) => svc(id)?.name ?? id;
   const steps = w.steps ?? [];
   return (
     <div className="nd wf-detail">
@@ -36,7 +38,10 @@ export function WorkflowDetail({ workflow, domain, rationale, services, t, onSel
       </div>
       {rationale && <p className="wf-detail-rationale muted">{rationale}</p>}
       {mode === "external" && w.service && (
-        <p className="wf-detail-ext muted"><Icon name="globe" size={12} /> {t("externalDelegate")}: {svcName(w.service)}</p>
+        <>
+          <p className="wf-detail-ext muted"><Icon name="globe" size={12} /> {t("externalDelegate")}: {svcName(w.service)}</p>
+          <ServiceAuthNote service={svc(w.service)} t={t} />
+        </>
       )}
 
       <h4 className="wf-detail-h">{t("steps")}</h4>

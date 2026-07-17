@@ -50,7 +50,13 @@ export const EXTERNAL_SERVICES_SCHEMA = {
   },
 } as const;
 
-/** Keep only services whose entity exists and whose resultTarget (if any) resolves to a real command/agent. */
+/**
+ * Keep only services whose entity exists and whose resultTarget (if any) resolves to a real command/agent.
+ *
+ * The auth declaration (credentialEnv/auth/headerName) is deliberately NOT carried over: the model may
+ * PROPOSE a service, but attaching a credential to it is a human grant. The schema already forbids those
+ * keys; stripping them here makes that a property of the code rather than of the prompt.
+ */
 export function coerceExternalServices(json: unknown, domain: DomainDoc, agentIds: string[] = []): ExternalServicesDoc {
   const aggIds = new Set(domain.aggregates.map((a) => a.id));
   const cmdIds = new Set((domain.commands ?? []).map((c) => c.id));
@@ -62,8 +68,9 @@ export function coerceExternalServices(json: unknown, domain: DomainDoc, agentId
     .map((s) => {
       const rt = s.resultTarget;
       const okTarget = rt && ((rt.kind === "command" && cmdIds.has(rt.ref)) || (rt.kind === "agent" && agents.has(slug(rt.ref))));
+      const { credentialEnv: _c, auth: _a, headerName: _h, ...proposed } = s; // a credential is granted, not proposed
       return {
-        ...s,
+        ...proposed,
         id: slug(s.id || `svc_${slug(s.name || s.entity || "service")}`),
         invocation: s.invocation === "async" ? "async" : "sync",
         kind: s.kind === "workflow" ? "workflow" : "agent",

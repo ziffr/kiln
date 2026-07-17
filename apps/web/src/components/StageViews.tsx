@@ -6,6 +6,7 @@ import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type
 import type { AgentContract, ToolSchema } from "@kiln/codegen";
 import type { CritiqueFinding } from "@kiln/skills";
 import { Icon, type IconName } from "./Icon";
+import { ServiceAuthNote, type ServiceOption } from "./ServiceAuth";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
 const capName = (caps: CapabilityDoc, id: string): string => caps.capabilities.find((c) => c.id === id)?.name || id;
@@ -160,7 +161,7 @@ export function WorkflowsView({
   onClassify?: () => void;
   classifyBusy?: boolean;
   rationales?: Record<string, string>;
-  services?: Array<{ id: string; name: string; invocation: string }>;
+  services?: ServiceOption[];
   selectedId?: string | null;
   onSelectWorkflow?: (id: string) => void;
   onSelectStep?: (commandId: string) => void;
@@ -168,7 +169,8 @@ export function WorkflowsView({
   const [openDelegate, setOpenDelegate] = useState<string | null>(null);
   if (!workflows.workflows.length) return <Empty msg={t("emptyWorkflows")} />;
   const cmdName = (id: string) => (domain.commands ?? []).find((c) => c.id === id)?.name || id;
-  const svcName = (id?: string) => services?.find((s) => s.id === id)?.name;
+  const svc = (id?: string) => services?.find((s) => s.id === id);
+  const svcName = (id?: string) => svc(id)?.name;
   return (
     <div className="workflows-view">
       <div className="wf-orch-head">
@@ -252,17 +254,21 @@ export function WorkflowsView({
             ) : null}
             {mode === "external" && (
               <div className="wf-mode-note wf-ext-pick">
-                <span>{t("externalDelegate")}</span>
-                {onSetService && (services?.length ? (
-                  <select value={w.service ?? ""} onChange={(e) => onSetService(w.id, e.target.value)}>
-                    <option value="">{t("pickService")}</option>
-                    {services.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.invocation})</option>
-                    ))}
-                  </select>
-                ) : (
-                  <em className="muted">{t("noServices")}</em>
-                ))}
+                <div className="wf-ext-row">
+                  <span>{t("externalDelegate")}</span>
+                  {onSetService && (services?.length ? (
+                    <select value={w.service ?? ""} onChange={(e) => onSetService(w.id, e.target.value)}>
+                      <option value="">{t("pickService")}</option>
+                      {services.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.invocation})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <em className="muted">{t("noServices")}</em>
+                  ))}
+                </div>
+                {/* the credential the picked vendor is called with — declared in the model, valued in .env */}
+                <ServiceAuthNote service={svc(w.service)} t={t} />
               </div>
             )}
           </div>

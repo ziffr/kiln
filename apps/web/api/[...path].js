@@ -1292,8 +1292,9 @@ function coerceExternalServices(json, domain, agentIds = []) {
   const services = (Array.isArray(raw) ? raw : []).map((s) => s).filter((s) => s && aggIds.has(s.entity ?? "")).map((s) => {
     const rt = s.resultTarget;
     const okTarget = rt && (rt.kind === "command" && cmdIds.has(rt.ref) || rt.kind === "agent" && agents.has(slug(rt.ref)));
+    const { credentialEnv: _c, auth: _a, headerName: _h, ...proposed } = s;
     return {
-      ...s,
+      ...proposed,
       id: slug(s.id || `svc_${slug(s.name || s.entity || "service")}`),
       invocation: s.invocation === "async" ? "async" : "sync",
       kind: s.kind === "workflow" ? "workflow" : "agent",
@@ -3954,8 +3955,12 @@ function mockDispatch(tool, input) {
       return { delivered: true, channel: "email", to: input.recipient ?? "(entity contact)", note: "Simulated email \u2014 a real run renders + sends the template." };
     case "slack":
       return { posted: true, channel: "slack", note: "Simulated Slack message \u2014 a real run posts to the channel." };
-    case "external":
-      return { accepted: true, invocation: tool.invoke?.invocation ?? "sync", service: tool.invoke?.service ?? tool.name, note: "Simulated delegation \u2014 no external service was called." };
+    case "external": {
+      const credentialEnv = typeof tool.invoke?.credentialEnv === "string" ? tool.invoke.credentialEnv : void 0;
+      const scheme = typeof tool.invoke?.auth === "string" ? tool.invoke.auth : "none";
+      const auth = credentialEnv && scheme !== "none" ? `A real run would authenticate with ${scheme} from ${credentialEnv}; nothing was sent here.` : "A real run would call this vendor unauthenticated \u2014 no credential is declared.";
+      return { accepted: true, invocation: tool.invoke?.invocation ?? "sync", service: tool.invoke?.service ?? tool.name, wouldAuthenticate: Boolean(credentialEnv && scheme !== "none"), note: `Simulated delegation \u2014 no external service was called. ${auth}` };
+    }
     case "pdf":
       return { rendered: true, note: "Simulated document \u2014 a real run renders the PDF." };
     default:
@@ -4217,7 +4222,43 @@ export interface AgentDef {
   processes?: { id: string; name: string; steps: string[] }[]; // agent-mode processes routed here (SPEC-009)
 }
 `,
+  // Auth for EXTERNAL (vendor) calls. Standalone + dependency-free so it can be unit-tested as-is.
+  //
+  // The credential is only ever read from the environment, by the NAME the model declared. Nothing here
+  // returns, logs, or embeds the value — the caller merges the result into request headers and drops it.
+  "src/auth.ts": `export type ExternalAuth = "bearer" | "header" | "basic" | "none";
+export interface ExternalInvoke {
+  credentialEnv?: string; // NAME of the env var holding the credential (never the value)
+  auth?: ExternalAuth;    // how to present it; omitted = "none" = send nothing
+  headerName?: string;    // for auth: "header" \u2014 the header the vendor expects (e.g. X-API-Key)
+}
+
+/**
+ * Build the auth headers for an external service call from the process environment.
+ *
+ * Fails LOUDLY when a credential is declared but absent: calling a vendor unauthenticated yields an opaque
+ * 401 loop that looks like a vendor outage, so a missing env var is a startup-shaped error naming the var.
+ * Errors name the VARIABLE, never its value.
+ */
+export function externalAuthHeaders(invoke: ExternalInvoke, env: Record<string, string | undefined> = process.env, service = "external service"): Record<string, string> {
+  const scheme: ExternalAuth = invoke.auth ?? "none";
+  if (!invoke.credentialEnv) {
+    // A scheme with no credential to present would call the vendor in the clear \u2014 refuse rather than 401.
+    if (scheme !== "none") throw new Error(service + ': auth "' + scheme + '" is declared but no credentialEnv names the variable holding the credential.');
+    return {}; // nothing declared \u2192 send nothing (the pre-auth behaviour).
+  }
+  if (scheme === "none") return {}; // declared but deliberately unsent (the model validator warns: XS6).
+  const value = env[invoke.credentialEnv];
+  if (!value) throw new Error(service + ": environment variable " + invoke.credentialEnv + " is not set, so the call would go out unauthenticated. Set it in .env (the value belongs there, never in the model).");
+  if (scheme === "bearer") return { authorization: "Bearer " + value };
+  // Basic: the variable holds "user:pass"; the wire wants it base64'd.
+  if (scheme === "basic") return { authorization: "Basic " + Buffer.from(value, "utf8").toString("base64") };
+  if (!invoke.headerName) throw new Error(service + ': auth "header" needs a headerName (the header the vendor expects, e.g. X-API-Key).');
+  return { [invoke.headerName.toLowerCase()]: value };
+}
+`,
   "src/tools.ts": `import type { AgentTool } from "./def";
+import { externalAuthHeaders, type ExternalInvoke } from "./auth";
 
 const SPINE = process.env.SPINE_URL || "http://localhost:3000";
 const API_TOKEN = process.env.API_TOKEN; // if the spine requires auth, send the same bearer token
@@ -4271,9 +4312,14 @@ export async function executeTool(tool: AgentTool, input: Record<string, unknown
   if (tool.kind === "external") {
     // Delegate to an EXTERNAL service (a bought qualifier/reviewer). POST the vendor endpoint. For a sync
     // service the response IS the result; for async, the vendor calls back later (see the n8n callback
-    // workflow) \u2014 here we just kick it off. TODO: add the vendor's auth + map fields per the descriptor.
+    // workflow) \u2014 here we just kick it off.
+    //
+    // The credential comes from THIS process's env, by the name the model declared (auth/credentialEnv on
+    // the descriptor) \u2014 the agent calls the vendor directly, no n8n hop. A missing var throws rather than
+    // calling out unauthenticated. Headers are built, sent, and dropped: never logged, never returned.
     const url = String(tool.invoke.url ?? "");
-    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    const headers: Record<string, string> = { "content-type": "application/json", ...externalAuthHeaders(tool.invoke as ExternalInvoke, process.env, tool.name) };
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(input) });
     const body = await res.json().catch(() => ({}));
     return { status: res.status, invocation: tool.invoke.invocation, body };
   }
@@ -4508,7 +4554,7 @@ function resolveAgentDefs(caps, domain, agents, comms, workflows, services, trig
     }
     for (const s of services?.services ?? []) {
       if (!s.entity || !ownedEntities.has(s.entity)) continue;
-      tools.push({ name: slug(s.id), kind: "external", description: `Delegate to ${s.name} (${s.invocation}) \u2014 ${s.rationale ?? "external service"}`, invoke: { url: s.endpoint, invocation: s.invocation, service: s.id }, input: Object.keys(s.requestMapping ?? {}) });
+      tools.push({ name: slug(s.id), kind: "external", description: `Delegate to ${s.name} (${s.invocation}) \u2014 ${s.rationale ?? "external service"}`, invoke: { url: s.endpoint, invocation: s.invocation, service: s.id, auth: s.auth ?? "none", credentialEnv: s.credentialEnv, headerName: s.headerName }, input: Object.keys(s.requestMapping ?? {}) });
     }
     const routed = (triggers?.triggers ?? []).filter((tr) => tr.target.kind === "agent" && tr.target.ref === slug(a.id));
     defs.push({ id: slug(a.id), name: a.name || a.id, goal: a.goal || "", instructions: a.instructions, model: a.model, effort: a.effort, capabilities: (a.capabilities ?? []).map((c) => capName.get(c) ?? c), tools, processes: procByAgent.get(a.id) ?? [], triggers: routed });

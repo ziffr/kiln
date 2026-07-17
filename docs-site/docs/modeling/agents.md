@@ -46,6 +46,42 @@ events) rather than invent any.
   authored part of the model: it saves with the project and round-trips through `model.json` and the
   code export (it becomes the agent's `behaviours/<id>.md` playbook in the generated runtime).
 
+## Review prompt — critique the prompt against its contract
+
+Writing an agent's prompt is easy to get subtly wrong: it's simple to tell an agent to "email the client"
+when it has no email tool, or to leave out the escalation path entirely. Click **Review prompt** on an
+agent card and Kiln asks the AI to review **that one agent's behaviour prompt against its derived
+contract** — the real tools, inputs, outputs and context shown in the panel above it.
+
+It checks five things:
+
+- **Real tools only** — does the prompt tell the agent to use a tool it doesn't actually have? A step that
+  names a **fabricated** tool can never run. This is the most common flaw.
+- **Inputs honoured** — does the prompt account for the triggers routed to it (what wakes it)?
+- **Outputs produced** — does it actually lead to the events it should emit and the records it should
+  change?
+- **Complete** — does it cover the capabilities the agent owns, or is a job it's responsible for missing?
+- **Safe** — are there guardrails and a human **escalation** path for ambiguous, high-stakes or
+  irreversible decisions?
+
+Because the critique is grounded in the contract rather than in the prompt alone, its findings name your
+real entities, commands, and events — not invented ones.
+
+**Findings are advisory.** They appear on the agent's card as **concerns** (likely wrong) and
+**suggestions** (could be better), in the same review surface the rest of the model uses: read each one,
+act on it by **editing the behaviour text yourself**, or **dismiss** (×) the ones you've considered and
+accepted. Kiln **never rewrites your prompt** — the behaviour field stays yours. A dismissed finding stays
+dismissed per agent (dismissing one on one agent never silences another's), and a re-review is told not to
+raise it again. An empty list means the review found nothing — the prompt matches its contract.
+
+This is a **per-agent** review, and it's distinct from the whole-layer **Second opinion** on the Agents
+stage: that one reviews the *roster* (are agents missing, too broad, or overlapping?), while this one
+reviews *one agent's prompt*. Both can be used. Like every AI call in Kiln, the exact review prompt is
+visible — and tunable for the session — under **Prompt & output → Prompt review**.
+
+> **Costs a call.** Each **Review prompt** click is one LLM call on the engine configured for the Agents
+> stage, so review the agents you care about rather than all of them by reflex.
+
 ## Test this agent
 
 Click **Test agent** on any agent card to open the run panel, enter a task (or leave it empty to use the

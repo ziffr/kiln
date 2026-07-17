@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { attributeSpecs, type CapabilityDoc, type DomainDoc, type RolesDoc, type WorkflowsDoc, type AgentsDoc, type ContextsDoc } from "@kiln/compiler";
 import type { AgentContract } from "@kiln/codegen";
+import type { CritiqueFinding } from "@kiln/skills";
 import { Icon, type IconName } from "./Icon";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
@@ -277,6 +278,7 @@ export function WorkflowsView({
 // run-trace panel. This is the GENERATE-side gap (the diagram above is the read-only relation view).
 export function AgentsView({
   agents, caps, t, onEditInstructions, placeholderFor, contractFor, onTest, testingId,
+  onReviewPrompt, reviewingPromptId, critiqueFor, onDismissFinding, onSelectFinding,
 }: {
   agents: AgentsDoc;
   caps: CapabilityDoc;
@@ -291,6 +293,16 @@ export function AgentsView({
   onTest?: (agentId: string) => void;
   /** the agent currently running a test (spinner + disabled). */
   testingId?: string | null;
+  /** critique this agent's prompt against its contract (advisory; apply/dismiss). */
+  onReviewPrompt?: (agentId: string) => void;
+  /** the agent whose prompt is currently being reviewed (spinner + disabled). */
+  reviewingPromptId?: string | null;
+  /** the agent's prompt-critique findings — undefined = not reviewed, [] = reviewed-clean, >0 = advisory. */
+  critiqueFor?: (agentId: string) => CritiqueFinding[] | undefined;
+  /** dismiss (acknowledge) one prompt-critique finding on an agent. */
+  onDismissFinding?: (agentId: string, f: CritiqueFinding) => void;
+  /** click a finding whose target resolves → navigate to it. */
+  onSelectFinding?: (agentId: string, f: CritiqueFinding) => void;
 }): React.JSX.Element {
   if (!agents.agents.length) return <Empty msg={t("emptyAgents")} />;
   return (
@@ -299,14 +311,22 @@ export function AgentsView({
         <div key={a.id} className="agent-card agent-edit-card">
           <div className="entity-card-head">
             <strong className="agent-title"><Icon name="bot" size={15} />{a.name || a.id}</strong>
-            {onTest && (
-              <button className="btn ghost sm agent-test-btn" onClick={() => onTest(a.id)} disabled={testingId === a.id} title={t("agentTestHint")}>
-                <Icon name="play" size={13} />{testingId === a.id ? t("agentTestRunning") : t("agentTest")}
-              </button>
-            )}
+            <div className="agent-card-actions">
+              {onReviewPrompt && (
+                <button className="btn ghost sm agent-review-btn" onClick={() => onReviewPrompt(a.id)} disabled={reviewingPromptId === a.id} title={t("agentReviewPromptHint")}>
+                  <Icon name="sparkles" size={13} />{reviewingPromptId === a.id ? t("agentReviewPromptRunning") : t("agentReviewPrompt")}
+                </button>
+              )}
+              {onTest && (
+                <button className="btn ghost sm agent-test-btn" onClick={() => onTest(a.id)} disabled={testingId === a.id} title={t("agentTestHint")}>
+                  <Icon name="play" size={13} />{testingId === a.id ? t("agentTestRunning") : t("agentTest")}
+                </button>
+              )}
+            </div>
           </div>
           {a.goal && <p className="agent-goal">{a.goal}</p>}
           <div className="agent-caps">{(a.capabilities ?? []).map((c) => <span key={c} className="wf-chip">{capName(caps, c)}</span>)}</div>
+          {critiqueFor && <AgentPromptFindings findings={critiqueFor(a.id)} onDismiss={onDismissFinding ? (f) => onDismissFinding(a.id, f) : undefined} onSelect={onSelectFinding ? (f) => onSelectFinding(a.id, f) : undefined} t={t} />}
           {contractFor && <AgentContractPanel contract={contractFor(a.id)} t={t} />}
           <label className="agent-behaviour">
             <span className="agent-behaviour-label"><Icon name="code" size={12} />{t("agentBehaviour")}</span>
@@ -327,6 +347,25 @@ export function AgentsView({
         </div>
       ))}
     </div>
+  );
+}
+
+// The agent's PROMPT-CRITIQUE findings (advisory, apply/dismiss) — the same apply/dismiss surface the
+// per-layer AI review uses, rendered per agent. undefined = not yet reviewed (nothing shown); [] =
+// reviewed clean; >0 = advisory findings against the agent's real contract. Never rewrites the prompt.
+function AgentPromptFindings({ findings, onDismiss, onSelect, t }: { findings?: CritiqueFinding[]; onDismiss?: (f: CritiqueFinding) => void; onSelect?: (f: CritiqueFinding) => void; t: T }): React.JSX.Element | null {
+  if (!findings) return null; // not reviewed → show nothing (the button is the entry point)
+  return (
+    <ul className="findings cap-findings critique-inline agent-prompt-findings">
+      <li className="findings-head muted"><Icon name="sparkles" size={13} /> {t("agentReviewPromptTitle")}</li>
+      {findings.length === 0 && <li className="muted">{t("agentReviewPromptOk")}</li>}
+      {findings.map((f) => (
+        <li key={f.id} className={f.target && onSelect ? "clickable" : ""} onClick={() => f.target && onSelect?.(f)} title={f.target && onSelect ? t("findingGoHint") : undefined}>
+          <span className="fi-text"><code className={f.severity === "concern" ? "major" : "minor"}>{t(`sev_${f.severity}`)}</code> {f.message}{f.suggestion ? ` → ${f.suggestion}` : ""}</span>
+          {onDismiss && <button className="fi-dismiss" title={t("ignore")} aria-label={t("ignore")} onClick={(e) => { e.stopPropagation(); onDismiss(f); }}><Icon name="x" size={13} /></button>}
+        </li>
+      ))}
+    </ul>
   );
 }
 

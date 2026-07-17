@@ -494,11 +494,16 @@ const server = createServer(async (req, res) => {
         roles?: unknown;
         workflows?: unknown;
         agents?: unknown;
+        // For the per-agent "agent-prompt" critique: the target agent + the docs to derive its contract.
+        agentId?: string;
+        comms?: unknown;
+        services?: unknown;
         model?: string;
         effort?: string;
         accepted?: string[];
       };
       if (!body.layer || !body.capabilities?.capabilities?.length) return send(res, 400, { error: "layer and capabilities are required" });
+      if (body.layer === "agent-prompt" && !body.agentId) return send(res, 400, { error: "agentId is required for the agent-prompt critique" });
       const model = resolveModel(body);
       // Effort: honour the client's per-layer choice; fall back to the built-in preset. Haiku ignores it.
       const wantEffort = (EFFORTS as readonly string[]).includes(body.effort ?? "") ? (body.effort as string) : CRITIQUE_EFFORT[body.layer] ?? "high";
@@ -512,6 +517,9 @@ const server = createServer(async (req, res) => {
         roles: body.roles as never,
         workflows: body.workflows as never,
         agents: body.agents as never,
+        agentId: body.agentId,
+        comms: body.comms as never,
+        services: body.services as never,
       };
       const accepted = Array.isArray(body.accepted) ? (body.accepted as string[]).filter((x) => typeof x === "string") : [];
       const result = await critiqueLayer(body.layer, review, provider, accepted);

@@ -14,30 +14,35 @@ import { Icon } from "./Icon";
 import type { LlmOutputRecord } from "../projects";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
-type Kind = "generate" | "review";
+// `agentReview` = the per-agent prompt critique (agent-prompt layer), shown as a third tab on the agents stage.
+type Kind = "generate" | "review" | "agentReview";
 
 function formatWhen(at: number, locale: string): string {
   try { return new Date(at).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" }); } catch { return new Date(at).toLocaleString(); }
 }
 
 export function PromptStudio({
-  stageLabel, genPrompt, reviewPrompt, genOverride, reviewOverride, onEdit, onReset, lastGen, lastReview, locale, onClose, t,
+  stageLabel, genPrompt, reviewPrompt, agentPrompt, genOverride, reviewOverride, agentOverride, onEdit, onReset, lastGen, lastReview, lastAgentReview, locale, onClose, t,
 }: {
   stageLabel: string;
   genPrompt?: string;
   reviewPrompt?: string;
+  /** the per-agent prompt-critique system prompt (agents stage only) → the third tab. */
+  agentPrompt?: string;
   genOverride?: string;
   reviewOverride?: string;
+  agentOverride?: string;
   onEdit: (kind: Kind, value: string) => void;
   onReset: (kind: Kind) => void;
   lastGen?: LlmOutputRecord;
   lastReview?: LlmOutputRecord;
+  lastAgentReview?: LlmOutputRecord;
   locale: string;
   onClose: () => void;
   t: T;
 }): React.JSX.Element {
   // Which prompts exist for this stage (capabilities has a gen prompt but review-only refine, etc.).
-  const kinds = useMemo<Kind[]>(() => [...(genPrompt ? ["generate" as const] : []), ...(reviewPrompt ? ["review" as const] : [])], [genPrompt, reviewPrompt]);
+  const kinds = useMemo<Kind[]>(() => [...(genPrompt ? ["generate" as const] : []), ...(reviewPrompt ? ["review" as const] : []), ...(agentPrompt ? ["agentReview" as const] : [])], [genPrompt, reviewPrompt, agentPrompt]);
   const [tab, setTab] = useState<Kind>(kinds[0] ?? "generate");
   const [copied, setCopied] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -53,11 +58,11 @@ export function PromptStudio({
   useEffect(() => { setCopied(false); }, [tab]);
 
   const isGen = tab === "generate";
-  const defaultPrompt = (isGen ? genPrompt : reviewPrompt) ?? "";
-  const override = isGen ? genOverride : reviewOverride;
+  const defaultPrompt = (tab === "generate" ? genPrompt : tab === "agentReview" ? agentPrompt : reviewPrompt) ?? "";
+  const override = tab === "generate" ? genOverride : tab === "agentReview" ? agentOverride : reviewOverride;
   const value = typeof override === "string" ? override : defaultPrompt;
   const modified = value.trim() !== defaultPrompt.trim();
-  const last: LlmOutputRecord | undefined = isGen ? lastGen : lastReview;
+  const last: LlmOutputRecord | undefined = tab === "generate" ? lastGen : tab === "agentReview" ? lastAgentReview : lastReview;
 
   const copyPrompt = (): void => {
     void navigator.clipboard?.writeText(value).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1400); }).catch(() => {});
@@ -80,7 +85,7 @@ export function PromptStudio({
         <div className="ps-tabs" role="tablist" aria-label={t("promptStudio")}>
           {kinds.map((k) => (
             <button key={k} role="tab" aria-selected={tab === k} className={`ps-tab${tab === k ? " active" : ""}`} onClick={() => setTab(k)}>
-              {t(k === "generate" ? "promptKindGen" : "promptKindReview")}
+              {t(k === "generate" ? "promptKindGen" : k === "agentReview" ? "promptKindAgentReview" : "promptKindReview")}
             </button>
           ))}
         </div>

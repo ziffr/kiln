@@ -128,8 +128,9 @@ export interface LlmOutputRecord extends LlmCallMeta {
   /** whether a session prompt override was in effect for this call. */
   overridden?: boolean;
 }
-/** Per-stage last outputs, keyed by call kind. Sidecar on the model — see ModelDoc.observability. */
-export type StageOutputs = { generate?: LlmOutputRecord; review?: LlmOutputRecord };
+/** Per-stage last outputs, keyed by call kind. Sidecar on the model — see ModelDoc.observability.
+ *  `agentReview` = the last per-agent prompt-critique output (agents stage only). */
+export type StageOutputs = { generate?: LlmOutputRecord; review?: LlmOutputRecord; agentReview?: LlmOutputRecord };
 
 /** One step of an agent test-run trace: an assistant turn's text, OR a (simulated) tool call + its result. */
 export interface RunStep {

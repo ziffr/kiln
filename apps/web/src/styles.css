@@ -1502,6 +1502,12 @@ textarea {
 .agent-edit-card .entity-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .btn.ghost.sm, .agent-test-btn { font-size: 12px; padding: 4px 9px; }
 .agent-test-btn { flex: none; }
+/* the per-agent action row (Review prompt + Test agent) sits at the card head, right-aligned. */
+.agent-card-actions { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.agent-review-btn { flex: none; }
+.agent-review-btn:not(:disabled) { color: var(--accent-2); }
+/* per-agent prompt-critique findings reuse the inline critique surface; a touch of separation above. */
+.agent-prompt-findings { margin: 2px 0 0; }
 .agent-behaviour { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
 .agent-behaviour-label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .agent-behaviour-label svg { color: var(--accent-2); }

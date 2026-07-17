@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the repository level (see
 [RELEASING.md](RELEASING.md)).
 
+## [0.6.0](https://github.com/ziffr/kiln/compare/v0.5.1...v0.6.0) (2026-07-17)
+
+
+### Features
+
+* **agents:** critique an agent's prompt against its contract ([#47](https://github.com/ziffr/kiln/issues/47)) ([0bd0010](https://github.com/ziffr/kiln/commit/0bd00103523e0fedeaa566d9d9ef37d078b7e7a6))
+* **agents:** derive the agent contract (input·tools·output·context) + ground the prompt ([#46](https://github.com/ziffr/kiln/issues/46)) ([4e1e30c](https://github.com/ziffr/kiln/commit/4e1e30c343b40d4a15a6ddcfad6b0987e0829340))
+* **agents:** keep a bounded run history + compare two runs ([#49](https://github.com/ziffr/kiln/issues/49)) ([af662b7](https://github.com/ziffr/kiln/commit/af662b7c8c0e1104fa66108cc96a649f5c462ba0))
+* **agents:** let external services carry a declared credential ([#53](https://github.com/ziffr/kiln/issues/53)) ([a00547b](https://github.com/ziffr/kiln/commit/a00547b77309553340a7cea20652292b50e85827))
+* **agents:** look records up by field instead of scanning the table ([#52](https://github.com/ziffr/kiln/issues/52)) ([71ba61e](https://github.com/ziffr/kiln/commit/71ba61e282674385c13fc0a6ea3637978f8b05ea))
+* **agents:** test-this-agent — behaviour editor + in-Studio mock run + trace ([#44](https://github.com/ziffr/kiln/issues/44)) ([1601726](https://github.com/ziffr/kiln/commit/1601726aff2592f014febe960125c3bb54de8661))
+* **web:** prompt & output studio — view/session-tune prompts + last-output observability ([#43](https://github.com/ziffr/kiln/issues/43)) ([11a3803](https://github.com/ziffr/kiln/commit/11a3803fb60e7fc7fe0a0a9adb0b486c463753bb))
+* **web:** select an agent to open its detail (contract · behaviour · runs) ([#55](https://github.com/ziffr/kiln/issues/55)) ([44012d1](https://github.com/ziffr/kiln/commit/44012d145aa9bfb6ee9fdf84f0d4f421a73c1d89))
+
+
+### Bug Fixes
+
+* **agents:** give agents read tools so they can look data up ([#50](https://github.com/ziffr/kiln/issues/50)) ([08c07fc](https://github.com/ziffr/kiln/commit/08c07fcde317f62aa3e296bb52266a49af3fb42c))
+* **agents:** size the prompt critique to its own layer, not the agents stage ([#48](https://github.com/ziffr/kiln/issues/48)) ([0b03956](https://github.com/ziffr/kiln/commit/0b039564c500c592804156795981d960ce03637b))
+* **agents:** stop faking a designed agent when no behaviour is authored ([#54](https://github.com/ziffr/kiln/issues/54)) ([4eb1ae8](https://github.com/ziffr/kiln/commit/4eb1ae8aa4c7e49a7c494a3ae2023ab5fb73e0b9))
+* **web:** surface the AI-review step in the stage guide ([#42](https://github.com/ziffr/kiln/issues/42)) ([ae2c8fd](https://github.com/ziffr/kiln/commit/ae2c8fdad3c60f5291315f798bbbe943c4f272a1))
+
 ## [0.5.1](https://github.com/ziffr/kiln/compare/v0.5.0...v0.5.1) (2026-07-16)
 
 

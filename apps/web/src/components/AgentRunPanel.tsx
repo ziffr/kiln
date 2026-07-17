@@ -6,10 +6,16 @@
  *
  * Presentational: the run + persistence live in App; the last trace is passed back in (persisted via the
  * unified `observability.agentRuns` envelope) so it survives navigation + reload.
+ *
+ * The recent runs (bounded — `observability.agentRunHistory`, newest first) come in alongside it, behind an
+ * ON-DEMAND "History" disclosure: pick any past run to view, or open COMPARE to diff two of them. Nothing is
+ * shown until asked for — the panel's default state is still just the latest run.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { RunCompare } from "./RunCompare";
+import { AGENT_RUN_HISTORY_MAX } from "../runDiff";
 import type { RunTrace, RunStep } from "../projects";
 
 type T = (k: string, o?: Record<string, unknown>) => string;
@@ -55,10 +61,12 @@ function StepView({ step, t }: { step: RunStep; t: T }): React.JSX.Element {
 }
 
 export function AgentRunPanel({
-  agentName, trace, task, onTask, onRun, busy, error, engineLabel, modelLabel, locale, onClose, t,
+  agentName, trace, history = [], task, onTask, onRun, busy, error, engineLabel, modelLabel, locale, onClose, t,
 }: {
   agentName: string;
   trace?: RunTrace;
+  /** the agent's recent runs, NEWEST FIRST and bounded (AGENT_RUN_HISTORY_MAX). `history[0]` === `trace`. */
+  history?: RunTrace[];
   task: string;
   onTask: (v: string) => void;
   onRun: () => void;
@@ -72,6 +80,10 @@ export function AgentRunPanel({
   t: T;
 }): React.JSX.Element {
   const [showSystem, setShowSystem] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
+  // Which run of the history is on screen (0 = latest). A fresh run resets it — see below.
+  const [viewIdx, setViewIdx] = useState(0);
   const closeRef = useRef<HTMLButtonElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -81,10 +93,13 @@ export function AgentRunPanel({
     closeRef.current?.focus();
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  // A fresh trace scrolls the steps into view.
-  useEffect(() => { if (trace) scrollRef.current?.scrollTo({ top: 0 }); }, [trace]);
+  // A fresh trace snaps back to the latest run and scrolls the steps into view.
+  useEffect(() => { if (trace) { setViewIdx(0); scrollRef.current?.scrollTo({ top: 0 }); } }, [trace]);
 
-  const tokens = trace ? (trace.usage?.input ?? 0) + (trace.usage?.output ?? 0) : 0;
+  // The run on screen: the picked history entry, else the last trace (history is empty on a pre-history project).
+  const shown: RunTrace | undefined = history[viewIdx] ?? trace;
+  const tokens = shown ? (shown.usage?.input ?? 0) + (shown.usage?.output ?? 0) : 0;
+  const canCompare = history.length > 1;
 
   return (
     <aside className="prompt-studio agent-run-panel" role="region" aria-label={t("agentRunTitle", { name: agentName })}>
@@ -124,31 +139,79 @@ export function AgentRunPanel({
       {error && <p className="run-error" role="alert"><Icon name="info" size={13} />{error}</p>}
 
       <div className="ps-scroll run-scroll" ref={scrollRef}>
-        {trace ? (
+        {shown ? (
           <>
+            {/* On-demand: the recent runs + the compare. Only offered once there IS a history to look at. */}
+            {history.length > 1 && (
+              <div className="run-history-bar">
+                <button className="run-hist-toggle" onClick={() => setShowHistory((v) => !v)} aria-expanded={showHistory}>
+                  <Icon name="clock" size={12} />{t("agentRunHistory", { n: history.length })}
+                </button>
+                {canCompare && (
+                  <button
+                    className={`run-hist-toggle${showCompare ? " on" : ""}`}
+                    onClick={() => setShowCompare((v) => !v)}
+                    aria-expanded={showCompare}
+                    title={t("runCompareHint")}
+                  >
+                    <Icon name="route" size={12} />{t("runCompare")}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {showHistory && history.length > 1 && (
+              <ul className="run-history-list">
+                {history.map((r, i) => (
+                  <li key={i}>
+                    <button
+                      className={`run-hist-item${i === viewIdx ? " on" : ""}`}
+                      onClick={() => setViewIdx(i)}
+                      aria-current={i === viewIdx}
+                    >
+                      <span className="run-hist-n">#{history.length - i}</span>
+                      <span className="run-hist-when">{formatWhen(r.at, locale)}</span>
+                      {r.model && <span className="ps-tag">{r.model}</span>}
+                      <span className="muted run-hist-meta">
+                        {r.stepCount} {t("agentRunSteps")}
+                        {typeof r.estCostUsd === "number" ? ` · $${r.estCostUsd.toFixed(4)}` : ""}
+                      </span>
+                      {i === 0 && <span className="run-hist-latest">{t("runCompareLatest")}</span>}
+                    </button>
+                  </li>
+                ))}
+                <li className="run-hist-cap muted">{t("agentRunHistoryCap", { n: AGENT_RUN_HISTORY_MAX })}</li>
+              </ul>
+            )}
+
+            {showCompare && canCompare && (
+              <RunCompare history={history} locale={locale} onClose={() => setShowCompare(false)} t={t} />
+            )}
+
             <div className="run-totals">
-              <span className="run-total"><strong>{trace.stepCount}</strong> {t("agentRunSteps")}</span>
+              {viewIdx > 0 && <span className="run-hist-viewing">{t("agentRunViewing", { n: history.length - viewIdx })}</span>}
+              <span className="run-total"><strong>{shown.stepCount}</strong> {t("agentRunSteps")}</span>
               <span className="run-total"><strong>{tokens}</strong> {t("tokens")}</span>
-              {typeof trace.estCostUsd === "number" && <span className="run-total"><strong>${trace.estCostUsd.toFixed(4)}</strong></span>}
-              {trace.model && <span className="ps-tag">{trace.model}</span>}
+              {typeof shown.estCostUsd === "number" && <span className="run-total"><strong>${shown.estCostUsd.toFixed(4)}</strong></span>}
+              {shown.model && <span className="ps-tag">{shown.model}</span>}
               <span className="run-sim-badge" title={t("agentRunSimulatedHint")}>{t("agentRunMockMode")}</span>
-              <span className="muted run-when"><Icon name="clock" size={12} />{formatWhen(trace.at, locale)}</span>
+              <span className="muted run-when"><Icon name="clock" size={12} />{formatWhen(shown.at, locale)}</span>
             </div>
 
             <section className="ps-section run-system">
               <button className="run-system-toggle" onClick={() => setShowSystem((v) => !v)} aria-expanded={showSystem}>
                 <Icon name={showSystem ? "refresh" : "code"} size={12} />{t("agentRunSystem")}
               </button>
-              {showSystem && <pre className="run-system-pre">{trace.system}</pre>}
+              {showSystem && <pre className="run-system-pre">{shown.system}</pre>}
             </section>
 
             <section className="run-steps">
-              {trace.steps.map((s, i) => <StepView key={i} step={s} t={t} />)}
+              {shown.steps.map((s, i) => <StepView key={i} step={s} t={t} />)}
             </section>
 
             <section className="ps-section run-final">
               <span className="ps-label">{t("agentRunFinal")}</span>
-              <p className="run-final-text">{trace.finalText || t("agentRunNoFinal")}</p>
+              <p className="run-final-text">{shown.finalText || t("agentRunNoFinal")}</p>
             </section>
           </>
         ) : (

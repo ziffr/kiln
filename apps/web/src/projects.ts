@@ -157,8 +157,15 @@ export interface RunTrace extends LlmCallMeta {
 export interface Observability {
   /** Prompt & Output studio: last generation/review output per stage, keyed by stage id. */
   stages?: Partial<Record<string, StageOutputs>>;
-  /** Test agent: the LAST run-trace per agent id. */
+  /** Test agent: the LAST run-trace per agent id. Kept as the "last run" pointer alongside the history
+   *  below, so every existing reader keeps working unchanged. */
   agentRuns?: Record<string, RunTrace>;
+  /** Test agent: the recent run-traces per agent id, NEWEST FIRST and capped at `AGENT_RUN_HISTORY_MAX`
+   *  (see `runDiff.ts` — traces are fat and this rides in localStorage + an exported model.json). Parallel
+   *  to `agentRuns` on purpose: purely additive, nothing existing breaks. `agentRunHistory[id][0]` is the
+   *  same trace as `agentRuns[id]`. Feeds the run COMPARE (did my prompt edit help?) — inspection only,
+   *  never IR. */
+  agentRunHistory?: Record<string, RunTrace[]>;
 }
 
 export interface ProjectState {

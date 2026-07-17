@@ -10,7 +10,7 @@
  */
 
 import { slug } from "@kiln/ir";
-import { attributeSpecs, type AttributeSpec, type AggregateInput, type CapabilityDoc, type DomainDoc, type AgentsDoc, type WorkflowsDoc } from "@kiln/compiler";
+import { attributeSpecs, type AttributeSpec, type AggregateInput, type CapabilityDoc, type DomainDoc, type AgentsDoc, type WorkflowsDoc, type ToolsDoc, type IOSpec, type IOType, type ToolOperationKind } from "@kiln/compiler";
 import type { CommunicationsDoc } from "./comms.ts";
 import type { ExternalServicesDoc } from "./services.ts";
 import { buildToolSchemas, type ToolSchema } from "./agentSim.ts";
@@ -29,7 +29,7 @@ const CREATE_VERB = /^(create|add|register|open|new|capture|issue|request|submit
  */
 export const NO_BEHAVIOUR_MARKER = "<!-- KILN:NO_BEHAVIOUR -->";
 
-export type AgentToolKind = "command" | "read" | "notify" | "email" | "slack" | "pdf" | "external";
+export type AgentToolKind = "command" | "read" | "notify" | "email" | "slack" | "pdf" | "external" | "connector";
 
 /**
  * How many rows a `read` LIST tool hands back to the model. The spine's `GET /<entity>s` returns EVERY
@@ -56,6 +56,42 @@ export interface AgentTool {
   description: string;
   invoke: Record<string, unknown>;
   input?: string[];
+  /**
+   * SPEC-013 — a connector op's typed I/O + the op's semantic kind. Present only on `kind:"connector"`
+   * tools. `io.input` drives the JSON-Schema the model sees; `io.output` is consumed for a response shape
+   * (`connectorResponseSchema`); `io.kind` (read/list/write/send/delete) is carried through as the signal
+   * for the Phase-B invocation gate — not wired to a runtime gate in Phase A.
+   */
+  io?: { input: IOSpec[]; output: IOSpec[]; kind: ToolOperationKind };
+}
+
+/**
+ * SPEC-013 §4.6 — map one `IOType` onto a JSON-Schema type fragment. Scalars mirror the entity attribute
+ * mapping; the extended kinds (`array`/`object`/`json`) express provider passthrough. Pure + isomorphic.
+ */
+const IO_JSON_TYPE: Record<IOType, Record<string, unknown>> = {
+  text: { type: "string" },
+  number: { type: "number" },
+  boolean: { type: "boolean" },
+  date: { type: "string", format: "date" },
+  money: { type: "number" },
+  reference: { type: "string" },
+  array: { type: "array" },
+  object: { type: "object" },
+  json: {}, // raw provider passthrough — any JSON
+};
+
+/** Build a JSON-Schema `object` from a connector op's `IOSpec[]` (all fields optional). Pure. */
+export function ioSpecSchema(specs: IOSpec[]): Record<string, unknown> {
+  const properties: Record<string, unknown> = {};
+  for (const s of specs ?? []) properties[slug(s.name)] = s.type ? IO_JSON_TYPE[s.type] : {};
+  return { type: "object", properties };
+}
+
+/** The response-shape a connector op returns — derived from `io.output` so typed output is not dead. */
+export function connectorResponseSchema(t: AgentTool): Record<string, unknown> | undefined {
+  if (t.kind !== "connector" || !t.io) return undefined;
+  return ioSpecSchema(t.io.output);
 }
 export interface AgentDef {
   id: string;
@@ -273,7 +309,14 @@ function processesSection(d: AgentDef): string {
 // ── the runnable runtime (generic + data-driven; loads a definition and runs the agent loop) ──
 
 // The tool-argument JSON schema (shared by both providers). All string params — the spine coerces.
-const SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown> {
+const SCHEMA_HELPER = `const IO_JSON_TYPE: Record<string, Record<string, unknown>> = { text: { type: "string" }, number: { type: "number" }, boolean: { type: "boolean" }, date: { type: "string", format: "date" }, money: { type: "number" }, reference: { type: "string" }, array: { type: "array" }, object: { type: "object" }, json: {} };
+function toolParams(t: AgentTool): Record<string, unknown> {
+  // connector (SPEC-013): typed I/O from the op's io.input — keep this in sync with @kiln/codegen ioSpecSchema.
+  if (t.kind === "connector" && t.io) {
+    const properties: Record<string, unknown> = {};
+    for (const s of t.io.input ?? []) properties[s.name] = s.type ? (IO_JSON_TYPE[s.type] ?? {}) : {};
+    return { type: "object", properties };
+  }
   if (t.kind === "command" || t.kind === "external") {
     const properties: Record<string, { type: string }> = t.kind === "command" ? { id: { type: "string" } } : {};
     for (const f of t.input ?? []) properties[f] = { type: "string" };
@@ -297,6 +340,8 @@ const SCHEMA_HELPER = `function toolParams(t: AgentTool): Record<string, unknown
  * the hosted function) builds the SAME tool schemas the exported runtime would. Pure + isomorphic.
  */
 export function agentToolParams(t: AgentTool): Record<string, unknown> {
+  // connector (SPEC-013): typed I/O survives — build the arg schema from the op's `io.input` IOSpecs.
+  if (t.kind === "connector" && t.io) return ioSpecSchema(t.io.input);
   if (t.kind === "command" || t.kind === "external") {
     const properties: Record<string, { type: string }> = t.kind === "command" ? { id: { type: "string" } } : {};
     for (const f of t.input ?? []) properties[f] = { type: "string" };
@@ -315,8 +360,10 @@ export function agentToolParams(t: AgentTool): Record<string, unknown> {
 }
 
 const RUNTIME: Record<string, string> = {
-  "src/def.ts": `export type AgentToolKind = "command" | "read" | "notify" | "email" | "slack" | "pdf" | "external";
-export interface AgentTool { name: string; kind: AgentToolKind; description: string; invoke: Record<string, unknown>; input?: string[]; }
+  "src/def.ts": `export type AgentToolKind = "command" | "read" | "notify" | "email" | "slack" | "pdf" | "external" | "connector";
+export type IOType = "text" | "number" | "boolean" | "date" | "money" | "reference" | "array" | "object" | "json";
+export interface IOSpec { name: string; type?: IOType; }
+export interface AgentTool { name: string; kind: AgentToolKind; description: string; invoke: Record<string, unknown>; input?: string[]; io?: { input: IOSpec[]; output: IOSpec[]; kind: "read" | "list" | "write" | "send" | "delete" }; }
 export interface AgentDef {
   id: string;
   name: string;
@@ -701,8 +748,10 @@ ${order.map((k) => blocks[k]).join("\n")}${externalServicesEnvExample(services)}
  * (`agentsAdapter`), the in-Studio "Test agent" loop (apps/service), and the hosted function all share
  * ONE resolution. Extracting it here is the seam the server-side test loop reuses.
  */
-export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc, triggers?: TriggersDoc): AgentDef[] {
+export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc, triggers?: TriggersDoc, tools?: ToolsDoc): AgentDef[] {
   if (!agents?.agents?.length) return [];
+  // SPEC-013: index the authored connector tools so a grant can be resolved to its typed operations.
+  const toolById = new Map((tools?.tools ?? []).map((t) => [t.id, t]));
   const evName = new Map((domain.events ?? []).map((e) => [e.id, e.name || e.id]));
   const cmdName = new Map((domain.commands ?? []).map((c) => [c.id, c.name || c.id]));
   const cmdCap = new Map((domain.commands ?? []).map((c) => [c.id, c.capability]));
@@ -753,6 +802,26 @@ export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?
       // Names only — the definition JSON this lands in is committed; the value stays in the deploy's .env.
       tools.push({ name: slug(s.id), kind: "external", description: `Delegate to ${s.name} (${s.invocation}) — ${s.rationale ?? "external service"}`, invoke: { url: s.endpoint, invocation: s.invocation, service: s.id, auth: s.auth ?? "none", credentialEnv: s.credentialEnv, headerName: s.headerName }, input: Object.keys(s.requestMapping ?? {}) });
     }
+    // SPEC-013 CONNECTOR GRANTS fold: each granted op becomes a `connector` tool named `<toolId>_<op>`
+    // (deterministic namespacing via uniqueToolName, so it never clobbers an authored command). The op's
+    // typed I/O + semantic kind ride on `io`; NO destination is carried — the runtime resolves it via the
+    // registered ConnectorAdapter (Phase B). Only grants whose tool + op actually resolve are folded.
+    for (const g of a.grants ?? []) {
+      const tool = toolById.get(g.toolId);
+      if (!tool) continue; // an unresolved grant — validator TC1 reports it; nothing to project.
+      for (const opName of g.operations ?? []) {
+        const op = (tool.operations ?? []).find((o) => o.name === opName);
+        if (!op) continue; // an op the tool doesn't declare — TC2 reports it.
+        const name = uniqueToolName(`${slug(tool.id)}_${slug(op.name)}`, taken);
+        tools.push({
+          name,
+          kind: "connector",
+          description: `${op.name} on ${tool.providerLabel || tool.name} (${op.kind}) via ${tool.name}`,
+          invoke: { connector: tool.id, op: op.name, kind: op.kind, ...(g.autonomous ? { autonomous: true } : {}) },
+          io: { input: op.input ?? [], output: op.output ?? [], kind: op.kind },
+        });
+      }
+    }
     // TRIGGERS fold: the external signals (webhook/schedule/external) ROUTED to this agent are its INPUT.
     // Match a trigger whose target is this agent (target.kind === "agent" && ref === slug(a.id)) — the same
     // routing `mockTriggers`/`route()` uses. Optional + backward-compatible (empty when no triggers doc).
@@ -763,12 +832,12 @@ export function resolveAgentDefs(caps: CapabilityDoc, domain: DomainDoc, agents?
 }
 
 /** Resolve each agent's toolset and emit a runnable, provider-flexible runtime (definitions + loop). */
-export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc, agentDefaults?: AgentDefaults, triggers?: TriggersDoc): Record<string, string> {
+export function agentsAdapter(caps: CapabilityDoc, domain: DomainDoc, agents?: AgentsDoc, comms?: CommunicationsDoc, workflows?: WorkflowsDoc, services?: ExternalServicesDoc, agentDefaults?: AgentDefaults, triggers?: TriggersDoc, tools?: ToolsDoc): Record<string, string> {
   if (!agents?.agents?.length) return {};
   // Ground the exported behaviour in the agent's INPUT: use the authored triggers when present, else the
   // deterministic defaults (external/time events → webhook/schedule routes), so the contract isn't empty.
   const trig = triggers ?? mockTriggers(caps, domain, workflows, agents);
-  const defs = resolveAgentDefs(caps, domain, agents, comms, workflows, services, trig);
+  const defs = resolveAgentDefs(caps, domain, agents, comms, workflows, services, trig, tools);
 
   const files: Record<string, string> = {};
   for (const [rel, content] of Object.entries(RUNTIME)) files[`agents/${rel}`] = content;

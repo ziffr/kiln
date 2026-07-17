@@ -108,6 +108,7 @@ const pureDirs = [
   "packages/eval/src",
   "packages/codegen/src/engines",
   "packages/codegen/src/deploy",
+  "packages/codegen/src/connectors",
 ];
 
 /**

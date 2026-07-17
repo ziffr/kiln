@@ -53,6 +53,61 @@ export interface AttributeSpec {
   type?: AttrType; // absent = untyped (back-compat / not yet decided)
 }
 
+/**
+ * SPEC-013 §4.6 — the connector I/O vocabulary. `IOSpec` reuses `AttributeSpec`'s `{name,type?}` shape
+ * but widens the type union with `array` / `object` / `json` (raw provider passthrough) so a
+ * thread→messages list or a 2-D range is expressible. One typed vocabulary (honours D3) with the extra
+ * kinds the review found missing. An `IOSpec` is structurally an `AttributeSpec` for the shared `AttrType`
+ * values, so anywhere an `AttributeSpec` is accepted an `IOSpec` with a scalar type works too.
+ */
+export type IOType = AttrType | "array" | "object" | "json";
+export interface IOSpec {
+  name: string;
+  type?: IOType; // absent = untyped
+}
+
+/**
+ * SPEC-013 §4.1 — a `ToolDef` is GRANT-SURFACE METADATA ONLY: a human provider label + the typed
+ * operations an agent may be granted. It carries NO url, host, node id, method, connection, or secret —
+ * all provider glue + destinations live in the registered `ConnectorAdapter` (@kiln/codegen/connectors),
+ * which is what keeps a connector from degenerating into a `fetch(url)`. Validator TC6 rejects a raw
+ * URL/host on a `ToolDef`; TC5 rejects an embedded secret.
+ */
+export type ToolOperationKind = "read" | "list" | "write" | "send" | "delete";
+export interface ToolOperation {
+  name: string;
+  kind: ToolOperationKind;
+  input: IOSpec[];
+  output: IOSpec[];
+  scopes?: string[]; // the OAuth scopes this op needs (may be scope URLs — TC6 exempts these)
+}
+export interface ToolDef {
+  id: string;
+  name: string;
+  providerLabel: string; // human label only, e.g. "Google Sheets" — NEVER an endpoint
+  operations: ToolOperation[];
+  meta: { origin: "authored"; derivedFrom?: unknown[]; [k: string]: unknown };
+}
+/** A `tools: ToolDef[]` document — the new top-level authored connector layer (SPEC-013 Phase A). */
+export interface ToolsDoc {
+  version?: string;
+  tools: ToolDef[];
+}
+
+/**
+ * SPEC-013 §4.2 — a per-agent GRANT, nested on the agent (TA5: not a de-normalized top-level array).
+ * Suggest→grant→connect are three separate acts (invariant #6): granting is a reversible model edit with
+ * NO real-world effect; connecting a live account is a separate, deliberately-confirmed Phase-B step.
+ * `connectionRef` is an OPAQUE, non-PII reference to a live connection (Phase B populates it; Phase A only
+ * guards it via TC7). It is never a token and never PII — see SEC6.
+ */
+export interface AgentGrant {
+  toolId: string;
+  operations: string[]; // the granted op NAMES (a subset of the tool's operations)
+  autonomous?: boolean; // when true, write/send/delete ops skip the per-invocation gate (Phase B)
+  connectionRef?: string; // opaque Nango connection reference (never a token / PII) — Phase B
+}
+
 /** SPEC-002 domain model (aggregates-first): entities each capability owns. */
 export interface AggregateInput {
   id: string;
@@ -176,6 +231,8 @@ export interface AgentInput {
   /** per-agent model + thinking level (Anthropic). Fall back to the runtime's env defaults if unset. */
   model?: string;
   effort?: "low" | "medium" | "high" | "max";
+  /** SPEC-013 §4.2 — connector grants nested on the agent (human-gated; suggest→grant→connect). */
+  grants?: AgentGrant[];
   meta?: Record<string, unknown>;
 }
 export interface AgentsDoc {
@@ -212,18 +269,29 @@ export function workflowNodeId(id: string): string {
 export function agentNodeId(id: string): string {
   return `agent:${slug(id)}`;
 }
+/** Namespaced IR node id for a connector tool (SPEC-013; collision-free with every other id space). */
+export function toolNodeId(id: string): string {
+  return `tool:${slug(id)}`;
+}
+/** Deterministic id for a per-op grant edge (agent → tool). The op is encoded so distinct ops don't clash. */
+export function grantEdgeId(agentId: string, toolId: string, op: string): string {
+  return `${agentNodeId(agentId)}--grants:${slug(op)}-->${toolNodeId(toolId)}`;
+}
 
 /**
  * Deterministic buildHash binding authored input to compiler + schema versions
  * (SPEC-001 §3.4). Mixes every authored artifact present — capabilities, domain (REV-010 M5),
  * and the business-areas partition (SPEC-003 / REV-015 M2) — plus the compiler + schema versions.
  */
-export function computeBuildHash(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc, roles?: RolesDoc, workflows?: WorkflowsDoc, agents?: AgentsDoc): string {
+export function computeBuildHash(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc, roles?: RolesDoc, workflows?: WorkflowsDoc, agents?: AgentsDoc, tools?: ToolsDoc): string {
   const parts = [domain, contexts, roles, workflows, agents].map((a) => (a ? canonical(a) : "")).join("|");
-  return sha256(`${canonical(doc)}|${parts}|${COMPILER_VERSION}|${SCHEMA_VERSION}`);
+  // SPEC-013: mix the tools layer ONLY when present, appended after the versions — so a model with no
+  // connectors hashes byte-identically to a pre-SPEC-013 model (grants already ride in the agents canonical).
+  const toolsPart = tools && tools.tools?.length ? `|tools:${canonical(tools)}` : "";
+  return sha256(`${canonical(doc)}|${parts}|${COMPILER_VERSION}|${SCHEMA_VERSION}${toolsPart}`);
 }
 
-export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc, roles?: RolesDoc, workflows?: WorkflowsDoc, agents?: AgentsDoc): IR {
+export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, contexts?: ContextsDoc, roles?: RolesDoc, workflows?: WorkflowsDoc, agents?: AgentsDoc, tools?: ToolsDoc): IR {
   const nodes = new Map<string, IRNode>();
   const edges = new Map<string, IREdge>();
 
@@ -383,6 +451,19 @@ export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, cont
     const aid = agentNodeId(agent.id);
     addNode({ id: aid, type: "agent", origin: "authored", label: agent.name ?? agent.id, meta: { ...(agent.meta ?? {}), goal: agent.goal ?? "" } });
     for (const capId of agent.capabilities ?? []) addEdge({ id: edgeId(aid, capId, "operates"), from: aid, to: capId, type: "operates", origin: "authored" });
+    // SPEC-013 grants: one authored `grants` edge per (agent, tool, op). The op is in the edge id (edges
+    // carry no meta), so distinct ops to the same tool are distinct edges — an agent→tool(op) grant.
+    for (const g of agent.grants ?? []) {
+      for (const op of g.operations ?? []) {
+        addEdge({ id: grantEdgeId(agent.id, g.toolId, op), from: aid, to: toolNodeId(g.toolId), type: "grants", origin: "authored" });
+      }
+    }
+  }
+
+  // SPEC-013 connector tools: authored `tool` nodes. Grant-surface metadata only — the operations (with
+  // their kinds + typed I/O) ride in meta; NO destination is ever stored here (that lives in the adapter).
+  for (const t of tools?.tools ?? []) {
+    addNode({ id: toolNodeId(t.id), type: "tool", origin: "authored", label: t.name ?? t.id, meta: { ...(t.meta ?? {}), providerLabel: t.providerLabel ?? "", operations: t.operations ?? [] } });
   }
 
   const sortedNodes = [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
@@ -393,6 +474,6 @@ export function compileCapabilities(doc: CapabilityDoc, domain?: DomainDoc, cont
     domain: doc.domain,
     nodes: sortedNodes,
     edges: sortedEdges,
-    buildHash: computeBuildHash(doc, domain, contexts, roles, workflows, agents),
+    buildHash: computeBuildHash(doc, domain, contexts, roles, workflows, agents, tools),
   };
 }

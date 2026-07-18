@@ -6,7 +6,7 @@ status: Approved
 version: 1.0.0
 author: Claude (Opus 4.8)
 created: 2026-07-10
-updated: 2026-07-15
+updated: 2026-07-18
 ---
 
 # Documentation Index
@@ -28,6 +28,7 @@ Regenerated whenever a document is added or changes status. See `CONVENTIONS.md`
 | SPEC-011 | Versioned Workspaces — git-backed model history + semantic diff | spec | Draft | 0.1.0 |
 | SPEC-012 | Deployment Placement — where each engine runs, as a binding dimension | spec | Approved | 1.1.0 |
 | SPEC-013 | Agent Tool Connectors — typed external-system tools + Nango OAuth (no n8n dependency) | spec | Approved | 1.1.0 |
+| SPEC-014 | Agent Runtime Lifecycle — native wake, durable state & HITL (Postgres); n8n retained for workflows | spec | Draft | 0.1.0 |
 | PLAN-001 | MVP Execution Plan (M0–M5) | plan | Approved | 0.4.0 |
 | PLAN-013 | Connector / Nango Ergonomics (SPEC-013 Phase B3) — choose-your-Nango, optional helper, self-sufficient export | plan | Approved | 1.0.0 |
 | RES-001 | Codegen probe — model → scaffolding, and what's missing | research | Approved | 1.0.0 |

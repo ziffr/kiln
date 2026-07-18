@@ -2,14 +2,14 @@
 id: REV-040
 title: Extensibility-DX review of SPEC-014
 type: review
-status: In Review
-version: 1.0.0
+status: Approved
+version: 1.1.0
 author: Claude (Opus 4.8)
 created: 2026-07-18
 updated: 2026-07-18
 reviews: SPEC-014
 lens: extensibility-dx
-verdict: Reject
+verdict: Reject → Approve-with-changes (re-reviewed)
 related: [SPEC-014]
 ---
 
@@ -113,3 +113,36 @@ SPEC-013 v0.1 a Reject; the same remedy applies — port SPEC-010's contract-gra
 registry + probe + byte-identity) onto the wake axis. **Reject; re-review on a revision that makes wake a
 registered `WakeSourceAdapter` seam (or explicitly folds it into the engine seam) with an acceptance
 probe.**
+
+---
+
+## Re-review (v0.3.0, 2026-07-18)
+
+The revision **ports SPEC-010's seam idiom onto the wake axis verbatim** — a named contract, a
+`register*/get*/registered*` registry sorted→deterministic, self-registering built-ins in an `index.ts`,
+and a one-file byte-identical acceptance probe. Verified against `packages/codegen/src/engines/`
+(`registry.ts` + `index.ts`): the §4.4 shape matches the house bar. Every finding is dispositioned below.
+
+| # | Sev | Disposition |
+|---|---|---|
+| DX1 | Blocker | **Closed** — §4.4 defines `interface WakeSourceAdapter { source; applies?; waitTools(); emitResumer() }` in `packages/codegen/src/wake/registry.ts` with `registerWakeSource`/`getWakeSource`/`registeredWakeSources` (sorted→deterministic) and built-ins self-registering in `wake/index.ts`. A real seam, not an enum (D1 revised from a closed enum). |
+| DX2 | Major | **Closed** — auto-pick is now `selectWakeSource(shape)` choosing *from* `registeredWakeSources()`; a third-party source declares the shape(s) it serves and participates. D6 reworded: auto-pick is a UX call, the source **set stays open**. |
+| DX3 | Major | **Closed** — §4.4/§6 add the probe: register a 4th source (`redis`) in **one file**; assert **zero core-dispatch edits** and **byte-identical export when not selected** — the fake-mysql/second-connector gate, on the wake axis. |
+| DX4 | Major | **Closed** — `agent_state` carries generic `wake_condition jsonb` ({ source, …adapter-owned }); only `wake_at` is promoted as an indexed hot-path scalar. A new source adds **no shared DDL**. |
+| DX5 | Major | **Closed** — the wait vocabulary is adapter-declared via `waitTools(): ToolDef[]`; the runtime tool set **and** AL1's resolvable-target list are **derived from registered sources** (§4.3/4.4/4.10). Both ends of the axis are now pluggable. |
+| DX6 | Major | **Closed** — §4.4 justifies a **distinct** registry rather than floating a third pattern: a wake source pairs a *runtime resumer* with *wait primitives*, "neither of which the `EngineAdapter` contract expresses." Picks and defends, per the ask. |
+| DX7 | Minor | **Closed** — the gate is now precise: outbox/state/trigger DDL emits **only when ≥1 agent-mode reaction or native wake target exists** (§4.1); the "events but zero agents ⇒ byte-identical" case is an explicit §6 test. Zero-agent vs zero-trigger no longer conflated. |
+| DX8 | Nit | **Closed** — `WakeSourceAdapter` / `registerWakeSource`; reads as one seam family with engines/connectors. |
+
+**New (Nit, non-blocking).** §4.1/D8 make the DDL owner a **`lifecycleAdapter` "(an `EngineAdapter`)"** —
+good reuse of the existing seam — but its registration path and, critically, its **`applies(ctx)`
+lane-active gate** (the thing that *mechanically* enforces the DX7 byte-identity guarantee) are only
+implied. Pin at build: `lifecycleAdapter` registers via `registerEngine`, and its `applies()` returns
+true iff the lane is active, so the byte-identity gate is enforced by the same registry dispatch as every
+other engine — not a bespoke `if`. Nit, not a Blocker; the guarantee is stated, only its wiring is
+unspecified.
+
+**VERDICT: Reject → Approve-with-changes. The Blocker (DX1) is CLOSED**; all five Majors (DX2–DX6), the
+Minor (DX7), and the Nit (DX8) are closed. The wake axis is now a contract-grade, registered, probe-backed
+seam at the SPEC-010/013 bar. One residual Nit (lifecycleAdapter registration + `applies()` gate) to settle
+at build; it does not hold the approval.

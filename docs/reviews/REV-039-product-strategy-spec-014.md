@@ -2,7 +2,7 @@
 id: REV-039
 title: Product-strategy review of SPEC-014
 type: review
-status: In Review
+status: Approved
 version: 1.0.0
 author: Claude (Opus 4.8)
 created: 2026-07-18

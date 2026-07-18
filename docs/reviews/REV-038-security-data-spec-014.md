@@ -2,14 +2,14 @@
 id: REV-038
 title: Security-data review of SPEC-014
 type: review
-status: In Review
-version: 1.0.0
+status: Approved
+version: 1.1.0
 author: Claude (Opus 4.8)
 created: 2026-07-18
 updated: 2026-07-18
 reviews: SPEC-014
 lens: security-data
-verdict: Reject
+verdict: Reject → Approve-with-changes (re-reviewed)
 related: [SPEC-014]
 ---
 
@@ -91,3 +91,27 @@ AL5 ("no `_events`/`agent_state` write path carries a secret literal") reads as 
 | Nit | 1 | SEC8 |
 
 The spec's framing (n8n stays the workflow engine; agent lane gets purpose-built state) is coherent and the outbox/durability-in-the-table design is good. But on the security-data lens it is **not** shippable as written: the external ingress has no honest third-party auth story (SEC1), and the blast-radius argument rests on a write-gate that does not actually cover the autonomous command path the design uses (SEC2). Resolve both Blockers and the resume_token/at-rest/replay Majors, then re-review.
+
+---
+
+## Re-review (v0.3.0, 2026-07-18)
+
+Re-read SPEC-014 v0.3.0 and re-verified the underlying code claims: `GATED_KINDS={write,send,delete}` still excludes `kind:"command"` (`agents.ts:697`), the command tool POSTs the spine directly (`:454`), `API_TOKEN` is a single shared bearer, open when unset (`spine.ts:421–447`), and the `N8N_WEBHOOK_TOKEN` HMAC-style hop the fix mirrors exists (`spine.ts:390`). The revision's fixes are grounded and implementable.
+
+Per-finding disposition:
+
+- **SEC1 (Blocker) — CLOSED.** §4.5/D5 drop the internal-bearer reuse. The ingress now verifies a per-trigger **HMAC over the raw body**, keyed by a `webhookSecretEnv` declared **by name** (invariant #7), **constant-time**, **closed-by-default** ("no secret configured ⇒ the route rejects"), with a **distinct per-trigger token** (never `API_TOKEN`) for bearer-only providers. It also states a valid signature admits but does not authorize a write (hands off to SEC2). Exactly the fix asked for, plus a §6 test (bad/absent HMAC rejected).
+- **SEC2 (Blocker) — CLOSED.** §4.6 adds a `tainted` column set on event/external-ingress wake and **extends the invocation gate to the native `command` kind**: a tainted, state-changing command requires `request_approval` unless the grant is explicitly `autonomous` **and** the process is `injection-safe`. **AL6** (new, §4.10) fires on `autonomous:true` + event/ingress wake + state-changing commands, requiring human sign-off. The ungated autonomous-command path is closed.
+- **SEC3 (Major) — CLOSED.** §4.3/D7 retract the "nothing to secure" claim and fully specify `resume_token`: **≥128-bit CSPRNG, single-use (cleared on resume), TTL-boxed, bound to `{run_id, step, expected_decision}`, verified constant-time**, rejected on expiry/reuse — or the column is removed at build if correlation rides the notify thread. Both branches are secure; §6 tests forged/expired/replayed rejection.
+- **SEC4 (Major) — CLOSED.** §4.2/4.9 add a `tenant` column with the resumer/`LISTEN`/claim filtered by it, an explicit **single-tenant-until-RLS-is-real precondition** (not assumed away), retention/purge, and a **runtime redaction** rule for `decision_log`/audit with a runtime test — correctly separated from the codegen-time AL5.
+- **SEC5 (Major) — CLOSED.** §4.6 replaces prompt-suasion with a **transactional effect ledger** keyed `{run_id, step, op, arghash}`, committed in the same transaction as the outcome; a committed key deterministically short-circuits replay. §6 simulates a mid-effect crash.
+- **SEC6 (Minor) — CLOSED.** §4.9/§6 define a status **whitelist** (`status, wake_at, wake_on_event, step count, timestamps, route rationale`); `transcript`/`decision_log` detail/`wake_condition`/`resume_token` are never sent to the browser, added to the secret-never-client-side invariant test.
+- **SEC7 (Minor) — CLOSED.** §4.4/D4 drop pg_cron for a Node `SKIP LOCKED` poll; `LISTEN`/claim are tenant-scoped; the channel carries event **names only** (noted as visible to any DB role).
+- **SEC8 (Nit) — CLOSED.** §4.10 rewords AL5 to "no *authored* write path embeds a secret literal (codegen-time only)" and cross-references the runtime redaction requirement.
+
+**New / residual findings (non-blocking):**
+
+- **[SEC9] Minor (new)** — the `injection-safe` process flag (§4.6) that lets an autonomous tainted run bypass the command gate is **undefined**: no criteria for who asserts it or what makes a process injection-safe. AL6's human sign-off blunts silent abuse, but the flag needs a definition at build (a self-asserted boolean is a soft bypass). Not a Blocker.
+- **[SEC10] Minor (new)** — the effect ledger (§4.6) fences a Postgres transaction, but `send`/`external` effects call **out-of-DB providers** that cannot enlist in that transaction. Committing the pending key *before* the external call converts at-least-once into possible **at-most-once** (crash between key-commit and provider call → effect silently dropped on resume). This is the honest dual-write residual; acceptable for a low-volume judgment lane and strictly better than double-firing, but should be **named** in §4.8's residual list, not left implicit.
+
+**CLOSING VERDICT: Approve-with-changes. Both Blockers (SEC1, SEC2) are CLOSED; all three Majors (SEC3–SEC5) and both Minors and the Nit are CLOSED. No Blockers remain.** Two new Minors (SEC9 injection-safe definition, SEC10 dual-write drop residual) are advisory and do not gate approval — fold them into build. Security-data lens lifts its Reject.

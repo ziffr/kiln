@@ -2,8 +2,8 @@
 id: SPEC-014
 title: Agent Runtime Lifecycle — durable long-lived & HITL agents (Postgres), n8n retained for workflows
 type: spec
-status: Revised
-version: 0.3.0
+status: Approved
+version: 1.0.0
 author: Claude (Opus 4.8)
 created: 2026-07-18
 updated: 2026-07-18
@@ -371,6 +371,20 @@ Built as **one lane, only on the §0 signal, only after SPEC-013 Phase C**. Orde
 - **D10 (owner-confirmed, 2026-07-18)** — *timing*: fold the whole lane behind the demand gate and sequence
   behind SPEC-013 Phase C. The owner accepted the reviewers' recommendation (not overridden, unlike the
   SPEC-013 Nango timing call).
+- **D11 (adopt-don't-build — recommended build-time evaluation)** — implement the `postgres` wake source +
+  the durable-state/effect-ledger by **adopting a lightweight OSS durable-execution library** rather than
+  hand-rolling. Primary candidate **DBOS Transact (TypeScript)** — a *library* (no separate server) on the
+  existing Postgres providing durable workflows/queues, exactly-once steps, and crash-safe resume, incl.
+  durable AI-agent workflows; it directly owns TA8 (spine-side transactional fence) and SEC10 (the
+  dual-write/exactly-once residual) that are error-prone by hand. Alternatives for just the wake/timer layer:
+  **Graphile Worker** or **pg-boss** (Postgres `SKIP LOCKED` + `LISTEN/NOTIFY` + cron, MIT). The
+  `WakeSourceAdapter` seam (§4.4) makes this an **implementation choice, not an architecture change** — the
+  library sits *under* Kiln's `runAgent` as one registered source (invariant #8: Kiln wires it, the library
+  is the muscle). Constraints to check in the spike: license must be permissive for anything baked into
+  MIT-stamped generated output; the added spine dependency vs the zero-dep `generateApp`; and that the
+  library composes with Kiln's generated handlers rather than dictating their structure. **Framework**-level
+  agent runtimes (LangGraph interrupt+checkpointer, Mastra suspend/resume) are the HITL *design reference*,
+  **not** adopted wholesale — they would own the agent loop and collide with Kiln's runtime + SPEC-013 grants.
 
 ## 9. Review & closure
 
@@ -420,6 +434,24 @@ addresses every finding; the three Rejecting lenses require **re-review** of the
 | **PS6** Phase A not minimal | **Fixed** — minimal schema; `resume_token` conditional; substrate = demoed behaviour (§0/§4.2). |
 | **PS7** demand signal undefined | **Fixed** — concrete signal + kill criterion (§0). |
 
-**Status `Revised`.** D10 (timing/sequencing) is **owner-confirmed** (2026-07-18): demand-gated + sequenced
-behind SPEC-013 Phase C. The one open item to reach `Approved` is **re-review by technical-architecture,
-security-data, and extensibility-dx** confirming their Blockers are closed on this v0.3.0.
+### Re-review (v0.3.0 → Approved, 2026-07-18)
+
+All three Rejecting lenses re-reviewed against v0.3.0 to **Approve-with-changes**; **every Blocker closed**
+(REV-037/038/040 → v1.1.0). With product-strategy and ux-hitl already at Approve-with-changes and their
+items dispositioned above, **all five lenses are Approve-with-changes with no Blocker remaining → `Approved`.**
+
+Four new **non-blocking advisory findings** from the re-review, all **Accepted / deferred to build**:
+- **TA8 (Minor)** — the effect-ledger fence must be committed **spine-side** (the runtime is HTTP-only per D8
+  and holds no DB transaction); a one-line consistency fix at build. *Accepted.*
+- **SEC9 (Minor)** — the `injection-safe` flag that lets an autonomous *tainted* run bypass the gate (§4.6)
+  is undefined; define it concretely or drop the bypass. AL6 blunts the risk meanwhile. *Accepted.*
+- **SEC10 (Minor)** — out-of-DB effects (`send`/`external`) cannot enlist in the Postgres transaction, so the
+  effect ledger converts a double-fire into a possible **silent drop** (dual-write residual); name it in §4.8
+  and prefer a provider-side idempotency key where available. *Accepted — a primary driver for D11 (a mature
+  durable-execution library owns exactly this).*
+- **DX-residual (Nit)** — pin the `lifecycleAdapter` registration + its `applies()` lane-active gate (the
+  mechanism enforcing DX7 byte-identity) explicitly at build. *Accepted.*
+
+**Status `Approved` (v1.0.0).** Build remains gated by §0 (demand signal + sequenced behind SPEC-013 Phase C,
+D10). The recommended first build step is the **D11 adopt-don't-build spike** (evaluate DBOS Transact /
+Graphile Worker as the durable+wake substrate), which retires TA8/SEC10 and the reinvention risk.

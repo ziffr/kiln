@@ -3,12 +3,12 @@ id: SPEC-014
 title: Agent Runtime Lifecycle — durable long-lived & HITL agents (Postgres), n8n retained for workflows
 type: spec
 status: Approved
-version: 1.0.0
+version: 1.1.0
 author: Claude (Opus 4.8)
 created: 2026-07-18
 updated: 2026-07-18
 supersedes: null
-related: [SPEC-005, SPEC-007, SPEC-008, SPEC-009, SPEC-010, SPEC-012, SPEC-013, ADR-002]
+related: [SPEC-005, SPEC-007, SPEC-008, SPEC-009, SPEC-010, SPEC-012, SPEC-013, ADR-002, RES-004]
 reviewers: [technical-architecture, security-data, product-strategy, extensibility-dx, ux-hitl]
 ---
 
@@ -385,6 +385,17 @@ Built as **one lane, only on the §0 signal, only after SPEC-013 Phase C**. Orde
   library composes with Kiln's generated handlers rather than dictating their structure. **Framework**-level
   agent runtimes (LangGraph interrupt+checkpointer, Mastra suspend/resume) are the HITL *design reference*,
   **not** adopted wholesale — they would own the agent loop and collide with Kiln's runtime + SPEC-013 grants.
+  **VERIFIED (RES-004, 2026-07-18):** a real-code spike (DBOS `@dbos-inc/dbos-sdk` v4 on stock Postgres)
+  ran the solar Offer Reviewer as a workflow — `step → durable sleep → recv (human approval) → step` — and
+  survived a **hard process crash**: a fresh process recovered the workflow, resumed at the approval wait
+  **without re-running the completed step** (memoized in `dbos.operation_outputs`), took a `send()` approval,
+  and completed. Confirms DBOS supplies §4.2/4.3/4.4 (lossless resume, durable timer, durable HITL wait) on
+  stock Postgres with **no server and no extension** (resolves TA3), MIT-licensed. Two caveats RES-004 sized
+  and neither a blocker: (a) **SEC10 stands** — DBOS steps are at-least-once until checkpointed, so out-of-DB
+  effects still need a provider idempotency key; (b) adoption requires **restructuring `runAgent` into a DBOS
+  workflow** (each LLM/tool call = a `step`, deterministic loop body) — the chief integration cost. The
+  first build step under §0 is the `runAgent`→DBOS refactor prototype + a `dbos` `WakeSourceAdapter` as the
+  `postgres` source.
 
 ## 9. Review & closure
 

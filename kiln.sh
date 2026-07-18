@@ -85,6 +85,7 @@ ${B}Alternative AI engines${N}   (optional — Anthropic is the default; OpenRou
 ${B}Connectors — a local Nango${N}   (OPTIONAL convenience; NOT required — see below)
   ${C}nango:up${N}             Boot a local Nango (OAuth broker) via docker compose + print setup steps.
   ${C}nango:down${N}           Stop it.
+  ${C}nango:logs${N} ${DIM}[service]${N}   Tail a local Nango service log (default ${B}nango-server${N}; env-sourced so it just works).
                        Connectors broker agent OAuth through ${B}Nango${N}. Kiln + every exported app reach
                        whichever Nango you set via ${C}NANGO_HOST${N} + ${C}NANGO_SECRET_KEY${N} — three EQUAL options:
                          1) ${B}Nango Cloud${N}      — nothing to run; use its host + secret key.
@@ -243,7 +244,26 @@ case "$cmd" in
     fi
     say "booting a local Nango (Postgres + Redis + nango-server) — first run pulls images"
     ( set -a; [ -f .env ] && . ./.env; set +a; run docker compose -f "$NANGO_COMPOSE" up -d )
-    ok "Nango up → API + dashboard http://localhost:3003 · Connect UI http://localhost:3009"
+    # `up -d` returns when the CONTAINER starts, not when the SERVER is ready: first boot runs DB
+    # migrations (slow, especially under Rosetta on Apple Silicon), so :3003 is dead for ~30–90s. Wait
+    # until the API actually answers before printing success, so the steps below always work on first try.
+    if command -v curl >/dev/null; then
+      say "waiting for the Nango API on http://localhost:3003 (first boot runs migrations — up to ~2.5 min)…"
+      nango_ready=""
+      for _ in $(seq 1 75); do
+        # Any HTTP response (even 404/401) means the server is listening; only a refused/reset conn gives 000.
+        code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://localhost:3003/health 2>/dev/null || echo 000)"
+        [ "$code" != "000" ] && { nango_ready=1; break; }
+        sleep 2
+      done
+      if [ -n "$nango_ready" ]; then
+        ok "Nango up → API + dashboard http://localhost:3003 · Connect UI http://localhost:3009"
+      else
+        warn "Nango isn't answering on :3003 yet (still migrating, or a boot error). Watch it with ${B}./kiln.sh nango:logs${N} — the server line should read 'listening on port 3003'. The steps below apply once it's up."
+      fi
+    else
+      ok "Nango starting → API + dashboard http://localhost:3003 · Connect UI http://localhost:3009  ${DIM}(give it ~30–90s to finish migrations; ./kiln.sh nango:logs to watch)${N}"
+    fi
     say "Next steps (one-time):"
     printf "  1. Open the ${B}dashboard${N} at ${B}http://localhost:3003${N} (login: NANGO_DASHBOARD_USERNAME/PASSWORD, default admin/admin).\n"
     printf "     ${DIM}(:3009 is the Connect UI — the OAuth popup Studio/an app launches WITH a session token; visiting it directly just shows an empty loading skeleton, that's expected.)${N}\n"
@@ -260,6 +280,16 @@ case "$cmd" in
     say "stopping the local Nango"
     ( set -a; [ -f .env ] && . ./.env; set +a; run docker compose -f "$NANGO_COMPOSE" down )
     ok "Nango stopped (volumes kept — ./kiln.sh nango:down does not delete connections; add 'docker compose -f $NANGO_COMPOSE down -v' to wipe them)"
+    ;;
+  nango:logs)
+    # A raw `docker compose -f tools/nango/docker-compose.yml logs` looks for .env in tools/nango/ (the
+    # compose file's dir), NOT the repo root where nango:up wrote NANGO_ENCRYPTION_KEY — so interpolation
+    # fails with "required variable NANGO_ENCRYPTION_KEY is missing". Source .env first, like up/down do.
+    NANGO_COMPOSE="tools/nango/docker-compose.yml"
+    [ -f "$NANGO_COMPOSE" ] || die "$NANGO_COMPOSE not found"
+    NANGO_SVC="${2:-nango-server}"   # default to the API server; pass another service to override (e.g. nango:logs nango-db)
+    say "tailing '$NANGO_SVC' (Ctrl-C to stop; the server line should read 'listening on port 3003')"
+    ( set -a; [ -f .env ] && . ./.env; set +a; run docker compose -f "$NANGO_COMPOSE" logs --tail=120 -f "$NANGO_SVC" )
     ;;
 
   verify:up)

@@ -39,10 +39,9 @@ Per the SPEC-005 shelving discipline — held honestly this time (REV-039/PS1):
   spec **must not** build before SPEC-013 Phase C has its own signal and a small connector catalog exists —
   a lifecycle for an agent with a near-empty toolbox is out of order. This ordering is a gate, not an
   assumption.
-- **Owner decision pending (§9):** the *timing* recommendation above (fold everything behind the demand
-  gate; sequence behind SPEC-013 Phase C) is the reviewers' call on product sequencing — an **owner
-  decision**, mirroring the SPEC-013 owner override. The engineering design below is written to be correct
-  whenever it is built; only *when* it is built is the open item.
+- **Owner decision — CONFIRMED (2026-07-18, §9/D10):** the owner accepted the reviewers' timing call — fold
+  the whole lane behind the demand gate above and sequence it behind SPEC-013 Phase C. SPEC-014 is a
+  build-ready shelf design; *when* it is built is now settled (on the signal, after Phase C), not open.
 
 ## 0.5 What this is NOT (positioning — REV-039/PS5)
 
@@ -369,8 +368,9 @@ Built as **one lane, only on the §0 signal, only after SPEC-013 Phase C**. Orde
   (no pg dep). The `lifecycleAdapter` owns `_events`/`agent_state`/trigger DDL (TA2).
 - **D9** — the state-change gate covers the **tainted `command` path**, backed by an effect ledger; autonomy
   is a deliberate consent act (SEC2/SEC5/UX5).
-- **D10 (owner decision pending, §0/§9)** — *timing*: fold the whole lane behind the demand gate and sequence
-  behind SPEC-013 Phase C. Reviewers' recommendation; owner to confirm or override.
+- **D10 (owner-confirmed, 2026-07-18)** — *timing*: fold the whole lane behind the demand gate and sequence
+  behind SPEC-013 Phase C. The owner accepted the reviewers' recommendation (not overridden, unlike the
+  SPEC-013 Nango timing call).
 
 ## 9. Review & closure
 
@@ -412,13 +412,14 @@ addresses every finding; the three Rejecting lenses require **re-review** of the
 | **UX6** branching unauditable | **Fixed** — `decision_log` rationale + timeline (§4.7/4.9). |
 | **UX7** route not legible | **Fixed** — route rationale surfaced (§4.9). |
 | **UX8** i18n/a11y | **Fixed** — EN+DE, shape+text, aria (§4.9). |
-| **PS1** Phase A ahead of demand (Blocker) | **Accepted → owner decision (D10)** — Phase A retired; whole lane demand-gated (§0). |
+| **PS1** Phase A ahead of demand (Blocker) | **Accepted (owner-confirmed, D10)** — Phase A retired; whole lane demand-gated (§0). |
 | **PS2** Phase A half-built | **Fixed** — folded into one demand-gated build (§0/§5). |
 | **PS3** "no n8n" mis-sold | **Fixed** — reframed around durable/HITL value; n8n-free is a consequence (banner/§1). |
-| **PS4** ahead of SPEC-013 Phase C | **Accepted → owner decision (D10)** — sequenced behind Phase C (§0). |
+| **PS4** ahead of SPEC-013 Phase C | **Accepted (owner-confirmed, D10)** — sequenced behind Phase C (§0). |
 | **PS5** aggregate reads as an engine | **Fixed** — §0.5 "what this is NOT" + public note; conservative reading. |
 | **PS6** Phase A not minimal | **Fixed** — minimal schema; `resume_token` conditional; substrate = demoed behaviour (§0/§4.2). |
 | **PS7** demand signal undefined | **Fixed** — concrete signal + kill criterion (§0). |
 
-**Status `Revised`.** Open: **re-review by technical-architecture, security-data, and extensibility-dx** to
-confirm the Blockers are closed (the path to `Approved`), and the **owner decision on D10 (timing/sequencing)**.
+**Status `Revised`.** D10 (timing/sequencing) is **owner-confirmed** (2026-07-18): demand-gated + sequenced
+behind SPEC-013 Phase C. The one open item to reach `Approved` is **re-review by technical-architecture,
+security-data, and extensibility-dx** confirming their Blockers are closed on this v0.3.0.

@@ -2,14 +2,14 @@
 id: REV-037
 title: Technical-architecture review of SPEC-014
 type: review
-status: In Review
-version: 1.0.0
+status: Approved
+version: 1.1.0
 author: Claude (Opus 4.8)
 created: 2026-07-18
 updated: 2026-07-18
 reviews: SPEC-014
 lens: technical-architecture
-verdict: Reject
+verdict: Reject → Approve-with-changes (re-reviewed)
 related: [SPEC-014]
 ---
 

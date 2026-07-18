@@ -157,6 +157,18 @@ Real LLM generation/interview needs `KILN_ANTHROPIC_API_KEY=sk-ant-...` in the g
   earlier stay Apache-2.0 (granted rights can't be pulled back). Licensor: Stefan Sonntag. NOTE: AI-drafted, not
   lawyer-reviewed — the SUL spine is battle-tested; risk lives in the two additions. Older Status bullets below
   that say "OSS"/"Apache-2.0 LICENSE" are HISTORICAL (true at v0.1.0), superseded by this.
+- **SPEC-014 (durable agent lifecycle) APPROVED — design/research phase; BUILD GATED, nothing shipped.** The
+  agent *lifecycle* (wake / durable state / HITL) moves off n8n onto **Postgres**; **n8n is RETAINED unchanged
+  as the deterministic workflow engine** (invariant #8) and the SPEC-009 workflow-vs-agent router stays the
+  boundary. Sibling to SPEC-013 (which de-n8n'd agent *auth* via Nango). Five-lens reviewed to closure
+  (REV-037…041; three initial **Rejects** — technical-architecture, security-data, extensibility-dx —
+  re-reviewed clean, all 8 Blockers closed). Owner decisions: **D10** (timing — the whole lane is demand-gated
+  + sequenced behind SPEC-013 Phase C; not "ships now") and **D11** (adopt-don't-build the durable substrate).
+  **RES-004: a DBOS Transact spike VERIFIED with real code** — the solar Offer Reviewer as a workflow
+  (`step → durable sleep → recv approval → step`) survived a hard process crash and resumed **without
+  re-running the completed step** (memoized in Postgres); MIT, embedded, no server, no PG extension. Two sized,
+  non-blocking residuals: SEC10 (out-of-DB effects stay at-least-once → provider idempotency key) and the
+  `runAgent`→DBOS-workflow refactor cost. Build stays gated by a partner demand signal + SPEC-013 Phase C.
 - **AI-review panel → dependency-aware worklist BUILT (presentation-only, no engine change).** The whole-model
   "AI review" (`ReviewPanel` + `autoReview`) no longer shows a flat, equal list — it now reflects the arc's
   dependency order the engine already walked. (1) **Severity sort** — concerns before optional suggestions

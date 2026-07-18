@@ -2,14 +2,14 @@
 id: SPEC-014
 title: Agent Runtime Lifecycle — native wake, durable state & HITL (Postgres), n8n retained for workflows
 type: spec
-status: Draft
+status: In Review
 version: 0.2.0
 author: Claude (Opus 4.8)
 created: 2026-07-18
 updated: 2026-07-18
 supersedes: null
 related: [SPEC-005, SPEC-007, SPEC-008, SPEC-010, SPEC-013, ADR-002]
-reviewers: []
+reviewers: [technical-architecture, security-data, product-strategy, extensibility-dx, ux-hitl]
 ---
 
 # SPEC-014 — Agent Runtime Lifecycle

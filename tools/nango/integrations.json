@@ -1,0 +1,12 @@
+{
+  "_about": "Kiln-managed Nango integration definitions (config-as-code). Secrets are referenced by ENV VAR NAME, never value (invariant #7). `./kiln.sh nango:export` writes this from a live Nango; `./kiln.sh nango:apply` recreates it on whatever NANGO_HOST/NANGO_SECRET_KEY your .env points at. Connections (authorized accounts) are NOT migrated — re-authorize on the target. Edit this file by hand or regenerate it with nango:export. Commit it to git.",
+  "integrations": [
+    {
+      "unique_key": "google-sheets",
+      "provider": "google-sheet",
+      "scopes": "https://www.googleapis.com/auth/spreadsheets",
+      "client_id_env": "NANGO_GOOGLE_SHEETS_CLIENT_ID",
+      "client_secret_env": "NANGO_GOOGLE_SHEETS_CLIENT_SECRET"
+    }
+  ]
+}

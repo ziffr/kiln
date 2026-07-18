@@ -86,6 +86,9 @@ ${B}Connectors — a local Nango${N}   (OPTIONAL convenience; NOT required — s
   ${C}nango:up${N}             Boot a local Nango (OAuth broker) via docker compose + print setup steps.
   ${C}nango:down${N}           Stop it.
   ${C}nango:logs${N} ${DIM}[service]${N}   Tail a local Nango service log (default ${B}nango-server${N}; env-sourced so it just works).
+  ${C}nango:export${N}         Save the configured Nango's integration definitions → ${B}tools/nango/integrations.json${N}.
+  ${C}nango:apply${N}          Recreate those integrations on the configured Nango (secrets from ${B}.env${N} by name).
+                       ${DIM}Migrate Cloud↔self-host: nango:export from one, switch NANGO_HOST/NANGO_SECRET_KEY, nango:apply to the other.${N}
                        Connectors broker agent OAuth through ${B}Nango${N}. Kiln + every exported app reach
                        whichever Nango you set via ${C}NANGO_HOST${N} + ${C}NANGO_SECRET_KEY${N} — three EQUAL options:
                          1) ${B}Nango Cloud${N}      — nothing to run; use its host + secret key.
@@ -290,6 +293,16 @@ case "$cmd" in
     NANGO_SVC="${2:-nango-server}"   # default to the API server; pass another service to override (e.g. nango:logs nango-db)
     say "tailing '$NANGO_SVC' (Ctrl-C to stop; the server line should read 'listening on port 3003')"
     ( set -a; [ -f .env ] && . ./.env; set +a; run docker compose -f "$NANGO_COMPOSE" logs --tail=120 -f "$NANGO_SVC" )
+    ;;
+  nango:export|nango:apply)
+    # Config-as-code for Nango integration DEFINITIONS (the reproducible half of migrating Nango between
+    # Cloud and self-host). Reads/writes tools/nango/integrations.json; secrets stay in .env by name.
+    # Connections (authorized accounts) are NOT migrated — re-authorize on the target. See integrations.mjs.
+    command -v node >/dev/null || die "node not found — needed for nango:export/apply (Node ≥20)."
+    [ -f tools/nango/integrations.mjs ] || die "tools/nango/integrations.mjs not found"
+    NANGO_MODE="${1#nango:}"   # export | apply
+    say "nango:$NANGO_MODE → \$NANGO_HOST (${DIM}from .env${N})"
+    ( set -a; [ -f .env ] && . ./.env; set +a; run node tools/nango/integrations.mjs "$NANGO_MODE" )
     ;;
 
   verify:up)

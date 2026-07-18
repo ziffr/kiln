@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the repository level (see
 [RELEASING.md](RELEASING.md)).
 
+## [0.9.1](https://github.com/ziffr/kiln/compare/v0.9.0...v0.9.1) (2026-07-18)
+
+
+### Documentation
+
+* SPEC-014 durable agent lifecycle — approved spec, five-lens reviews, verified DBOS spike ([#75](https://github.com/ziffr/kiln/issues/75)) ([1e25562](https://github.com/ziffr/kiln/commit/1e25562c8985691a91a43ee0efbc8f172ffb0042))
+
 ## [0.9.0](https://github.com/ziffr/kiln/compare/v0.8.0...v0.9.0) (2026-07-17)
 
 

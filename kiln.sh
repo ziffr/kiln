@@ -85,6 +85,7 @@ ${B}Alternative AI engines${N}   (optional — Anthropic is the default; OpenRou
 ${B}Connectors — a local Nango${N}   (OPTIONAL convenience; NOT required — see below)
   ${C}nango:up${N}             Boot a local Nango (OAuth broker) via docker compose + print setup steps.
   ${C}nango:down${N}           Stop it.
+  ${C}nango:logs${N} ${DIM}[service]${N}   Tail a local Nango service log (default ${B}nango-server${N}; env-sourced so it just works).
                        Connectors broker agent OAuth through ${B}Nango${N}. Kiln + every exported app reach
                        whichever Nango you set via ${C}NANGO_HOST${N} + ${C}NANGO_SECRET_KEY${N} — three EQUAL options:
                          1) ${B}Nango Cloud${N}      — nothing to run; use its host + secret key.
@@ -260,6 +261,16 @@ case "$cmd" in
     say "stopping the local Nango"
     ( set -a; [ -f .env ] && . ./.env; set +a; run docker compose -f "$NANGO_COMPOSE" down )
     ok "Nango stopped (volumes kept — ./kiln.sh nango:down does not delete connections; add 'docker compose -f $NANGO_COMPOSE down -v' to wipe them)"
+    ;;
+  nango:logs)
+    # A raw `docker compose -f tools/nango/docker-compose.yml logs` looks for .env in tools/nango/ (the
+    # compose file's dir), NOT the repo root where nango:up wrote NANGO_ENCRYPTION_KEY — so interpolation
+    # fails with "required variable NANGO_ENCRYPTION_KEY is missing". Source .env first, like up/down do.
+    NANGO_COMPOSE="tools/nango/docker-compose.yml"
+    [ -f "$NANGO_COMPOSE" ] || die "$NANGO_COMPOSE not found"
+    NANGO_SVC="${2:-nango-server}"   # default to the API server; pass another service to override (e.g. nango:logs nango-db)
+    say "tailing '$NANGO_SVC' (Ctrl-C to stop; the server line should read 'listening on port 3003')"
+    ( set -a; [ -f .env ] && . ./.env; set +a; run docker compose -f "$NANGO_COMPOSE" logs --tail=120 -f "$NANGO_SVC" )
     ;;
 
   verify:up)

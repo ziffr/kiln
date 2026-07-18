@@ -3,7 +3,7 @@ id: SPEC-014
 title: Agent Runtime Lifecycle — native wake, durable state & HITL (Postgres), n8n retained for workflows
 type: spec
 status: Draft
-version: 0.1.0
+version: 0.2.0
 author: Claude (Opus 4.8)
 created: 2026-07-18
 updated: 2026-07-18
@@ -150,22 +150,26 @@ does not block a thread):
 
 - `wait_until(timestamp)` → `status = sleeping`, `wake_at = t`. Resumed by the timer source (§4.4).
 - `wait_for(event)` → `status = waiting_event`, `wake_on_event = e`. Resumed by the event source (§4.4).
-- `request_approval(question, options)` → `status = waiting_human`, mints a `resume_token`; the human's
-  answer (a `notify` reply, or an approval endpoint) resumes with the decision in `working_memory`.
+- `request_approval(question, options)` → `status = waiting_human`, mints a `resume_token`; the human is
+  reached over **SPEC-013's existing `notify` channel** (email/Slack — no new HITL surface, D7), and
+  their reply resumes the run with the decision in `working_memory`.
 
 `request_approval` is the **durable form of SPEC-013 §4.7 SEC4**: instead of blocking one live run for a
 confirmation, the agent *suspends*, freeing the runtime, and resumes when the human answers — the same
 consent semantics, now survivable across restarts and long waits. The write/send/delete invocation gate
 from SPEC-013 is unchanged and composes with this.
 
-### 4.4 Wake sources — a swappable axis (mirrors SPEC-013 §4.4)
-A single binding dimension, `agentWake`, chosen per deployment. **Default = `postgres`; no n8n.**
+### 4.4 Wake sources — auto-picked, not a user knob (D6)
+Three wake sources exist, but Kiln **chooses one on the owner's behalf** from the deployment shape —
+it is **not** a binding dimension the user configures. **Default = `postgres` (full-stack) /
+`in-process` (SQLite); `n8n` only if the owner deliberately opts in. No n8n on the default path.**
 
 - **`postgres` (default, full-stack).** Timers = **pg_cron** scanning `agent_state.wake_at`
   (or a `wake_jobs` table) and re-invoking due runs. Event-wake = the `_events` `NOTIFY` → a `LISTEN`
-  loop in the agent runtime resuming `waiting_event` runs. External signals = the agent runtime's **own
-  ingress** (`POST /webhook/<path>`, or a spine route) mapping a `TriggersDoc` webhook straight to
-  `runAgent` — replacing the n8n webhook→HTTP-node→`/run` hop.
+  loop in the agent runtime resuming `waiting_event` runs. External signals arrive at a **spine route**
+  (`POST /webhook/<path>`, D5 — the spine is already the app's front door and carries the bearer-auth
+  gate) mapping a `TriggersDoc` webhook straight to `runAgent` — replacing the n8n
+  webhook→HTTP-node→`/run` hop.
 - **`in-process` (SQLite single-container, degraded).** pg_cron/`NOTIFY` do not exist on SQLite. Fall
   back to the **existing** `app.ts` depth-guarded recursive reaction loop for event-wake; timers become a
   best-effort in-memory `setInterval` scan of `agent_state` (does **not** survive a restart — documented
@@ -258,7 +262,7 @@ SPEC-013 TC4). **AL4** a process marked determinism-critical routed to agent-mod
 - **Observability.** The `_events` outbox + `agent_state.step_log` are the audit trail replacing n8n's
   visual run log for the agent lane.
 
-## 8. Decisions (proposed — to confirm in review)
+## 8. Decisions
 - **D1 — default wake source `postgres` (full-stack), `in-process` (SQLite), `n8n` optional.** Mirrors
   SPEC-013's zero-n8n default with an opt-in n8n path for those who have it.
 - **D2 — n8n is retained, unchanged, as the workflow engine.** This spec adds an agent lane; it does not
@@ -266,12 +270,23 @@ SPEC-013 TC4). **AL4** a process marked determinism-critical routed to agent-mod
 - **D3 — no exactly-once for agents; determinism-critical work is routed to workflow-mode.** The
   SPEC-009 router is the boundary (§4.6); accepted trade, not a gap to close.
 - **D4 — durability lives in the table, not in NOTIFY** (§4.4).
+- **D5 — the native external-signal ingress lives in the spine** (owner decision), reusing its existing
+  bearer-auth gate rather than opening a second public surface on the agents runtime (§4.4).
+- **D6 — the wake source is auto-picked by Kiln, not a user-facing binding dimension** (owner decision).
+  The deployment shape selects it (`postgres`/`in-process`); `n8n` is a deliberate opt-in only (§4.4).
+- **D7 — `request_approval` reuses SPEC-013's `notify` channel for the human round-trip** (owner
+  decision) — one HITL path, no dedicated approval endpoint/token surface to secure (§4.3).
 
 ## 9. Review & closure
 
 Draft. Multi-lens review (technical-architecture, security-data, product-strategy, extensibility-dx,
-ux-hitl — the SPEC-013 panel) not yet run; status stays `Draft` pending it. Open questions for the
-reviewers: (a) is `agentWake` a genuine binding dimension (SPEC-012) or a fixed default with an opt-in
-n8n adapter? (b) should the native ingress live in the spine (one HTTP surface) or the agents runtime
-(keeps agent concerns together)? (c) does `request_approval` reuse the SPEC-013 `notify`/connector
-surface for the human round-trip, or a dedicated approval endpoint?
+ux-hitl — the SPEC-013 panel) not yet run; status stays `Draft` pending it.
+
+**Owner decisions resolving the initial open questions (2026-07-18):**
+- **D6** — the wake source is a Kiln-chosen default, **not** a user-facing binding dimension. Auto-pick
+  by deployment shape; n8n is opt-in only.
+- **D5** — the native external-signal ingress lives in the **spine**, reusing its bearer-auth gate.
+- **D7** — `request_approval` **reuses SPEC-013's `notify` channel** for the human round-trip; no new
+  approval surface.
+
+No open questions remain for the author; the doc is ready for the review panel.

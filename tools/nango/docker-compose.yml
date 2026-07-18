@@ -39,6 +39,12 @@ services:
 
   nango-server:
     image: nangohq/nango-server:hosted
+    # nangohq/nango-server is published amd64-only, so on Apple Silicon (arm64) Docker warns
+    # "platform (linux/amd64) does not match the detected host platform (linux/arm64/v8)". Pinning
+    # the platform makes Docker deterministically pull the amd64 image and run it under emulation
+    # (Rosetta) — no warning, reproducible. It is a no-op on Intel/Linux amd64 hosts. Only this
+    # service needs it; nango-db/redis/elasticsearch are genuine multi-arch and stay native.
+    platform: linux/amd64
     depends_on:
       nango-db:
         condition: service_healthy

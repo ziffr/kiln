@@ -243,9 +243,10 @@ case "$cmd" in
     fi
     say "booting a local Nango (Postgres + Redis + nango-server) — first run pulls images"
     ( set -a; [ -f .env ] && . ./.env; set +a; run docker compose -f "$NANGO_COMPOSE" up -d )
-    ok "Nango up → API http://localhost:3003 · dashboard/Connect UI http://localhost:3009"
+    ok "Nango up → API + dashboard http://localhost:3003 · Connect UI http://localhost:3009"
     say "Next steps (one-time):"
-    printf "  1. Open the dashboard ${B}http://localhost:3009${N} (login: NANGO_DASHBOARD_USERNAME/PASSWORD, default admin/admin).\n"
+    printf "  1. Open the ${B}dashboard${N} at ${B}http://localhost:3003${N} (login: NANGO_DASHBOARD_USERNAME/PASSWORD, default admin/admin).\n"
+    printf "     ${DIM}(:3009 is the Connect UI — the OAuth popup Studio/an app launches WITH a session token; visiting it directly just shows an empty loading skeleton, that's expected.)${N}\n"
     printf "  2. Create a ${B}Google Sheets${N} integration (add your Google OAuth client id/secret + scopes).\n"
     printf "  3. Copy the environment's ${B}Secret Key${N} from Settings, then add to your ${B}.env${N}:\n"
     printf "       ${C}NANGO_SECRET_KEY=<secret key from the dashboard>${N}\n"

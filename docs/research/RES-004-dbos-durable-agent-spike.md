@@ -3,7 +3,7 @@ id: RES-004
 title: DBOS Transact spike — durable long-lived agent state, scheduling & HITL, verified with real code
 type: research
 status: Draft
-version: 0.1.0
+version: 0.2.0
 author: Claude (Opus 4.8)
 created: 2026-07-18
 updated: 2026-07-18
@@ -142,6 +142,48 @@ request_approval, working, durably, on stock Postgres.
    self-provisions its `dbos.*` schema. Fits Kiln's MIT-stamped generated output and the `postgres`
    `WakeSourceAdapter` source. (Not usable for the SQLite single-container / zero-dep `generateApp` path —
    that keeps the hand-rolled `in-process` degraded source, per the seam.)
+
+## 6.1 The determinism model — why a probabilistic agent still replays deterministically
+
+Caveat 6.1 ("deterministic loop body") reads like a paradox: how can a *probabilistic* agent produce a
+*deterministic* sequence of steps? It resolves once you see **where** the non-determinism is allowed to
+live. Durable execution does not forbid randomness — it **quarantines it inside steps and freezes it at
+first execution.**
+
+- **Steps may be non-deterministic.** The LLM call and each tool call are steps. When a step first runs,
+  DBOS **records its output** (`operation_outputs`). The probabilistic event happens **exactly once**.
+- **The body must be deterministic *with respect to the recorded step outputs*** — given the same recorded
+  results, it walks the same path. On replay the body re-runs, but every step it reaches is already
+  recorded, so DBOS **returns the frozen result instead of re-executing** — the LLM is never re-sampled.
+
+**Dice analogy:** it is a dice game where you write down every roll. Replaying from your notes is
+deterministic — not because the dice stopped being random, but because you **read the recorded rolls
+instead of re-rolling.** The agent is the dice; the step ledger is the notes.
+
+**The LLM-driven-branch case (the crux).** Suppose the agent reasons "lead qualifies → issue Offer" (vs
+Nurture). That decision is the output of an LLM *step*:
+- *First run:* LLM step → "qualifies" (**recorded**) → body takes the Offer branch → `issueOffer` step runs
+  (**recorded**).
+- *Crash + replay:* body re-runs → reaches the LLM step → gets the **memoized** "qualifies" (no re-sampling)
+  → takes the **same** branch → reaches `issueOffer` → memoized → done.
+
+So the conclusion was probabilistic **once**; thereafter it is a recorded fact, and replay reproduces the
+**one real path taken**, never a fresh gamble. There is no "probabilistically writing a deterministic
+sequence" — there is one actual sequence, frozen, then faithfully re-read.
+
+**What the constraint actually forbids** is narrow: no *un-recorded* non-determinism in the body. The LLM
+call, tool calls, `Date.now()`, `Math.random()`, file/network reads must each sit **inside a step** so their
+result is captured. Sampling the LLM in the raw body would let replay re-sample and possibly take a
+*different* branch than the one already half-executed — corrupting the durable state. That single hazard is
+exactly what "each LLM/tool call = a step" prevents. It is **not** a demand that the agent decide
+predictably.
+
+**The honest edge:** durable replay faithfully resumes the *same* run — it is deliberately **not**
+re-reasoning. If you *want* the agent to re-decide on resume (re-plan because days passed and the world
+changed), that is an explicit design choice — a *new* step or a fresh workflow — not something replay does
+behind your back. "Resume where I left off" and "reconsider from scratch" stay separate intentions, which is
+the behaviour you want. (This model is general to durable execution — Temporal/LangGraph checkpointers work
+the same way — not DBOS-specific.)
 
 ## 7. Verdict & recommendation
 

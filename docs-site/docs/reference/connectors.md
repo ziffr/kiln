@@ -6,8 +6,16 @@ title: Agent tool connectors
 # Agent tool connectors
 
 An agent Kiln generates can be **granted a connector** — a typed tool that lets it operate a real
-external system. The first connector is the **Spreadsheet** connector (Google Sheets): a granted
-agent can read a range, list rows, append a row, or update a cell in a live spreadsheet.
+external system. Two connectors ship today:
+
+- **Spreadsheet** (Google Sheets) — `read_range`, `list_rows`, `append_row`, `update_cell`.
+- **Email** (Gmail) — `search` the inbox, `read_message`, and `send`. `send` is a **mutating** op, so it
+  is **gated by default**: an agent that reads an inbox *and* can send is a prime prompt-injection target,
+  so the runtime routes every send for human approval unless the grant is explicitly marked *autonomous*.
+  Scopes: `gmail.readonly` (search/read) and `gmail.send`.
+
+Both are added the identical way — **one registered `ConnectorAdapter` file, no core changes** — so the
+catalog grows connector by connector (Calendar, CRM, … next).
 
 Authority is always the human's call. A model may *suggest* a connector, but only a person *grants*
 it, and connecting a **live account** is a separate, deliberate step. Kiln never holds your OAuth

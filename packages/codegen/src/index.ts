@@ -443,5 +443,5 @@ export {
 } from "./targets.ts";
 export { registerDeployTarget, getDeployTarget, registeredDeployTargets, type DeployTarget, type DeployContext, type DeployOutput } from "./deploy/index.ts";
 // SPEC-013 connector plugin seam: the registry API + the adapter contract (add a connector by registering it).
-export { registerConnector, getConnectorAdapter, registeredConnectors, SPREADSHEET_TOOL, spreadsheetConnector, type ConnectorAdapter, type ConnectorCtx } from "./connectors/index.ts";
+export { registerConnector, getConnectorAdapter, registeredConnectors, SPREADSHEET_TOOL, spreadsheetConnector, EMAIL_TOOL, emailConnector, type ConnectorAdapter, type ConnectorCtx } from "./connectors/index.ts";
 export { resolveConnectorAuth, runConnector, connectorAuditEntry, requiresConfirmation, GATED_KINDS, mintConnectSession, listConnections, type ConnectorAuth, type ConnectorOp, type ConnectorAuditEntry, type ConnectorInvoke, type ConnectSession } from "./connectorRuntime.ts";

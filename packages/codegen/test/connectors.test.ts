@@ -11,6 +11,8 @@ import {
   registeredConnectors,
   mintConnectSession,
   listConnections,
+  EMAIL_TOOL,
+  emailConnector,
   type ConnectorAdapter,
   type AgentTool,
 } from "../src/index.ts";
@@ -118,6 +120,21 @@ test("a connector tool carries no destination in the exported definition (grant-
   const def = files["agents/definitions/lead_agent.json"];
   assert.match(def, /spreadsheet_append_row/);
   assert.doesNotMatch(def, /https?:\/\//); // no url/host baked into the model
+});
+
+test("the Email (Gmail) connector is registered as ONE file — search/read_message/send, gated send", () => {
+  // Registered by the connectors barrel (side-effect import) — no core-dispatch edits, the SPEC-013 seam.
+  assert.equal(getConnectorAdapter("email"), emailConnector);
+  const ids = registeredConnectors().map((c) => c.toolDef.id);
+  assert.ok(ids.includes("email") && ids.includes("spreadsheet"), `catalog: ${ids.join(", ")}`);
+  assert.deepEqual(ids, [...ids].sort(), "deterministic order");
+  assert.deepEqual(EMAIL_TOOL.operations.map((o) => `${o.name}:${o.kind}`), ["search:read", "read_message:read", "send:send"]);
+  // `send` is a mutating kind → gated at runtime (reading an inbox then sending is the injection risk).
+  assert.equal(EMAIL_TOOL.operations.find((o) => o.name === "send")!.kind, "send");
+  // The send glue hits Gmail's send endpoint (destination lives in the adapter code)…
+  assert.match(emailConnector.emitNango("send", {} as never).runtime, /messages\/send/);
+  // …and the grant-surface ToolDef carries NO API destination (TC6) — only OAuth scope URLs are allowed.
+  assert.doesNotMatch(JSON.stringify(EMAIL_TOOL), /gmail\.googleapis\.com/);
 });
 
 // ── Phase B3: the export's self-sufficient connect broker + the generated Connect panel ──────────────

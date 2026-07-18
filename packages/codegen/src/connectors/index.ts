@@ -16,9 +16,13 @@
 // Phase B1: the built-in Spreadsheet (Google Sheets) connector registers itself on import (side effect),
 // exactly like the engines do. Importing this module is what makes it discoverable to the exporter.
 import "./spreadsheet.ts";
+// The Email (Gmail) connector — the second worked example of the seam (one new file + this import line).
+import "./email.ts";
 
 // Re-export the registry API + the contract types (the public seam).
 export { registerConnector, getConnectorAdapter, registeredConnectors } from "./registry.ts";
 export type { ConnectorAdapter, ConnectorCtx } from "./registry.ts";
 // The Spreadsheet connector's grant surface + adapter (Phase B1), for callers that seed the catalog.
 export { SPREADSHEET_TOOL, spreadsheetConnector } from "./spreadsheet.ts";
+// The Email (Gmail) connector's grant surface + adapter, for callers that seed the catalog.
+export { EMAIL_TOOL, emailConnector } from "./email.ts";

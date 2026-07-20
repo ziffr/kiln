@@ -9,7 +9,7 @@
     "preview": "vite preview --port 5188"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.111.0",
+    "@anthropic-ai/sdk": "^0.112.3",
     "@kiln/codegen": "*",
     "@kiln/compiler": "*",
     "@kiln/eval": "*",
